@@ -11,9 +11,9 @@ def test_create_deal(client):
         "vehicle_year": 2022,
         "vehicle_mileage": 15000,
         "asking_price": 25000.00,
-        "status": "pending"
+        "status": "pending",
     }
-    
+
     response = client.post("/api/v1/deals/", json=deal_data)
     assert response.status_code == 201
     data = response.json()
@@ -41,13 +41,13 @@ def test_get_deal(client):
         "vehicle_year": 2021,
         "vehicle_mileage": 20000,
         "asking_price": 23000.00,
-        "status": "pending"
+        "status": "pending",
     }
-    
+
     create_response = client.post("/api/v1/deals/", json=deal_data)
     assert create_response.status_code == 201
     deal_id = create_response.json()["id"]
-    
+
     # Now get the deal
     response = client.get(f"/api/v1/deals/{deal_id}")
     assert response.status_code == 200

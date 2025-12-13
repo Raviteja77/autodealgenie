@@ -1,5 +1,5 @@
 """Models package initialization"""
 
-from app.models.models import Deal, User, DealStatus
+from app.models.models import Deal, DealStatus, User
 
 __all__ = ["Deal", "User", "DealStatus"]

@@ -3,14 +3,14 @@
 from app.schemas.schemas import (
     DealBase,
     DealCreate,
-    DealUpdate,
     DealResponse,
     DealStatus,
+    DealUpdate,
+    HealthCheck,
     UserBase,
     UserCreate,
-    UserUpdate,
     UserResponse,
-    HealthCheck,
+    UserUpdate,
 )
 
 __all__ = [

@@ -1,13 +1,14 @@
 """
 Deal endpoints
 """
-from typing import List
+
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.schemas import DealCreate, DealUpdate, DealResponse
 from app.repositories.deal_repository import DealRepository
+from app.schemas.schemas import DealCreate, DealResponse, DealUpdate
 
 router = APIRouter()
 
@@ -20,7 +21,7 @@ def create_deal(deal_in: DealCreate, db: Session = Depends(get_db)):
     return deal
 
 
-@router.get("/", response_model=List[DealResponse])
+@router.get("/", response_model=list[DealResponse])
 def get_deals(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """Get all deals with pagination"""
     repository = DealRepository(db)
@@ -35,8 +36,7 @@ def get_deal(deal_id: int, db: Session = Depends(get_db)):
     deal = repository.get(deal_id)
     if not deal:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Deal with id {deal_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Deal with id {deal_id} not found"
         )
     return deal
 
@@ -48,8 +48,7 @@ def update_deal(deal_id: int, deal_in: DealUpdate, db: Session = Depends(get_db)
     deal = repository.update(deal_id, deal_in)
     if not deal:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Deal with id {deal_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Deal with id {deal_id} not found"
         )
     return deal
 
@@ -61,7 +60,6 @@ def delete_deal(deal_id: int, db: Session = Depends(get_db)):
     deleted = repository.delete(deal_id)
     if not deleted:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Deal with id {deal_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Deal with id {deal_id} not found"
         )
     return None

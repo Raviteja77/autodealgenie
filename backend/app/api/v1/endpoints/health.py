@@ -1,8 +1,10 @@
 """
 Health check endpoint
 """
-from fastapi import APIRouter
+
 from datetime import datetime
+
+from fastapi import APIRouter
 
 from app.schemas.schemas import HealthCheck
 
