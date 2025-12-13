@@ -2,7 +2,6 @@
 Core configuration settings for AutoDealGenie
 """
 
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -54,6 +53,9 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4"
+
+    # MarketCheck API
+    MARKET_CHECK_API_KEY: str | None = None
 
     # Security
     SECRET_KEY: str = ""  # REQUIRED: Must be set via environment variable (min 32 chars)

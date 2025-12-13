@@ -19,12 +19,12 @@ export default function Home() {
 
         <div className="grid md:grid-cols-3 gap-8 mb-16">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">🚗</div>
+            <div className="text-4xl mb-4">🔍</div>
             <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
-              Deal Management
+              AI Car Search
             </h3>
             <p className="text-gray-600 dark:text-gray-300">
-              Track and manage automotive deals with ease. Complete visibility from inquiry to close.
+              Search thousands of vehicles with MarketCheck API and get AI-powered recommendations for the best matches.
             </p>
           </div>
 
@@ -34,7 +34,7 @@ export default function Home() {
               AI-Powered Insights
             </h3>
             <p className="text-gray-600 dark:text-gray-300">
-              Leverage OpenAI and LangChain for intelligent pricing analysis and customer responses.
+              Leverage OpenAI and LangChain to analyze vehicles and select the top 5 that match your criteria.
             </p>
           </div>
 
@@ -49,10 +49,16 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="text-center">
+        <div className="text-center space-x-4">
+          <Link
+            href="/search"
+            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg transition-colors shadow-lg"
+          >
+            Search Cars
+          </Link>
           <Link
             href="/deals"
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg transition-colors shadow-lg"
+            className="inline-block bg-gray-600 hover:bg-gray-700 text-white font-semibold px-8 py-3 rounded-lg transition-colors shadow-lg"
           >
             View Deals
           </Link>
