@@ -48,7 +48,7 @@ export default function CarSearchPage() {
     }
   };
 
-  const updateParam = (key: keyof CarSearchRequest, value: any) => {
+  const updateParam = (key: keyof CarSearchRequest, value: string | number | undefined) => {
     setSearchParams((prev) => ({ ...prev, [key]: value }));
   };
 

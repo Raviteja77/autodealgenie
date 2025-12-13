@@ -71,6 +71,8 @@ class MarketCheckAPIClient:
             params["max_price"] = max_price
         if min_year:
             params["year"] = f"{min_year}-{max_year}" if max_year else str(min_year)
+        elif max_year:
+            params["year"] = str(max_year)
         if max_mileage:
             params["miles"] = f"0-{max_mileage}"
 
@@ -96,10 +98,8 @@ class MarketCheckAPIClient:
         Returns:
             Parsed listing with relevant fields
         """
-        # Extract photo links
-        photo_links = []
-        if listing.get("media") and listing["media"].get("photo_links"):
-            photo_links = listing["media"]["photo_links"][:10]  # Limit to 10 photos
+        # Extract photo links safely
+        photo_links = listing.get("media", {}).get("photo_links", [])[:10]
 
         return {
             "vin": listing.get("vin"),

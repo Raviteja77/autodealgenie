@@ -45,7 +45,6 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
         else:
             self.llm = ChatOpenAI(
                 model=settings.OPENAI_MODEL,
-                openai_api_key=settings.OPENAI_API_KEY,
                 temperature=0.3,  # Lower temperature for more consistent recommendations
             )
 
@@ -195,23 +194,33 @@ Provide a JSON response with EXACTLY this structure:
 Select exactly 5 vehicles and rank them by score (highest first). Be specific with highlights and summaries."""
 
         try:
-            messages = [SystemMessage(content=self.SYSTEM_PROMPT), HumanMessage(content=prompt)]
+            messages = [
+                SystemMessage(content=self.SYSTEM_PROMPT),
+                HumanMessage(content=prompt),
+            ]
 
             response = await self.llm.ainvoke(messages)
             llm_output = response.content
 
-            # Parse LLM response
-            # Try to extract JSON from the response
+            # Parse LLM response - extract JSON from markdown code blocks
             if "```json" in llm_output:
                 json_start = llm_output.find("```json") + 7
                 json_end = llm_output.find("```", json_start)
-                llm_output = llm_output[json_start:json_end].strip()
+                if json_end != -1:
+                    llm_output = llm_output[json_start:json_end].strip()
             elif "```" in llm_output:
                 json_start = llm_output.find("```") + 3
                 json_end = llm_output.find("```", json_start)
-                llm_output = llm_output[json_start:json_end].strip()
+                if json_end != -1:
+                    llm_output = llm_output[json_start:json_end].strip()
 
-            recommendations_data = json.loads(llm_output)
+            try:
+                recommendations_data = json.loads(llm_output)
+            except json.JSONDecodeError as parse_error:
+                print(f"Failed to parse LLM JSON response: {parse_error}")
+                print(f"LLM output: {llm_output}")
+                return self._fallback_recommendations(listings)
+
             recommendations = recommendations_data.get("recommendations", [])
 
             # Build final output with full vehicle data
