@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # PostgreSQL
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_USER: str = "autodealgenie"
-    POSTGRES_PASSWORD: str = "autodealgenie"
+    POSTGRES_PASSWORD: str = ""  # REQUIRED: Must be set via environment variable
     POSTGRES_DB: str = "autodealgenie"
     POSTGRES_PORT: int = 5432
 
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4"
 
     # Security
-    SECRET_KEY: str = "your-secret-key-here-change-in-production"
+    SECRET_KEY: str = ""  # REQUIRED: Must be set via environment variable (min 32 chars)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
