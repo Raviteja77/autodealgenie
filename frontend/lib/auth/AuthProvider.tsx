@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 /**
  * User interface matching backend UserResponse schema
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Fetch current user from the backend
    */
-  const fetchCurrentUser = async () => {
+  const fetchCurrentUser = useCallback(async () => {
     try {
       const response = await fetch(`${baseUrl}/api/v1/auth/me`, {
         credentials: 'include', // Include cookies
@@ -60,12 +60,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [baseUrl]);
 
   /**
    * Login function
    */
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
       method: 'POST',
       headers: {
@@ -82,12 +82,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // After successful login, fetch user data
     await fetchCurrentUser();
-  };
+  }, [baseUrl, fetchCurrentUser]);
 
   /**
    * Signup function
    */
-  const signup = async (
+  const signup = useCallback(async (
     email: string,
     username: string,
     password: string,
@@ -114,12 +114,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // After successful signup, automatically log in
     await login(email, password);
-  };
+  }, [baseUrl, login]);
 
   /**
    * Logout function
    */
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await fetch(`${baseUrl}/api/v1/auth/logout`, {
         method: 'POST',
@@ -130,19 +130,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null);
     }
-  };
+  }, [baseUrl]);
 
   /**
    * Refresh authentication by fetching current user
    */
-  const refreshAuth = async () => {
+  const refreshAuth = useCallback(async () => {
     await fetchCurrentUser();
-  };
+  }, [fetchCurrentUser]);
 
   // Check authentication status on mount
   useEffect(() => {
     fetchCurrentUser();
-  }, []);
+  }, [fetchCurrentUser]);
 
   return (
     <AuthContext.Provider

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.db.session import get_db
 from app.models.models import User
@@ -73,7 +74,7 @@ def login(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=True,  # Set to True in production with HTTPS
+        secure=settings.COOKIE_SECURE,  # Use secure cookies in production
         samesite="lax",
         max_age=1800,  # 30 minutes
     )
@@ -81,7 +82,7 @@ def login(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,
+        secure=settings.COOKIE_SECURE,
         samesite="lax",
         max_age=604800,  # 7 days
     )
@@ -142,7 +143,7 @@ def refresh(
         key="access_token",
         value=new_access_token,
         httponly=True,
-        secure=True,
+        secure=settings.COOKIE_SECURE,
         samesite="lax",
         max_age=1800,
     )
@@ -150,7 +151,7 @@ def refresh(
         key="refresh_token",
         value=new_refresh_token,
         httponly=True,
-        secure=True,
+        secure=settings.COOKIE_SECURE,
         samesite="lax",
         max_age=604800,
     )

@@ -11,7 +11,7 @@ from app.models.models import User
 from app.repositories.user_repository import UserRepository
 
 
-async def get_current_user(
+def get_current_user(
     access_token: str | None = Cookie(default=None),
     db: Session = Depends(get_db)
 ) -> User:
