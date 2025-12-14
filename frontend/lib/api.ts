@@ -6,6 +6,7 @@
 import {
   createErrorFromResponse,
   NetworkError,
+  isApiError,
 } from './errors';
 
 // TypeScript type definitions matching backend schemas
@@ -133,15 +134,8 @@ class ApiClient {
 
       return response.json();
     } catch (error) {
-      // Re-throw if it's already a structured API error
-      if (error instanceof Error && 
-          (error.constructor.name === 'ApiError' || 
-           error.constructor.name === 'AuthenticationError' ||
-           error.constructor.name === 'AuthorizationError' ||
-           error.constructor.name === 'NotFoundError' ||
-           error.constructor.name === 'ValidationError' ||
-           error.constructor.name === 'ServerError' ||
-           error.constructor.name === 'NetworkError')) {
+      // Re-throw if it's already a structured API error (use type guard)
+      if (isApiError(error)) {
         throw error;
       }
       
