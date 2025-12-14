@@ -7,7 +7,6 @@ import {
   Container,
   Paper,
   TextField,
-  Button,
   Typography,
   Link as MuiLink,
   Alert,
@@ -17,6 +16,7 @@ import {
 import { Visibility, VisibilityOff, Email, Lock } from "@mui/icons-material";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
+import { Button } from "@/components";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -128,8 +128,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               fullWidth
-              variant="contained"
-              size="large"
+              variant="success"
               disabled={loading}
               sx={{ mt: 3, mb: 2 }}
             >
