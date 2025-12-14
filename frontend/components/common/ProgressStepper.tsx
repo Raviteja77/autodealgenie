@@ -1,0 +1,97 @@
+"use client";
+
+import { Stepper, Step, StepLabel, Box, StepConnector, styled } from "@mui/material";
+import { Check } from "@mui/icons-material";
+import { StepIconProps } from "@mui/material/StepIcon";
+
+interface ProgressStepperProps {
+  activeStep: number;
+  steps: string[];
+}
+
+const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
+  alternativeLabel: {
+    top: 22,
+  },
+  active: {
+    "& .MuiStepConnector-line": {
+      backgroundImage:
+        "linear-gradient( 95deg,rgb(37,99,235) 0%,rgb(59,130,246) 50%,rgb(96,165,250) 100%)",
+    },
+  },
+  completed: {
+    "& .MuiStepConnector-line": {
+      backgroundImage:
+        "linear-gradient( 95deg,rgb(37,99,235) 0%,rgb(59,130,246) 50%,rgb(96,165,250) 100%)",
+    },
+  },
+  line: {
+    height: 3,
+    border: 0,
+    backgroundColor:
+      theme.palette.mode === "dark" ? theme.palette.grey[800] : "#eaeaf0",
+    borderRadius: 1,
+  },
+}));
+
+const ColorlibStepIconRoot = styled("div")<{
+  ownerState: { completed?: boolean; active?: boolean };
+}>(({ theme, ownerState }) => ({
+  backgroundColor:
+    theme.palette.mode === "dark" ? theme.palette.grey[700] : "#ccc",
+  zIndex: 1,
+  color: "#fff",
+  width: 50,
+  height: 50,
+  display: "flex",
+  borderRadius: "50%",
+  justifyContent: "center",
+  alignItems: "center",
+  ...(ownerState.active && {
+    backgroundImage:
+      "linear-gradient( 136deg, rgb(37,99,235) 0%, rgb(59,130,246) 50%, rgb(96,165,250) 100%)",
+    boxShadow: "0 4px 10px 0 rgba(0,0,0,.25)",
+  }),
+  ...(ownerState.completed && {
+    backgroundImage:
+      "linear-gradient( 136deg, rgb(37,99,235) 0%, rgb(59,130,246) 50%, rgb(96,165,250) 100%)",
+  }),
+}));
+
+function ColorlibStepIcon(props: StepIconProps) {
+  const { active, completed, className } = props;
+
+  return (
+    <ColorlibStepIconRoot
+      ownerState={{ completed, active }}
+      className={className}
+    >
+      {completed ? (
+        <Check sx={{ fontSize: 24 }} />
+      ) : (
+        <Box sx={{ fontSize: 20, fontWeight: "bold" }}>{String(props.icon)}</Box>
+      )}
+    </ColorlibStepIconRoot>
+  );
+}
+
+export default function ProgressStepper({
+  activeStep,
+  steps,
+}: ProgressStepperProps) {
+  return (
+    <Box sx={{ width: "100%", mb: 4 }}>
+      <Stepper
+        alternativeLabel
+        activeStep={activeStep}
+        connector={<ColorlibConnector />}
+      >
+        {steps.map((label) => (
+          <Step key={label}>
+            <StepLabel StepIconComponent={ColorlibStepIcon}>{label}</StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+    </Box>
+  );
+}
