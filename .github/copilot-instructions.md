@@ -136,16 +136,14 @@ frontend/
 ## Important Notes
 
 ### Coverage Exclusions
-The following files are excluded from test coverage:
-- `app/db/mongodb.py`
-- `app/db/redis.py`
-- `app/services/kafka_consumer.py`
-- `app/services/kafka_producer.py`
-- `app/services/langchain_service.py`
-- `app/services/car_recommendation_service.py`
-- `app/tools/marketcheck_client.py`
-
-These are typically integration components or external service clients.
+The following files are excluded from test coverage (as they require external service dependencies and are better suited for integration tests):
+- `app/db/mongodb.py` - MongoDB connection handling
+- `app/db/redis.py` - Redis cache integration
+- `app/services/kafka_consumer.py` - Kafka message consumption
+- `app/services/kafka_producer.py` - Kafka message production
+- `app/services/langchain_service.py` - LangChain AI integration
+- `app/services/car_recommendation_service.py` - AI-powered recommendation engine
+- `app/tools/marketcheck_client.py` - External automotive market API client
 
 ### Dependencies
 - Minimize new dependencies
