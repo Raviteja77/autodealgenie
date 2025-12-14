@@ -16,7 +16,8 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "AutoDealGenie - AI-Powered Automotive Deal Management",
-  description: "Streamline your automotive deals with AI technology, real-time analytics, and intelligent automation.",
+  description:
+    "Streamline your automotive deals with AI technology, real-time analytics, and intelligent automation.",
 };
 
 export default function RootLayout({
@@ -29,9 +30,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

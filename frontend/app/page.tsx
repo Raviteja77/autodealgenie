@@ -12,7 +12,7 @@ export default function Home() {
             AI-Powered Automotive Deal Management Platform
           </p>
           <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
-            Streamline your automotive deals with cutting-edge AI technology, 
+            Streamline your automotive deals with cutting-edge AI technology,
             real-time analytics, and intelligent automation.
           </p>
         </div>
@@ -24,7 +24,8 @@ export default function Home() {
               AI Car Search
             </h3>
             <p className="text-gray-600 dark:text-gray-300">
-              Search thousands of vehicles with MarketCheck API and get AI-powered recommendations for the best matches.
+              Search thousands of vehicles with MarketCheck API and get
+              AI-powered recommendations for the best matches.
             </p>
           </div>
 
@@ -34,7 +35,8 @@ export default function Home() {
               AI-Powered Insights
             </h3>
             <p className="text-gray-600 dark:text-gray-300">
-              Leverage OpenAI and LangChain to analyze vehicles and select the top 5 that match your criteria.
+              Leverage OpenAI and LangChain to analyze vehicles and select the
+              top 5 that match your criteria.
             </p>
           </div>
 
@@ -44,7 +46,8 @@ export default function Home() {
               Real-time Updates
             </h3>
             <p className="text-gray-600 dark:text-gray-300">
-              Stay synchronized with Kafka messaging and Redis caching for instant notifications.
+              Stay synchronized with Kafka messaging and Redis caching for
+              instant notifications.
             </p>
           </div>
         </div>
@@ -70,7 +73,9 @@ export default function Home() {
           </h2>
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Frontend</h4>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Frontend
+              </h4>
               <ul className="text-gray-600 dark:text-gray-300 space-y-1">
                 <li>✓ Next.js 14 with TypeScript</li>
                 <li>✓ Tailwind CSS</li>
@@ -78,7 +83,9 @@ export default function Home() {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Backend</h4>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                Backend
+              </h4>
               <ul className="text-gray-600 dark:text-gray-300 space-y-1">
                 <li>✓ Python FastAPI</li>
                 <li>✓ PostgreSQL + SQLAlchemy</li>

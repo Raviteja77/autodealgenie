@@ -15,7 +15,7 @@ export interface Deal {
   vehicle_mileage: number;
   asking_price: number;
   offer_price?: number | null;
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  status: "pending" | "in_progress" | "completed" | "cancelled";
   notes?: string | null;
   created_at: string;
   updated_at?: string | null;
@@ -89,7 +89,7 @@ class ApiClient {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   }
 
   /**
@@ -97,16 +97,16 @@ class ApiClient {
    */
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     // Always include credentials (cookies)
     const config: RequestInit = {
       ...options,
-      credentials: 'include',
+      credentials: "include",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...options.headers,
       },
     };
@@ -114,7 +114,9 @@ class ApiClient {
     const response = await fetch(url, config);
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      const error = await response
+        .json()
+        .catch(() => ({ detail: response.statusText }));
       throw new Error(error.detail || `Request failed: ${response.statusText}`);
     }
 
@@ -125,7 +127,7 @@ class ApiClient {
    * Fetch all deals from the backend
    */
   async getDeals(): Promise<Deal[]> {
-    return this.request<Deal[]>('/api/v1/deals');
+    return this.request<Deal[]>("/api/v1/deals");
   }
 
   /**
@@ -133,18 +135,26 @@ class ApiClient {
    */
   async searchCars(params: CarSearchRequest): Promise<CarSearchResponse> {
     const queryParams = new URLSearchParams();
-    
-    if (params.make) queryParams.append('make', params.make);
-    if (params.model) queryParams.append('model', params.model);
-    if (params.budget_min !== undefined) queryParams.append('budget_min', params.budget_min.toString());
-    if (params.budget_max !== undefined) queryParams.append('budget_max', params.budget_max.toString());
-    if (params.car_type) queryParams.append('car_type', params.car_type);
-    if (params.year_min !== undefined) queryParams.append('year_min', params.year_min.toString());
-    if (params.year_max !== undefined) queryParams.append('year_max', params.year_max.toString());
-    if (params.mileage_max !== undefined) queryParams.append('mileage_max', params.mileage_max.toString());
-    if (params.user_priorities) queryParams.append('user_priorities', params.user_priorities);
 
-    const queryString = queryParams.toString() ? '?' + queryParams.toString() : '';
+    if (params.make) queryParams.append("make", params.make);
+    if (params.model) queryParams.append("model", params.model);
+    if (params.budget_min !== undefined)
+      queryParams.append("budget_min", params.budget_min.toString());
+    if (params.budget_max !== undefined)
+      queryParams.append("budget_max", params.budget_max.toString());
+    if (params.car_type) queryParams.append("car_type", params.car_type);
+    if (params.year_min !== undefined)
+      queryParams.append("year_min", params.year_min.toString());
+    if (params.year_max !== undefined)
+      queryParams.append("year_max", params.year_max.toString());
+    if (params.mileage_max !== undefined)
+      queryParams.append("mileage_max", params.mileage_max.toString());
+    if (params.user_priorities)
+      queryParams.append("user_priorities", params.user_priorities);
+
+    const queryString = queryParams.toString()
+      ? "?" + queryParams.toString()
+      : "";
     return this.request<CarSearchResponse>(`/api/v1/cars/search${queryString}`);
   }
 }

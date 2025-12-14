@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 
 /**
  * User interface matching backend UserResponse schema
@@ -23,7 +29,12 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, username: string, password: string, fullName?: string) => Promise<void>;
+  signup: (
+    email: string,
+    username: string,
+    password: string,
+    fullName?: string,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
@@ -37,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   /**
    * Fetch current user from the backend
@@ -45,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchCurrentUser = useCallback(async () => {
     try {
       const response = await fetch(`${baseUrl}/api/v1/auth/me`, {
-        credentials: 'include', // Include cookies
+        credentials: "include", // Include cookies
       });
 
       if (response.ok) {
@@ -55,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
       }
     } catch (error) {
-      console.error('Error fetching current user:', error);
+      console.error("Error fetching current user:", error);
       setUser(null);
     } finally {
       setLoading(false);
@@ -65,56 +76,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Login function
    */
-  const login = useCallback(async (email: string, password: string) => {
-    const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ email, password }),
-    });
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Login failed');
-    }
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Login failed");
+      }
 
-    // After successful login, fetch user data
-    await fetchCurrentUser();
-  }, [baseUrl, fetchCurrentUser]);
+      // After successful login, fetch user data
+      await fetchCurrentUser();
+    },
+    [baseUrl, fetchCurrentUser],
+  );
 
   /**
    * Signup function
    */
-  const signup = useCallback(async (
-    email: string,
-    username: string,
-    password: string,
-    fullName?: string
-  ) => {
-    const response = await fetch(`${baseUrl}/api/v1/auth/signup`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        email,
-        username,
-        password,
-        full_name: fullName || null,
-      }),
-    });
+  const signup = useCallback(
+    async (
+      email: string,
+      username: string,
+      password: string,
+      fullName?: string,
+    ) => {
+      const response = await fetch(`${baseUrl}/api/v1/auth/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          email,
+          username,
+          password,
+          full_name: fullName || null,
+        }),
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Signup failed');
-    }
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || "Signup failed");
+      }
 
-    // After successful signup, automatically log in
-    await login(email, password);
-  }, [baseUrl, login]);
+      // After successful signup, automatically log in
+      await login(email, password);
+    },
+    [baseUrl, login],
+  );
 
   /**
    * Logout function
@@ -122,11 +139,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     try {
       await fetch(`${baseUrl}/api/v1/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
+        method: "POST",
+        credentials: "include",
       });
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.error("Error during logout:", error);
     } finally {
       setUser(null);
     }
@@ -166,7 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
