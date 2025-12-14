@@ -2,7 +2,6 @@
 Pydantic schemas for car search and recommendations
 """
 
-
 from pydantic import BaseModel, Field
 
 

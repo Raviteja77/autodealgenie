@@ -18,44 +18,35 @@ router = APIRouter()
 
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def signup(
-    user_in: UserCreate,
-    db: Session = Depends(get_db)
-):
+def signup(user_in: UserCreate, db: Session = Depends(get_db)):
     """
     Create a new user account
     """
     user_repo = UserRepository(db)
-    
+
     # Check if user already exists
     if user_repo.get_by_email(user_in.email):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
-    
+
     if user_repo.get_by_username(user_in.username):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already taken"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken"
         )
-    
+
     # Create new user
     user = user_repo.create(user_in)
     return user
 
 
 @router.post("/login", response_model=Token)
-def login(
-    response: Response,
-    login_request: LoginRequest,
-    db: Session = Depends(get_db)
-):
+def login(response: Response, login_request: LoginRequest, db: Session = Depends(get_db)):
     """
     Login and get access and refresh tokens
     """
     user_repo = UserRepository(db)
-    
+
     # Authenticate user
     user = user_repo.authenticate(login_request.email, login_request.password)
     if not user:
@@ -64,11 +55,11 @@ def login(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Create tokens
     access_token = create_access_token(data={"sub": user.id})
     refresh_token = create_refresh_token(data={"sub": user.id})
-    
+
     # Set tokens in HTTP-only cookies
     response.set_cookie(
         key="access_token",
@@ -86,15 +77,13 @@ def login(
         samesite="lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
     )
-    
+
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/refresh", response_model=Token)
 def refresh(
-    response: Response,
-    refresh_request: RefreshTokenRequest,
-    db: Session = Depends(get_db)
+    response: Response, refresh_request: RefreshTokenRequest, db: Session = Depends(get_db)
 ):
     """
     Refresh access token using refresh token
@@ -107,7 +96,7 @@ def refresh(
             detail="Invalid refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Check token type
     if payload.get("type") != "refresh":
         raise HTTPException(
@@ -115,7 +104,7 @@ def refresh(
             detail="Invalid token type",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     user_id: int = payload.get("sub")
     if user_id is None:
         raise HTTPException(
@@ -123,7 +112,7 @@ def refresh(
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Verify user exists and is active
     user_repo = UserRepository(db)
     user = user_repo.get_by_id(user_id)
@@ -133,11 +122,11 @@ def refresh(
             detail="User not found or inactive",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Create new tokens
     new_access_token = create_access_token(data={"sub": user.id})
     new_refresh_token = create_refresh_token(data={"sub": user.id})
-    
+
     # Set new tokens in cookies
     response.set_cookie(
         key="access_token",
@@ -155,7 +144,7 @@ def refresh(
         samesite="lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
     )
-    
+
     return Token(access_token=new_access_token, refresh_token=new_refresh_token)
 
 

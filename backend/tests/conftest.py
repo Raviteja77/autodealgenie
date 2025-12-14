@@ -1,13 +1,14 @@
 """Tests package initialization"""
 
+from collections.abc import Generator
+
 import pytest
-from typing import Generator
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.main import app
 from app.db.session import Base, get_db
+from app.main import app
 
 # Use in-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"

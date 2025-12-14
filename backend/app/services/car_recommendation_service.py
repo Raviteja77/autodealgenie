@@ -112,7 +112,9 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
             }
 
         # Parse listings to standardized format
-        parsed_listings = [marketcheck_client.parse_listing(l) for l in listings]
+        parsed_listings = [
+            marketcheck_client.parse_listing(listing) for listing in listings
+        ]
 
         # Get LLM recommendations
         if self.llm:

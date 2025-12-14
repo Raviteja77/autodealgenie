@@ -13,6 +13,22 @@ from app.schemas.schemas import (
     UserResponse,
     UserUpdate,
 )
+from app.schemas.user_preferences import (
+    BudgetRange,
+    CarPreferences,
+    CarType,
+    FuelType,
+    NotificationPreferences,
+    SavedSearch,
+    SavedSearchCreate,
+    SavedSearchResponse,
+    SearchPreferences,
+    TransmissionType,
+    UserPreferencesBase,
+    UserPreferencesCreate,
+    UserPreferencesResponse,
+    UserPreferencesUpdate,
+)
 
 __all__ = [
     "DealBase",
@@ -29,4 +45,18 @@ __all__ = [
     "TokenPayload",
     "LoginRequest",
     "RefreshTokenRequest",
+    "BudgetRange",
+    "CarPreferences",
+    "CarType",
+    "FuelType",
+    "TransmissionType",
+    "NotificationPreferences",
+    "SearchPreferences",
+    "UserPreferencesBase",
+    "UserPreferencesCreate",
+    "UserPreferencesUpdate",
+    "UserPreferencesResponse",
+    "SavedSearch",
+    "SavedSearchCreate",
+    "SavedSearchResponse",
 ]
