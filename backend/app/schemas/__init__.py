@@ -1,5 +1,6 @@
 """Schemas package initialization"""
 
+from app.schemas.auth_schemas import LoginRequest, RefreshTokenRequest, Token, TokenPayload
 from app.schemas.schemas import (
     DealBase,
     DealCreate,
@@ -24,4 +25,8 @@ __all__ = [
     "UserUpdate",
     "UserResponse",
     "HealthCheck",
+    "Token",
+    "TokenPayload",
+    "LoginRequest",
+    "RefreshTokenRequest",
 ]
