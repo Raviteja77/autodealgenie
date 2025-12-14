@@ -2,7 +2,6 @@
 Repository for webhook subscription operations
 """
 
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -32,7 +31,7 @@ class WebhookRepository:
         self.db.refresh(subscription)
         return subscription
 
-    def get_by_id(self, subscription_id: int) -> Optional[WebhookSubscription]:
+    def get_by_id(self, subscription_id: int) -> WebhookSubscription | None:
         """Get webhook subscription by ID"""
         return (
             self.db.query(WebhookSubscription)
@@ -43,9 +42,7 @@ class WebhookRepository:
     def get_by_user(self, user_id: int) -> list[WebhookSubscription]:
         """Get all webhook subscriptions for a user"""
         return (
-            self.db.query(WebhookSubscription)
-            .filter(WebhookSubscription.user_id == user_id)
-            .all()
+            self.db.query(WebhookSubscription).filter(WebhookSubscription.user_id == user_id).all()
         )
 
     def get_active_subscriptions(self) -> list[WebhookSubscription]:
@@ -58,11 +55,11 @@ class WebhookRepository:
 
     def get_matching_subscriptions(
         self,
-        make: Optional[str] = None,
-        model: Optional[str] = None,
-        price: Optional[float] = None,
-        year: Optional[int] = None,
-        mileage: Optional[int] = None,
+        make: str | None = None,
+        model: str | None = None,
+        price: float | None = None,
+        year: int | None = None,
+        mileage: int | None = None,
     ) -> list[WebhookSubscription]:
         """
         Get webhook subscriptions matching vehicle criteria
@@ -84,35 +81,35 @@ class WebhookRepository:
         # Filter by criteria (None or matching)
         if make:
             query = query.filter(
-                (WebhookSubscription.make == None) | (WebhookSubscription.make == make)
+                (WebhookSubscription.make is None) | (WebhookSubscription.make == make)
             )
         if model:
             query = query.filter(
-                (WebhookSubscription.model == None) | (WebhookSubscription.model == model)
+                (WebhookSubscription.model is None) | (WebhookSubscription.model == model)
             )
         if price:
             query = query.filter(
-                (WebhookSubscription.price_min == None) | (WebhookSubscription.price_min <= price)
+                (WebhookSubscription.price_min is None) | (WebhookSubscription.price_min <= price)
             )
             query = query.filter(
-                (WebhookSubscription.price_max == None) | (WebhookSubscription.price_max >= price)
+                (WebhookSubscription.price_max is None) | (WebhookSubscription.price_max >= price)
             )
         if year:
             query = query.filter(
-                (WebhookSubscription.year_min == None) | (WebhookSubscription.year_min <= year)
+                (WebhookSubscription.year_min is None) | (WebhookSubscription.year_min <= year)
             )
             query = query.filter(
-                (WebhookSubscription.year_max == None) | (WebhookSubscription.year_max >= year)
+                (WebhookSubscription.year_max is None) | (WebhookSubscription.year_max >= year)
             )
         if mileage:
             query = query.filter(
-                (WebhookSubscription.mileage_max == None)
+                (WebhookSubscription.mileage_max is None)
                 | (WebhookSubscription.mileage_max >= mileage)
             )
 
         return query.all()
 
-    def update(self, subscription_id: int, update_data: dict) -> Optional[WebhookSubscription]:
+    def update(self, subscription_id: int, update_data: dict) -> WebhookSubscription | None:
         """
         Update webhook subscription
 

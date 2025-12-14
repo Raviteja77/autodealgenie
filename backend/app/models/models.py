@@ -4,7 +4,7 @@ SQLAlchemy models for PostgreSQL
 
 import enum
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, Float, Integer, String, Text
+from sqlalchemy import Column, DateTime, Enum, Float, Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.db.session import Base
@@ -80,7 +80,7 @@ class WebhookSubscription(Base):
     user_id = Column(Integer, nullable=False, index=True)
     webhook_url = Column(String(512), nullable=False)
     status = Column(Enum(WebhookStatus), default=WebhookStatus.ACTIVE, nullable=False)
-    
+
     # Search criteria filters
     make = Column(String(100), nullable=True)
     model = Column(String(100), nullable=True)
@@ -89,7 +89,7 @@ class WebhookSubscription(Base):
     year_min = Column(Integer, nullable=True)
     year_max = Column(Integer, nullable=True)
     mileage_max = Column(Integer, nullable=True)
-    
+
     # Metadata
     secret_token = Column(String(255), nullable=True)  # For webhook verification
     last_triggered = Column(DateTime(timezone=True), nullable=True)

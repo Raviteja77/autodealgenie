@@ -2,7 +2,6 @@
 Webhook subscription management endpoints
 """
 
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, HttpUrl
@@ -20,29 +19,29 @@ class WebhookSubscriptionCreate(BaseModel):
     """Schema for creating webhook subscription"""
 
     webhook_url: HttpUrl = Field(..., description="URL to receive webhook notifications")
-    secret_token: Optional[str] = Field(None, description="Secret token for webhook verification")
-    make: Optional[str] = Field(None, description="Filter by vehicle make")
-    model: Optional[str] = Field(None, description="Filter by vehicle model")
-    price_min: Optional[float] = Field(None, description="Minimum price filter", ge=0)
-    price_max: Optional[float] = Field(None, description="Maximum price filter", ge=0)
-    year_min: Optional[int] = Field(None, description="Minimum year filter")
-    year_max: Optional[int] = Field(None, description="Maximum year filter")
-    mileage_max: Optional[int] = Field(None, description="Maximum mileage filter", ge=0)
+    secret_token: str | None = Field(None, description="Secret token for webhook verification")
+    make: str | None = Field(None, description="Filter by vehicle make")
+    model: str | None = Field(None, description="Filter by vehicle model")
+    price_min: float | None = Field(None, description="Minimum price filter", ge=0)
+    price_max: float | None = Field(None, description="Maximum price filter", ge=0)
+    year_min: int | None = Field(None, description="Minimum year filter")
+    year_max: int | None = Field(None, description="Maximum year filter")
+    mileage_max: int | None = Field(None, description="Maximum mileage filter", ge=0)
 
 
 class WebhookSubscriptionUpdate(BaseModel):
     """Schema for updating webhook subscription"""
 
-    webhook_url: Optional[HttpUrl] = None
-    secret_token: Optional[str] = None
-    status: Optional[WebhookStatus] = None
-    make: Optional[str] = None
-    model: Optional[str] = None
-    price_min: Optional[float] = None
-    price_max: Optional[float] = None
-    year_min: Optional[int] = None
-    year_max: Optional[int] = None
-    mileage_max: Optional[int] = None
+    webhook_url: HttpUrl | None = None
+    secret_token: str | None = None
+    status: WebhookStatus | None = None
+    make: str | None = None
+    model: str | None = None
+    price_min: float | None = None
+    price_max: float | None = None
+    year_min: int | None = None
+    year_max: int | None = None
+    mileage_max: int | None = None
 
 
 class WebhookSubscriptionResponse(BaseModel):
@@ -52,16 +51,16 @@ class WebhookSubscriptionResponse(BaseModel):
     user_id: int
     webhook_url: str
     status: WebhookStatus
-    make: Optional[str] = None
-    model: Optional[str] = None
-    price_min: Optional[float] = None
-    price_max: Optional[float] = None
-    year_min: Optional[int] = None
-    year_max: Optional[int] = None
-    mileage_max: Optional[int] = None
+    make: str | None = None
+    model: str | None = None
+    price_min: float | None = None
+    price_max: float | None = None
+    year_min: int | None = None
+    year_max: int | None = None
+    mileage_max: int | None = None
     failure_count: int
     created_at: str
-    updated_at: Optional[str] = None
+    updated_at: str | None = None
 
     class Config:
         from_attributes = True

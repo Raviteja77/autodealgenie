@@ -4,7 +4,6 @@ Implements user-based rate limiting with sliding window
 """
 
 import time
-from typing import Optional
 
 from app.db.redis import redis_client
 
@@ -23,7 +22,7 @@ class RateLimiter:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
 
-    async def is_allowed(self, user_id: int) -> tuple[bool, Optional[int]]:
+    async def is_allowed(self, user_id: int) -> tuple[bool, int | None]:
         """
         Check if request is allowed for user
 

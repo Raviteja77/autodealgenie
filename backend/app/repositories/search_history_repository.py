@@ -4,7 +4,7 @@ Stores all car search queries for analytics
 """
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from app.db.mongodb import mongodb
 
@@ -20,7 +20,7 @@ class SearchHistoryRepository:
 
     async def create_search_record(
         self,
-        user_id: Optional[int],
+        user_id: int | None,
         search_criteria: dict[str, Any],
         result_count: int,
         top_vehicles: list[dict[str, Any]],
@@ -76,9 +76,7 @@ class SearchHistoryRepository:
 
         return records
 
-    async def get_popular_searches(
-        self, limit: int = 10, days: int = 7
-    ) -> list[dict[str, Any]]:
+    async def get_popular_searches(self, limit: int = 10, days: int = 7) -> list[dict[str, Any]]:
         """
         Get popular search criteria from recent history
 

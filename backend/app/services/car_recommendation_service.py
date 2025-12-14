@@ -6,20 +6,19 @@ Enhanced with caching, rate limiting, retry logic, search history, and webhooks
 import hashlib
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from tenacity import (
+    before_sleep_log,
     retry,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    before_sleep_log,
 )
 
 from app.core.config import settings
-from app.db.mongodb import mongodb
 from app.db.redis import redis_client
 from app.repositories.search_history_repository import search_history_repository
 from app.repositories.webhook_repository import WebhookRepository
@@ -59,9 +58,7 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
 
     def __init__(self):
         if not settings.OPENAI_API_KEY:
-            logger.warning(
-                "OPENAI_API_KEY not set. Car recommendation features will be limited."
-            )
+            logger.warning("OPENAI_API_KEY not set. Car recommendation features will be limited.")
             self.llm = None
         else:
             self.llm = ChatOpenAI(
@@ -109,7 +106,7 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
         hash_obj = hashlib.md5(params_str.encode())
         return f"car_search:{hash_obj.hexdigest()}"
 
-    async def _get_cached_result(self, cache_key: str) -> Optional[dict[str, Any]]:
+    async def _get_cached_result(self, cache_key: str) -> dict[str, Any] | None:
         """
         Get cached search result from Redis
 
@@ -194,9 +191,7 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
             rows=rows,
         )
 
-    async def _trigger_webhooks(
-        self, vehicles: list[dict[str, Any]], db_session=None
-    ) -> None:
+    async def _trigger_webhooks(self, vehicles: list[dict[str, Any]], db_session=None) -> None:
         """
         Trigger webhooks for matching vehicle alerts
 
@@ -209,7 +204,7 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
 
         try:
             from datetime import datetime
-            
+
             webhook_repo = WebhookRepository(db_session)
 
             # Process each vehicle
@@ -233,27 +228,11 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
 
                     # Update subscription statuses
                     for sub in matching_subs:
-                        webhook_repo.update(
-                            sub.id, {"last_triggered": datetime.utcnow()}
-                        )
+                        webhook_repo.update(sub.id, {"last_triggered": datetime.utcnow()})
 
         except Exception as e:
             logger.error(f"Error triggering webhooks: {e}")
 
-    async def search_and_recommend(
-        self,
-        make: str | None = None,
-        model: str | None = None,
-        budget_min: int | None = None,
-        budget_max: int | None = None,
-        car_type: str | None = None,
-        year_min: int | None = None,
-        year_max: int | None = None,
-        mileage_max: int | None = None,
-        user_priorities: str | None = None,
-        user_id: int | None = None,
-        db_session=None,
-    ) -> dict[str, Any]:
     async def search_and_recommend(
         self,
         make: str | None = None,
@@ -289,7 +268,15 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
         """
         # Generate cache key
         cache_key = self._generate_cache_key(
-            make, model, budget_min, budget_max, car_type, year_min, year_max, mileage_max, user_priorities
+            make,
+            model,
+            budget_min,
+            budget_max,
+            car_type,
+            year_min,
+            year_max,
+            mileage_max,
+            user_priorities,
         )
 
         # Check cache first
