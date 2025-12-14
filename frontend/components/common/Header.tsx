@@ -35,7 +35,7 @@ function Header() {
   const handleSignOut = async () => {
     handleCloseUserMenu();
     await logout();
-    router.push("/login");
+    router.push("/auth/login");
   };
 
   return (
@@ -71,11 +71,11 @@ function Header() {
               <Tooltip title="Open settings">
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                   <Avatar
-                    alt={user.username || "User"}
+                    alt={user.full_name || user.username}
                     src=""
                     sx={{ bgcolor: "primary.main" }}
                   >
-                    {user.username?.[0]?.toUpperCase() || "U"}
+                    {((user.full_name || user.username || "U").charAt(0).toUpperCase())}
                   </Avatar>
                 </IconButton>
               </Tooltip>
@@ -97,7 +97,12 @@ function Header() {
               >
                 <MenuItem disabled>
                   <Typography textAlign="center">
-                    {user.username || user.email}
+                    {user.full_name || user.username}
+                  </Typography>
+                </MenuItem>
+                <MenuItem disabled>
+                  <Typography textAlign="center" variant="body2" color="text.secondary">
+                    {user.email}
                   </Typography>
                 </MenuItem>
                 <MenuItem onClick={handleSignOut}>
