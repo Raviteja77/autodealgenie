@@ -3,6 +3,11 @@
  * Handles communication with the FastAPI backend
  */
 
+import {
+  createErrorFromResponse,
+  NetworkError,
+} from './errors';
+
 // TypeScript type definitions matching backend schemas
 
 export interface Deal {
@@ -93,7 +98,7 @@ class ApiClient {
   }
 
   /**
-   * Generic request method with authentication support
+   * Generic request method with authentication support and structured error handling
    */
   private async request<T>(
     endpoint: string,
@@ -111,16 +116,31 @@ class ApiClient {
       },
     };
 
-    const response = await fetch(url, config);
+    try {
+      const response = await fetch(url, config);
 
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ detail: response.statusText }));
-      throw new Error(error.detail || `Request failed: ${response.statusText}`);
+      if (!response.ok) {
+        // Try to parse error response
+        const errorData = await response
+          .json()
+          .catch(() => ({ detail: response.statusText }));
+        
+        const errorMessage = errorData.detail || errorData.message || `Request failed: ${response.statusText}`;
+        
+        // Create and throw structured error
+        throw createErrorFromResponse(response.status, errorMessage, errorData);
+      }
+
+      return response.json();
+    } catch (error) {
+      // If it's already one of our custom errors, re-throw it
+      if (error instanceof Error && error.name.includes('Error')) {
+        throw error;
+      }
+      
+      // Otherwise, it's likely a network error
+      throw new NetworkError('Failed to connect to the server. Please check your internet connection.');
     }
-
-    return response.json();
   }
 
   /**
