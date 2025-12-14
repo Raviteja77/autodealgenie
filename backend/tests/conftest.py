@@ -43,30 +43,3 @@ def client(db) -> Generator:
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
-
-
-@pytest.fixture(scope="function")
-def authenticated_client(client) -> TestClient:
-    """Create an authenticated test client"""
-    # Create a user
-    client.post(
-        "/api/v1/auth/signup",
-        json={
-            "email": "testuser@example.com",
-            "username": "testuser",
-            "password": "testpassword123",
-            "full_name": "Test User",
-        },
-    )
-
-    # Login to get tokens
-    client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": "testuser@example.com",
-            "password": "testpassword123",
-        },
-    )
-
-    # The cookies are automatically set in the client
-    return client
