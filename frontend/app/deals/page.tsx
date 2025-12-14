@@ -1,30 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { apiClient, Deal } from "@/lib/api";
+import { Button, Card, Spinner } from "@/components";
+import { getUserFriendlyErrorMessage } from "@/lib/errors";
+import { useApi } from "@/lib/hooks";
 
 export default function DealsPage() {
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: deals, isLoading, error, execute } = useApi<Deal[]>();
 
   useEffect(() => {
-    async function fetchDeals() {
-      try {
-        setLoading(true);
-        const data = await apiClient.getDeals();
-        setDeals(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch deals");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchDeals();
-  }, []);
+    execute(() => apiClient.getDeals());
+  }, [execute]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -41,35 +29,40 @@ export default function DealsPage() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-300">
-            Loading deals...
-          </p>
-        </div>
+        <Spinner size="lg" text="Loading deals..." />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 dark:text-red-400 mb-4">Error: {error}</p>
-          <p className="text-gray-600 dark:text-gray-300 mb-4">
-            Make sure the backend API is running at{" "}
-            {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}
-          </p>
-          <Link
-            href="/"
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-          >
-            Go Home
-          </Link>
-        </div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <Card padding="lg" shadow="lg" className="max-w-md w-full">
+          <div className="text-center">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Deals</h2>
+            <p className="text-red-600 dark:text-red-400 mb-4">{getUserFriendlyErrorMessage(error)}</p>
+            <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
+              Make sure the backend API is running at{" "}
+              {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}
+            </p>
+            <div className="flex gap-2 justify-center">
+              <Link href="/">
+                <Button variant="outline">Go Home</Button>
+              </Link>
+              <Button onClick={() => execute(() => apiClient.getDeals())}>
+                Retry
+              </Button>
+            </div>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -87,38 +80,36 @@ export default function DealsPage() {
             </p>
           </div>
           <div className="flex gap-4">
-            <Link
-              href="/"
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors"
-            >
-              Home
+            <Link href="/">
+              <Button variant="secondary">Home</Button>
             </Link>
-            <button
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
-              onClick={() => window.location.reload()}
-            >
+            <Button onClick={() => execute(() => apiClient.getDeals())}>
               Refresh
-            </button>
+            </Button>
           </div>
         </div>
 
-        {deals.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center">
-            <p className="text-gray-600 dark:text-gray-300 mb-4">
-              No deals found. The backend is connected but no deals have been
-              created yet.
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              You can create deals using the API at{" "}
-              {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/docs
-            </p>
-          </div>
+        {!deals || deals.length === 0 ? (
+          <Card padding="lg" shadow="md">
+            <div className="text-center py-8">
+              <p className="text-gray-600 dark:text-gray-300 mb-4">
+                No deals found. The backend is connected but no deals have been
+                created yet.
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                You can create deals using the API at{" "}
+                {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/docs
+              </p>
+            </div>
+          </Card>
         ) : (
           <div className="grid gap-6">
             {deals.map((deal) => (
-              <div
+              <Card
                 key={deal.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow p-6"
+                padding="lg"
+                shadow="md"
+                hover
               >
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -176,7 +167,7 @@ export default function DealsPage() {
                 <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
                   Created: {new Date(deal.created_at).toLocaleString()}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
