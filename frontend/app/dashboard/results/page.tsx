@@ -55,7 +55,7 @@ const generateMockVehicles = (count: number = 12) => {
       location: locations[Math.floor(Math.random() * locations.length)],
       color: colors[Math.floor(Math.random() * colors.length)],
       condition: Math.random() > 0.5 ? "Certified Pre-Owned" : "Used",
-      image: `https://via.placeholder.com/400x300/2563eb/ffffff?text=${make}+${model}`,
+      image: `/api/placeholder/400/300?text=${encodeURIComponent(make + ' ' + model)}`,
       features: ["Backup Camera", "Bluetooth", "Cruise Control", "Power Windows"]
         .filter(() => Math.random() > 0.5),
     };

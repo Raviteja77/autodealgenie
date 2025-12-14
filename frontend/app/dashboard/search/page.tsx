@@ -38,7 +38,7 @@ export default function DashboardSearchPage() {
     // Convert search params to query string
     const queryParams = new URLSearchParams();
     Object.entries(searchParams).forEach(([key, value]) => {
-      if (value) {
+      if (value !== undefined && value !== null && value !== '') {
         queryParams.append(key, value.toString());
       }
     });
