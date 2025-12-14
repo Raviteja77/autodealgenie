@@ -48,7 +48,7 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      await signup(email, username, password, fullName || undefined);
+      await signup(email, username, password, fullName.trim() || undefined);
       router.push("/dashboard/search");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed. Please try again.");

@@ -75,7 +75,7 @@ function Header() {
                     src=""
                     sx={{ bgcolor: "primary.main" }}
                   >
-                    {(user.full_name || user.username).charAt(0).toUpperCase()}
+                    {((user.full_name || user.username || "U").charAt(0).toUpperCase())}
                   </Avatar>
                 </IconButton>
               </Tooltip>
