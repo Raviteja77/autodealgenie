@@ -76,7 +76,7 @@ def login(
         httponly=True,
         secure=settings.COOKIE_SECURE,  # Use secure cookies in production
         samesite="lax",
-        max_age=1800,  # 30 minutes
+        max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
     )
     response.set_cookie(
         key="refresh_token",
@@ -84,7 +84,7 @@ def login(
         httponly=True,
         secure=settings.COOKIE_SECURE,
         samesite="lax",
-        max_age=604800,  # 7 days
+        max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
     )
     
     return Token(access_token=access_token, refresh_token=refresh_token)
@@ -145,7 +145,7 @@ def refresh(
         httponly=True,
         secure=settings.COOKIE_SECURE,
         samesite="lax",
-        max_age=1800,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_SECONDS,
     )
     response.set_cookie(
         key="refresh_token",
@@ -153,7 +153,7 @@ def refresh(
         httponly=True,
         secure=settings.COOKIE_SECURE,
         samesite="lax",
-        max_age=604800,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_SECONDS,
     )
     
     return Token(access_token=new_access_token, refresh_token=new_refresh_token)
