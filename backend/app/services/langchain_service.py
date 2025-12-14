@@ -21,9 +21,7 @@ class LangChainService:
             self.llm = None
         else:
             self.llm = ChatOpenAI(
-                model=settings.OPENAI_MODEL, 
-                openai_api_key=settings.OPENAI_API_KEY, 
-                temperature=0.7
+                model=settings.OPENAI_MODEL, openai_api_key=settings.OPENAI_API_KEY, temperature=0.7
             )
 
     async def generate_deal_summary(self, deal_data: dict[str, Any]) -> str:

@@ -47,7 +47,9 @@ Always:
 Always:
 - Use TypeScript for all new files with explicit types (no `any` unless documented and justified)
 - Follow Next.js 14 App Router conventions
-- Prefer Material-UI components over custom implementations
+- **Always use custom UI components from `components/ui/` for consistency** (Button, Input, Card, Modal, Spinner)
+- Prefer Material-UI components for layouts and data display (Grid, Box, Typography, etc.)
+- When creating new reusable UI components, add them to `components/ui/` directory
 - Use Tailwind CSS for utility-based styling (limited usage)
 - Validate API data with Zod schemas
 - Use async/await for API calls
@@ -196,6 +198,22 @@ frontend/
 - Use React Context Providers: `AuthProvider`, `FormProvider`, `CarFormProvider`
 - Replace `localStorage` as primary source of truth for multi-step flows; rely on server state + URL parameters
 
+### UI Components & Styling
+- **Always use custom UI components** from `components/ui/` for interactive elements (Button, Input, Card, Modal, Spinner)
+- Custom components ensure consistency across the application and are built on top of Material-UI
+- Available custom components:
+  - `Button`: Use for all button interactions with variants (primary, secondary, danger, success, outline)
+  - `Input`: Use for text input fields with built-in validation support
+  - `Card`: Use for content containers with consistent styling
+  - `Modal`: Use for modal dialogs and overlays
+  - `Spinner`: Use for loading states
+- When creating new reusable UI components, add them to `components/ui/` directory with:
+  - TypeScript interfaces for props
+  - Material-UI as the base implementation
+  - Consistent styling using MUI theme
+  - Export from `components/ui/index.ts`
+- For one-off UI needs or layouts, use Material-UI components directly (Grid, Box, Typography, Stack, etc.)
+
 ### File Naming Conventions
 - Components: `PascalCase.tsx`
 - Hooks: `usePascalCase.ts`
@@ -249,11 +267,13 @@ When generating code:
 7. Write unit tests for new functionality (target ~80% coverage)
 8. Format code according to project standards before committing
 9. Update documentation if adding new features or changing behavior
-10. Use Material-UI components for frontend UI elements
-11. Always use DAL modules for database access (never direct queries)
-12. Store auth tokens only in HTTP-only cookies (never `localStorage`)
-13. Use React Context Providers and custom hooks for state management
-14. Keep components under ~5 props; prefer composition over props drilling
+10. **Always use custom UI components from `components/ui/`** (Button, Input, Card, Modal, Spinner) for consistency
+11. Use Material-UI components for layouts and data display (Grid, Box, Typography, etc.)
+12. Always use DAL modules for database access (never direct queries)
+13. Store auth tokens only in HTTP-only cookies (never `localStorage`)
+14. Use React Context Providers and custom hooks for state management
+15. Keep components under ~5 props; prefer composition over props drilling
+16. When creating new reusable components, add them to `components/ui/` with proper TypeScript interfaces
 
 ## Future Roadmap
 

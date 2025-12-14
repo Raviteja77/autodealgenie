@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Box,
   Container,
@@ -11,32 +10,47 @@ import {
   Link as MuiLink,
   Alert,
   InputAdornment,
-  IconButton,
 } from "@mui/material";
-import { Visibility, VisibilityOff, Email, Lock } from "@mui/icons-material";
+import { Email, ArrowBack } from "@mui/icons-material";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth";
 import { Button } from "@/components";
 
-export default function LoginPage() {
-  const router = useRouter();
-  const { login } = useAuth();
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess(false);
     setLoading(true);
 
     try {
-      await login(email, password);
-      router.push("/dashboard");
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${baseUrl}/api/v1/auth/forgot-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to request password reset");
+      }
+
+      setSuccess(true);
+      setEmail("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to login. Please check your credentials.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to request password reset. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -63,15 +77,27 @@ export default function LoginPage() {
           }}
         >
           <Typography component="h1" variant="h4" gutterBottom>
-            Welcome Back
+            Forgot Password?
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Sign in to your AutoDealGenie account
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ mb: 3, textAlign: "center" }}
+          >
+            Enter your email address and we&apos;ll send you a link to reset
+            your password.
           </Typography>
 
           {error && (
             <Alert severity="error" sx={{ width: "100%", mb: 2 }}>
               {error}
+            </Alert>
+          )}
+
+          {success && (
+            <Alert severity="success" sx={{ width: "100%", mb: 2 }}>
+              If your email is registered, you will receive a password reset
+              link shortly. Please check your inbox.
             </Alert>
           )}
 
@@ -87,6 +113,7 @@ export default function LoginPage() {
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={loading || success}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -95,60 +122,30 @@ export default function LoginPage() {
                 ),
               }}
             />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type={showPassword ? "text" : "password"}
-              id="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock color="action" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
             <Button
               type="submit"
               fullWidth
-              variant="success"
-              disabled={loading}
+              variant="primary"
+              disabled={loading || success}
+              isLoading={loading}
               sx={{ mt: 3, mb: 2 }}
             >
-              {loading ? "Signing in..." : "Sign In"}
+              Send Reset Link
             </Button>
             <Box sx={{ textAlign: "center" }}>
               <MuiLink
                 component={Link}
-                href="/auth/forgot-password"
+                href="/auth/login"
                 variant="body2"
-                sx={{ display: "block", mb: 2 }}
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                }}
               >
-                Forgot password?
+                <ArrowBack fontSize="small" />
+                Back to Login
               </MuiLink>
-              <Typography variant="body2" color="text.secondary">
-                Don&apos;t have an account?{" "}
-                <MuiLink component={Link} href="/auth/signup" variant="body2">
-                  Sign up
-                </MuiLink>
-              </Typography>
             </Box>
           </Box>
         </Paper>
