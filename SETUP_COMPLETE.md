@@ -68,6 +68,49 @@ cp frontend/.env.example frontend/.env.local
 # 3. Start all services
 ./start.sh
 
+## local development
+
+For the best development experience (Hot Module Replacement, faster debugging), the recommended workflow is a Hybrid Setup:
+
+Run Infrastructure (Database, Redis, Kafka) in Docker.
+Run Application Code (Frontend & Backend) locally on your machine.
+
+# Stop specific containers
+docker compose stop frontend backend
+
+# Alternatively, ensure only infra is running (if you restarted)
+docker compose up -d postgres mongodb redis kafka zookeeper
+
+cd backend
+
+# Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+deactivate 
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set environment variables (Make sure DB hosts point to localhost now)
+# You might need to edit .env to set POSTGRES_SERVER=localhost instead of 'postgres'
+export POSTGRES_SERVER=localhost
+export MONGODB_URL=mongodb://localhost:27017
+export REDIS_HOST=localhost
+export KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+
+# Run with hot reload
+uvicorn app.main:app --reload --port 8000
+
+cd frontend
+
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+
 # 4. Access the applications
 # Frontend:  http://localhost:3000
 # Backend:   http://localhost:8000

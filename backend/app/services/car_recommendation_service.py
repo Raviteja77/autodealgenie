@@ -45,6 +45,7 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
         else:
             self.llm = ChatOpenAI(
                 model=settings.OPENAI_MODEL,
+                openai_api_key=settings.OPENAI_API_KEY, 
                 temperature=0.3,  # Lower temperature for more consistent recommendations
             )
 

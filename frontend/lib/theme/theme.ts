@@ -2,81 +2,69 @@
 
 import { createTheme } from '@mui/material/styles';
 
+// 1. AESTHETICS: Define the modern, minimalist, and professional theme.
 export const theme = createTheme({
   palette: {
+    mode: "light",
     primary: {
-      main: '#2563eb', // blue-600
-      light: '#3b82f6',
-      dark: '#1d4ed8',
+      main: "#0d253f", // Deep Blue
     },
     secondary: {
-      main: '#4b5563', // gray-600
-      light: '#6b7280',
-      dark: '#374151',
-    },
-    error: {
-      main: '#dc2626', // red-600
-      light: '#ef4444',
-      dark: '#b91c1c',
-    },
-    warning: {
-      main: '#f59e0b', // yellow-500
-      light: '#fbbf24',
-      dark: '#d97706',
+      main: "#6c757d", // Gray
     },
     success: {
-      main: '#16a34a', // green-600
-      light: '#22c55e',
-      dark: '#15803d',
+      main: "#66bb6a", // Light Green for positive states/actions
+      contrastText: "#ffffff",
     },
     background: {
-      default: '#f9fafb', // gray-50
-      paper: '#ffffff',
+      default: "#f8f9fa", // Light gray background for ample white space
+    },
+    text: {
+      primary: "#212529",
+      secondary: "#6c757d",
     },
   },
   typography: {
-    fontFamily: 'var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    h1: {
-      fontSize: '2.25rem',
-      fontWeight: 700,
-    },
-    h2: {
-      fontSize: '1.875rem',
-      fontWeight: 600,
-    },
-    h3: {
-      fontSize: '1.5rem',
-      fontWeight: 600,
-    },
-    h4: {
-      fontSize: '1.25rem',
-      fontWeight: 600,
-    },
-    h5: {
-      fontSize: '1.125rem',
-      fontWeight: 600,
-    },
-    h6: {
-      fontSize: '1rem',
-      fontWeight: 600,
-    },
-  },
-  shape: {
-    borderRadius: 8,
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    // Clear hierarchy for scannable text
+    h4: { fontWeight: 700, color: "#0d253f" }, // Large section titles
+    h5: { fontWeight: 600, color: "#0d253f" }, // Medium subtitles
+    h6: { fontWeight: 600, fontSize: "1rem", color: "#47535E" }, // Compact labels
   },
   components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          fontWeight: 500,
-        },
-      },
-    },
+    // Card-based components with subtle shadows and rounded corners
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+          borderRadius: 16,
+          boxShadow: "rgba(149, 157, 165, 0.1) 0px 8px 24px",
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+          boxShadow: "rgba(149, 157, 165, 0.1) 0px 8px 24px",
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          textTransform: "none",
+          fontWeight: 600,
+          padding: "10px 20px",
+        },
+      },
+    },
+    MuiToggleButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: "8px !important",
+          textTransform: "none",
+          fontWeight: 500,
         },
       },
     },
