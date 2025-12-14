@@ -11,7 +11,14 @@ from app.core.security import create_access_token, create_refresh_token, decode_
 from app.db.session import get_db
 from app.models.models import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth_schemas import LoginRequest, RefreshTokenRequest, Token
+from app.schemas.auth_schemas import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+    LoginRequest,
+    RefreshTokenRequest,
+    ResetPasswordRequest,
+    Token,
+)
 from app.schemas.schemas import UserCreate, UserResponse
 
 router = APIRouter()
@@ -164,3 +171,51 @@ def get_me(current_user: User = Depends(get_current_user)):
     Get current authenticated user
     """
     return current_user
+
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+def forgot_password(
+    request: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Request a password reset token
+    
+    Note: In a production environment, this would send an email with the reset link.
+    For now, we return success regardless of whether the email exists for security reasons.
+    """
+    user_repo = UserRepository(db)
+    
+    # Create reset token if user exists
+    token = user_repo.create_password_reset_token(request.email)
+    
+    # Always return success message to prevent email enumeration
+    # In production, send email with reset link containing the token
+    # Example: https://example.com/auth/reset-password?token={token}
+    
+    return ForgotPasswordResponse(
+        message="If your email is registered, you will receive a password reset link shortly."
+    )
+
+
+@router.post("/reset-password", response_model=ForgotPasswordResponse)
+def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Reset password using a valid reset token
+    """
+    user_repo = UserRepository(db)
+    
+    # Attempt to reset password
+    success = user_repo.reset_password(request.token, request.new_password)
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+    
+    return ForgotPasswordResponse(message="Password has been reset successfully.")
+
