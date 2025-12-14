@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
 from app.models.models import User
 from app.schemas.schemas import UserCreate
@@ -60,12 +61,14 @@ class UserRepository:
         if not user:
             return None
 
-        # Generate a secure random token
-        token = secrets.token_urlsafe(32)
+        # Generate a secure random token using configured length
+        token = secrets.token_urlsafe(settings.PASSWORD_RESET_TOKEN_LENGTH)
 
-        # Set token expiration to 1 hour from now
+        # Set token expiration using configured duration
         user.reset_token = token
-        user.reset_token_expires = datetime.now(UTC) + timedelta(hours=1)
+        user.reset_token_expires = datetime.now(UTC) + timedelta(
+            hours=settings.PASSWORD_RESET_TOKEN_EXPIRE_HOURS
+        )
 
         self.db.commit()
         return token
