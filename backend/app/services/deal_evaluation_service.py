@@ -4,15 +4,20 @@ Provides fair market value analysis and negotiation insights for vehicle deals
 """
 
 import json
+import logging
 from typing import Any
 
 from langchain.schema import HumanMessage, SystemMessage
 
 from app.services.langchain_service import langchain_service
 
+logger = logging.getLogger(__name__)
+
 
 class DealEvaluationService:
     """Service for evaluating car deals and providing negotiation insights"""
+
+    MAX_INSIGHTS = 5  # Maximum number of insights/talking points to return
 
     SYSTEM_PROMPT = """You are an expert automotive pricing analyst and negotiation advisor.
 
@@ -88,7 +93,7 @@ Be specific with dollar amounts and data points. Base your analysis on industry 
 
             # Ensure we have a string response
             if not isinstance(llm_output, str):
-                print(f"Unexpected LLM response type: {type(llm_output)}")
+                logger.warning(f"Unexpected LLM response type: {type(llm_output)}")
                 return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
 
             # Parse LLM response - extract JSON from markdown code blocks if present
@@ -107,20 +112,20 @@ Be specific with dollar amounts and data points. Base your analysis on industry 
             try:
                 evaluation_data = json.loads(llm_output)
             except json.JSONDecodeError as parse_error:
-                print(f"Failed to parse LLM JSON response: {parse_error}")
-                print(f"LLM output: {llm_output}")
+                logger.error(f"Failed to parse LLM JSON response: {parse_error}")
+                logger.debug(f"LLM output: {llm_output}")
                 return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
 
             # Validate and normalize the response
             return {
                 "fair_value": float(evaluation_data.get("fair_value", asking_price * 0.95)),
                 "score": max(1.0, min(10.0, float(evaluation_data.get("score", 5.0)))),
-                "insights": evaluation_data.get("insights", [])[:5],  # Limit to 5
-                "talking_points": evaluation_data.get("talking_points", [])[:5],  # Limit to 5
+                "insights": evaluation_data.get("insights", [])[: self.MAX_INSIGHTS],
+                "talking_points": evaluation_data.get("talking_points", [])[: self.MAX_INSIGHTS],
             }
 
         except Exception as e:
-            print(f"Deal evaluation error: {e}")
+            logger.error(f"Deal evaluation error: {e}")
             return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
 
     def _fallback_evaluation(
