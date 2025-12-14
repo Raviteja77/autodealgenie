@@ -9,11 +9,9 @@ import {
   Typography,
   Button,
 } from "@mui/material";
-// import { signOut } from "firebase/auth";
-// import { auth } from "@/app/firebase";
-// import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-// import { useAuth } from "@/app/context/AuthProvider";
+import { useAuth } from "@/lib/auth";
 
 function Header() {
 //   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
@@ -28,11 +26,12 @@ function Header() {
 //     setAnchorElUser(null);
 //   };
 
-//   const handleSignOut = async () => {
-//     handleCloseUserMenu();
-//     await signOut(auth);
-//     router.push("/auth/login");
-//   };
+  const handleSignOut = async () => {
+    handleCloseUserMenu();
+    await logout();
+    router.push("/auth/login");
+  };
+
   return (
     <AppBar
       position="fixed"
@@ -58,7 +57,7 @@ function Header() {
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* <Box sx={{ flexGrow: 0 }}>
+        <Box sx={{ flexGrow: 0 }}>
           {loading ? (
             <Skeleton variant="circular" width={40} height={40} />
           ) : user ? (
@@ -66,9 +65,12 @@ function Header() {
               <Tooltip title="Open settings">
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                   <Avatar
-                    alt={user.displayName || "User"}
-                    src={user.photoURL || ""}
-                  />
+                    alt={user.full_name || user.username}
+                    src=""
+                    sx={{ bgcolor: "primary.main" }}
+                  >
+                    {((user.full_name || user.username || "U").charAt(0).toUpperCase())}
+                  </Avatar>
                 </IconButton>
               </Tooltip>
               <Menu
@@ -89,7 +91,12 @@ function Header() {
               >
                 <MenuItem disabled>
                   <Typography textAlign="center">
-                    {user.displayName || user.email}
+                    {user.full_name || user.username}
+                  </Typography>
+                </MenuItem>
+                <MenuItem disabled>
+                  <Typography textAlign="center" variant="body2" color="text.secondary">
+                    {user.email}
                   </Typography>
                 </MenuItem>
                 <MenuItem onClick={handleSignOut}>
@@ -98,11 +105,16 @@ function Header() {
               </Menu>
             </>
           ) : (
-            <Button color="inherit" component={Link} href="/auth/login">
+            <Button
+              color="inherit"
+              component={Link}
+              href="/login"
+              sx={{ color: "text.primary" }}
+            >
               Login
             </Button>
           )}
-        </Box> */}
+        </Box>
       </Toolbar>
     </AppBar>
   );
