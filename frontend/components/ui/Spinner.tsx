@@ -1,4 +1,8 @@
 import React from 'react';
+import CircularProgress from '@mui/material/CircularProgress';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Backdrop from '@mui/material/Backdrop';
 
 interface SpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -7,20 +11,14 @@ interface SpinnerProps {
   text?: string;
 }
 
-const sizeClasses = {
-  sm: 'w-4 h-4',
-  md: 'w-8 h-8',
-  lg: 'w-12 h-12',
-};
-
-const colorClasses = {
-  primary: 'text-blue-600',
-  secondary: 'text-gray-600',
-  white: 'text-white',
+const sizeMap = {
+  sm: 20,
+  md: 40,
+  lg: 60,
 };
 
 /**
- * Loading Spinner component
+ * Loading Spinner component using MUI
  * 
  * @example
  * ```tsx
@@ -38,38 +36,43 @@ export const Spinner: React.FC<SpinnerProps> = ({
   text,
 }) => {
   const spinner = (
-    <div className="flex flex-col items-center justify-center gap-3">
-      <svg
-        className={`animate-spin ${sizeClasses[size]} ${colorClasses[color]}`}
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="4"
-        />
-        <path
-          className="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-        />
-      </svg>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 2,
+      }}
+    >
+      <CircularProgress
+        size={sizeMap[size]}
+        color={color === 'white' ? 'inherit' : color}
+        sx={color === 'white' ? { color: 'white' } : {}}
+      />
       {text && (
-        <p className={`text-sm font-medium ${colorClasses[color]}`}>{text}</p>
+        <Typography
+          variant="body2"
+          color={color === 'white' ? 'white' : 'textSecondary'}
+        >
+          {text}
+        </Typography>
       )}
-    </div>
+    </Box>
   );
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white bg-opacity-75">
+      <Backdrop
+        open={true}
+        sx={{
+          color: '#fff',
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        }}
+      >
         {spinner}
-      </div>
+      </Backdrop>
     );
   }
 

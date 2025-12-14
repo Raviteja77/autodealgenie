@@ -9,6 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^5.18.0",
+    "@mui/material": "^5.18.0",
+    "@mui/x-data-grid": "^6.20.4",
+    "@mui/x-date-pickers": "^6.20.2",
+    "date-fns": "^3.6.0",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18",

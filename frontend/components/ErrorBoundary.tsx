@@ -1,6 +1,13 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import { styled } from '@mui/material/styles';
 
 interface Props {
   children: ReactNode;
@@ -12,6 +19,31 @@ interface State {
   hasError: boolean;
   error: Error | null;
 }
+
+const ErrorContainer = styled(Box)({
+  minHeight: '100vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: '#f9fafb',
+  padding: '1rem',
+});
+
+const ErrorCard = styled(Card)({
+  maxWidth: 500,
+  width: '100%',
+});
+
+const IconWrapper = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 48,
+  height: 48,
+  margin: '0 auto 1rem',
+  backgroundColor: theme.palette.error.light,
+  borderRadius: '50%',
+}));
 
 /**
  * Error Boundary component to catch and handle React errors gracefully
@@ -61,46 +93,51 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Default error UI
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
-            <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
-              <svg
-                className="w-6 h-6 text-red-600"
-                fill="none"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+        <ErrorContainer>
+          <ErrorCard>
+            <CardContent>
+              <IconWrapper>
+                <ErrorOutlineIcon color="error" fontSize="large" />
+              </IconWrapper>
+              <Typography variant="h5" align="center" gutterBottom fontWeight={600}>
+                Oops! Something went wrong
+              </Typography>
+              <Typography variant="body1" align="center" color="text.secondary" sx={{ mb: 3 }}>
+                We&apos;re sorry for the inconvenience. Please try refreshing the page.
+              </Typography>
+              {process.env.NODE_ENV === 'development' && this.state.error && (
+                <Box sx={{ mt: 2, p: 2, backgroundColor: '#f3f4f6', borderRadius: 1 }}>
+                  <Typography variant="caption" component="details" sx={{ cursor: 'pointer' }}>
+                    <summary style={{ fontWeight: 500, marginBottom: 8 }}>
+                      Error Details (Development Only)
+                    </summary>
+                    <Box
+                      component="pre"
+                      sx={{
+                        fontSize: '0.75rem',
+                        color: 'error.main',
+                        overflow: 'auto',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {this.state.error.toString()}
+                      {this.state.error.stack}
+                    </Box>
+                  </Typography>
+                </Box>
+              )}
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={() => window.location.reload()}
+                sx={{ mt: 2 }}
               >
-                <path d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 text-center mb-2">
-              Oops! Something went wrong
-            </h2>
-            <p className="text-gray-600 text-center mb-4">
-              We&apos;re sorry for the inconvenience. Please try refreshing the page.
-            </p>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
-              <details className="mt-4 p-4 bg-gray-100 rounded text-sm">
-                <summary className="cursor-pointer font-medium text-gray-700 mb-2">
-                  Error Details (Development Only)
-                </summary>
-                <pre className="text-xs text-red-600 overflow-auto">
-                  {this.state.error.toString()}
-                  {this.state.error.stack}
-                </pre>
-              </details>
-            )}
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Refresh Page
-            </button>
-          </div>
-        </div>
+                Refresh Page
+              </Button>
+            </CardContent>
+          </ErrorCard>
+        </ErrorContainer>
       );
     }
 

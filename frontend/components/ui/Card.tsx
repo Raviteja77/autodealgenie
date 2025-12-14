@@ -1,77 +1,63 @@
-import React, { HTMLAttributes, ReactNode } from 'react';
+import React, { ReactNode } from 'react';
+import MuiCard, { CardProps as MuiCardProps } from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardHeader from '@mui/material/CardHeader';
+import CardActions from '@mui/material/CardActions';
+import { styled } from '@mui/material/styles';
 
-interface CardProps extends HTMLAttributes<HTMLDivElement> {
+interface CardComponentProps extends MuiCardProps {
   children: ReactNode;
   padding?: 'none' | 'sm' | 'md' | 'lg';
   shadow?: 'none' | 'sm' | 'md' | 'lg';
   hover?: boolean;
 }
 
-interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {
+interface CardHeaderComponentProps {
   children: ReactNode;
 }
 
-interface CardBodyProps extends HTMLAttributes<HTMLDivElement> {
+interface CardBodyProps {
   children: ReactNode;
+  sx?: Record<string, unknown>;
 }
 
-interface CardFooterProps extends HTMLAttributes<HTMLDivElement> {
+interface CardFooterProps {
   children: ReactNode;
+  sx?: Record<string, unknown>;
 }
 
-const paddingClasses = {
-  none: '',
-  sm: 'p-3',
-  md: 'p-4',
-  lg: 'p-6',
-};
-
-const shadowClasses = {
-  none: '',
-  sm: 'shadow-sm',
-  md: 'shadow-md',
-  lg: 'shadow-lg',
-};
+const StyledCard = styled(MuiCard, {
+  shouldForwardProp: (prop) => !['hover', 'shadow'].includes(prop as string),
+})<CardComponentProps>(({ theme, hover, shadow = 'md' }) => ({
+  ...(hover && {
+    transition: 'box-shadow 0.3s ease-in-out',
+    '&:hover': {
+      boxShadow: theme.shadows[8],
+    },
+  }),
+  ...(shadow === 'none' && { boxShadow: 'none' }),
+  ...(shadow === 'sm' && { boxShadow: theme.shadows[1] }),
+  ...(shadow === 'md' && { boxShadow: theme.shadows[3] }),
+  ...(shadow === 'lg' && { boxShadow: theme.shadows[6] }),
+}));
 
 /**
- * Card component for content containers
- * 
- * @example
- * ```tsx
- * <Card padding="md" shadow="md" hover>
- *   <Card.Header>
- *     <h2>Card Title</h2>
- *   </Card.Header>
- *   <Card.Body>
- *     <p>Card content goes here</p>
- *   </Card.Body>
- *   <Card.Footer>
- *     <Button>Action</Button>
- *   </Card.Footer>
- * </Card>
- * ```
+ * Card component for content containers using MUI
  */
-const CardComponent = React.forwardRef<HTMLDivElement, CardProps>(
+const CardComponent = React.forwardRef<HTMLDivElement, CardComponentProps>(
   (
     {
       children,
-      padding = 'md',
       shadow = 'md',
       hover = false,
-      className = '',
       ...props
     },
     ref
   ) => {
-    const baseClasses = 'bg-white rounded-lg border border-gray-200';
-    const hoverClasses = hover ? 'hover:shadow-xl transition-shadow duration-200' : '';
-    
-    const combinedClassName = `${baseClasses} ${paddingClasses[padding]} ${shadowClasses[shadow]} ${hoverClasses} ${className}`.trim();
-
     return (
-      <div ref={ref} className={combinedClassName} {...props}>
+      <StyledCard ref={ref} shadow={shadow} hover={hover} {...props}>
         {children}
-      </div>
+      </StyledCard>
     );
   }
 );
@@ -81,31 +67,26 @@ CardComponent.displayName = 'Card';
 /**
  * Card Header component
  */
-export const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
-  ({ children, className = '', ...props }, ref) => {
-    return (
-      <div
-        ref={ref}
-        className={`border-b border-gray-200 pb-3 mb-3 ${className}`.trim()}
-        {...props}
-      >
-        {children}
-      </div>
-    );
+const CardHeaderComponent = React.forwardRef<HTMLDivElement, CardHeaderComponentProps>(
+  ({ children, ...props }, ref) => {
+    if (typeof children === 'string') {
+      return <CardHeader ref={ref} title={children} {...props} />;
+    }
+    return <CardHeader ref={ref} {...props}>{children}</CardHeader>;
   }
 );
 
-CardHeader.displayName = 'CardHeader';
+CardHeaderComponent.displayName = 'CardHeader';
 
 /**
  * Card Body component
  */
-export const CardBody = React.forwardRef<HTMLDivElement, CardBodyProps>(
-  ({ children, className = '', ...props }, ref) => {
+const CardBody = React.forwardRef<HTMLDivElement, CardBodyProps>(
+  ({ children, ...props }, ref) => {
     return (
-      <div ref={ref} className={className} {...props}>
+      <CardContent ref={ref} {...props}>
         {children}
-      </div>
+      </CardContent>
     );
   }
 );
@@ -115,30 +96,26 @@ CardBody.displayName = 'CardBody';
 /**
  * Card Footer component
  */
-export const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
-  ({ children, className = '', ...props }, ref) => {
+const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
+  ({ children, ...props }, ref) => {
     return (
-      <div
-        ref={ref}
-        className={`border-t border-gray-200 pt-3 mt-3 ${className}`.trim()}
-        {...props}
-      >
+      <CardActions ref={ref} {...props}>
         {children}
-      </div>
+      </CardActions>
     );
   }
 );
 
 CardFooter.displayName = 'CardFooter';
 
-// Compound component pattern - Create Card with sub-components
+// Compound component pattern
 type CardType = typeof CardComponent & {
-  Header: typeof CardHeader;
+  Header: typeof CardHeaderComponent;
   Body: typeof CardBody;
   Footer: typeof CardFooter;
 };
 
 export const Card = CardComponent as CardType;
-Card.Header = CardHeader;
+Card.Header = CardHeaderComponent;
 Card.Body = CardBody;
 Card.Footer = CardFooter;
