@@ -72,7 +72,6 @@ function Header() {
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                   <Avatar
                     alt={user.full_name || "User"}
-                    // src={user.photoURL || ""}
                   />
                 </IconButton>
               </Tooltip>
