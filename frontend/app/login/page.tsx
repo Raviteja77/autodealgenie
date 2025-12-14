@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import Link from "next/link";
 import Image from "next/image";
+import { getErrorMessage } from "@/lib/utils/error";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -34,7 +35,7 @@ export default function LoginPage() {
       await login(email, password);
       router.push("/dashboard/search");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to login. Please check your credentials.");
+      setError(getErrorMessage(err, "Failed to login. Please check your credentials."));
     } finally {
       setIsLoading(false);
     }

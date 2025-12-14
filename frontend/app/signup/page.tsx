@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import Link from "next/link";
 import Image from "next/image";
+import { getErrorMessage } from "@/lib/utils/error";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -51,10 +52,10 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      await signup(email, username, password, fullName || undefined);
+      await signup(email, username, password, fullName);
       router.push("/dashboard/search");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to sign up. Please try again.");
+      setError(getErrorMessage(err, "Failed to sign up. Please try again."));
     } finally {
       setIsLoading(false);
     }
