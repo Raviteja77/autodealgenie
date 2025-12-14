@@ -32,6 +32,7 @@ export default function DashboardSearchPage() {
     carType: "",
     fuelType: "",
     transmission: "",
+    userPriorities: "",
   });
 
   const handleSearch = () => {
@@ -45,6 +46,8 @@ export default function DashboardSearchPage() {
     router.push(`/dashboard/results?${queryParams.toString()}`);
   };
 
+  const make = ["Toyota", "Honda", "Ford", "Chevrolet", "Nissan", "BMW", "Mercedes-Benz", "Volkswagen", "Audi", "Hyundai"];
+  const model = ["Camry", "Accord", "F-150", "Silverado", "Altima", "3 Series", "C-Class", "Golf", "A4", "Elantra"];
   const carTypes = ["Sedan", "SUV", "Truck", "Coupe", "Hatchback", "Convertible", "Wagon", "Van"];
   const fuelTypes = ["Gasoline", "Diesel", "Electric", "Hybrid", "Plug-in Hybrid"];
   const transmissions = ["Automatic", "Manual", "CVT"];
@@ -74,23 +77,39 @@ export default function DashboardSearchPage() {
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <Input
-                fullWidth
-                label="Make"
-                placeholder="e.g., Toyota, Honda, Ford"
-                value={searchParams.make}
-                onChange={(e) => setSearchParams({ ...searchParams, make: e.target.value })}
-              />
+              <FormControl fullWidth>
+                <InputLabel>Make</InputLabel>
+                <Select
+                  value={searchParams.make}
+                  label="Make"
+                  onChange={(e) => setSearchParams({ ...searchParams, make: e.target.value })}
+                >
+                  <MenuItem value="">Any</MenuItem>
+                  {make.map((type) => (
+                    <MenuItem key={type} value={type.toLowerCase()}>
+                      {type}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <Input
-                fullWidth
-                label="Model"
-                placeholder="e.g., Camry, Accord, F-150"
-                value={searchParams.model}
-                onChange={(e) => setSearchParams({ ...searchParams, model: e.target.value })}
-              />
+              <FormControl fullWidth>
+                <InputLabel>Model</InputLabel>
+                <Select
+                  value={searchParams.model}
+                  label="Model"
+                  onChange={(e) => setSearchParams({ ...searchParams, model: e.target.value })}
+                >
+                  <MenuItem value="">Any</MenuItem>
+                  {model.map((type) => (
+                    <MenuItem key={type} value={type.toLowerCase()}>
+                      {type}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
 
             <Grid item xs={12} md={4}>
@@ -240,6 +259,12 @@ export default function DashboardSearchPage() {
               </Box>
             </Grid>
 
+            <Grid item xs={12}>
+              <Box sx={{ px: 2 }}>
+                <Input multiLine={true} fullWidth label="Your Priorities (Optional)"  />
+              </Box>
+            </Grid>
+
             {/* Search Button */}
             <Grid item xs={12}>
               <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end", mt: 3 }}>
@@ -257,13 +282,14 @@ export default function DashboardSearchPage() {
                       carType: "",
                       fuelType: "",
                       transmission: "",
+                      userPriorities: "",
                     })
                   }
                 >
                   Reset
                 </Button>
                 <Button
-                  variant="primary"
+                  variant="success"
                   size="lg"
                   leftIcon={<SearchIcon />}
                   onClick={handleSearch}
