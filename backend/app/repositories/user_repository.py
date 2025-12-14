@@ -3,7 +3,7 @@ User repository for database operations
 """
 
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -65,7 +65,7 @@ class UserRepository:
 
         # Set token expiration to 1 hour from now
         user.reset_token = token
-        user.reset_token_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+        user.reset_token_expires = datetime.now(UTC) + timedelta(hours=1)
 
         self.db.commit()
         return token
@@ -78,9 +78,7 @@ class UserRepository:
             return None
 
         # Check if token has expired
-        if not user.reset_token_expires or user.reset_token_expires < datetime.now(
-            timezone.utc
-        ):
+        if not user.reset_token_expires or user.reset_token_expires < datetime.now(UTC):
             return None
 
         return user
@@ -99,4 +97,3 @@ class UserRepository:
 
         self.db.commit()
         return True
-

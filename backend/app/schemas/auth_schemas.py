@@ -51,4 +51,3 @@ class ForgotPasswordResponse(BaseModel):
     """Forgot password response schema"""
 
     message: str
-
