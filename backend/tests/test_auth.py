@@ -34,7 +34,7 @@ def test_signup_duplicate_email(client: TestClient):
             "password": "testpassword123",
         },
     )
-    
+
     # Try to create second user with same email
     response = client.post(
         "/api/v1/auth/signup",
@@ -59,7 +59,7 @@ def test_signup_duplicate_username(client: TestClient):
             "password": "testpassword123",
         },
     )
-    
+
     # Try to create second user with same username
     response = client.post(
         "/api/v1/auth/signup",
@@ -84,7 +84,7 @@ def test_login_success(client: TestClient):
             "password": "testpassword123",
         },
     )
-    
+
     # Login
     response = client.post(
         "/api/v1/auth/login",
@@ -98,7 +98,7 @@ def test_login_success(client: TestClient):
     assert "access_token" in data
     assert "refresh_token" in data
     assert data["token_type"] == "bearer"
-    
+
     # Check that cookies are set
     assert "access_token" in response.cookies
     assert "refresh_token" in response.cookies
@@ -115,7 +115,7 @@ def test_login_wrong_password(client: TestClient):
             "password": "testpassword123",
         },
     )
-    
+
     # Try to login with wrong password
     response = client.post(
         "/api/v1/auth/login",
@@ -153,7 +153,7 @@ def test_get_current_user(client: TestClient):
             "full_name": "Test User",
         },
     )
-    
+
     login_response = client.post(
         "/api/v1/auth/login",
         json={
@@ -161,14 +161,11 @@ def test_get_current_user(client: TestClient):
             "password": "testpassword123",
         },
     )
-    
+
     # Get the access token from cookies and set it manually
     access_token = login_response.cookies.get("access_token")
-    response = client.get(
-        "/api/v1/auth/me",
-        cookies={"access_token": access_token}
-    )
-    
+    response = client.get("/api/v1/auth/me", cookies={"access_token": access_token})
+
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == "test@example.com"
@@ -194,7 +191,7 @@ def test_logout(client: TestClient):
             "password": "testpassword123",
         },
     )
-    
+
     login_response = client.post(
         "/api/v1/auth/login",
         json={
@@ -202,7 +199,7 @@ def test_logout(client: TestClient):
             "password": "testpassword123",
         },
     )
-    
+
     # Logout
     access_token = login_response.cookies.get("access_token")
     response = client.post("/api/v1/auth/logout", cookies={"access_token": access_token})
@@ -222,7 +219,7 @@ def test_refresh_token(client: TestClient):
             "password": "testpassword123",
         },
     )
-    
+
     login_response = client.post(
         "/api/v1/auth/login",
         json={
@@ -230,15 +227,15 @@ def test_refresh_token(client: TestClient):
             "password": "testpassword123",
         },
     )
-    
+
     refresh_token = login_response.json()["refresh_token"]
-    
+
     # Refresh tokens
     response = client.post(
         "/api/v1/auth/refresh",
         json={"refresh_token": refresh_token},
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data

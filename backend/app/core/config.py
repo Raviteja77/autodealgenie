@@ -62,20 +62,20 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    
+
     # Environment
     ENVIRONMENT: str = "development"  # development, staging, production
-    
+
     @property
     def COOKIE_SECURE(self) -> bool:
         """Use secure cookies in production only"""
         return self.ENVIRONMENT == "production"
-    
+
     @property
     def ACCESS_TOKEN_EXPIRE_SECONDS(self) -> int:
         """Access token expiry in seconds for cookie max_age"""
         return self.ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    
+
     @property
     def REFRESH_TOKEN_EXPIRE_SECONDS(self) -> int:
         """Refresh token expiry in seconds for cookie max_age"""

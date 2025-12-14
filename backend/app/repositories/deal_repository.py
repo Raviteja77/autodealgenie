@@ -2,7 +2,6 @@
 Repository pattern for Deal operations
 """
 
-
 from sqlalchemy.orm import Session
 
 from app.models.models import Deal
