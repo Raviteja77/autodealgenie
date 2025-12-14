@@ -237,11 +237,16 @@ Once the backend is running, visit:
 ### Example API Endpoints
 
 - `GET /api/v1/health` - Health check
-- `GET /api/v1/deals/` - List all deals
-- `POST /api/v1/deals/` - Create a new deal
-- `GET /api/v1/deals/{id}` - Get deal by ID
-- `PUT /api/v1/deals/{id}` - Update deal
-- `DELETE /api/v1/deals/{id}` - Delete deal
+- `POST /api/v1/auth/signup` - User signup
+- `POST /api/v1/auth/login` - User login
+- `GET /api/v1/auth/me` - Get current user (requires auth)
+- `GET /api/v1/deals/` - List all deals (requires auth)
+- `POST /api/v1/deals/` - Create a new deal (requires auth)
+- `GET /api/v1/deals/{id}` - Get deal by ID (requires auth)
+- `PUT /api/v1/deals/{id}` - Update deal (requires auth)
+- `DELETE /api/v1/deals/{id}` - Delete deal (requires auth)
+
+For detailed authentication documentation, see [AUTHENTICATION.md](AUTHENTICATION.md).
 
 ## 🐳 Docker Services
 
@@ -312,7 +317,7 @@ For issues and questions:
 
 ## 🎯 Roadmap
 
-- [ ] User authentication and authorization
+- [x] User authentication and authorization (JWT-based with HTTP-only cookies)
 - [ ] Advanced AI features (vehicle valuation, market analysis)
 - [ ] Real-time notifications via WebSockets
 - [ ] Mobile application
