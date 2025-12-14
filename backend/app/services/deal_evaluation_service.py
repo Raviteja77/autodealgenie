@@ -86,6 +86,11 @@ Be specific with dollar amounts and data points. Base your analysis on industry 
             response = await langchain_service.llm.ainvoke(messages)
             llm_output = response.content
 
+            # Ensure we have a string response
+            if not isinstance(llm_output, str):
+                print(f"Unexpected LLM response type: {type(llm_output)}")
+                return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+
             # Parse LLM response - extract JSON from markdown code blocks if present
             if "```json" in llm_output:
                 json_start = llm_output.find("```json") + 7
