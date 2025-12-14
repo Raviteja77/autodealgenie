@@ -111,7 +111,12 @@ function Header() {
               </Menu>
             </>
           ) : (
-            <Button color="inherit" component={Link} href="/auth/login">
+            <Button
+              color="inherit"
+              component={Link}
+              href="/login"
+              sx={{ color: "text.primary" }}
+            >
               Login
             </Button>
           )}
