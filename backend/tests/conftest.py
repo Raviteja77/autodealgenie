@@ -58,15 +58,15 @@ def authenticated_client(client) -> TestClient:
             "full_name": "Test User",
         },
     )
-    
+
     # Login to get tokens
-    response = client.post(
+    client.post(
         "/api/v1/auth/login",
         json={
             "email": "testuser@example.com",
             "password": "testpassword123",
         },
     )
-    
+
     # The cookies are automatically set in the client
     return client
