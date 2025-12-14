@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { getUserFriendlyErrorMessage } from '../errors';
 
 interface UseApiOptions<T> {
@@ -28,6 +28,10 @@ export function useApi<T = unknown>(options?: UseApiOptions<T>) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Memoize callbacks to prevent unnecessary re-renders
+  const onSuccess = useMemo(() => options?.onSuccess, [options?.onSuccess]);
+  const onError = useMemo(() => options?.onError, [options?.onError]);
+
   const execute = useCallback(
     async (apiCall: () => Promise<T>) => {
       setIsLoading(true);
@@ -36,18 +40,18 @@ export function useApi<T = unknown>(options?: UseApiOptions<T>) {
       try {
         const result = await apiCall();
         setData(result);
-        options?.onSuccess?.(result);
+        onSuccess?.(result);
         return result;
       } catch (err) {
         const error = err instanceof Error ? err : new Error('An unknown error occurred');
         setError(error);
-        options?.onError?.(error);
+        onError?.(error);
         throw error;
       } finally {
         setIsLoading(false);
       }
     },
-    [options]
+    [onSuccess, onError]
   );
 
   const reset = useCallback(() => {

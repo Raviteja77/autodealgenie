@@ -133,8 +133,15 @@ class ApiClient {
 
       return response.json();
     } catch (error) {
-      // If it's already one of our custom errors, re-throw it
-      if (error instanceof Error && error.name.includes('Error')) {
+      // Re-throw if it's already a structured API error
+      if (error instanceof Error && 
+          (error.constructor.name === 'ApiError' || 
+           error.constructor.name === 'AuthenticationError' ||
+           error.constructor.name === 'AuthorizationError' ||
+           error.constructor.name === 'NotFoundError' ||
+           error.constructor.name === 'ValidationError' ||
+           error.constructor.name === 'ServerError' ||
+           error.constructor.name === 'NetworkError')) {
         throw error;
       }
       

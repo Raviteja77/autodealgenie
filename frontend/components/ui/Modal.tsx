@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, ReactNode } from 'react';
+import React, { useEffect, useRef, ReactNode } from 'react';
 
 interface ModalProps {
   isOpen: boolean;
@@ -18,6 +18,9 @@ const sizeClasses = {
   lg: 'max-w-lg',
   xl: 'max-w-xl',
 };
+
+// Track number of open modals
+let openModalCount = 0;
 
 /**
  * Modal component for dialogs and overlays
@@ -49,16 +52,35 @@ export const Modal: React.FC<ModalProps> = ({
   closeOnOverlayClick = true,
   showCloseButton = true,
 }) => {
+  const wasOpen = useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
-      // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
+    if (isOpen && !wasOpen.current) {
+      // Modal is opening
+      openModalCount++;
+      wasOpen.current = true;
+      if (openModalCount === 1) {
+        // First modal opening, lock body scroll
+        document.body.style.overflow = 'hidden';
+      }
+    } else if (!isOpen && wasOpen.current) {
+      // Modal is closing
+      openModalCount--;
+      wasOpen.current = false;
+      if (openModalCount === 0) {
+        // Last modal closing, unlock body scroll
+        document.body.style.overflow = 'unset';
+      }
     }
 
     return () => {
-      document.body.style.overflow = 'unset';
+      if (wasOpen.current) {
+        // Cleanup: modal component unmounting while open
+        openModalCount--;
+        if (openModalCount === 0) {
+          document.body.style.overflow = 'unset';
+        }
+      }
     };
   }, [isOpen]);
 

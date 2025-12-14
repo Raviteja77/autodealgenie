@@ -85,18 +85,23 @@ export function useLocalStorage<T>(
     }
 
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === key && e.newValue !== null) {
-        try {
-          setStoredValue(deserializer(e.newValue));
-        } catch (error) {
-          console.error(`Error parsing localStorage key "${key}":`, error);
+      if (e.key === key) {
+        if (e.newValue === null) {
+          // Item was removed in another tab
+          setStoredValue(initialValue);
+        } else {
+          try {
+            setStoredValue(deserializer(e.newValue));
+          } catch (error) {
+            console.error(`Error parsing localStorage key "${key}":`, error);
+          }
         }
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [key, deserializer]);
+  }, [key, deserializer, initialValue]);
 
   return [storedValue, setValue, removeValue];
 }
