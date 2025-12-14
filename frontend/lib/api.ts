@@ -93,21 +93,39 @@ class ApiClient {
   }
 
   /**
-   * Fetch all deals from the backend
+   * Generic request method with authentication support
    */
-  async getDeals(): Promise<Deal[]> {
-    const response = await fetch(`${this.baseUrl}/api/v1/deals`, {
-      method: 'GET',
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    
+    // Always include credentials (cookies)
+    const config: RequestInit = {
+      ...options,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...options.headers,
       },
-    });
+    };
+
+    const response = await fetch(url, config);
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch deals: ${response.statusText}`);
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || `Request failed: ${response.statusText}`);
     }
 
     return response.json();
+  }
+
+  /**
+   * Fetch all deals from the backend
+   */
+  async getDeals(): Promise<Deal[]> {
+    return this.request<Deal[]>('/api/v1/deals');
   }
 
   /**
@@ -126,20 +144,8 @@ class ApiClient {
     if (params.mileage_max !== undefined) queryParams.append('mileage_max', params.mileage_max.toString());
     if (params.user_priorities) queryParams.append('user_priorities', params.user_priorities);
 
-    const url = `${this.baseUrl}/api/v1/cars/search${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to search cars: ${response.statusText}`);
-    }
-
-    return response.json();
+    const queryString = queryParams.toString() ? '?' + queryParams.toString() : '';
+    return this.request<CarSearchResponse>(`/api/v1/cars/search${queryString}`);
   }
 }
 
