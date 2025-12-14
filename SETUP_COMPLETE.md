@@ -68,26 +68,29 @@ cp frontend/.env.example frontend/.env.local
 # 3. Start all services
 ./start.sh
 
-## local development
+## Local Development
 
 For the best development experience (Hot Module Replacement, faster debugging), the recommended workflow is a Hybrid Setup:
 
 Run Infrastructure (Database, Redis, Kafka) in Docker.
 Run Application Code (Frontend & Backend) locally on your machine.
 
+```bash
 # Stop specific containers
 docker compose stop frontend backend
 
 # Alternatively, ensure only infra is running (if you restarted)
 docker compose up -d postgres mongodb redis kafka zookeeper
+```
 
+**Backend:**
+
+```bash
 cd backend
 
 # Create and activate virtual environment
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
-
-deactivate 
 
 # Install dependencies
 pip install -r requirements.txt
@@ -101,7 +104,11 @@ export KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 
 # Run with hot reload
 uvicorn app.main:app --reload --port 8000
+```
 
+**Frontend:**
+
+```bash
 cd frontend
 
 # Install dependencies
@@ -109,6 +116,7 @@ npm install
 
 # Run development server
 npm run dev
+```
 
 
 # 4. Access the applications

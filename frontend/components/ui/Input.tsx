@@ -9,7 +9,7 @@ interface InputProps extends Omit<TextFieldProps, "error"> {
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   fullWidth?: boolean;
-  multiLine?: boolean;
+  multiline?: boolean;
 }
 
 /**
@@ -24,7 +24,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       leftIcon,
       rightIcon,
       fullWidth = false,
-      multiLine = false,
+      multiline = false,
       disabled,
       ...props
     },
@@ -44,7 +44,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       );
     }
 
-    return multiLine ? (
+    return multiline ? (
       <TextField
         inputRef={ref}
         label={label}
