@@ -9,7 +9,14 @@ from app.api.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.models import User
 from app.repositories.deal_repository import DealRepository
-from app.schemas.schemas import DealCreate, DealResponse, DealUpdate
+from app.schemas.schemas import (
+    DealCreate,
+    DealEvaluationRequest,
+    DealEvaluationResponse,
+    DealResponse,
+    DealUpdate,
+)
+from app.services.deal_evaluation_service import deal_evaluation_service
 
 router = APIRouter()
 
@@ -86,3 +93,26 @@ def delete_deal(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Deal with id {deal_id} not found"
         )
     return None
+
+
+@router.post("/evaluate", response_model=DealEvaluationResponse)
+async def evaluate_deal(
+    evaluation_request: DealEvaluationRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Evaluate a car deal and get fair market value analysis
+
+    Returns:
+        - fair_value: Estimated fair market value
+        - score: Deal quality score (1-10)
+        - insights: AI-powered analysis insights
+        - talking_points: Negotiation recommendations
+    """
+    result = await deal_evaluation_service.evaluate_deal(
+        vehicle_vin=evaluation_request.vehicle_vin,
+        asking_price=evaluation_request.asking_price,
+        condition=evaluation_request.condition,
+        mileage=evaluation_request.mileage,
+    )
+    return result
