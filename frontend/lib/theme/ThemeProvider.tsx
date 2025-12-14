@@ -3,12 +3,12 @@ import * as React from "react";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { theme } from "./theme";
-import createCache from "@emotion/cache";
+import createCache, { type Options } from "@emotion/cache";
 import { useServerInsertedHTML } from "next/navigation";
 import { CacheProvider as EmotionCacheProvider } from "@emotion/react";
 
 function NextAppDirEmotionCacheProvider(props: {
-  options: { key: string };
+  options: Options;
   children: React.ReactNode;
 }) {
   const { options, children } = props;

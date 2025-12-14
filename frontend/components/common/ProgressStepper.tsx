@@ -9,20 +9,22 @@ interface ProgressStepperProps {
   steps: string[];
 }
 
+// Shared gradient constant
+const BLUE_GRADIENT = "linear-gradient(95deg, rgb(37,99,235) 0%, rgb(59,130,246) 50%, rgb(96,165,250) 100%)";
+const BLUE_GRADIENT_ICON = "linear-gradient(136deg, rgb(37,99,235) 0%, rgb(59,130,246) 50%, rgb(96,165,250) 100%)";
+
 const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
   alternativeLabel: {
     top: 22,
   },
   active: {
     "& .MuiStepConnector-line": {
-      backgroundImage:
-        "linear-gradient( 95deg,rgb(37,99,235) 0%,rgb(59,130,246) 50%,rgb(96,165,250) 100%)",
+      backgroundImage: BLUE_GRADIENT,
     },
   },
   completed: {
     "& .MuiStepConnector-line": {
-      backgroundImage:
-        "linear-gradient( 95deg,rgb(37,99,235) 0%,rgb(59,130,246) 50%,rgb(96,165,250) 100%)",
+      backgroundImage: BLUE_GRADIENT,
     },
   },
   line: {
@@ -48,13 +50,11 @@ const ColorlibStepIconRoot = styled("div")<{
   justifyContent: "center",
   alignItems: "center",
   ...(ownerState.active && {
-    backgroundImage:
-      "linear-gradient( 136deg, rgb(37,99,235) 0%, rgb(59,130,246) 50%, rgb(96,165,250) 100%)",
+    backgroundImage: BLUE_GRADIENT_ICON,
     boxShadow: "0 4px 10px 0 rgba(0,0,0,.25)",
   }),
   ...(ownerState.completed && {
-    backgroundImage:
-      "linear-gradient( 136deg, rgb(37,99,235) 0%, rgb(59,130,246) 50%, rgb(96,165,250) 100%)",
+    backgroundImage: BLUE_GRADIENT_ICON,
   }),
 }));
 
