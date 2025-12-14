@@ -261,10 +261,10 @@ export default function DashboardSearchPage() {
 
             <Grid item xs={12}>
               <Box sx={{ px: 2 }}>
-                <Input 
-                  multiline={true} 
-                  fullWidth 
-                  label="Your Priorities (Optional)" 
+                <Input
+                  multiline={true}
+                  fullWidth
+                  label="Your Priorities (Optional)"
                   value={searchParams.userPriorities}
                   onChange={(e) =>
                     setSearchParams({ ...searchParams, userPriorities: e.target.value })

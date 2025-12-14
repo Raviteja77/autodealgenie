@@ -6,31 +6,25 @@ import {
   AppBar,
   Box,
   Toolbar,
-  IconButton,
   Typography,
-  Menu,
-  Avatar,
   Button,
-  Tooltip,
-  MenuItem,
-  Skeleton,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 
 function Header() {
-  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
-  const { user, loading, logout } = useAuth();
-  const router = useRouter();
+//   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
+//   const { user, loading } = useAuth();
+//   const router = useRouter();
 
-  const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorElUser(event.currentTarget);
-  };
+//   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
+//     setAnchorElUser(event.currentTarget);
+//   };
 
-  const handleCloseUserMenu = () => {
-    setAnchorElUser(null);
-  };
+//   const handleCloseUserMenu = () => {
+//     setAnchorElUser(null);
+//   };
 
   const handleSignOut = async () => {
     handleCloseUserMenu();

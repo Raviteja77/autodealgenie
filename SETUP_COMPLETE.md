@@ -83,7 +83,7 @@ docker compose stop frontend backend
 docker compose up -d postgres mongodb redis kafka zookeeper
 ```
 
-### Backend
+**Backend:**
 
 ```bash
 cd backend
@@ -106,7 +106,7 @@ export KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Frontend
+**Frontend:**
 
 ```bash
 cd frontend
