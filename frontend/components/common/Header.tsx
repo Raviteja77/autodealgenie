@@ -3,13 +3,41 @@
 import Image from "next/image";
 import {
   AppBar,
+  Avatar,
   Box,
+  IconButton,
+  Menu,
+  MenuItem,
+  Skeleton,
   Toolbar,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import { useState } from "react";
+import { Button } from "../ui/Button";
+
 
 function Header() {
+  const { user, loading, logout } = useAuth();
+  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
+  const router = useRouter();
+
+  const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorElUser(event.currentTarget);
+  };
+
+  const handleCloseUserMenu = () => {
+    setAnchorElUser(null);
+  };
+
+  const handleSignOut = async () => {
+    handleCloseUserMenu();
+    await logout();
+    router.push("/auth/login");
+  };
   return (
     <AppBar
       position="fixed"
@@ -19,7 +47,7 @@ function Header() {
     >
       <Toolbar>
         <Image
-          src="/logo.png"
+          src="/images/icon.png"
           alt="Auto deal genie logomark"
           width={40}
           height={40}
@@ -35,7 +63,7 @@ function Header() {
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* <Box sx={{ flexGrow: 0 }}>
+        <Box sx={{ flexGrow: 0 }}>
           {loading ? (
             <Skeleton variant="circular" width={40} height={40} />
           ) : user ? (
@@ -43,8 +71,7 @@ function Header() {
               <Tooltip title="Open settings">
                 <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                   <Avatar
-                    alt={user.displayName || "User"}
-                    src={user.photoURL || ""}
+                    alt={user.full_name || "User"}
                   />
                 </IconButton>
               </Tooltip>
@@ -66,7 +93,7 @@ function Header() {
               >
                 <MenuItem disabled>
                   <Typography textAlign="center">
-                    {user.displayName || user.email}
+                    {user.full_name || user.email}
                   </Typography>
                 </MenuItem>
                 <MenuItem onClick={handleSignOut}>
@@ -75,11 +102,11 @@ function Header() {
               </Menu>
             </>
           ) : (
-            <Button color="inherit" component={Link} href="/auth/login">
+            <Button variant="outline" component={Link} href="/auth/login">
               Login
             </Button>
           )}
-        </Box> */}
+        </Box>
       </Toolbar>
     </AppBar>
   );
