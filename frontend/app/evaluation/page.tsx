@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -49,7 +49,7 @@ interface EvaluationScore {
   description: string;
 }
 
-export default function EvaluationPage() {
+function EvaluationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -385,5 +385,17 @@ export default function EvaluationPage() {
       </Box>
       <Footer />
     </Box>
+  );
+}
+
+export default function EvaluationPage() {
+  return (
+    <Suspense fallback={
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+        <Typography>Loading...</Typography>
+      </Box>
+    }>
+      <EvaluationContent />
+    </Suspense>
   );
 }

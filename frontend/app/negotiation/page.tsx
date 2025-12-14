@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -44,7 +45,7 @@ interface VehicleInfo {
   fuelType: string;
 }
 
-export default function NegotiationPage() {
+function NegotiationContent() {
   const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -316,5 +317,17 @@ export default function NegotiationPage() {
       </Box>
       <Footer />
     </Box>
+  );
+}
+
+export default function NegotiationPage() {
+  return (
+    <Suspense fallback={
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+        <Typography>Loading...</Typography>
+      </Box>
+    }>
+      <NegotiationContent />
+    </Suspense>
   );
 }
