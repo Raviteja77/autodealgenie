@@ -84,6 +84,9 @@ export function FormProvider({ children }: { children: ReactNode }) {
     (field: keyof FormData): boolean => {
       try {
         const fieldSchema = FormSchema.shape[field];
+        if (!fieldSchema) {
+          return true; // Field doesn't exist in schema, skip validation
+        }
         fieldSchema.parse(state.data[field]);
         setState((prev) => ({
           ...prev,

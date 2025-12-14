@@ -4,9 +4,8 @@ User preferences schemas for validation and serialization
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class BudgetRange(BaseModel):
@@ -15,13 +14,12 @@ class BudgetRange(BaseModel):
     min: float = Field(..., ge=0, description="Minimum budget")
     max: float = Field(..., gt=0, description="Maximum budget")
 
-    @field_validator("max")
-    @classmethod
-    def validate_max_greater_than_min(cls, v: float, info: Any) -> float:
+    @model_validator(mode="after")
+    def validate_max_greater_than_min(self) -> "BudgetRange":
         """Validate that max is greater than min"""
-        if "min" in info.data and v <= info.data["min"]:
+        if self.max <= self.min:
             raise ValueError("max must be greater than min")
-        return v
+        return self
 
 
 class CarType(str, Enum):
@@ -74,14 +72,16 @@ class CarPreferences(BaseModel):
         None, max_length=500, description="User priorities and requirements"
     )
 
-    @field_validator("year_max")
-    @classmethod
-    def validate_year_range(cls, v: int | None, info: Any) -> int | None:
+    @model_validator(mode="after")
+    def validate_year_range(self) -> "CarPreferences":
         """Validate that year_max is greater than or equal to year_min"""
-        if v is not None and "year_min" in info.data and info.data["year_min"] is not None:
-            if v < info.data["year_min"]:
-                raise ValueError("year_max must be greater than or equal to year_min")
-        return v
+        if (
+            self.year_max is not None
+            and self.year_min is not None
+            and self.year_max < self.year_min
+        ):
+            raise ValueError("year_max must be greater than or equal to year_min")
+        return self
 
 
 class NotificationPreferences(BaseModel):
