@@ -2,13 +2,20 @@
 
 ## Project Overview
 
-AutoDealGenie is an AI-powered automotive deal management platform with:
-- **Backend**: Python FastAPI with async support
-- **Frontend**: Next.js 14 with TypeScript, Material-UI, and Tailwind CSS
-- **Databases**: PostgreSQL (with SQLAlchemy ORM) and MongoDB (with Motor)
+AutoDealGenie is a car-buying assistant web application that guides users through a multi-step process: car preference input, vehicle discovery, negotiation simulation, and deal evaluation.
+
+**Architecture:**
+- **Backend**: Python FastAPI with async support (vehicle research and external APIs)
+- **Frontend**: Next.js 14+ single-page application with App Router and server-side rendering
+- **Databases**: 
+  - PostgreSQL (primary relational database for users, deals, loan applications)
+  - MongoDB (unstructured data: search history, negotiation conversations, vehicle cache)
 - **Infrastructure**: Redis for caching, Kafka for messaging
 - **AI Integration**: LangChain with OpenAI for intelligent features
+- **Authentication**: JWT tokens stored in HTTP-only cookies
 - **Containerization**: Docker and Docker Compose for development
+
+**Current Maturity**: MVP/Early Development - core flows are functional, but error handling, test coverage, and production hardening are incomplete.
 
 ## Code Style and Standards
 
@@ -32,18 +39,22 @@ Always:
 ### Frontend (TypeScript)
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript 5
-- **UI Libraries**: Material-UI (@mui/material) and Tailwind CSS
-- **Linter**: ESLint (next lint)
-- **Validation**: Zod for runtime type validation
+- **UI Libraries**: Material-UI (@mui/material) and Tailwind CSS (limited usage)
+- **Styling**: Emotion v11+ for CSS-in-JS
+- **Linter**: ESLint (next lint with next/core-web-vitals, TypeScript, react-hooks rules)
+- **Validation**: Zod and Yup for runtime type validation (forms, API payloads)
 
 Always:
-- Use TypeScript for all new files
+- Use TypeScript for all new files with explicit types (no `any` unless documented and justified)
 - Follow Next.js 14 App Router conventions
 - Prefer Material-UI components over custom implementations
-- Use Tailwind CSS for utility-based styling
+- Use Tailwind CSS for utility-based styling (limited usage)
 - Validate API data with Zod schemas
 - Use async/await for API calls
 - Handle errors gracefully with user-friendly messages
+- Use React Context Providers for state management (AuthProvider, FormProvider, CarFormProvider)
+- Expose public interfaces via custom hooks (`useAuth`, `useSearch`, `useNegotiation`)
+- Avoid importing low-level clients (direct DB clients, FastAPI URLs) from React components
 
 ## Project Structure
 
@@ -73,12 +84,38 @@ backend/
 ```
 frontend/
 ├── app/                  # Next.js 14 app directory (App Router)
+│   ├── api/              # Next.js API routes
+│   │   ├── auth/         # JWT auth routes (login, logout, refresh)
+│   │   ├── user/         # User CRUD (PostgreSQL DAL)
+│   │   ├── deals/        # Deals management (PostgreSQL DAL)
+│   │   ├── loan-applications/  # Loan applications (PostgreSQL DAL)
+│   │   ├── research/     # Proxy to FastAPI backend
+│   │   ├── history/      # Search history (MongoDB DAL)
+│   │   └── negotiation/  # Negotiation conversations (MongoDB DAL)
+│   ├── context/          # React Context Providers
+│   │   ├── AuthProvider.tsx        # JWT-backed auth state
+│   │   ├── FormProvider.tsx        # Search criteria state
+│   │   └── CarFormProvider.tsx     # Selected vehicle state
+│   ├── dashboard/        # Protected dashboard routes
+│   │   ├── search/       # Car search page
+│   │   └── results/      # Search results page
 │   ├── deals/            # Deals feature pages
+│   ├── search/           # Public search pages
 │   ├── layout.tsx        # Root layout
 │   └── page.tsx          # Home page
 ├── components/           # Reusable React components
+│   ├── Header.tsx
+│   ├── Footer.tsx
+│   ├── ProgressStepper.tsx
+│   ├── forms/            # Form components (CarPreferenceForm, LoanForm)
+│   ├── cards/            # Display components (CarCard, CarSelection)
+│   └── auth/             # Auth components (AuthLayout, Login, Signup)
 ├── lib/                  # Utilities and helpers
-│   └── api.ts            # API client configuration
+│   ├── api.ts            # API client configuration
+│   ├── auth/             # Auth utilities
+│   ├── hooks/            # Custom React hooks
+│   ├── theme/            # MUI theme configuration
+│   └── errors.ts         # Error handling utilities
 ├── .env.example          # Environment variables template
 ├── next.config.mjs       # Next.js configuration
 ├── package.json          # Node.js dependencies
@@ -96,6 +133,9 @@ frontend/
 ### Testing
 - **Backend**: `cd backend && pytest` (with coverage: `pytest --cov=app`)
 - **Frontend**: `cd frontend && npm test`
+- **Target**: ~80% coverage for business logic modules and critical UI pieces
+- **E2E Testing**: Use Playwright for critical user flows
+- **Testing Libraries**: Testing Library and Jest for unit/integration tests
 
 ### Code Quality
 - **Backend**: 
@@ -113,13 +153,33 @@ frontend/
 
 ## Key Conventions
 
+### Data Access Layer (DAL)
+- **PostgreSQL DAL**: All PostgreSQL operations must go through typed DAL modules (e.g., `pgUserRepository`, `pgDealRepository`, `pgLoanApplicationRepository`)
+- **MongoDB DAL**: All MongoDB operations must go through separate DAL modules (e.g., `mongoHistoryRepository`, `mongoConversationRepository`, `mongoCacheRepository`)
+- **No Direct Queries**: Never use direct SQL queries or direct Mongoose/driver calls from API routes or React components
+- **Data Strategy**:
+  - PostgreSQL: Users, Deals, Loan Applications (relational data)
+  - MongoDB: Search history, Negotiation conversations, Vehicle cache (unstructured/high-variance data)
+
 ### Authentication
-- JWT-based authentication with HTTP-only cookies
+- JWT-based authentication with HTTP-only cookies (never use `localStorage` for tokens)
+- Tokens must live only in HTTP-only cookies
 - See `AUTHENTICATION.md` for detailed documentation
 - Use FastAPI dependencies for auth: `get_current_user`, `get_current_active_user`
+- Implement robust refresh token handling and clear token expiry behavior
+- Frontend reads user state through `AuthProvider` + `useAuth` hook (never from cookies or storage directly)
 
-### API Endpoints
-- All endpoints are under `/api/v1/`
+### API Routes (Next.js)
+- Next.js API routes under `app/api/` handle HTTP boundary logic
+- Public routes: `/api/auth/login`, `/api/auth/signup`, `/api/auth/logout`
+- Protected routes: `/api/user`, `/api/deals`, `/api/loan-applications`, `/api/history`, `/api/negotiation`
+- External proxy: `/api/research` (proxies to FastAPI backend)
+- Use Zod for request validation; avoid generic error responses
+- Wrap external API and DB operations in `try/catch`
+- Use shared error helpers like `ApiError` and `handleApiError` with consistent JSON error envelopes
+
+### FastAPI Backend Endpoints
+- All FastAPI endpoints are under `/api/v1/`
 - Public endpoints: `/api/v1/health`, `/api/v1/auth/signup`, `/api/v1/auth/login`
 - Protected endpoints require authentication
 - Use proper HTTP status codes (200, 201, 400, 401, 403, 404, 422, 500)
@@ -127,13 +187,35 @@ frontend/
 ### Error Handling
 - Backend: Use FastAPI's HTTPException for API errors
 - Frontend: Handle errors with try-catch and display user-friendly messages
+- Add React Error Boundaries around major feature areas
+- Integrate centralized error logging (e.g., Sentry) for API routes and client errors
 
-### Environment Variables
+### Component Composition & State Management
+- Prefer context and composition over props drilling (>2 levels deep)
+- Keep components under ~5 props; use custom hooks to bundle behavior
+- Use React Context Providers: `AuthProvider`, `FormProvider`, `CarFormProvider`
+- Replace `localStorage` as primary source of truth for multi-step flows; rely on server state + URL parameters
+
+### File Naming Conventions
+- Components: `PascalCase.tsx`
+- Hooks: `usePascalCase.ts`
+- Utilities: `camelCase.ts`
+- API routes: `kebab-case/route.ts` under `app/api`
+
+### Environment Configuration
+- No hardcoded URLs or keys; use `config/environment.ts` (or equivalent) to centralize env access
 - Backend: Configure in `backend/.env` (see `backend/.env.example`)
 - Frontend: Configure in `frontend/.env.local` (see `frontend/.env.example`)
 - Never commit `.env` files to version control
 
 ## Important Notes
+
+### Technical Debt & Known Issues
+- **Authentication**: Tokens must live only in HTTP-only cookies; remove any `localStorage` usage for auth
+- **Data Layer**: Separate DALs for PostgreSQL (`pg/*`) and MongoDB (`mongo/*`) must be used consistently
+- **Error Boundaries**: React Error Boundaries needed around major feature areas
+- **Form State**: Replace `localStorage` as primary source of truth for multi-step flows
+- **Module Encapsulation**: Avoid importing low-level clients from React components
 
 ### Coverage Exclusions
 The following files are excluded from test coverage (as they require external service dependencies and are better suited for integration tests):
@@ -158,13 +240,28 @@ The following files are excluded from test coverage (as they require external se
 ## Suggestions for Copilot
 
 When generating code:
-1. Follow the established project structure and patterns
-2. Use the existing abstractions (repositories, services, schemas)
-3. Write type-safe code with proper type hints
-4. Include error handling and validation
+1. Follow the established project structure and patterns (Modified MVC with React Context + service/DAL layers)
+2. Use the existing abstractions (repositories, services, schemas, context providers)
+3. Write type-safe code with proper type hints (no `any` unless justified)
+4. Include error handling and validation (use Zod for request validation)
 5. Consider async operations for I/O-bound tasks
 6. Keep code DRY (Don't Repeat Yourself)
-7. Write unit tests for new functionality
+7. Write unit tests for new functionality (target ~80% coverage)
 8. Format code according to project standards before committing
 9. Update documentation if adding new features or changing behavior
 10. Use Material-UI components for frontend UI elements
+11. Always use DAL modules for database access (never direct queries)
+12. Store auth tokens only in HTTP-only cookies (never `localStorage`)
+13. Use React Context Providers and custom hooks for state management
+14. Keep components under ~5 props; prefer composition over props drilling
+
+## Future Roadmap
+
+Features in development or planned:
+- **Real-Time Negotiation Agent**: MongoDB for conversation history, PostgreSQL for finalized deals
+- **Vehicle History Integration**: Vehicle reports cached in MongoDB, linked to deals in PostgreSQL
+- **Loan Pre-Approval Workflow**: Loan applications in PostgreSQL with encrypted sensitive fields
+- **Multi-User Collaboration**: Shared searches and permissions in PostgreSQL, activity streams in MongoDB
+- **Advanced Search Filters & Saved Searches**: Search definitions in PostgreSQL, history in MongoDB
+- **Edge Caching**: Vehicle research results via Redis/KV store and MongoDB cache
+- **Client Bundle Optimization**: Dynamic imports and MUI tree-shaking
