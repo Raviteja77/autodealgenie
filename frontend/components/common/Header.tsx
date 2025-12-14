@@ -1,44 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
 import {
   AppBar,
   Box,
   Toolbar,
-  IconButton,
   Typography,
-  Menu,
-  Avatar,
-  Button,
-  Tooltip,
-  MenuItem,
-  Skeleton,
 } from "@mui/material";
-// import { signOut } from "firebase/auth";
-// import { auth } from "@/app/firebase";
-// import { useRouter } from "next/navigation";
 import Link from "next/link";
-// import { useAuth } from "@/app/context/AuthProvider";
 
 function Header() {
-  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
-//   const { user, loading } = useAuth();
-//   const router = useRouter();
-
-  const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorElUser(event.currentTarget);
-  };
-
-  const handleCloseUserMenu = () => {
-    setAnchorElUser(null);
-  };
-
-//   const handleSignOut = async () => {
-//     handleCloseUserMenu();
-//     await signOut(auth);
-//     router.push("/auth/login");
-//   };
   return (
     <AppBar
       position="fixed"

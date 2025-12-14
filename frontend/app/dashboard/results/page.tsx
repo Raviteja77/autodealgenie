@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
@@ -19,6 +19,9 @@ import IconButton from "@mui/material/IconButton";
 import Link from "next/link";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
+import Header from "@/components/common/Header";
+import Footer from "@/components/common/Footer";
+import ProgressStepper from "@/components/common/ProgressStepper";
 
 // Mock data generator
 const generateMockVehicles = (count: number = 12) => {
@@ -78,6 +81,7 @@ interface Vehicle {
 }
 
 function ResultsContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
@@ -128,11 +132,17 @@ function ResultsContent() {
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", py: 4 }}>
-      <Container maxWidth="lg">
-        {/* Header */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
-          <Box>
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <Header />
+      <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
+        <Container maxWidth="lg">
+          <ProgressStepper
+            activeStep={1}
+            steps={["Search", "Results", "Negotiate", "Evaluate", "Finalize"]}
+          />
+          {/* Header */}
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+            <Box>
             <Typography variant="h3" gutterBottom fontWeight={700}>
               Search Results
             </Typography>
@@ -297,11 +307,29 @@ function ResultsContent() {
 
                   <Card.Footer>
                     <Box sx={{ display: "flex", gap: 1, width: "100%" }}>
-                      <Button variant="outline" fullWidth size="sm">
-                        View Details
+                      <Button
+                        variant="outline"
+                        fullWidth
+                        size="sm"
+                        onClick={() =>
+                          router.push(
+                            `/negotiation?make=${vehicle.make}&model=${vehicle.model}&year=${vehicle.year}&price=${vehicle.price}&mileage=${vehicle.mileage}&fuelType=${vehicle.fuelType}`
+                          )
+                        }
+                      >
+                        Negotiate
                       </Button>
-                      <Button variant="primary" fullWidth size="sm">
-                        Contact Dealer
+                      <Button
+                        variant="primary"
+                        fullWidth
+                        size="sm"
+                        onClick={() =>
+                          router.push(
+                            `/evaluation?make=${vehicle.make}&model=${vehicle.model}&year=${vehicle.year}&price=${vehicle.price}&mileage=${vehicle.mileage}&fuelType=${vehicle.fuelType}`
+                          )
+                        }
+                      >
+                        View Details
                       </Button>
                     </Box>
                   </Card.Footer>
@@ -310,7 +338,9 @@ function ResultsContent() {
             ))}
           </Grid>
         )}
-      </Container>
+        </Container>
+      </Box>
+      <Footer />
     </Box>
   );
 }

@@ -18,6 +18,9 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Slider from "@mui/material/Slider";
 import Paper from "@mui/material/Paper";
+import Header from "@/components/common/Header";
+import Footer from "@/components/common/Footer";
+import ProgressStepper from "@/components/common/ProgressStepper";
 
 export default function DashboardSearchPage() {
   const router = useRouter();
@@ -53,17 +56,23 @@ export default function DashboardSearchPage() {
   const transmissions = ["Automatic", "Manual", "CVT"];
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default", py: 4 }}>
-      <Container maxWidth="lg">
-        {/* Header */}
-        <Box sx={{ textAlign: "center", mb: 6 }}>
-          <Typography variant="h3" gutterBottom fontWeight={700}>
-            Find Your Perfect Car
-          </Typography>
-          <Typography variant="h6" color="text.secondary">
-            AI-powered search to help you discover the best deals
-          </Typography>
-        </Box>
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <Header />
+      <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
+        <Container maxWidth="lg">
+          <ProgressStepper
+            activeStep={0}
+            steps={["Search", "Results", "Negotiate", "Evaluate", "Finalize"]}
+          />
+          {/* Header */}
+          <Box sx={{ textAlign: "center", mb: 6 }}>
+            <Typography variant="h3" gutterBottom fontWeight={700}>
+              Find Your Perfect Car
+            </Typography>
+            <Typography variant="h6" color="text.secondary">
+              AI-powered search to help you discover the best deals
+            </Typography>
+          </Box>
 
         {/* Search Form */}
         <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
@@ -328,7 +337,9 @@ export default function DashboardSearchPage() {
             ))}
           </Grid>
         </Box>
-      </Container>
+        </Container>
+      </Box>
+      <Footer />
     </Box>
   );
 }
