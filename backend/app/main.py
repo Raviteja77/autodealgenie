@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import api_router
 from app.core.config import settings
+from app.middleware.error_middleware import ErrorHandlerMiddleware
 
 
 @asynccontextmanager
@@ -31,6 +32,9 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan,
 )
+
+# Error handling middleware (should be added first to catch all errors)
+app.add_middleware(ErrorHandlerMiddleware)
 
 # CORS middleware
 app.add_middleware(
