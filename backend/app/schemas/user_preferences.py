@@ -22,6 +22,20 @@ class BudgetRange(BaseModel):
         return self
 
 
+class YearRange(BaseModel):
+    """Year range for car search preferences"""
+
+    min: int = Field(..., ge=1900, le=2100, description="Minimum year")
+    max: int = Field(..., ge=1900, le=2100, description="Maximum year")
+
+    @model_validator(mode="after")
+    def validate_max_greater_than_min(self) -> "YearRange":
+        """Validate that max is greater than or equal to min"""
+        if self.max < self.min:
+            raise ValueError("max must be greater than or equal to min")
+        return self
+
+
 class CarType(str, Enum):
     """Car type enumeration"""
 
@@ -171,3 +185,14 @@ class SavedSearchResponse(SavedSearch):
 
     class Config:
         from_attributes = True
+
+
+# MongoDB-specific schemas for user preferences service
+class UserPreferencesData(BaseModel):
+    """MongoDB document schema for user preferences"""
+
+    makes: list[str] | None = Field(default=None, description="Preferred car makes")
+    budget_range: BudgetRange | None = Field(default=None, description="Budget range")
+    year_range: YearRange | None = Field(default=None, description="Year range")
+    body_types: list[str] | None = Field(default=None, description="Preferred body types")
+    features: list[str] | None = Field(default=None, description="Desired features")
