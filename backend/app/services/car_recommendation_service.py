@@ -1,20 +1,38 @@
 """
 Car Recommendation Service with LLM Integration
-Analyzes and ranks vehicle listings based on user criteria
+Enhanced with caching, rate limiting, retry logic, search history, and webhooks
 """
 
+import hashlib
 import json
+import logging
 from typing import Any
 
 from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from app.core.config import settings
+from app.db.redis import redis_client
+from app.repositories.search_history_repository import search_history_repository
+from app.repositories.webhook_repository import WebhookRepository
+from app.services.webhook_service import webhook_service
 from app.tools.marketcheck_client import marketcheck_client
+
+logger = logging.getLogger(__name__)
+
+# Cache TTL in seconds (15 minutes)
+CACHE_TTL = 900
 
 
 class CarRecommendationService:
-    """Service for recommending cars using LLM analysis"""
+    """Service for recommending cars using LLM analysis with caching and webhooks"""
 
     SYSTEM_PROMPT = """You are an expert automotive advisor helping customers find their ideal vehicle.
 
@@ -40,7 +58,7 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
 
     def __init__(self):
         if not settings.OPENAI_API_KEY:
-            print("Warning: OPENAI_API_KEY not set. Car recommendation features will be limited.")
+            logger.warning("OPENAI_API_KEY not set. Car recommendation features will be limited.")
             self.llm = None
         else:
             self.llm = ChatOpenAI(
@@ -48,6 +66,172 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
                 openai_api_key=settings.OPENAI_API_KEY,
                 temperature=0.3,  # Lower temperature for more consistent recommendations
             )
+
+    def _generate_cache_key(
+        self,
+        make: str | None = None,
+        model: str | None = None,
+        budget_min: int | None = None,
+        budget_max: int | None = None,
+        car_type: str | None = None,
+        year_min: int | None = None,
+        year_max: int | None = None,
+        mileage_max: int | None = None,
+        user_priorities: str | None = None,
+    ) -> str:
+        """
+        Generate a cache key for search parameters
+
+        Args:
+            Search parameters
+
+        Returns:
+            Cache key string
+        """
+        # Create a consistent string representation of search params
+        params = {
+            "make": make,
+            "model": model,
+            "budget_min": budget_min,
+            "budget_max": budget_max,
+            "car_type": car_type,
+            "year_min": year_min,
+            "year_max": year_max,
+            "mileage_max": mileage_max,
+            "user_priorities": user_priorities,
+        }
+        # Sort keys for consistency
+        params_str = json.dumps(params, sort_keys=True)
+        # Generate hash
+        hash_obj = hashlib.md5(params_str.encode())
+        return f"car_search:{hash_obj.hexdigest()}"
+
+    async def _get_cached_result(self, cache_key: str) -> dict[str, Any] | None:
+        """
+        Get cached search result from Redis
+
+        Args:
+            cache_key: Cache key
+
+        Returns:
+            Cached result or None
+        """
+        client = redis_client.get_client()
+        if not client:
+            return None
+
+        try:
+            cached_data = await client.get(cache_key)
+            if cached_data:
+                logger.info(f"Cache hit for key: {cache_key}")
+                return json.loads(cached_data)
+        except Exception as e:
+            logger.error(f"Error reading from cache: {e}")
+
+        return None
+
+    async def _set_cached_result(self, cache_key: str, result: dict[str, Any]) -> None:
+        """
+        Cache search result in Redis
+
+        Args:
+            cache_key: Cache key
+            result: Result to cache
+        """
+        client = redis_client.get_client()
+        if not client:
+            return
+
+        try:
+            await client.setex(cache_key, CACHE_TTL, json.dumps(result))
+            logger.info(f"Cached result with key: {cache_key}, TTL: {CACHE_TTL}s")
+        except Exception as e:
+            logger.error(f"Error writing to cache: {e}")
+
+    @retry(
+        retry=retry_if_exception_type((ConnectionError, TimeoutError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    async def _search_marketcheck_with_retry(
+        self,
+        make: str | None = None,
+        model: str | None = None,
+        car_type: str | None = None,
+        min_price: int | None = None,
+        max_price: int | None = None,
+        min_year: int | None = None,
+        max_year: int | None = None,
+        max_mileage: int | None = None,
+        rows: int = 50,
+    ) -> dict[str, Any]:
+        """
+        Search MarketCheck API with retry logic for transient errors
+
+        Args:
+            Search parameters
+
+        Returns:
+            API response
+
+        Raises:
+            Exception after 3 failed attempts
+        """
+        logger.info("Calling MarketCheck API (with retry logic)")
+        return await marketcheck_client.search_cars(
+            make=make,
+            model=model,
+            car_type=car_type,
+            min_price=min_price,
+            max_price=max_price,
+            min_year=min_year,
+            max_year=max_year,
+            max_mileage=max_mileage,
+            rows=rows,
+        )
+
+    async def _trigger_webhooks(self, vehicles: list[dict[str, Any]], db_session=None) -> None:
+        """
+        Trigger webhooks for matching vehicle alerts
+
+        Args:
+            vehicles: List of vehicles to check
+            db_session: Database session (optional, for webhook lookups)
+        """
+        if not db_session or not vehicles:
+            return
+
+        try:
+            from datetime import datetime
+
+            webhook_repo = WebhookRepository(db_session)
+
+            # Process each vehicle
+            for vehicle in vehicles:
+                # Find matching subscriptions
+                matching_subs = webhook_repo.get_matching_subscriptions(
+                    make=vehicle.get("make"),
+                    model=vehicle.get("model"),
+                    price=vehicle.get("price"),
+                    year=vehicle.get("year"),
+                    mileage=vehicle.get("mileage"),
+                )
+
+                if matching_subs:
+                    # Send webhooks asynchronously
+                    result = await webhook_service.send_vehicle_alerts(matching_subs, vehicle)
+                    logger.info(
+                        f"Sent vehicle alert webhooks: {result['success']} succeeded, "
+                        f"{result['failed']} failed"
+                    )
+
+                    # Update subscription statuses
+                    for sub in matching_subs:
+                        webhook_repo.update(sub.id, {"last_triggered": datetime.utcnow()})
+
+        except Exception as e:
+            logger.error(f"Error triggering webhooks: {e}")
 
     async def search_and_recommend(
         self,
@@ -60,9 +244,11 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
         year_max: int | None = None,
         mileage_max: int | None = None,
         user_priorities: str | None = None,
+        user_id: int | None = None,
+        db_session=None,
     ) -> dict[str, Any]:
         """
-        Search for cars and get LLM recommendations
+        Search for cars and get LLM recommendations with caching and history tracking
 
         Args:
             make: Vehicle make
@@ -74,43 +260,89 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
             year_max: Maximum year
             mileage_max: Maximum mileage
             user_priorities: User's specific priorities or preferences
+            user_id: User ID for history tracking (optional)
+            db_session: Database session for webhook operations (optional)
 
         Returns:
             Dictionary with search criteria and top vehicle recommendations
         """
-        # Search MarketCheck API
-        api_response = await marketcheck_client.search_cars(
-            make=make,
-            model=model,
-            car_type=car_type,
-            min_price=budget_min,
-            max_price=budget_max,
-            min_year=year_min,
-            max_year=year_max,
-            max_mileage=mileage_max,
-            rows=50,  # Get up to 50 results for LLM analysis
+        # Generate cache key
+        cache_key = self._generate_cache_key(
+            make,
+            model,
+            budget_min,
+            budget_max,
+            car_type,
+            year_min,
+            year_max,
+            mileage_max,
+            user_priorities,
         )
+
+        # Check cache first
+        cached_result = await self._get_cached_result(cache_key)
+        if cached_result:
+            # Still log to search history even for cached results
+            try:
+                await search_history_repository.create_search_record(
+                    user_id=user_id,
+                    search_criteria=cached_result.get("search_criteria", {}),
+                    result_count=cached_result.get("total_found", 0),
+                    top_vehicles=cached_result.get("top_vehicles", []),
+                )
+            except Exception as e:
+                logger.error(f"Error logging cached search to history: {e}")
+
+            return cached_result
+
+        # Search MarketCheck API with retry logic
+        try:
+            api_response = await self._search_marketcheck_with_retry(
+                make=make,
+                model=model,
+                car_type=car_type,
+                min_price=budget_min,
+                max_price=budget_max,
+                min_year=year_min,
+                max_year=year_max,
+                max_mileage=mileage_max,
+                rows=50,  # Get up to 50 results for LLM analysis
+            )
+        except Exception as e:
+            logger.error(f"MarketCheck API failed after retries: {e}")
+            raise
 
         # Parse listings
         listings = api_response.get("listings", [])
         num_found = api_response.get("num_found", 0)
 
+        search_criteria = self._build_search_criteria(
+            make, model, budget_min, budget_max, car_type, year_min, year_max, mileage_max
+        )
+
         if not listings:
-            return {
-                "search_criteria": self._build_search_criteria(
-                    make,
-                    model,
-                    budget_min,
-                    budget_max,
-                    car_type,
-                    year_min,
-                    year_max,
-                    mileage_max,
-                ),
+            result = {
+                "search_criteria": search_criteria,
                 "top_vehicles": [],
                 "total_found": num_found,
                 "message": "No vehicles found matching your criteria.",
             }
+
+            # Cache empty result
+            await self._set_cached_result(cache_key, result)
+
+            # Log to history
+            try:
+                await search_history_repository.create_search_record(
+                    user_id=user_id,
+                    search_criteria=search_criteria,
+                    result_count=0,
+                    top_vehicles=[],
+                )
+            except Exception as e:
+                logger.error(f"Error logging search to history: {e}")
+
+            return result
 
         # Parse listings to standardized format
         parsed_listings = [marketcheck_client.parse_listing(listing) for listing in listings]
@@ -124,14 +356,34 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
             # Fallback: simple sorting by price and mileage
             top_vehicles = self._fallback_recommendations(parsed_listings)
 
-        return {
-            "search_criteria": self._build_search_criteria(
-                make, model, budget_min, budget_max, car_type, year_min, year_max, mileage_max
-            ),
+        result = {
+            "search_criteria": search_criteria,
             "top_vehicles": top_vehicles[:5],  # Limit to top 5
             "total_found": num_found,
             "total_analyzed": len(listings),
         }
+
+        # Cache result
+        await self._set_cached_result(cache_key, result)
+
+        # Log to search history
+        try:
+            await search_history_repository.create_search_record(
+                user_id=user_id,
+                search_criteria=search_criteria,
+                result_count=num_found,
+                top_vehicles=top_vehicles[:5],
+            )
+        except Exception as e:
+            logger.error(f"Error logging search to history: {e}")
+
+        # Trigger webhooks for new vehicles
+        try:
+            await self._trigger_webhooks(top_vehicles[:5], db_session)
+        except Exception as e:
+            logger.error(f"Error triggering webhooks: {e}")
+
+        return result
 
     async def _get_llm_recommendations(
         self,
@@ -218,8 +470,8 @@ Select exactly 5 vehicles and rank them by score (highest first). Be specific wi
             try:
                 recommendations_data = json.loads(llm_output)
             except json.JSONDecodeError as parse_error:
-                print(f"Failed to parse LLM JSON response: {parse_error}")
-                print(f"LLM output: {llm_output}")
+                logger.error(f"Failed to parse LLM JSON response: {parse_error}")
+                logger.debug(f"LLM output: {llm_output}")
                 return self._fallback_recommendations(listings)
 
             recommendations = recommendations_data.get("recommendations", [])
@@ -238,7 +490,7 @@ Select exactly 5 vehicles and rank them by score (highest first). Be specific wi
             return top_vehicles
 
         except Exception as e:
-            print(f"LLM recommendation error: {e}")
+            logger.error(f"LLM recommendation error: {e}")
             # Fallback to simple sorting
             return self._fallback_recommendations(listings)
 
