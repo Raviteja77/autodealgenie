@@ -56,6 +56,15 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 # Request ID Middleware
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
+    """
+    Middleware that generates a unique request ID for each HTTP request, tracks processing time,
+    and adds both as headers to the response.
+    Parameters:
+        request (Request): The incoming HTTP request.
+        call_next (Callable): The next middleware or route handler to call.
+    Returns:
+        Response: The HTTP response with 'X-Request-ID' and 'X-Process-Time' headers added.
+    """
     request_id = str(uuid.uuid4())
     # Bind request_id to the request state for access in endpoints/logs
     request.state.request_id = request_id
@@ -71,15 +80,6 @@ async def request_id_middleware(request: Request, call_next):
     response.headers["X-Process-Time"] = str(process_time)
     
     return response
-
-# Global Error Handling
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logging.error(f"Global exception: {str(exc)}", exc_info=True)
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"message": "Internal Server Error", "request_id": getattr(request.state, "request_id", None)},
-    )
 
 
 @app.get("/")
