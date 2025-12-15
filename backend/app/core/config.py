@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     DESCRIPTION: str = "AI-powered automotive deal management platform"
     API_V1_STR: str = "/api/v1"
 
+    LOG_LEVEL: str = "INFO"  # "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:3000",

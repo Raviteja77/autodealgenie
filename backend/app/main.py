@@ -2,15 +2,19 @@
 AutoDealGenie FastAPI Application
 Main entry point for the backend service
 """
-
+import uuid
+import logging
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.middleware.error_middleware import ErrorHandlerMiddleware
+from app.core.logging import configure_logging
 
 
 @asynccontextmanager
@@ -19,6 +23,7 @@ async def lifespan(app: FastAPI):
     Lifespan context manager for startup and shutdown events
     """
     # Startup
+    configure_logging()
     print("Starting up AutoDealGenie backend...")
     yield
     # Shutdown
@@ -47,6 +52,34 @@ app.add_middleware(
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Request ID Middleware
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    """
+    Middleware that generates a unique request ID for each HTTP request, tracks processing time,
+    and adds both as headers to the response.
+    Parameters:
+        request (Request): The incoming HTTP request.
+        call_next (Callable): The next middleware or route handler to call.
+    Returns:
+        Response: The HTTP response with 'X-Request-ID' and 'X-Process-Time' headers added.
+    """
+    request_id = str(uuid.uuid4())
+    # Bind request_id to the request state for access in endpoints/logs
+    request.state.request_id = request_id
+    
+    # Start timer
+    start_time = time.time()
+    
+    response = await call_next(request)
+    
+    # Add processing time and request ID to headers
+    process_time = time.time() - start_time
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Process-Time"] = str(process_time)
+    
+    return response
 
 
 @app.get("/")
