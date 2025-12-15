@@ -75,12 +75,20 @@ export class ApiError extends Error {
     response: Response,
     defaultMessage: string = 'Request failed'
   ): Promise<ApiError> {
-    let errorData: any;
+    let errorData: unknown;
     let errorMessage = defaultMessage;
 
     try {
       errorData = await response.json();
-      errorMessage = errorData.detail || errorData.message || defaultMessage;
+      // Type guard for error data with detail or message
+      if (
+        errorData &&
+        typeof errorData === 'object' &&
+        ('detail' in errorData || 'message' in errorData)
+      ) {
+        const data = errorData as { detail?: string; message?: string };
+        errorMessage = data.detail || data.message || defaultMessage;
+      }
     } catch {
       // If JSON parsing fails, use status text or default
       errorMessage = response.statusText || defaultMessage;
