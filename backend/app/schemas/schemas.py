@@ -105,3 +105,25 @@ class HealthCheck(BaseModel):
 
     status: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class DealEvaluationRequest(BaseModel):
+    """Schema for deal evaluation request"""
+
+    vehicle_vin: str = Field(..., min_length=17, max_length=17, description="17-character VIN")
+    asking_price: float = Field(..., gt=0, description="Asking price in USD")
+    condition: str = Field(
+        ..., min_length=1, max_length=50, description="Vehicle condition (e.g., excellent, good)"
+    )
+    mileage: int = Field(..., ge=0, description="Current mileage in miles")
+
+
+class DealEvaluationResponse(BaseModel):
+    """Schema for deal evaluation response"""
+
+    fair_value: float = Field(..., description="Estimated fair market value in USD")
+    score: float = Field(..., ge=1, le=10, description="Deal quality score (1-10)")
+    insights: list[str] = Field(default_factory=list, description="AI-powered insights")
+    talking_points: list[str] = Field(
+        default_factory=list, description="Negotiation talking points"
+    )
