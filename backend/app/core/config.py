@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     DESCRIPTION: str = "AI-powered automotive deal management platform"
     API_V1_STR: str = "/api/v1"
 
+    ENVIRONMENT: str = "development"  # "production" or "test"
+    LOG_LEVEL: str = "INFO"  # "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+
     # CORS
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
@@ -53,6 +56,11 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4"
+
+    class Config:
+        case_sensitive = True
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
     # MarketCheck API
     MARKET_CHECK_API_KEY: str | None = None
