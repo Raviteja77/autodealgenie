@@ -39,10 +39,10 @@ interface Vehicle {
   image?: string;
   features?: string[];
   highlights?: string[];
-  recommendation_score?: number;
-  recommendation_summary?: string;
-  dealer_name?: string;
-  vdp_url?: string;
+  recommendation_score?: number | null;
+  recommendation_summary?: string | null;
+  dealer_name?: string | null;
+  vdp_url?: string | null;
 }
 
 function ResultsContent() {
@@ -119,9 +119,10 @@ function ResultsContent() {
         
         setVehicles(transformedVehicles);
         setSearchMessage(response.message || null);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error fetching vehicles:", err);
-        setError(err.message || "Failed to load vehicles. Please try again.");
+        const errorMessage = err instanceof Error ? err.message : "Failed to load vehicles. Please try again.";
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
