@@ -15,7 +15,6 @@ from app.schemas.car_recommendation import (
     UserPreferenceInput,
 )
 from app.services.car_recommendation_service import car_recommendation_service
-from app.utils.error_handler import ApiError
 
 router = APIRouter()
 
@@ -91,22 +90,19 @@ async def get_car_recommendations(
 
     except ValueError as e:
         # Handle validation errors
-        raise ApiError(
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Invalid request: {str(e)}",
-            details={"error_type": "validation_error"},
+            detail=f"Invalid request: {str(e)}",
         ) from e
     except ConnectionError as e:
         # Handle external API connection errors
-        raise ApiError(
+        raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            message="Vehicle search service temporarily unavailable",
-            details={"error_type": "connection_error", "error": str(e)},
+            detail="Vehicle search service temporarily unavailable",
         ) from e
     except Exception as e:
         # Handle unexpected errors
-        raise ApiError(
+        raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Failed to retrieve car recommendations",
-            details={"error_type": "internal_error", "error": str(e)},
+            detail=f"Failed to retrieve car recommendations: {str(e)}",
         ) from e

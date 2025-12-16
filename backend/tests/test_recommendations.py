@@ -390,7 +390,6 @@ def test_get_car_recommendations_with_all_preferences(
 
 def test_user_preference_input_invalid_budget_range():
     """Test that invalid budget range is rejected"""
-    import pytest
     from pydantic import ValidationError
 
     from app.schemas.car_recommendation import UserPreferenceInput
@@ -406,7 +405,6 @@ def test_user_preference_input_invalid_budget_range():
 
 def test_user_preference_input_invalid_year_range():
     """Test that invalid year range is rejected"""
-    import pytest
     from pydantic import ValidationError
 
     from app.schemas.car_recommendation import UserPreferenceInput
