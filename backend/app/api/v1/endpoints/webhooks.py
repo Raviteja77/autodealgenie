@@ -2,7 +2,6 @@
 Webhook subscription management endpoints
 """
 
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, HttpUrl
 from sqlalchemy.orm import Session
