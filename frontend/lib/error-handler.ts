@@ -46,12 +46,17 @@ export class ApiError extends Error {
    * @returns Object representation of the error
    */
   toJSON(): Record<string, unknown> {
-    return {
+    const result: Record<string, unknown> = {
       name: this.name,
       message: this.message,
       statusCode: this.statusCode,
-      ...(this.details && { details: this.details }),
     };
+    
+    if (this.details) {
+      result.details = this.details;
+    }
+    
+    return result;
   }
 
   /**
