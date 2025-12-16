@@ -1,7 +1,7 @@
 """
 Add deal_evaluations table
 
-Revision ID: 003_add_deal_evaluations
+Revision ID: 004_add_deal_evaluations
 Revises: 002_add_webhook_subscriptions
 Create Date: 2025-12-16
 
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "003_add_deal_evaluations"
-down_revision: Union[str, None] = "002_add_webhook_subscriptions"
+revision: str = "004_add_deal_evaluations"
+down_revision: Union[str, None] = "003_add_negotiation_tables"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

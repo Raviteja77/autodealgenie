@@ -1,6 +1,6 @@
 """Add password reset fields to User model
 
-Revision ID: 001
+Revision ID: 001_add_password_reset_fields
 Revises:
 Create Date: 2025-12-14 22:00:00.000000
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "001"
+revision: str = "001_add_password_reset_fields"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
