@@ -55,7 +55,10 @@ class CarRecommendationItem(BaseModel):
 
     # Recommendation metadata
     recommendation_score: float | None = Field(
-        None, description="Score indicating how well this vehicle matches criteria (1-10)", ge=0, le=10
+        None,
+        description="Score indicating how well this vehicle matches criteria (1-10)",
+        ge=0,
+        le=10,
     )
     highlights: list[str] = Field(
         default_factory=list, description="Key highlights and reasons to consider this vehicle"

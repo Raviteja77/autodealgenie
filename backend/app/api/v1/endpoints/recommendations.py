@@ -66,7 +66,9 @@ async def get_car_recommendations(
         )
 
         # Transform the result to match CarRecommendationResponse schema
-        recommendations = [CarRecommendationItem(**vehicle) for vehicle in result.get("top_vehicles", [])]
+        recommendations = [
+            CarRecommendationItem(**vehicle) for vehicle in result.get("top_vehicles", [])
+        ]
 
         return CarRecommendationResponse(
             recommendations=recommendations,

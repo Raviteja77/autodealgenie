@@ -2,7 +2,6 @@
 Tests for car recommendation endpoints
 """
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -48,11 +47,11 @@ def mock_rate_limiter_allowed():
     mock_pipeline.zadd = MagicMock(return_value=None)
     mock_pipeline.expire = MagicMock(return_value=None)
     mock_pipeline.execute = AsyncMock(return_value=[None, 10, None, None])  # request count = 10
-    
+
     mock_redis = MagicMock()
     mock_redis.pipeline = MagicMock(return_value=mock_pipeline)
     mock_redis.zrange = AsyncMock(return_value=[])
-    
+
     return mock_redis
 
 
@@ -64,12 +63,14 @@ def mock_rate_limiter_exceeded():
     mock_pipeline.zcard = MagicMock(return_value=None)
     mock_pipeline.zadd = MagicMock(return_value=None)
     mock_pipeline.expire = MagicMock(return_value=None)
-    mock_pipeline.execute = AsyncMock(return_value=[None, 100, None, None])  # request count = 100 (at limit)
-    
+    mock_pipeline.execute = AsyncMock(
+        return_value=[None, 100, None, None]
+    )  # request count = 100 (at limit)
+
     mock_redis = MagicMock()
     mock_redis.pipeline = MagicMock(return_value=mock_pipeline)
-    mock_redis.zrange = AsyncMock(return_value=[[b'timestamp', 1234567890.0]])
-    
+    mock_redis.zrange = AsyncMock(return_value=[[b"timestamp", 1234567890.0]])
+
     return mock_redis
 
 
@@ -145,7 +146,9 @@ def mock_service_response():
     }
 
 
-def test_get_car_recommendations_success(authenticated_client, mock_service_response, mock_rate_limiter_allowed):
+def test_get_car_recommendations_success(
+    authenticated_client, mock_service_response, mock_rate_limiter_allowed
+):
     """Test successful car recommendations request"""
     request_data = {
         "budget_min": 20000,
@@ -168,9 +171,7 @@ def test_get_car_recommendations_success(authenticated_client, mock_service_resp
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             return_value=mock_service_response,
         ):
-            response = authenticated_client.post(
-                "/api/v1/recommendations/cars", json=request_data
-            )
+            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -195,7 +196,9 @@ def test_get_car_recommendations_success(authenticated_client, mock_service_resp
             assert len(first_rec["highlights"]) == 3
 
 
-def test_get_car_recommendations_minimal_input(authenticated_client, mock_service_response, mock_rate_limiter_allowed):
+def test_get_car_recommendations_minimal_input(
+    authenticated_client, mock_service_response, mock_rate_limiter_allowed
+):
     """Test car recommendations with minimal user input"""
     request_data = {
         "budget_max": 30000,
@@ -208,9 +211,7 @@ def test_get_car_recommendations_minimal_input(authenticated_client, mock_servic
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             return_value=mock_service_response,
         ):
-            response = authenticated_client.post(
-                "/api/v1/recommendations/cars", json=request_data
-            )
+            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -240,9 +241,7 @@ def test_get_car_recommendations_no_results(authenticated_client, mock_rate_limi
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             return_value=empty_response,
         ):
-            response = authenticated_client.post(
-                "/api/v1/recommendations/cars", json=request_data
-            )
+            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
             assert response.status_code == 200
             data = response.json()
@@ -251,7 +250,9 @@ def test_get_car_recommendations_no_results(authenticated_client, mock_rate_limi
             assert data["message"] == "No vehicles found matching your criteria."
 
 
-def test_get_car_recommendations_rate_limit_exceeded(authenticated_client, mock_rate_limiter_exceeded):
+def test_get_car_recommendations_rate_limit_exceeded(
+    authenticated_client, mock_rate_limiter_exceeded
+):
     """Test rate limit enforcement"""
     request_data = {
         "budget_max": 30000,
@@ -261,9 +262,7 @@ def test_get_car_recommendations_rate_limit_exceeded(authenticated_client, mock_
     with patch(
         "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_exceeded
     ):
-        response = authenticated_client.post(
-            "/api/v1/recommendations/cars", json=request_data
-        )
+        response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
         assert response.status_code == 429
         data = response.json()
@@ -284,9 +283,7 @@ def test_get_car_recommendations_validation_error(authenticated_client, mock_rat
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             side_effect=ValueError("Invalid budget range"),
         ):
-            response = authenticated_client.post(
-                "/api/v1/recommendations/cars", json=request_data
-            )
+            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
             assert response.status_code == 400
             data = response.json()
@@ -307,9 +304,7 @@ def test_get_car_recommendations_connection_error(authenticated_client, mock_rat
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             side_effect=ConnectionError("MarketCheck API unavailable"),
         ):
-            response = authenticated_client.post(
-                "/api/v1/recommendations/cars", json=request_data
-            )
+            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
             assert response.status_code == 503
             data = response.json()
@@ -329,9 +324,7 @@ def test_get_car_recommendations_internal_error(authenticated_client, mock_rate_
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             side_effect=Exception("Unexpected error"),
         ):
-            response = authenticated_client.post(
-                "/api/v1/recommendations/cars", json=request_data
-            )
+            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
             assert response.status_code == 500
             data = response.json()
@@ -377,9 +370,7 @@ def test_get_car_recommendations_with_all_preferences(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             return_value=mock_service_response,
         ) as mock_search:
-            response = authenticated_client.post(
-                "/api/v1/recommendations/cars", json=request_data
-            )
+            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
             assert response.status_code == 200
 
