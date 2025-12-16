@@ -37,7 +37,6 @@ interface Vehicle {
   color?: string;
   condition?: string;
   image?: string;
-  features?: string[];
   highlights?: string[];
   recommendation_score?: number | null;
   recommendation_summary?: string | null;
@@ -109,7 +108,6 @@ function ResultsContent() {
           image: v.photo_links && v.photo_links.length > 0 
             ? v.photo_links[0] 
             : `/api/placeholder/400/300?text=${encodeURIComponent((v.make || '') + ' ' + (v.model || ''))}`,
-          features: v.highlights || [],
           highlights: v.highlights || [],
           recommendation_score: v.recommendation_score,
           recommendation_summary: v.recommendation_summary,
