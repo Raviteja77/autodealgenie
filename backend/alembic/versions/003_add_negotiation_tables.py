@@ -22,12 +22,6 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Create negotiation_sessions and negotiation_messages tables"""
 
-    # Create NegotiationStatus enum
-    op.execute("CREATE TYPE negotiationstatus AS ENUM ('active', 'completed', 'cancelled')")
-
-    # Create MessageRole enum
-    op.execute("CREATE TYPE messagerole AS ENUM ('user', 'agent', 'dealer_sim')")
-
     # Create negotiation_sessions table
     op.create_table(
         "negotiation_sessions",
@@ -103,6 +97,7 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_negotiation_sessions_user_id"), table_name="negotiation_sessions")
     op.drop_index(op.f("ix_negotiation_sessions_id"), table_name="negotiation_sessions")
     op.drop_table("negotiation_sessions")
-
-    op.execute("DROP TYPE messagerole")
-    op.execute("DROP TYPE negotiationstatus")
+    
+    # Drop the enum types after dropping the tables that use them
+    op.execute("DROP TYPE IF EXISTS messagerole")
+    op.execute("DROP TYPE IF EXISTS negotiationstatus")
