@@ -1,6 +1,9 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.vehicle_cache import VehicleCache
+
 
 class VehicleCacheRepository:
     def __init__(self, db: AsyncSession):

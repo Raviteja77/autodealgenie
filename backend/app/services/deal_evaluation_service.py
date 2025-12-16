@@ -306,9 +306,7 @@ Be specific with dollar amounts and data points. Base your analysis on industry 
 
         return None
 
-    async def _evaluate_vehicle_condition(
-        self, deal: Deal, result_json: dict
-    ) -> dict[str, Any]:
+    async def _evaluate_vehicle_condition(self, deal: Deal, result_json: dict) -> dict[str, Any]:
         """Evaluate vehicle condition step"""
         user_inputs = result_json.get("user_inputs", {})
 
@@ -430,9 +428,9 @@ Score should be 1-10 based on the description and mileage."""
             monthly_rate = interest_rate / 100 / 12
             months = 60
             if monthly_rate > 0:
-                monthly_payment = (
-                    loan_amount * monthly_rate * (1 + monthly_rate) ** months
-                ) / ((1 + monthly_rate) ** months - 1)
+                monthly_payment = (loan_amount * monthly_rate * (1 + monthly_rate) ** months) / (
+                    (1 + monthly_rate) ** months - 1
+                )
             else:
                 monthly_payment = loan_amount / months
 

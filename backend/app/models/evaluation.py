@@ -4,7 +4,7 @@ SQLAlchemy models for Deal Evaluation
 
 import enum
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, JSON, String
+from sqlalchemy import JSON, Column, DateTime, Enum, ForeignKey, Integer
 from sqlalchemy.sql import func
 
 from app.db.session import Base
