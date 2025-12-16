@@ -19,98 +19,123 @@ import IconButton from "@mui/material/IconButton";
 import Link from "next/link";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
+import Alert from "@mui/material/Alert";
 import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import ProgressStepper from "@/components/common/ProgressStepper";
-
-// Mock data generator
-const generateMockVehicles = (count: number = 12) => {
-  const makes = ["Toyota", "Honda", "Ford", "Chevrolet", "BMW", "Mercedes-Benz", "Audi", "Nissan"];
-  const models: Record<string, string[]> = {
-    Toyota: ["Camry", "Corolla", "RAV4", "Highlander"],
-    Honda: ["Accord", "Civic", "CR-V", "Pilot"],
-    Ford: ["F-150", "Mustang", "Explorer", "Escape"],
-    Chevrolet: ["Silverado", "Equinox", "Malibu", "Tahoe"],
-    BMW: ["3 Series", "5 Series", "X3", "X5"],
-    "Mercedes-Benz": ["C-Class", "E-Class", "GLC", "GLE"],
-    Audi: ["A4", "A6", "Q5", "Q7"],
-    Nissan: ["Altima", "Rogue", "Sentra", "Pathfinder"],
-  };
-  const fuelTypes = ["Gasoline", "Diesel", "Hybrid", "Electric"];
-  const locations = ["Los Angeles, CA", "New York, NY", "Chicago, IL", "Houston, TX", "Phoenix, AZ"];
-  const colors = ["Black", "White", "Silver", "Blue", "Red", "Gray"];
-
-  return Array.from({ length: count }, (_, i) => {
-    const make = makes[Math.floor(Math.random() * makes.length)];
-    const model = models[make][Math.floor(Math.random() * models[make].length)];
-    const year = 2018 + Math.floor(Math.random() * 7);
-    const price = 15000 + Math.floor(Math.random() * 40000);
-    const mileage = 10000 + Math.floor(Math.random() * 90000);
-    
-    return {
-      id: i + 1,
-      make,
-      model,
-      year,
-      price,
-      mileage,
-      fuelType: fuelTypes[Math.floor(Math.random() * fuelTypes.length)],
-      location: locations[Math.floor(Math.random() * locations.length)],
-      color: colors[Math.floor(Math.random() * colors.length)],
-      condition: Math.random() > 0.5 ? "Certified Pre-Owned" : "Used",
-      image: `/api/placeholder/400/300?text=${encodeURIComponent(make + ' ' + model)}`,
-      features: ["Backup Camera", "Bluetooth", "Cruise Control", "Power Windows"]
-        .filter(() => Math.random() > 0.5),
-    };
-  });
-};
+import { apiClient, VehicleRecommendation, CarSearchRequest } from "@/lib/api";
 
 interface Vehicle {
-  id: number;
+  vin?: string;
   make: string;
   model: string;
   year: number;
   price: number;
   mileage: number;
-  fuelType: string;
-  location: string;
-  color: string;
-  condition: string;
-  image: string;
-  features: string[];
+  fuelType?: string;
+  location?: string;
+  color?: string;
+  condition?: string;
+  image?: string;
+  features?: string[];
+  highlights?: string[];
+  recommendation_score?: number;
+  recommendation_summary?: string;
+  dealer_name?: string;
+  vdp_url?: string;
 }
 
 function ResultsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [favorites, setFavorites] = useState<Set<number>>(new Set());
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchMessage, setSearchMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate API call
-    setIsLoading(true);
-    setTimeout(() => {
-      const mockData = generateMockVehicles();
-      // Filter based on search params (simplified)
-      const filtered = mockData.filter(vehicle => {
-        const make = searchParams.get("make");
-        if (make && !vehicle.make.toLowerCase().includes(make.toLowerCase())) {
-          return false;
+    const fetchVehicles = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // Build search request from URL params
+        const searchRequest: CarSearchRequest = {};
+        
+        if (searchParams.get("make")) {
+          searchRequest.make = searchParams.get("make")!;
         }
-        return true;
-      });
-      setVehicles(filtered);
-      setIsLoading(false);
-    }, 1000);
+        if (searchParams.get("model")) {
+          searchRequest.model = searchParams.get("model")!;
+        }
+        if (searchParams.get("budgetMin")) {
+          searchRequest.budget_min = parseInt(searchParams.get("budgetMin")!);
+        }
+        if (searchParams.get("budgetMax")) {
+          searchRequest.budget_max = parseInt(searchParams.get("budgetMax")!);
+        }
+        if (searchParams.get("carType")) {
+          searchRequest.car_type = searchParams.get("carType")!;
+        }
+        if (searchParams.get("yearMin")) {
+          searchRequest.year_min = parseInt(searchParams.get("yearMin")!);
+        }
+        if (searchParams.get("yearMax")) {
+          searchRequest.year_max = parseInt(searchParams.get("yearMax")!);
+        }
+        if (searchParams.get("mileageMax")) {
+          searchRequest.mileage_max = parseInt(searchParams.get("mileageMax")!);
+        }
+        if (searchParams.get("userPriorities")) {
+          searchRequest.user_priorities = searchParams.get("userPriorities")!;
+        }
+
+        // Call the backend API
+        const response = await apiClient.searchCars(searchRequest);
+        
+        // Transform API response to Vehicle interface
+        const transformedVehicles: Vehicle[] = response.top_vehicles.map((v: VehicleRecommendation) => ({
+          vin: v.vin || undefined,
+          make: v.make || "Unknown",
+          model: v.model || "Unknown",
+          year: v.year || new Date().getFullYear(),
+          price: v.price || 0,
+          mileage: v.mileage || 0,
+          fuelType: v.fuel_type || "Unknown",
+          location: v.location || "Unknown",
+          color: v.exterior_color || "Unknown",
+          condition: v.inventory_type || "Used",
+          image: v.photo_links && v.photo_links.length > 0 
+            ? v.photo_links[0] 
+            : `/api/placeholder/400/300?text=${encodeURIComponent((v.make || '') + ' ' + (v.model || ''))}`,
+          features: v.highlights || [],
+          highlights: v.highlights || [],
+          recommendation_score: v.recommendation_score,
+          recommendation_summary: v.recommendation_summary,
+          dealer_name: v.dealer_name,
+          vdp_url: v.vdp_url,
+        }));
+        
+        setVehicles(transformedVehicles);
+        setSearchMessage(response.message || null);
+      } catch (err: any) {
+        console.error("Error fetching vehicles:", err);
+        setError(err.message || "Failed to load vehicles. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVehicles();
   }, [searchParams]);
 
-  const toggleFavorite = (id: number) => {
+  const toggleFavorite = (vin: string) => {
     const newFavorites = new Set(favorites);
-    if (newFavorites.has(id)) {
-      newFavorites.delete(id);
+    if (newFavorites.has(vin)) {
+      newFavorites.delete(vin);
     } else {
-      newFavorites.add(id);
+      newFavorites.add(vin);
     }
     setFavorites(newFavorites);
   };
@@ -127,6 +152,30 @@ function ResultsContent() {
         }}
       >
         <Spinner size="lg" text="Finding the best deals for you..." />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+        <Header />
+        <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
+          <Container maxWidth="lg">
+            <Alert severity="error" sx={{ mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Error Loading Vehicles
+              </Typography>
+              <Typography variant="body2">{error}</Typography>
+            </Alert>
+            <Box sx={{ textAlign: "center" }}>
+              <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
+                <Button variant="primary">Back to Search</Button>
+              </Link>
+            </Box>
+          </Container>
+        </Box>
+        <Footer />
       </Box>
     );
   }
@@ -156,6 +205,13 @@ function ResultsContent() {
             </Link>
           </Box>
         </Box>
+
+        {/* AI Message */}
+        {searchMessage && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            {searchMessage}
+          </Alert>
+        )}
 
         {/* Applied Filters */}
         {searchParams.toString() && (
@@ -198,7 +254,7 @@ function ResultsContent() {
         ) : (
           <Grid container spacing={3}>
             {vehicles.map((vehicle) => (
-              <Grid item xs={12} md={6} lg={4} key={vehicle.id}>
+              <Grid item xs={12} md={6} lg={4} key={vehicle.vin || `${vehicle.make}-${vehicle.model}-${vehicle.year}`}>
                 <Card hover shadow="md" sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
                   {/* Vehicle Image */}
                   <Box
@@ -220,20 +276,28 @@ function ResultsContent() {
                         bgcolor: "background.paper",
                         "&:hover": { bgcolor: "background.paper" },
                       }}
-                      onClick={() => toggleFavorite(vehicle.id)}
+                      onClick={() => vehicle.vin && toggleFavorite(vehicle.vin)}
                     >
-                      {favorites.has(vehicle.id) ? (
+                      {vehicle.vin && favorites.has(vehicle.vin) ? (
                         <FavoriteIcon color="error" />
                       ) : (
                         <FavoriteBorderIcon />
                       )}
                     </IconButton>
                     <Chip
-                      label={vehicle.condition}
+                      label={vehicle.condition || "Used"}
                       size="small"
                       color="primary"
                       sx={{ position: "absolute", bottom: 8, left: 8 }}
                     />
+                    {vehicle.recommendation_score && (
+                      <Chip
+                        label={`Score: ${vehicle.recommendation_score.toFixed(1)}/10`}
+                        size="small"
+                        color="success"
+                        sx={{ position: "absolute", top: 8, left: 8 }}
+                      />
+                    )}
                   </Box>
 
                   <Card.Body sx={{ flexGrow: 1 }}>
@@ -246,6 +310,13 @@ function ResultsContent() {
                     <Typography variant="h5" color="primary" gutterBottom fontWeight={700}>
                       ${vehicle.price.toLocaleString()}
                     </Typography>
+
+                    {/* Recommendation Summary */}
+                    {vehicle.recommendation_summary && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: "italic" }}>
+                        {vehicle.recommendation_summary}
+                      </Typography>
+                    )}
 
                     <Divider sx={{ my: 2 }} />
 
@@ -289,18 +360,30 @@ function ResultsContent() {
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 2 }}>
                       <LocationOnIcon fontSize="small" color="action" />
                       <Typography variant="body2" color="text.secondary">
-                        {vehicle.location}
+                        {vehicle.location || "Location not specified"}
                       </Typography>
                     </Box>
 
-                    {/* Features */}
-                    {vehicle.features.length > 0 && (
+                    {/* Highlights/Features */}
+                    {vehicle.highlights && vehicle.highlights.length > 0 && (
                       <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                          Highlights:
+                        </Typography>
                         <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ gap: 0.5 }}>
-                          {vehicle.features.slice(0, 3).map((feature: string, index: number) => (
-                            <Chip key={index} label={feature} size="small" variant="outlined" />
+                          {vehicle.highlights.slice(0, 3).map((highlight: string, index: number) => (
+                            <Chip key={index} label={highlight} size="small" variant="outlined" color="primary" />
                           ))}
                         </Stack>
+                      </Box>
+                    )}
+
+                    {/* Dealer Info */}
+                    {vehicle.dealer_name && (
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Dealer: {vehicle.dealer_name}
+                        </Typography>
                       </Box>
                     )}
                   </Card.Body>
@@ -313,7 +396,7 @@ function ResultsContent() {
                         size="sm"
                         onClick={() =>
                           router.push(
-                            `/negotiation?make=${vehicle.make}&model=${vehicle.model}&year=${vehicle.year}&price=${vehicle.price}&mileage=${vehicle.mileage}&fuelType=${vehicle.fuelType}`
+                            `/negotiation?vin=${vehicle.vin || ''}&make=${vehicle.make}&model=${vehicle.model}&year=${vehicle.year}&price=${vehicle.price}&mileage=${vehicle.mileage}&fuelType=${vehicle.fuelType || ''}`
                           )
                         }
                       >
@@ -325,7 +408,7 @@ function ResultsContent() {
                         size="sm"
                         onClick={() =>
                           router.push(
-                            `/evaluation?make=${vehicle.make}&model=${vehicle.model}&year=${vehicle.year}&price=${vehicle.price}&mileage=${vehicle.mileage}&fuelType=${vehicle.fuelType}`
+                            `/evaluation?vin=${vehicle.vin || ''}&make=${vehicle.make}&model=${vehicle.model}&year=${vehicle.year}&price=${vehicle.price}&mileage=${vehicle.mileage}&fuelType=${vehicle.fuelType || ''}`
                           )
                         }
                       >

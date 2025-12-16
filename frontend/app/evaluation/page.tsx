@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -33,8 +33,10 @@ import {
 import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import ProgressStepper from "@/components/common/ProgressStepper";
+import Link from "next/link";
 
 interface VehicleInfo {
+  vin?: string;
   make: string;
   model: string;
   year: number;
@@ -53,16 +55,54 @@ function EvaluationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock vehicle data
-  const vehicle: VehicleInfo = {
-    make: searchParams.get("make") || "Toyota",
-    model: searchParams.get("model") || "Camry",
-    year: parseInt(searchParams.get("year") || "2022"),
-    price: parseInt(searchParams.get("price") || "28500"),
-    mileage: parseInt(searchParams.get("mileage") || "15000"),
-    fuelType: searchParams.get("fuelType") || "Gasoline",
-  };
+  // Extract and validate vehicle data from URL params
+  const vehicleData: VehicleInfo | null = (() => {
+    try {
+      const vin = searchParams.get("vin") || undefined;
+      const make = searchParams.get("make");
+      const model = searchParams.get("model");
+      const yearStr = searchParams.get("year");
+      const priceStr = searchParams.get("price");
+      const mileageStr = searchParams.get("mileage");
+      const fuelType = searchParams.get("fuelType");
+
+      // Validate required fields
+      if (!make || !model || !yearStr || !priceStr || !mileageStr) {
+        return null;
+      }
+
+      const year = parseInt(yearStr);
+      const price = parseFloat(priceStr);
+      const mileage = parseInt(mileageStr);
+
+      // Validate parsed values
+      if (isNaN(year) || isNaN(price) || isNaN(mileage)) {
+        return null;
+      }
+
+      return {
+        vin,
+        make,
+        model,
+        year,
+        price,
+        mileage,
+        fuelType: fuelType || "Unknown",
+      };
+    } catch (err) {
+      console.error("Error parsing vehicle data:", err);
+      return null;
+    }
+  })();
+
+  // Set error if vehicle data is invalid
+  useEffect(() => {
+    if (!vehicleData) {
+      setError("Invalid vehicle data. Please select a vehicle from the search results.");
+    }
+  }, [vehicleData]);
 
   // Mock evaluation scores
   const evaluationScores: EvaluationScore[] = [
@@ -148,6 +188,24 @@ function EvaluationContent() {
             Deal Evaluation
           </Typography>
 
+          {/* Error Alert */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
+              <Typography variant="h6" gutterBottom>
+                Unable to Load Vehicle Data
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                {error}
+              </Typography>
+              <Link href="/dashboard/results" style={{ textDecoration: "none" }}>
+                <Button variant="contained" size="small">
+                  Back to Results
+                </Button>
+              </Link>
+            </Alert>
+          )}
+
+          {vehicleData && (
           <Grid container spacing={3}>
             {/* Overall Score Card */}
             <Grid item xs={12}>
@@ -197,10 +255,19 @@ function EvaluationContent() {
                           Vehicle
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
-                          {vehicle.year} {vehicle.make} {vehicle.model}
+                          {vehicleData.year} {vehicleData.make} {vehicleData.model}
                         </Typography>
                       </Box>
                     </Box>
+                    {vehicleData.vin && (
+                      <Box sx={{ display: "flex", alignItems: "center" }}>
+                        <Box sx={{ ml: 6 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            VIN: {vehicleData.vin}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )}
                     <Box sx={{ display: "flex", alignItems: "center" }}>
                       <AttachMoney sx={{ mr: 2, color: "primary.main" }} />
                       <Box>
@@ -208,7 +275,7 @@ function EvaluationContent() {
                           Final Price
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
-                          ${vehicle.price.toLocaleString()}
+                          ${vehicleData.price.toLocaleString()}
                         </Typography>
                       </Box>
                     </Box>
@@ -219,7 +286,7 @@ function EvaluationContent() {
                           Mileage
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
-                          {vehicle.mileage.toLocaleString()} miles
+                          {vehicleData.mileage.toLocaleString()} miles
                         </Typography>
                       </Box>
                     </Box>
@@ -230,7 +297,7 @@ function EvaluationContent() {
                           Fuel Type
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
-                          {vehicle.fuelType}
+                          {vehicleData.fuelType}
                         </Typography>
                       </Box>
                     </Box>
@@ -381,6 +448,7 @@ function EvaluationContent() {
               </Box>
             </Grid>
           </Grid>
+          )}
         </Container>
       </Box>
       <Footer />

@@ -15,6 +15,7 @@ import {
   CardContent,
   Grid,
   Divider,
+  Alert,
 } from "@mui/material";
 import {
   Send,
@@ -24,10 +25,12 @@ import {
   DirectionsCar,
   Speed,
   LocalGasStation,
+  Warning,
 } from "@mui/icons-material";
 import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import ProgressStepper from "@/components/common/ProgressStepper";
+import Link from "next/link";
 
 interface Message {
   id: number;
@@ -37,6 +40,7 @@ interface Message {
 }
 
 interface VehicleInfo {
+  vin?: string;
   make: string;
   model: string;
   year: number;
@@ -57,17 +61,55 @@ function NegotiationContent() {
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Mock vehicle data (in production, fetch from API based on vehicle ID)
-  const vehicle: VehicleInfo = {
-    make: searchParams.get("make") || "Toyota",
-    model: searchParams.get("model") || "Camry",
-    year: parseInt(searchParams.get("year") || "2022"),
-    price: parseInt(searchParams.get("price") || "28500"),
-    mileage: parseInt(searchParams.get("mileage") || "15000"),
-    fuelType: searchParams.get("fuelType") || "Gasoline",
-  };
+  // Extract and validate vehicle data from URL params
+  const vehicleData: VehicleInfo | null = (() => {
+    try {
+      const vin = searchParams.get("vin") || undefined;
+      const make = searchParams.get("make");
+      const model = searchParams.get("model");
+      const yearStr = searchParams.get("year");
+      const priceStr = searchParams.get("price");
+      const mileageStr = searchParams.get("mileage");
+      const fuelType = searchParams.get("fuelType");
+
+      // Validate required fields
+      if (!make || !model || !yearStr || !priceStr || !mileageStr) {
+        return null;
+      }
+
+      const year = parseInt(yearStr);
+      const price = parseFloat(priceStr);
+      const mileage = parseInt(mileageStr);
+
+      // Validate parsed values
+      if (isNaN(year) || isNaN(price) || isNaN(mileage)) {
+        return null;
+      }
+
+      return {
+        vin,
+        make,
+        model,
+        year,
+        price,
+        mileage,
+        fuelType: fuelType || "Unknown",
+      };
+    } catch (err) {
+      console.error("Error parsing vehicle data:", err);
+      return null;
+    }
+  })();
+
+  // Set error if vehicle data is invalid
+  useEffect(() => {
+    if (!vehicleData) {
+      setError("Invalid vehicle data. Please select a vehicle from the search results.");
+    }
+  }, [vehicleData]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -105,13 +147,15 @@ function NegotiationContent() {
   };
 
   const getAIResponse = (userInput: string): string => {
+    if (!vehicleData) return "Sorry, I don't have vehicle information to work with.";
+    
     const input = userInput.toLowerCase();
     if (input.includes("price") || input.includes("cost")) {
-      return `Based on market analysis, the fair market value for this ${vehicle.year} ${vehicle.make} ${vehicle.model} is around $${vehicle.price - 2000}. I recommend making an initial offer of $${vehicle.price - 3000} to leave room for negotiation.`;
+      return `Based on market analysis, the fair market value for this ${vehicleData.year} ${vehicleData.make} ${vehicleData.model} is around $${vehicleData.price - 2000}. I recommend making an initial offer of $${vehicleData.price - 3000} to leave room for negotiation.`;
     } else if (input.includes("mileage")) {
-      return `The vehicle has ${vehicle.mileage.toLocaleString()} miles, which is ${vehicle.mileage < 30000 ? "excellent" : "acceptable"} for a ${vehicle.year} model. This is a positive factor in negotiation.`;
+      return `The vehicle has ${vehicleData.mileage.toLocaleString()} miles, which is ${vehicleData.mileage < 30000 ? "excellent" : "acceptable"} for a ${vehicleData.year} model. This is a positive factor in negotiation.`;
     } else if (input.includes("offer")) {
-      return `I suggest starting with an offer of $${vehicle.price - 3000}. Be prepared to go up to $${vehicle.price - 1500} if needed. Would you like me to draft a negotiation script?`;
+      return `I suggest starting with an offer of $${vehicleData.price - 3000}. Be prepared to go up to $${vehicleData.price - 1500} if needed. Would you like me to draft a negotiation script?`;
     }
     return "I can help you analyze the vehicle's price, market value, and create a negotiation strategy. What specific aspect would you like to discuss?";
   };
@@ -133,6 +177,24 @@ function NegotiationContent() {
             steps={["Search", "Results", "Negotiate", "Evaluate", "Finalize"]}
           />
 
+          {/* Error Alert */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
+              <Typography variant="h6" gutterBottom>
+                Unable to Load Vehicle Data
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                {error}
+              </Typography>
+              <Link href="/dashboard/results" style={{ textDecoration: "none" }}>
+                <Button variant="contained" size="small">
+                  Back to Results
+                </Button>
+              </Link>
+            </Alert>
+          )}
+
+          {vehicleData && (
           <Grid container spacing={3}>
             {/* Vehicle Info Sidebar */}
             <Grid item xs={12} md={4}>
@@ -144,24 +206,31 @@ function NegotiationContent() {
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                     <DirectionsCar sx={{ mr: 1, color: "primary.main" }} />
                     <Typography variant="body1">
-                      {vehicle.year} {vehicle.make} {vehicle.model}
+                      {vehicleData.year} {vehicleData.make} {vehicleData.model}
                     </Typography>
                   </Box>
+                  {vehicleData.vin && (
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        VIN: {vehicleData.vin}
+                      </Typography>
+                    </Box>
+                  )}
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                     <AttachMoney sx={{ mr: 1, color: "primary.main" }} />
                     <Typography variant="body1">
-                      ${vehicle.price.toLocaleString()}
+                      ${vehicleData.price.toLocaleString()}
                     </Typography>
                   </Box>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                     <Speed sx={{ mr: 1, color: "primary.main" }} />
                     <Typography variant="body1">
-                      {vehicle.mileage.toLocaleString()} miles
+                      {vehicleData.mileage.toLocaleString()} miles
                     </Typography>
                   </Box>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                     <LocalGasStation sx={{ mr: 1, color: "primary.main" }} />
-                    <Typography variant="body1">{vehicle.fuelType}</Typography>
+                    <Typography variant="body1">{vehicleData.fuelType}</Typography>
                   </Box>
                   <Divider sx={{ my: 2 }} />
                   <Typography variant="subtitle2" gutterBottom>
@@ -313,6 +382,7 @@ function NegotiationContent() {
               </Paper>
             </Grid>
           </Grid>
+          )}
         </Container>
       </Box>
       <Footer />
