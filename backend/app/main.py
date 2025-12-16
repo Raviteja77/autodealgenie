@@ -2,7 +2,6 @@
 AutoDealGenie FastAPI Application
 Main entry point for the backend service
 """
-
 import time
 import uuid
 from contextlib import asynccontextmanager
