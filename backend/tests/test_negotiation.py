@@ -1,11 +1,12 @@
 """Test negotiation endpoints and services"""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.api.dependencies import get_current_user
 from app.models.models import Deal, DealStatus, User
-from app.models.negotiation import MessageRole, NegotiationSession, NegotiationStatus
+from app.models.negotiation import MessageRole, NegotiationStatus
 from app.repositories.negotiation_repository import NegotiationRepository
 
 
@@ -81,7 +82,7 @@ def test_create_negotiation_session(negotiation_repo, mock_user, mock_deal):
     assert session.max_rounds == 10
 
 
-def test_get_negotiation_session(negotiation_repo, mock_user, mock_deal):
+def test_get_negotiation_session_repo(negotiation_repo, mock_user, mock_deal):
     """Test retrieving a negotiation session"""
     session = negotiation_repo.create_session(
         user_id=mock_user.id,
@@ -266,8 +267,8 @@ async def test_create_negotiation_invalid_deal(authenticated_client):
 @pytest.mark.asyncio
 async def test_process_next_round_counter(authenticated_client, mock_deal, db):
     """Test processing next round with counter offer"""
-    from app.repositories.negotiation_repository import NegotiationRepository
     from app.models.models import User
+    from app.repositories.negotiation_repository import NegotiationRepository
 
     # Get the mock user
     user = db.query(User).filter(User.email == "testuser@example.com").first()
@@ -306,8 +307,8 @@ async def test_process_next_round_counter(authenticated_client, mock_deal, db):
 @pytest.mark.asyncio
 async def test_process_next_round_confirm(authenticated_client, mock_deal, db):
     """Test processing next round with confirm action"""
-    from app.repositories.negotiation_repository import NegotiationRepository
     from app.models.models import User
+    from app.repositories.negotiation_repository import NegotiationRepository
 
     user = db.query(User).filter(User.email == "testuser@example.com").first()
     repo = NegotiationRepository(db)
@@ -327,8 +328,8 @@ async def test_process_next_round_confirm(authenticated_client, mock_deal, db):
 @pytest.mark.asyncio
 async def test_process_next_round_reject(authenticated_client, mock_deal, db):
     """Test processing next round with reject action"""
-    from app.repositories.negotiation_repository import NegotiationRepository
     from app.models.models import User
+    from app.repositories.negotiation_repository import NegotiationRepository
 
     user = db.query(User).filter(User.email == "testuser@example.com").first()
     repo = NegotiationRepository(db)
@@ -348,8 +349,8 @@ async def test_process_next_round_reject(authenticated_client, mock_deal, db):
 @pytest.mark.asyncio
 async def test_get_negotiation_session(authenticated_client, mock_deal, db):
     """Test retrieving a negotiation session"""
-    from app.repositories.negotiation_repository import NegotiationRepository
     from app.models.models import User
+    from app.repositories.negotiation_repository import NegotiationRepository
 
     user = db.query(User).filter(User.email == "testuser@example.com").first()
     repo = NegotiationRepository(db)
@@ -388,8 +389,8 @@ def test_get_nonexistent_negotiation(authenticated_client):
 @pytest.mark.asyncio
 async def test_access_other_user_session(authenticated_client, mock_deal, db):
     """Test that users cannot access other users' sessions"""
-    from app.repositories.negotiation_repository import NegotiationRepository
     from app.models.models import User
+    from app.repositories.negotiation_repository import NegotiationRepository
 
     # Create another user
     other_user = User(

@@ -41,11 +41,7 @@ class NegotiationRepository:
 
     def get_session(self, session_id: int) -> NegotiationSession | None:
         """Get a negotiation session by ID"""
-        return (
-            self.db.query(NegotiationSession)
-            .filter(NegotiationSession.id == session_id)
-            .first()
-        )
+        return self.db.query(NegotiationSession).filter(NegotiationSession.id == session_id).first()
 
     def get_sessions_by_user(
         self, user_id: int, skip: int = 0, limit: int = 100
@@ -132,7 +128,7 @@ class NegotiationRepository:
         return (
             self.db.query(NegotiationMessage)
             .filter(NegotiationMessage.session_id == session_id)
-            .order_by(NegotiationMessage.created_at.desc())
+            .order_by(NegotiationMessage.created_at.desc(), NegotiationMessage.id.desc())
             .first()
         )
 

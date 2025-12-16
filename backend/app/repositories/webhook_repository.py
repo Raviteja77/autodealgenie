@@ -2,7 +2,6 @@
 Repository for webhook subscription operations
 """
 
-
 from sqlalchemy.orm import Session
 
 from app.models.models import WebhookStatus, WebhookSubscription

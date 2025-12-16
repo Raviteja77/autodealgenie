@@ -4,7 +4,7 @@ SQLAlchemy models for Negotiation feature
 
 import enum
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import JSON, Column, DateTime, Enum, ForeignKey, Integer, Text
 from sqlalchemy.sql import func
 
 from app.db.session import Base
@@ -52,13 +52,13 @@ class NegotiationMessage(Base):
     __tablename__ = "negotiation_messages"
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(
-        Integer, ForeignKey("negotiation_sessions.id"), nullable=False, index=True
-    )
+    session_id = Column(Integer, ForeignKey("negotiation_sessions.id"), nullable=False, index=True)
     role = Column(Enum(MessageRole), nullable=False)
     content = Column(Text, nullable=False)
     round_number = Column(Integer, nullable=False, index=True)
-    metadata = Column(JSON, nullable=True)  # For agent reasoning, pricing details, etc.
+    message_metadata = Column(
+        "metadata", JSON, nullable=True
+    )  # For agent reasoning, pricing details, etc.
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     def __repr__(self):

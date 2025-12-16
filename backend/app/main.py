@@ -2,19 +2,18 @@
 AutoDealGenie FastAPI Application
 Main entry point for the backend service
 """
-import uuid
-import logging
+
 import time
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import api_router
 from app.core.config import settings
-from app.middleware.error_middleware import ErrorHandlerMiddleware
 from app.core.logging import configure_logging
+from app.middleware.error_middleware import ErrorHandlerMiddleware
 
 
 @asynccontextmanager
@@ -53,6 +52,7 @@ app.add_middleware(
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+
 # Request ID Middleware
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
@@ -68,17 +68,17 @@ async def request_id_middleware(request: Request, call_next):
     request_id = str(uuid.uuid4())
     # Bind request_id to the request state for access in endpoints/logs
     request.state.request_id = request_id
-    
+
     # Start timer
     start_time = time.time()
-    
+
     response = await call_next(request)
-    
+
     # Add processing time and request ID to headers
     process_time = time.time() - start_time
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Process-Time"] = str(process_time)
-    
+
     return response
 
 

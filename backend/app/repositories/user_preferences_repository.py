@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+
 from app.models.user_preferences import UserPreferences
+
 
 class UserPreferencesRepository:
     def __init__(self, db: AsyncSession):
@@ -10,7 +11,7 @@ class UserPreferencesRepository:
         """Create new user preferences"""
         pass
 
-    async def get_by_user(self, user_id: str) -> Optional[UserPreferences]:
+    async def get_by_user(self, user_id: str) -> UserPreferences | None:
         """Retrieve user's latest preferences"""
         pass
 

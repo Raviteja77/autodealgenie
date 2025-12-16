@@ -113,7 +113,7 @@ class NegotiationService:
                 status_code=500,
                 message="Failed to generate negotiation response",
                 details={"error": str(e)},
-            )
+            ) from e
 
     async def process_next_round(
         self,
@@ -173,8 +173,7 @@ class NegotiationService:
         if user_action == "confirm":
             # User accepts the deal
             self.negotiation_repo.update_session_status(session_id, NegotiationStatus.COMPLETED)
-            latest_message = self.negotiation_repo.get_latest_message(session_id)
-            
+
             message_content = "Thank you! I accept the current offer."
             self.negotiation_repo.add_message(
                 session_id=session_id,
@@ -185,8 +184,7 @@ class NegotiationService:
             )
 
             agent_content = (
-                "Excellent! The deal is confirmed. "
-                "We'll proceed with finalizing the paperwork."
+                "Excellent! The deal is confirmed. " "We'll proceed with finalizing the paperwork."
             )
             self.negotiation_repo.add_message(
                 session_id=session_id,
@@ -208,7 +206,7 @@ class NegotiationService:
         elif user_action == "reject":
             # User rejects and ends negotiation
             self.negotiation_repo.update_session_status(session_id, NegotiationStatus.CANCELLED)
-            
+
             message_content = "I'm not interested in continuing this negotiation."
             self.negotiation_repo.add_message(
                 session_id=session_id,
@@ -295,7 +293,7 @@ class NegotiationService:
                     status_code=500,
                     message="Failed to generate negotiation response",
                     details={"error": str(e)},
-                )
+                ) from e
 
         else:
             raise ApiError(
@@ -371,7 +369,7 @@ Keep your response conversational and under 200 words.
                 f"while the asking price is ${deal.asking_price:,.2f}. "
                 f"Let me work on finding a middle ground that works for both parties."
             )
-            
+
             price_difference = deal.asking_price - user_target_price
             suggested_price = user_target_price + (price_difference * 0.5)
 
@@ -506,10 +504,11 @@ Keep your response conversational and under 200 words.
             "messages": [
                 {
                     "id": msg.id,
+                    "session_id": msg.session_id,
                     "role": msg.role.value,
                     "content": msg.content,
                     "round_number": msg.round_number,
-                    "metadata": msg.metadata,
+                    "metadata": msg.message_metadata,
                     "created_at": msg.created_at,
                 }
                 for msg in messages

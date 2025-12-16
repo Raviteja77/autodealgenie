@@ -87,12 +87,12 @@ async def process_next_round(
     **Note:** The session must belong to the authenticated user.
     """
     service = NegotiationService(db)
-    
+
     # Verify session belongs to user
     session = service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
-    
+
     if session.user_id != current_user.id:
         raise ApiError(
             status_code=403,
@@ -130,12 +130,12 @@ def get_negotiation_session(
     **Note:** The session must belong to the authenticated user.
     """
     service = NegotiationService(db)
-    
+
     # Verify session belongs to user
     session = service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
-    
+
     if session.user_id != current_user.id:
         raise ApiError(
             status_code=403,
