@@ -146,7 +146,7 @@ def test_add_message(negotiation_repo, mock_user, mock_deal):
     assert message.role == MessageRole.USER
     assert message.content == "I want to negotiate the price"
     assert message.round_number == 1
-    assert message.metadata == {"target_price": 20000}
+    assert message.message_metadata == {"target_price": 20000}
 
 
 def test_get_messages(negotiation_repo, mock_user, mock_deal):

@@ -103,7 +103,7 @@ class NegotiationRepository:
             role=role,
             content=content,
             round_number=round_number,
-            metadata=metadata,
+            message_metadata=metadata,
         )
         self.db.add(message)
         self.db.commit()
