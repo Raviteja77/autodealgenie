@@ -1,7 +1,9 @@
 """Test main API endpoints"""
+
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+
 from app.main import request_id_middleware
 
 
@@ -59,6 +61,7 @@ def test_request_id_middleware_headers_and_state():
         assert process_time >= 0
     except ValueError:
         pytest.fail("X-Process-Time header is not a valid float")
+
 
 def test_request_id_middleware_flow():
     """

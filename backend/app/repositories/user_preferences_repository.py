@@ -13,7 +13,7 @@ class UserPreferencesRepository:
         """Create new user preferences"""
         pass
 
-    async def get_by_user(self, user_id: str) -> Optional[UserPreferences]:
+    async def get_by_user(self, user_id: str) -> UserPreferences | None:
         """Retrieve user's latest preferences"""
         pass
 

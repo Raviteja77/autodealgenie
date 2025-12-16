@@ -4,7 +4,7 @@ API v1 router configuration
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, cars, deals, evaluations, health, preferences, webhooks
+from app.api.v1.endpoints import auth, cars, deals, health, webhooks, preferences, recommendations, negotiation, evaluations
 
 api_router = APIRouter()
 
@@ -17,3 +17,5 @@ api_router.include_router(deals.router, prefix="/deals", tags=["deals"])
 api_router.include_router(evaluations.router, prefix="/deals", tags=["evaluations"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(preferences.router, prefix="/users", tags=["preferences"])
+api_router.include_router(negotiation.router, prefix="/negotiations", tags=["negotiations"])
+api_router.include_router(recommendations.router, prefix="/recommendations", tags=["recommendations"])

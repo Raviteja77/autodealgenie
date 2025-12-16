@@ -13,7 +13,7 @@ class VehicleCacheRepository:
         """Add or update a vehicle cache entry"""
         pass
 
-    async def get(self, vehicle_id: str) -> Optional[VehicleCache]:
+    async def get(self, vehicle_id: str) -> VehicleCache | None:
         """Retrieve a vehicle cache entry by ID"""
         pass
 

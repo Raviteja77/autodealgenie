@@ -6,6 +6,7 @@ Revises: 001_add_password_reset_fields
 Create Date: 2025-12-14
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -50,9 +51,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_webhook_subscriptions_id"), "webhook_subscriptions", ["id"])
-    op.create_index(
-        op.f("ix_webhook_subscriptions_user_id"), "webhook_subscriptions", ["user_id"]
-    )
+    op.create_index(op.f("ix_webhook_subscriptions_user_id"), "webhook_subscriptions", ["user_id"])
 
 
 def downgrade() -> None:
