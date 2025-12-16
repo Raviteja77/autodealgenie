@@ -59,4 +59,5 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_webhook_subscriptions_user_id"), table_name="webhook_subscriptions")
     op.drop_index(op.f("ix_webhook_subscriptions_id"), table_name="webhook_subscriptions")
     op.drop_table("webhook_subscriptions")
-    op.execute("DROP TYPE webhookstatus")
+    # Drop the enum type after dropping the table that uses it
+    op.execute("DROP TYPE IF EXISTS webhookstatus")

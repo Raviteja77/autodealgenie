@@ -68,5 +68,6 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_deal_evaluations_user_id"), table_name="deal_evaluations")
     op.drop_index(op.f("ix_deal_evaluations_id"), table_name="deal_evaluations")
     op.drop_table("deal_evaluations")
-    op.execute("DROP TYPE evaluationstatus")
-    op.execute("DROP TYPE pipelinestep")
+    # Drop the enum types after dropping the table that uses them
+    op.execute("DROP TYPE IF EXISTS evaluationstatus")
+    op.execute("DROP TYPE IF EXISTS pipelinestep")
