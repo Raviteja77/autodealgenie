@@ -1,0 +1,517 @@
+"""
+Negotiation service with LLM integration for multi-round negotiations
+"""
+
+import logging
+import uuid
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+from app.models.negotiation import MessageRole, NegotiationSession, NegotiationStatus
+from app.repositories.deal_repository import DealRepository
+from app.repositories.negotiation_repository import NegotiationRepository
+from app.services.langchain_service import langchain_service
+from app.utils.error_handler import ApiError
+
+logger = logging.getLogger(__name__)
+
+
+class NegotiationService:
+    """Service for managing multi-round negotiations with LLM"""
+
+    def __init__(self, db: Session):
+        self.db = db
+        self.negotiation_repo = NegotiationRepository(db)
+        self.deal_repo = DealRepository(db)
+
+    async def create_negotiation(
+        self,
+        user_id: int,
+        deal_id: int,
+        user_target_price: float,
+        strategy: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Create a new negotiation session and seed the first round
+
+        Args:
+            user_id: ID of the user initiating negotiation
+            deal_id: ID of the deal being negotiated
+            user_target_price: User's target price
+            strategy: Optional negotiation strategy
+
+        Returns:
+            Dictionary with session details and initial response
+
+        Raises:
+            ApiError: If deal not found or other errors occur
+        """
+        request_id = str(uuid.uuid4())
+        logger.info(
+            f"[{request_id}] Creating negotiation session for user {user_id}, deal {deal_id}"
+        )
+
+        # Validate deal exists
+        deal = self.deal_repo.get(deal_id)
+        if not deal:
+            logger.error(f"[{request_id}] Deal {deal_id} not found")
+            raise ApiError(status_code=404, message=f"Deal with id {deal_id} not found")
+
+        # Create session
+        session = self.negotiation_repo.create_session(user_id=user_id, deal_id=deal_id)
+        logger.info(f"[{request_id}] Created session {session.id}")
+
+        # Add initial user message
+        user_message = (
+            f"I'm interested in the {deal.vehicle_year} {deal.vehicle_make} "
+            f"{deal.vehicle_model}. The asking price is ${deal.asking_price:,.2f}, "
+            f"but my target price is ${user_target_price:,.2f}."
+        )
+        if strategy:
+            user_message += f" My negotiation approach is {strategy}."
+
+        self.negotiation_repo.add_message(
+            session_id=session.id,
+            role=MessageRole.USER,
+            content=user_message,
+            round_number=1,
+            metadata={"target_price": user_target_price, "strategy": strategy},
+        )
+
+        # Generate agent's initial response using LLM
+        try:
+            agent_response = await self._generate_agent_response(
+                session=session,
+                deal=deal,
+                user_target_price=user_target_price,
+                strategy=strategy,
+                request_id=request_id,
+            )
+
+            self.negotiation_repo.add_message(
+                session_id=session.id,
+                role=MessageRole.AGENT,
+                content=agent_response["content"],
+                round_number=1,
+                metadata=agent_response["metadata"],
+            )
+
+            logger.info(f"[{request_id}] Session {session.id} initialized successfully")
+
+            return {
+                "session_id": session.id,
+                "status": session.status.value,
+                "current_round": session.current_round,
+                "agent_message": agent_response["content"],
+                "metadata": agent_response["metadata"],
+            }
+
+        except Exception as e:
+            logger.error(f"[{request_id}] Error generating agent response: {str(e)}")
+            raise ApiError(
+                status_code=500,
+                message="Failed to generate negotiation response",
+                details={"error": str(e)},
+            )
+
+    async def process_next_round(
+        self,
+        session_id: int,
+        user_action: str,
+        counter_offer: float | None = None,
+    ) -> dict[str, Any]:
+        """
+        Process the next round of negotiation
+
+        Args:
+            session_id: ID of the negotiation session
+            user_action: User's action (confirm, reject, counter)
+            counter_offer: Optional counter offer price
+
+        Returns:
+            Dictionary with updated session status and agent response
+
+        Raises:
+            ApiError: If session not found, inactive, or max rounds exceeded
+        """
+        request_id = str(uuid.uuid4())
+        logger.info(f"[{request_id}] Processing next round for session {session_id}")
+
+        # Get session
+        session = self.negotiation_repo.get_session(session_id)
+        if not session:
+            logger.error(f"[{request_id}] Session {session_id} not found")
+            raise ApiError(status_code=404, message=f"Session {session_id} not found")
+
+        # Check session is active
+        if session.status != NegotiationStatus.ACTIVE:
+            logger.error(f"[{request_id}] Session {session_id} is not active")
+            raise ApiError(
+                status_code=400,
+                message="Session is not active",
+                details={"status": session.status.value},
+            )
+
+        # Check max rounds
+        if session.current_round >= session.max_rounds:
+            logger.warning(f"[{request_id}] Session {session_id} reached max rounds")
+            self.negotiation_repo.update_session_status(session_id, NegotiationStatus.COMPLETED)
+            raise ApiError(
+                status_code=400,
+                message="Maximum negotiation rounds reached",
+                details={"max_rounds": session.max_rounds},
+            )
+
+        # Get deal
+        deal = self.deal_repo.get(session.deal_id)
+        if not deal:
+            logger.error(f"[{request_id}] Deal {session.deal_id} not found")
+            raise ApiError(status_code=404, message="Associated deal not found")
+
+        # Handle user action
+        if user_action == "confirm":
+            # User accepts the deal
+            self.negotiation_repo.update_session_status(session_id, NegotiationStatus.COMPLETED)
+            latest_message = self.negotiation_repo.get_latest_message(session_id)
+            
+            message_content = "Thank you! I accept the current offer."
+            self.negotiation_repo.add_message(
+                session_id=session_id,
+                role=MessageRole.USER,
+                content=message_content,
+                round_number=session.current_round,
+                metadata={"action": "confirm"},
+            )
+
+            agent_content = (
+                "Excellent! The deal is confirmed. "
+                "We'll proceed with finalizing the paperwork."
+            )
+            self.negotiation_repo.add_message(
+                session_id=session_id,
+                role=MessageRole.AGENT,
+                content=agent_content,
+                round_number=session.current_round,
+                metadata={"action": "deal_confirmed"},
+            )
+
+            logger.info(f"[{request_id}] Session {session_id} completed (user confirmed)")
+            return {
+                "session_id": session_id,
+                "status": NegotiationStatus.COMPLETED.value,
+                "current_round": session.current_round,
+                "agent_message": agent_content,
+                "metadata": {"action": "deal_confirmed"},
+            }
+
+        elif user_action == "reject":
+            # User rejects and ends negotiation
+            self.negotiation_repo.update_session_status(session_id, NegotiationStatus.CANCELLED)
+            
+            message_content = "I'm not interested in continuing this negotiation."
+            self.negotiation_repo.add_message(
+                session_id=session_id,
+                role=MessageRole.USER,
+                content=message_content,
+                round_number=session.current_round,
+                metadata={"action": "reject"},
+            )
+
+            agent_content = (
+                "I understand. Thank you for your time. "
+                "Feel free to reach out if you change your mind."
+            )
+            self.negotiation_repo.add_message(
+                session_id=session_id,
+                role=MessageRole.AGENT,
+                content=agent_content,
+                round_number=session.current_round,
+                metadata={"action": "negotiation_cancelled"},
+            )
+
+            logger.info(f"[{request_id}] Session {session_id} cancelled (user rejected)")
+            return {
+                "session_id": session_id,
+                "status": NegotiationStatus.CANCELLED.value,
+                "current_round": session.current_round,
+                "agent_message": agent_content,
+                "metadata": {"action": "negotiation_cancelled"},
+            }
+
+        elif user_action == "counter":
+            # User makes a counter offer
+            if counter_offer is None or counter_offer <= 0:
+                raise ApiError(
+                    status_code=400,
+                    message="Counter offer is required for counter action",
+                )
+
+            # Increment round
+            session = self.negotiation_repo.increment_round(session_id)
+
+            # Add user counter message
+            message_content = f"I'd like to counter with an offer of ${counter_offer:,.2f}."
+            self.negotiation_repo.add_message(
+                session_id=session_id,
+                role=MessageRole.USER,
+                content=message_content,
+                round_number=session.current_round,
+                metadata={"action": "counter", "counter_offer": counter_offer},
+            )
+
+            # Generate agent's counter response using LLM
+            try:
+                agent_response = await self._generate_counter_response(
+                    session=session,
+                    deal=deal,
+                    counter_offer=counter_offer,
+                    request_id=request_id,
+                )
+
+                self.negotiation_repo.add_message(
+                    session_id=session_id,
+                    role=MessageRole.AGENT,
+                    content=agent_response["content"],
+                    round_number=session.current_round,
+                    metadata=agent_response["metadata"],
+                )
+
+                logger.info(
+                    f"[{request_id}] Session {session_id} advanced to round {session.current_round}"
+                )
+
+                return {
+                    "session_id": session_id,
+                    "status": session.status.value,
+                    "current_round": session.current_round,
+                    "agent_message": agent_response["content"],
+                    "metadata": agent_response["metadata"],
+                }
+
+            except Exception as e:
+                logger.error(f"[{request_id}] Error generating counter response: {str(e)}")
+                raise ApiError(
+                    status_code=500,
+                    message="Failed to generate negotiation response",
+                    details={"error": str(e)},
+                )
+
+        else:
+            raise ApiError(
+                status_code=400,
+                message="Invalid user action",
+                details={"valid_actions": ["confirm", "reject", "counter"]},
+            )
+
+    async def _generate_agent_response(
+        self,
+        session: NegotiationSession,
+        deal: Any,
+        user_target_price: float,
+        strategy: str | None,
+        request_id: str,
+    ) -> dict[str, Any]:
+        """Generate agent's initial response using LLM"""
+        logger.info(f"[{request_id}] Generating agent response for session {session.id}")
+
+        prompt = f"""
+You are an AI negotiation agent helping a user negotiate a car purchase.
+
+Vehicle Details:
+- Make: {deal.vehicle_make}
+- Model: {deal.vehicle_model}
+- Year: {deal.vehicle_year}
+- Mileage: {deal.vehicle_mileage} miles
+- Asking Price: ${deal.asking_price:,.2f}
+
+User's Target Price: ${user_target_price:,.2f}
+Negotiation Strategy: {strategy or 'Not specified'}
+
+Generate a professional, empathetic response that:
+1. Acknowledges the user's interest and target price
+2. Provides a realistic counter-offer or negotiation advice
+3. Explains the reasoning behind your recommendation
+4. Encourages continued negotiation
+
+Keep your response conversational and under 200 words.
+"""
+
+        try:
+            response_content = await langchain_service.generate_customer_response(
+                customer_query=prompt,
+                context={
+                    "session_id": session.id,
+                    "deal_id": deal.id,
+                    "round": session.current_round,
+                },
+            )
+
+            # Generate suggested counter offer (simple logic for now)
+            price_difference = deal.asking_price - user_target_price
+            suggested_price = user_target_price + (price_difference * 0.5)
+
+            return {
+                "content": response_content,
+                "metadata": {
+                    "suggested_price": round(suggested_price, 2),
+                    "asking_price": deal.asking_price,
+                    "user_target_price": user_target_price,
+                    "llm_used": True,
+                },
+            }
+
+        except Exception as e:
+            logger.error(f"[{request_id}] LLM call failed: {str(e)}")
+            # Fallback response if LLM fails
+            fallback_content = (
+                f"Thank you for your interest in the {deal.vehicle_year} "
+                f"{deal.vehicle_make} {deal.vehicle_model}. "
+                f"I see you're looking for ${user_target_price:,.2f}, "
+                f"while the asking price is ${deal.asking_price:,.2f}. "
+                f"Let me work on finding a middle ground that works for both parties."
+            )
+            
+            price_difference = deal.asking_price - user_target_price
+            suggested_price = user_target_price + (price_difference * 0.5)
+
+            return {
+                "content": fallback_content,
+                "metadata": {
+                    "suggested_price": round(suggested_price, 2),
+                    "asking_price": deal.asking_price,
+                    "user_target_price": user_target_price,
+                    "llm_used": False,
+                    "fallback": True,
+                },
+            }
+
+    async def _generate_counter_response(
+        self,
+        session: NegotiationSession,
+        deal: Any,
+        counter_offer: float,
+        request_id: str,
+    ) -> dict[str, Any]:
+        """Generate agent's counter response using LLM"""
+        logger.info(f"[{request_id}] Generating counter response for session {session.id}")
+
+        # Get conversation history
+        messages = self.negotiation_repo.get_messages(session.id)
+        conversation_history = "\n".join(
+            [f"{msg.role.value}: {msg.content}" for msg in messages[-4:]]  # Last 4 messages
+        )
+
+        prompt = f"""
+You are an AI negotiation agent helping a user negotiate a car purchase.
+
+Vehicle Details:
+- Make: {deal.vehicle_make}
+- Model: {deal.vehicle_model}
+- Year: {deal.vehicle_year}
+- Mileage: {deal.vehicle_mileage} miles
+- Asking Price: ${deal.asking_price:,.2f}
+
+Current Round: {session.current_round}
+Maximum Rounds: {session.max_rounds}
+User's Latest Counter Offer: ${counter_offer:,.2f}
+
+Recent Conversation:
+{conversation_history}
+
+Generate a professional response that:
+1. Acknowledges the user's counter offer
+2. Provides a new counter-offer or accepts if reasonable
+3. Explains the reasoning
+4. Guides toward a mutually beneficial agreement
+
+Keep your response conversational and under 200 words.
+"""
+
+        try:
+            response_content = await langchain_service.generate_customer_response(
+                customer_query=prompt,
+                context={
+                    "session_id": session.id,
+                    "deal_id": deal.id,
+                    "round": session.current_round,
+                },
+            )
+
+            # Generate new suggested price (converge toward asking price)
+            price_difference = deal.asking_price - counter_offer
+            convergence_rate = 1 - (session.current_round / session.max_rounds)
+            new_suggested_price = counter_offer + (price_difference * convergence_rate * 0.6)
+
+            return {
+                "content": response_content,
+                "metadata": {
+                    "suggested_price": round(new_suggested_price, 2),
+                    "user_counter_offer": counter_offer,
+                    "asking_price": deal.asking_price,
+                    "llm_used": True,
+                },
+            }
+
+        except Exception as e:
+            logger.error(f"[{request_id}] LLM call failed: {str(e)}")
+            # Fallback response
+            price_difference = deal.asking_price - counter_offer
+            convergence_rate = 1 - (session.current_round / session.max_rounds)
+            new_suggested_price = counter_offer + (price_difference * convergence_rate * 0.6)
+
+            fallback_content = (
+                f"I appreciate your offer of ${counter_offer:,.2f}. "
+                f"While I understand your position, the asking price is ${deal.asking_price:,.2f}. "
+                f"How about we meet closer to ${new_suggested_price:,.2f}? "
+                f"This takes into account the vehicle's condition and market value."
+            )
+
+            return {
+                "content": fallback_content,
+                "metadata": {
+                    "suggested_price": round(new_suggested_price, 2),
+                    "user_counter_offer": counter_offer,
+                    "asking_price": deal.asking_price,
+                    "llm_used": False,
+                    "fallback": True,
+                },
+            }
+
+    def get_session_with_messages(self, session_id: int) -> dict[str, Any] | None:
+        """
+        Get a negotiation session with all its messages
+
+        Args:
+            session_id: ID of the negotiation session
+
+        Returns:
+            Dictionary with session details and messages, or None if not found
+        """
+        session = self.negotiation_repo.get_session(session_id)
+        if not session:
+            return None
+
+        messages = self.negotiation_repo.get_messages(session_id)
+
+        return {
+            "id": session.id,
+            "user_id": session.user_id,
+            "deal_id": session.deal_id,
+            "status": session.status.value,
+            "current_round": session.current_round,
+            "max_rounds": session.max_rounds,
+            "created_at": session.created_at,
+            "updated_at": session.updated_at,
+            "messages": [
+                {
+                    "id": msg.id,
+                    "role": msg.role.value,
+                    "content": msg.content,
+                    "round_number": msg.round_number,
+                    "metadata": msg.metadata,
+                    "created_at": msg.created_at,
+                }
+                for msg in messages
+            ],
+        }
