@@ -5,6 +5,7 @@ Provides fair market value analysis and negotiation insights for vehicle deals
 
 import json
 import logging
+from datetime import datetime
 from typing import Any
 
 from langchain.schema import HumanMessage, SystemMessage
@@ -462,7 +463,8 @@ Score should be 1-10 based on the description and mileage."""
             risk_score += 0.5
 
         # Age risk
-        vehicle_age = 2024 - deal.vehicle_year
+        current_year = datetime.now().year
+        vehicle_age = current_year - deal.vehicle_year
         if vehicle_age > 10:
             risk_factors.append("Vehicle is over 10 years old - check for wear and tear")
             risk_score += 1.0
