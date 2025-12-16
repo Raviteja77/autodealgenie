@@ -50,6 +50,17 @@ async def get_car_recommendations(
         )
 
     try:
+        # Build enhanced user priorities string that includes must-have features
+        enhanced_priorities = user_preferences.user_priorities or ""
+        if user_preferences.must_have_features:
+            features_text = f"Must-have features: {', '.join(user_preferences.must_have_features)}"
+            enhanced_priorities = (
+                f"{enhanced_priorities}. {features_text}" if enhanced_priorities else features_text
+            )
+
+        # Note: Location is captured in UserPreferenceInput but not currently supported
+        # by the backend service. It's included in the schema for future enhancement.
+
         # Call the car recommendation service with user preferences
         result = await car_recommendation_service.search_and_recommend(
             make=user_preferences.make,
@@ -60,7 +71,7 @@ async def get_car_recommendations(
             year_min=user_preferences.year_min,
             year_max=user_preferences.year_max,
             mileage_max=user_preferences.mileage_max,
-            user_priorities=user_preferences.user_priorities,
+            user_priorities=enhanced_priorities,
             user_id=current_user.id,
             db_session=db,
         )

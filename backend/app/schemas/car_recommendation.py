@@ -2,7 +2,7 @@
 Pydantic schemas for car recommendation pipeline
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class UserPreferenceInput(BaseModel):
@@ -23,6 +23,27 @@ class UserPreferenceInput(BaseModel):
     user_priorities: str | None = Field(
         None, description="User's specific priorities or preferences"
     )
+
+    @model_validator(mode="after")
+    def validate_ranges(self) -> "UserPreferenceInput":
+        """Validate that max values are greater than min values"""
+        # Validate budget range
+        if (
+            self.budget_min is not None
+            and self.budget_max is not None
+            and self.budget_max <= self.budget_min
+        ):
+            raise ValueError("budget_max must be greater than budget_min")
+
+        # Validate year range
+        if (
+            self.year_min is not None
+            and self.year_max is not None
+            and self.year_max < self.year_min
+        ):
+            raise ValueError("year_max must be greater than or equal to year_min")
+
+        return self
 
 
 class CarRecommendationItem(BaseModel):

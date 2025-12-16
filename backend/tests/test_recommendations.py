@@ -386,3 +386,86 @@ def test_get_car_recommendations_with_all_preferences(
             assert call_kwargs["year_max"] == 2024
             assert call_kwargs["mileage_max"] == 50000
             assert "family SUV" in call_kwargs["user_priorities"]
+
+
+def test_user_preference_input_invalid_budget_range():
+    """Test that invalid budget range is rejected"""
+    import pytest
+    from pydantic import ValidationError
+
+    from app.schemas.car_recommendation import UserPreferenceInput
+
+    with pytest.raises(ValidationError) as exc_info:
+        UserPreferenceInput(
+            budget_min=30000,
+            budget_max=20000,  # Max less than min
+        )
+
+    assert "budget_max must be greater than budget_min" in str(exc_info.value)
+
+
+def test_user_preference_input_invalid_year_range():
+    """Test that invalid year range is rejected"""
+    import pytest
+    from pydantic import ValidationError
+
+    from app.schemas.car_recommendation import UserPreferenceInput
+
+    with pytest.raises(ValidationError) as exc_info:
+        UserPreferenceInput(
+            year_min=2024,
+            year_max=2020,  # Max less than min
+        )
+
+    assert "year_max must be greater than or equal to year_min" in str(exc_info.value)
+
+
+def test_user_preference_input_valid_ranges():
+    """Test that valid ranges are accepted"""
+    from app.schemas.car_recommendation import UserPreferenceInput
+
+    # Valid budget range
+    prefs = UserPreferenceInput(
+        budget_min=20000,
+        budget_max=30000,
+        year_min=2020,
+        year_max=2024,
+    )
+    assert prefs.budget_min == 20000
+    assert prefs.budget_max == 30000
+    assert prefs.year_min == 2020
+    assert prefs.year_max == 2024
+
+
+def test_must_have_features_integration(
+    authenticated_client, mock_service_response, mock_rate_limiter_allowed
+):
+    """Test that must_have_features are incorporated into user_priorities"""
+    request_data = {
+        "budget_max": 30000,
+        "must_have_features": ["AWD", "Backup Camera", "Bluetooth"],
+        "user_priorities": "Looking for reliability",
+    }
+
+    with patch(
+        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+    ):
+        with patch(
+            "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
+            return_value=mock_service_response,
+        ) as mock_search:
+            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
+
+            assert response.status_code == 200
+
+            # Verify service was called with enhanced priorities
+            mock_search.assert_called_once()
+            call_kwargs = mock_search.call_args.kwargs
+            user_priorities = call_kwargs["user_priorities"]
+
+            # Should include both original priorities and must-have features
+            assert "Looking for reliability" in user_priorities
+            assert "Must-have features" in user_priorities
+            assert "AWD" in user_priorities
+            assert "Backup Camera" in user_priorities
+            assert "Bluetooth" in user_priorities
