@@ -155,29 +155,9 @@ class ApiClient {
    * Search for cars with AI recommendations
    */
   async searchCars(params: CarSearchRequest): Promise<CarSearchResponse> {
-    const queryParams = new URLSearchParams();
-
-    if (params.make) queryParams.append("make", params.make);
-    if (params.model) queryParams.append("model", params.model);
-    if (params.budget_min !== undefined)
-      queryParams.append("budget_min", params.budget_min.toString());
-    if (params.budget_max !== undefined)
-      queryParams.append("budget_max", params.budget_max.toString());
-    if (params.car_type) queryParams.append("car_type", params.car_type);
-    if (params.year_min !== undefined)
-      queryParams.append("year_min", params.year_min.toString());
-    if (params.year_max !== undefined)
-      queryParams.append("year_max", params.year_max.toString());
-    if (params.mileage_max !== undefined)
-      queryParams.append("mileage_max", params.mileage_max.toString());
-    if (params.user_priorities)
-      queryParams.append("user_priorities", params.user_priorities);
-
-    const queryString = queryParams.toString()
-      ? "?" + queryParams.toString()
-      : "";
-    return this.request<CarSearchResponse>(`/api/v1/cars/search${queryString}`, {
+    return this.request<CarSearchResponse>(`/api/v1/cars/search`, {
       method: "POST",
+      body: JSON.stringify(params),
     });
   }
 }

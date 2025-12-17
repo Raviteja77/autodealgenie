@@ -327,7 +327,7 @@ export default function DashboardSearchPage() {
                         { value: 2000, label: "2000" },
                         { value: 2024, label: "2024" },
                       ]}
-                      color="secondary"
+                      sx={{ color: "success.light" }}
                     />
                   </Box>
                 </Grid>
@@ -378,7 +378,7 @@ export default function DashboardSearchPage() {
                         { value: 5000, label: "$5K" },
                         { value: 100000, label: "$100K" },
                       ]}
-                      color="secondary"
+                      sx={{ color: "success.light" }}
                     />
                   </Box>
                 </Grid>
@@ -428,7 +428,7 @@ export default function DashboardSearchPage() {
                         { value: 10000, label: "10K" },
                         { value: 200000, label: "200K" },
                       ]}
-                      color="secondary"
+                      sx={{ color: "success.light" }}
                     />
                   </Box>
                 </Grid>

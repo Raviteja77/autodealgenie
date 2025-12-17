@@ -13,7 +13,6 @@ from app.repositories.user_repository import UserRepository
 
 def get_current_user(
     access_token: str | None = Cookie(default=None),
-    authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),
 ) -> User:
     """

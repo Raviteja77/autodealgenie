@@ -158,7 +158,6 @@ function ResultsContent() {
   if (error) {
     return (
       <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-        <Header />
         <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
           <Container maxWidth="lg">
             <Alert severity="error" sx={{ mb: 3 }}>
@@ -174,20 +173,14 @@ function ResultsContent() {
             </Box>
           </Container>
         </Box>
-        <Footer />
       </Box>
     );
   }
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Header />
       <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
         <Container maxWidth="lg">
-          <ProgressStepper
-            activeStep={1}
-            steps={["Search", "Results", "Negotiate", "Evaluate", "Finalize"]}
-          />
           {/* Header */}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
             <Box>
@@ -422,7 +415,6 @@ function ResultsContent() {
         )}
         </Container>
       </Box>
-      <Footer />
     </Box>
   );
 }

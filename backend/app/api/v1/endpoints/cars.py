@@ -17,7 +17,7 @@ router = APIRouter()
 
 @router.post("/search", response_model=CarSearchResponse)
 async def search_cars(
-    search_request: CarSearchRequest = Depends(),
+    search_request: CarSearchRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):

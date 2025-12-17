@@ -132,7 +132,7 @@ export default function Home() {
         {/* Stats Overview */}
         <Grid container spacing={3} sx={{ mb: 6 }}>
           {stats.map((stat, index) => (
-            <Grid item xs={4} md={3} key={index}>
+            <Grid item xs={6} md={3} key={index}>
               <Paper
                 elevation={0}
                 sx={{

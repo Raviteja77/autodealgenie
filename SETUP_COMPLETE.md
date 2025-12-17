@@ -78,8 +78,13 @@ Run Application Code (Frontend & Backend) locally on your machine.
 # Stop specific containers
 docker compose stop frontend backend
 
+#run migrations
+alembic upgrade head
+
 # Alternatively, ensure only infra is running (if you restarted)
 docker compose up -d postgres mongodb redis kafka zookeeper
+
+docker compose down -v
 
 cd backend
 
