@@ -176,7 +176,9 @@ class ApiClient {
     const queryString = queryParams.toString()
       ? "?" + queryParams.toString()
       : "";
-    return this.request<CarSearchResponse>(`/api/v1/cars/search${queryString}`);
+    return this.request<CarSearchResponse>(`/api/v1/cars/search${queryString}`, {
+      method: "POST",
+    });
   }
 }
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { Stepper, Step, StepLabel, Box, StepConnector, styled } from "@mui/material";
-import { Check } from "@mui/icons-material";
+import { Stepper, Step, StepLabel, Box, StepConnector, styled, stepConnectorClasses } from "@mui/material";
 import { StepIconProps } from "@mui/material/StepIcon";
+import CheckIcon from "@mui/icons-material/Check";
 
 interface ProgressStepperProps {
   activeStep: number;
@@ -10,24 +10,25 @@ interface ProgressStepperProps {
 }
 
 // Shared gradient constant
-const BLUE_GRADIENT = "linear-gradient(95deg, rgb(37,99,235) 0%, rgb(59,130,246) 50%, rgb(96,165,250) 100%)";
-const BLUE_GRADIENT_ICON = "linear-gradient(136deg, rgb(37,99,235) 0%, rgb(59,130,246) 50%, rgb(96,165,250) 100%)";
+const SUCCESS_GRADIENT = "linear-gradient(95deg, rgb(22,163,74) 0%, rgb(34,197,94) 50%, rgb(74,222,128) 100%)";
+const SUCCESS_GRADIENT_ICON = "linear-gradient(136deg, rgb(22,163,74) 0%, rgb(34,197,94) 50%, rgb(74,222,128) 100%)";
 
+// Custom Stepper Styling
 const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
-  alternativeLabel: {
+  [`&.${stepConnectorClasses.alternativeLabel}`]: {
     top: 22,
   },
   active: {
     "& .MuiStepConnector-line": {
-      backgroundImage: BLUE_GRADIENT,
+      backgroundImage: SUCCESS_GRADIENT,
     },
   },
   completed: {
     "& .MuiStepConnector-line": {
-      backgroundImage: BLUE_GRADIENT,
+      backgroundImage: SUCCESS_GRADIENT,
     },
   },
-  line: {
+  [`& .${stepConnectorClasses.line}`]: {
     height: 3,
     border: 0,
     backgroundColor:
@@ -36,41 +37,35 @@ const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
   },
 }));
 
-const ColorlibStepIconRoot = styled("div")<{
+const ColorlibStepIconRoot = styled('div')<{
   ownerState: { completed?: boolean; active?: boolean };
 }>(({ theme, ownerState }) => ({
-  backgroundColor:
-    theme.palette.mode === "dark" ? theme.palette.grey[700] : "#ccc",
+  backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[700] : '#e0e0e0',
   zIndex: 1,
-  color: "#fff",
+  color: '#fff',
   width: 50,
   height: 50,
-  display: "flex",
-  borderRadius: "50%",
-  justifyContent: "center",
-  alignItems: "center",
+  display: 'flex',
+  borderRadius: '50%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  fontSize: '1.25rem',
+  fontWeight: 600,
   ...(ownerState.active && {
-    backgroundImage: BLUE_GRADIENT_ICON,
+    backgroundImage: SUCCESS_GRADIENT_ICON,
     boxShadow: "0 4px 10px 0 rgba(0,0,0,.25)",
   }),
   ...(ownerState.completed && {
-    backgroundImage: BLUE_GRADIENT_ICON,
+    backgroundImage: SUCCESS_GRADIENT_ICON,
   }),
 }));
 
 function ColorlibStepIcon(props: StepIconProps) {
-  const { active, completed, className } = props;
+  const { active, completed, className, icon } = props;
 
   return (
-    <ColorlibStepIconRoot
-      ownerState={{ completed, active }}
-      className={className}
-    >
-      {completed ? (
-        <Check sx={{ fontSize: 24 }} />
-      ) : (
-        <Box sx={{ fontSize: 20, fontWeight: "bold" }}>{String(props.icon)}</Box>
-      )}
+    <ColorlibStepIconRoot ownerState={{ completed, active }} className={className}>
+      {completed ? <CheckIcon /> : icon}
     </ColorlibStepIconRoot>
   );
 }

@@ -169,7 +169,7 @@ function ResultsContent() {
             </Alert>
             <Box sx={{ textAlign: "center" }}>
               <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
-                <Button variant="primary">Back to Search</Button>
+                <Button variant="success">Back to Search</Button>
               </Link>
             </Box>
           </Container>
