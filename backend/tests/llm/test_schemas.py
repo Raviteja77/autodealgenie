@@ -3,7 +3,14 @@
 import pytest
 from pydantic import ValidationError
 
-from app.llm.schemas import LLMError, LLMRequest, LLMResponse
+from app.llm.schemas import (
+    CarSelectionItem,
+    CarSelectionResponse,
+    DealEvaluation,
+    LLMError,
+    LLMRequest,
+    LLMResponse,
+)
 
 
 class TestLLMRequest:
@@ -129,3 +136,206 @@ class TestLLMError:
         assert error.message == "Invalid response format"
         assert error.details["field"] == "fair_value"
         assert error.details["expected"] == "float"
+
+
+class TestCarSelectionItem:
+    """Test CarSelectionItem schema"""
+
+    def test_car_selection_item_basic(self):
+        """Test creating a basic car selection item"""
+        item = CarSelectionItem(
+            index=0,
+            score=8.5,
+            highlights=["Great fuel economy", "Low mileage", "Recent model year"],
+            summary="Excellent value for reliable transportation",
+        )
+
+        assert item.index == 0
+        assert item.score == 8.5
+        assert len(item.highlights) == 3
+        assert item.highlights[0] == "Great fuel economy"
+        assert item.summary == "Excellent value for reliable transportation"
+
+    def test_car_selection_item_with_all_fields(self):
+        """Test creating a car selection item with all fields"""
+        item = CarSelectionItem(
+            index=2,
+            score=9.2,
+            highlights=["Excellent safety ratings", "Low maintenance costs", "Good resale value"],
+            summary="Top choice for family vehicle with strong safety features",
+        )
+
+        assert item.index == 2
+        assert item.score == 9.2
+        assert len(item.highlights) == 3
+        assert "Excellent safety ratings" in item.highlights
+        assert item.summary == "Top choice for family vehicle with strong safety features"
+
+    def test_car_selection_item_validation(self):
+        """Test validation of required fields"""
+        # Missing required fields should raise ValidationError
+        with pytest.raises(ValidationError):
+            CarSelectionItem(index=0, score=8.0)  # Missing highlights and summary
+
+        with pytest.raises(ValidationError):
+            CarSelectionItem(
+                index=0, highlights=["Good value"], summary="Great car"
+            )  # Missing score
+
+    def test_car_selection_item_score_types(self):
+        """Test that score accepts both int and float"""
+        item_float = CarSelectionItem(
+            index=0, score=8.5, highlights=["Good"], summary="Nice car"
+        )
+        item_int = CarSelectionItem(index=1, score=9, highlights=["Great"], summary="Best car")
+
+        assert item_float.score == 8.5
+        assert item_int.score == 9
+
+    def test_car_selection_item_empty_highlights(self):
+        """Test car selection item with empty highlights list"""
+        item = CarSelectionItem(index=0, score=7.0, highlights=[], summary="Basic option")
+
+        assert item.highlights == []
+        assert len(item.highlights) == 0
+
+
+class TestCarSelectionResponse:
+    """Test CarSelectionResponse schema"""
+
+    def test_car_selection_response_basic(self):
+        """Test creating a basic car selection response"""
+        items = [
+            CarSelectionItem(
+                index=0,
+                score=8.5,
+                highlights=["Great fuel economy", "Low mileage", "Recent model year"],
+                summary="Excellent value",
+            ),
+            CarSelectionItem(
+                index=2,
+                score=9.0,
+                highlights=["Top safety ratings", "Reliable brand", "Good warranty"],
+                summary="Best overall choice",
+            ),
+        ]
+        response = CarSelectionResponse(recommendations=items)
+
+        assert len(response.recommendations) == 2
+        assert response.recommendations[0].index == 0
+        assert response.recommendations[1].index == 2
+        assert response.recommendations[0].score == 8.5
+        assert response.recommendations[1].score == 9.0
+
+    def test_car_selection_response_single_item(self):
+        """Test car selection response with single recommendation"""
+        item = CarSelectionItem(
+            index=0, score=7.5, highlights=["Good value"], summary="Solid choice"
+        )
+        response = CarSelectionResponse(recommendations=[item])
+
+        assert len(response.recommendations) == 1
+        assert response.recommendations[0].score == 7.5
+
+    def test_car_selection_response_empty(self):
+        """Test car selection response with empty recommendations"""
+        response = CarSelectionResponse(recommendations=[])
+
+        assert len(response.recommendations) == 0
+        assert response.recommendations == []
+
+    def test_car_selection_response_validation(self):
+        """Test validation of required fields"""
+        # Missing required field should raise ValidationError
+        with pytest.raises(ValidationError):
+            CarSelectionResponse()  # Missing recommendations
+
+    def test_car_selection_response_multiple_items(self):
+        """Test car selection response with multiple recommendations"""
+        items = [
+            CarSelectionItem(index=i, score=8.0 + i * 0.5, highlights=[f"Feature {i}"], summary=f"Car {i}")
+            for i in range(5)
+        ]
+        response = CarSelectionResponse(recommendations=items)
+
+        assert len(response.recommendations) == 5
+        assert response.recommendations[0].score == 8.0
+        assert response.recommendations[4].score == 10.0
+        assert all(item.index == i for i, item in enumerate(response.recommendations))
+
+
+class TestDealEvaluation:
+    """Test DealEvaluation schema"""
+
+    def test_deal_evaluation_basic(self):
+        """Test creating a basic deal evaluation"""
+        evaluation = DealEvaluation(
+            fair_value=25000.00,
+            score=7.5,
+            insights=["Priced above market", "Good condition", "Average mileage"],
+            talking_points=["Request maintenance records", "Point out comparable vehicles", "Negotiate warranty"],
+        )
+
+        assert evaluation.fair_value == 25000.00
+        assert evaluation.score == 7.5
+        assert len(evaluation.insights) == 3
+        assert len(evaluation.talking_points) == 3
+
+    def test_deal_evaluation_score_validation(self):
+        """Test score validation (must be 1-10)"""
+        # Valid scores
+        DealEvaluation(
+            fair_value=20000, score=1.0, insights=["Good"], talking_points=["Talk"]
+        )
+        DealEvaluation(
+            fair_value=20000, score=10.0, insights=["Good"], talking_points=["Talk"]
+        )
+
+        # Invalid score (too low)
+        with pytest.raises(ValidationError):
+            DealEvaluation(
+                fair_value=20000, score=0.5, insights=["Good"], talking_points=["Talk"]
+            )
+
+        # Invalid score (too high)
+        with pytest.raises(ValidationError):
+            DealEvaluation(
+                fair_value=20000, score=10.5, insights=["Good"], talking_points=["Talk"]
+            )
+
+    def test_deal_evaluation_required_fields(self):
+        """Test validation of required fields"""
+        # Missing required fields should raise ValidationError
+        with pytest.raises(ValidationError):
+            DealEvaluation(fair_value=20000, score=7.5)  # Missing insights and talking_points
+
+    def test_deal_evaluation_empty_lists(self):
+        """Test deal evaluation with empty insight/talking point lists"""
+        evaluation = DealEvaluation(
+            fair_value=30000.00,
+            score=8.0,
+            insights=[],
+            talking_points=[],
+        )
+
+        assert evaluation.fair_value == 30000.00
+        assert evaluation.score == 8.0
+        assert evaluation.insights == []
+        assert evaluation.talking_points == []
+
+    def test_deal_evaluation_multiple_items(self):
+        """Test deal evaluation with multiple insights and talking points"""
+        insights = [f"Insight {i}" for i in range(5)]
+        talking_points = [f"Point {i}" for i in range(5)]
+
+        evaluation = DealEvaluation(
+            fair_value=28500.50,
+            score=6.8,
+            insights=insights,
+            talking_points=talking_points,
+        )
+
+        assert len(evaluation.insights) == 5
+        assert len(evaluation.talking_points) == 5
+        assert evaluation.fair_value == 28500.50
+        assert evaluation.score == 6.8

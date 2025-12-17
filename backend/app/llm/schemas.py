@@ -54,3 +54,12 @@ class CarSelectionResponse(BaseModel):
     recommendations: list[CarSelectionItem] = Field(
         ..., description="List of selected vehicles"
     )
+
+
+class DealEvaluation(BaseModel):
+    """Schema for deal evaluation response"""
+
+    fair_value: float = Field(..., description="Estimated fair market value in USD")
+    score: float = Field(..., ge=1.0, le=10.0, description="Deal quality score from 1-10")
+    insights: list[str] = Field(..., description="3-5 key observations about the deal")
+    talking_points: list[str] = Field(..., description="3-5 specific negotiation strategies")

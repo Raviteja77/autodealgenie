@@ -35,6 +35,7 @@ Always:
 - Keep line length at 100 characters
 - Use SQLAlchemy models for PostgreSQL and Motor for MongoDB
 - Organize code in layers: endpoints → services → repositories → models
+- For LLM operations: services → llm module (prompts, schemas, client)
 
 ### Frontend (TypeScript)
 - **Framework**: Next.js 14 (App Router)
@@ -71,6 +72,10 @@ backend/
 │   │   └── api.py        # API router configuration
 │   ├── core/             # Configuration and settings
 │   ├── db/               # Database connections (PostgreSQL, MongoDB, Redis)
+│   ├── llm/              # Centralized LLM module
+│   │   ├── llm_client.py # AsyncOpenAI client with error handling
+│   │   ├── prompts.py    # Prompt template registry
+│   │   └── schemas.py    # LLM request/response schemas
 │   ├── models/           # SQLAlchemy ORM models
 │   ├── repositories/     # Data access layer
 │   ├── schemas/          # Pydantic request/response schemas
@@ -162,6 +167,46 @@ frontend/
 - **Data Strategy**:
   - PostgreSQL: Users, Deals, Loan Applications (relational data)
   - MongoDB: Search history, Negotiation conversations, Vehicle cache (unstructured/high-variance data)
+
+### LLM Integration (Separation of Concerns)
+- **Centralized LLM Module**: All LLM operations must use the centralized `app/llm` module
+- **Never use LangChain or OpenAI directly** in service files - use the abstraction layer in `app/llm/`
+- **Architecture**:
+  - `app/llm/llm_client.py` - Single AsyncOpenAI client instance with error handling
+  - `app/llm/prompts.py` - Centralized prompt template registry
+  - `app/llm/schemas.py` - Pydantic models for LLM request/response validation
+  - `app/llm/__init__.py` - Public API with convenience functions
+- **Usage Pattern**:
+  ```python
+  from app.llm import generate_structured_json, generate_text
+  from app.llm.schemas import DealEvaluation
+  
+  # For structured JSON responses
+  result = await generate_structured_json(
+      prompt_id="evaluation",
+      variables={"vin": vin, "asking_price": price},
+      response_model=DealEvaluation,
+      temperature=0.7
+  )
+  
+  # For text responses
+  text = await generate_text(
+      prompt_id="negotiation_initial",
+      variables={"make": make, "model": model},
+      temperature=0.7
+  )
+  ```
+- **Adding New Prompts**:
+  1. Add prompt template to `app/llm/prompts.py` in the PROMPTS registry
+  2. If structured output needed, create Pydantic schema in `app/llm/schemas.py`
+  3. Export schema from `app/llm/__init__.py`
+  4. Add test coverage in `tests/llm/test_schemas.py`
+- **Benefits**:
+  - Single source of truth for OpenAI configuration
+  - Consistent error handling across all LLM calls
+  - Easy to mock in tests
+  - Prompt versioning and management in one place
+  - Type-safe responses with Pydantic validation
 
 ### Authentication
 - JWT-based authentication with HTTP-only cookies (never use `localStorage` for tokens)
