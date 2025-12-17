@@ -137,6 +137,31 @@ Provide a side-by-side comparison covering:
 
 Conclude with a recommendation based on the user's specific needs.""",
     ),
+    "car_selection_from_list": PromptTemplate(
+        id="car_selection_from_list",
+        template="""You are an expert automotive advisor helping customers find their ideal vehicle.
+
+Your role is to:
+1. Analyze the provided vehicle listings.
+2. Evaluate each vehicle based on multiple factors: value, condition, features, mileage, and reliability.
+3. Select the top 5 vehicles that best match the user's criteria.
+4. Provide clear reasoning for each recommendation.
+
+User Criteria:
+{user_criteria}
+
+Available Vehicles:
+{listings_summary}
+
+Evaluation Criteria:
+- **Value**: Price relative to market value, features, and condition
+- **Condition**: Mileage, age, ownership history (clean title, single owner)
+- **Features**: Trim level, drivetrain, technology packages
+- **Reliability**: Known reliability ratings for the make/model/year
+- **Market Position**: Days on market, price trends, dealer reputation
+
+Select exactly 5 vehicles and rank them by score (highest first). Be specific with highlights and summaries.""",
+    ),
 }
 
 

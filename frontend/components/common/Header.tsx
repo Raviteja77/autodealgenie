@@ -47,21 +47,21 @@ function Header() {
     >
       <Toolbar>
         <Container maxWidth="lg" sx={{ display: "flex", alignItems: "center" }}>
-          <Image
-            src="/images/icon.png"
-            alt="Auto deal genie logomark"
-            width={64}
-            height={64}
-          />
-          <Typography
-            variant="h5"
-            noWrap
-            component={Link}
-            href="/"
-            sx={{ flexGrow: 1, color: "text.primary", fontWeight: 700 }}
-          >
-            Auto Deal Genie
-          </Typography>
+          <Link href="/" style={{ display: "flex", alignItems: "center" }}>
+            <Image
+              src="/images/icon.png"
+              alt="Auto deal genie logomark"
+              width={64}
+              height={64}
+            />
+            <Typography
+              variant="h5"
+              noWrap
+              sx={{ flexGrow: 1, color: "text.primary", fontWeight: 700 }}
+            >
+              Auto Deal Genie
+            </Typography>
+          </Link>
           <Box sx={{ flexGrow: 1 }} />
 
           <Box sx={{ flexGrow: 0 }}>
