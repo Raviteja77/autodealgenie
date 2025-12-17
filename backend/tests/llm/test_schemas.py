@@ -3,7 +3,14 @@
 import pytest
 from pydantic import ValidationError
 
-from app.llm.schemas import CarSelectionItem, CarSelectionResponse, LLMError, LLMRequest, LLMResponse
+from app.llm.schemas import (
+    CarSelectionItem,
+    CarSelectionResponse,
+    DealEvaluation,
+    LLMError,
+    LLMRequest,
+    LLMResponse,
+)
 
 
 class TestLLMRequest:
@@ -255,3 +262,80 @@ class TestCarSelectionResponse:
         assert response.recommendations[0].score == 8.0
         assert response.recommendations[4].score == 10.0
         assert all(item.index == i for i, item in enumerate(response.recommendations))
+
+
+class TestDealEvaluation:
+    """Test DealEvaluation schema"""
+
+    def test_deal_evaluation_basic(self):
+        """Test creating a basic deal evaluation"""
+        evaluation = DealEvaluation(
+            fair_value=25000.00,
+            score=7.5,
+            insights=["Priced above market", "Good condition", "Average mileage"],
+            talking_points=["Request maintenance records", "Point out comparable vehicles", "Negotiate warranty"],
+        )
+
+        assert evaluation.fair_value == 25000.00
+        assert evaluation.score == 7.5
+        assert len(evaluation.insights) == 3
+        assert len(evaluation.talking_points) == 3
+
+    def test_deal_evaluation_score_validation(self):
+        """Test score validation (must be 1-10)"""
+        # Valid scores
+        DealEvaluation(
+            fair_value=20000, score=1.0, insights=["Good"], talking_points=["Talk"]
+        )
+        DealEvaluation(
+            fair_value=20000, score=10.0, insights=["Good"], talking_points=["Talk"]
+        )
+
+        # Invalid score (too low)
+        with pytest.raises(ValidationError):
+            DealEvaluation(
+                fair_value=20000, score=0.5, insights=["Good"], talking_points=["Talk"]
+            )
+
+        # Invalid score (too high)
+        with pytest.raises(ValidationError):
+            DealEvaluation(
+                fair_value=20000, score=10.5, insights=["Good"], talking_points=["Talk"]
+            )
+
+    def test_deal_evaluation_required_fields(self):
+        """Test validation of required fields"""
+        # Missing required fields should raise ValidationError
+        with pytest.raises(ValidationError):
+            DealEvaluation(fair_value=20000, score=7.5)  # Missing insights and talking_points
+
+    def test_deal_evaluation_empty_lists(self):
+        """Test deal evaluation with empty insight/talking point lists"""
+        evaluation = DealEvaluation(
+            fair_value=30000.00,
+            score=8.0,
+            insights=[],
+            talking_points=[],
+        )
+
+        assert evaluation.fair_value == 30000.00
+        assert evaluation.score == 8.0
+        assert evaluation.insights == []
+        assert evaluation.talking_points == []
+
+    def test_deal_evaluation_multiple_items(self):
+        """Test deal evaluation with multiple insights and talking points"""
+        insights = [f"Insight {i}" for i in range(5)]
+        talking_points = [f"Point {i}" for i in range(5)]
+
+        evaluation = DealEvaluation(
+            fair_value=28500.50,
+            score=6.8,
+            insights=insights,
+            talking_points=talking_points,
+        )
+
+        assert len(evaluation.insights) == 5
+        assert len(evaluation.talking_points) == 5
+        assert evaluation.fair_value == 28500.50
+        assert evaluation.score == 6.8
