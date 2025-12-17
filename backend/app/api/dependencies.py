@@ -2,7 +2,7 @@
 Authentication dependencies for FastAPI
 """
 
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 
 from app.core.security import decode_token
@@ -12,7 +12,8 @@ from app.repositories.user_repository import UserRepository
 
 
 def get_current_user(
-    access_token: str | None = Cookie(default=None), db: Session = Depends(get_db)
+    access_token: str | None = Cookie(default=None),
+    db: Session = Depends(get_db),
 ) -> User:
     """
     Get the current authenticated user from the access token cookie
@@ -40,11 +41,20 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user_id: int = payload.get("sub")
-    if user_id is None:
+    sub = payload.get("sub")
+    if sub is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    try:
+        user_id = int(sub)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token subject",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
