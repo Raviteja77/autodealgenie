@@ -23,7 +23,14 @@ class DealEvaluationService:
     MAX_INSIGHTS = 5  # Maximum number of insights/talking points to return
 
     async def evaluate_deal(
-        self, vehicle_vin: str, asking_price: float, condition: str, mileage: int
+        self,
+        vehicle_vin: str,
+        asking_price: float,
+        condition: str,
+        mileage: int,
+        make: str | None = None,
+        model: str | None = None,
+        year: int | None = None,
     ) -> dict[str, Any]:
         """
         Evaluate a car deal and provide comprehensive analysis
@@ -33,6 +40,9 @@ class DealEvaluationService:
             asking_price: Asking price in USD
             condition: Vehicle condition description
             mileage: Current mileage in miles
+            make: Vehicle make (optional, improves evaluation accuracy)
+            model: Vehicle model (optional, improves evaluation accuracy)
+            year: Vehicle year (optional, improves evaluation accuracy)
 
         Returns:
             Dictionary containing fair_value, score, insights, and talking_points
@@ -47,9 +57,9 @@ class DealEvaluationService:
                 prompt_id="evaluation",
                 variables={
                     "vin": vehicle_vin,
-                    "make": "Unknown",  # Would need to decode VIN or have it passed
-                    "model": "Unknown",
-                    "year": "Unknown",
+                    "make": make or "Unknown",
+                    "model": model or "Unknown",
+                    "year": str(year) if year else "Unknown",
                     "asking_price": f"{asking_price:,.2f}",
                     "mileage": f"{mileage:,}",
                     "condition": condition,

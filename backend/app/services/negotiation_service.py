@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 class NegotiationService:
     """Service for managing multi-round negotiations with LLM"""
 
+    MAX_CONVERSATION_HISTORY = 4  # Number of recent messages to include in context
+
     def __init__(self, db: Session):
         self.db = db
         self.negotiation_repo = NegotiationRepository(db)
@@ -381,7 +383,7 @@ class NegotiationService:
         # Get conversation history
         messages = self.negotiation_repo.get_messages(session.id)
         offer_history = []
-        for msg in messages[-4:]:  # Last 4 messages
+        for msg in messages[-self.MAX_CONVERSATION_HISTORY :]:  # Last N messages
             if msg.metadata and "counter_offer" in msg.metadata:
                 offer_history.append(f"${msg.metadata['counter_offer']:,.2f}")
             elif msg.metadata and "suggested_price" in msg.metadata:
