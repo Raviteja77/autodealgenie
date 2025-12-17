@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.llm.schemas import LLMError, LLMRequest, LLMResponse
+from app.llm.schemas import CarSelectionItem, CarSelectionResponse, LLMError, LLMRequest, LLMResponse
 
 
 class TestLLMRequest:
@@ -129,3 +129,129 @@ class TestLLMError:
         assert error.message == "Invalid response format"
         assert error.details["field"] == "fair_value"
         assert error.details["expected"] == "float"
+
+
+class TestCarSelectionItem:
+    """Test CarSelectionItem schema"""
+
+    def test_car_selection_item_basic(self):
+        """Test creating a basic car selection item"""
+        item = CarSelectionItem(
+            index=0,
+            score=8.5,
+            highlights=["Great fuel economy", "Low mileage", "Recent model year"],
+            summary="Excellent value for reliable transportation",
+        )
+
+        assert item.index == 0
+        assert item.score == 8.5
+        assert len(item.highlights) == 3
+        assert item.highlights[0] == "Great fuel economy"
+        assert item.summary == "Excellent value for reliable transportation"
+
+    def test_car_selection_item_with_all_fields(self):
+        """Test creating a car selection item with all fields"""
+        item = CarSelectionItem(
+            index=2,
+            score=9.2,
+            highlights=["Excellent safety ratings", "Low maintenance costs", "Good resale value"],
+            summary="Top choice for family vehicle with strong safety features",
+        )
+
+        assert item.index == 2
+        assert item.score == 9.2
+        assert len(item.highlights) == 3
+        assert "Excellent safety ratings" in item.highlights
+        assert item.summary == "Top choice for family vehicle with strong safety features"
+
+    def test_car_selection_item_validation(self):
+        """Test validation of required fields"""
+        # Missing required fields should raise ValidationError
+        with pytest.raises(ValidationError):
+            CarSelectionItem(index=0, score=8.0)  # Missing highlights and summary
+
+        with pytest.raises(ValidationError):
+            CarSelectionItem(
+                index=0, highlights=["Good value"], summary="Great car"
+            )  # Missing score
+
+    def test_car_selection_item_score_types(self):
+        """Test that score accepts both int and float"""
+        item_float = CarSelectionItem(
+            index=0, score=8.5, highlights=["Good"], summary="Nice car"
+        )
+        item_int = CarSelectionItem(index=1, score=9, highlights=["Great"], summary="Best car")
+
+        assert item_float.score == 8.5
+        assert item_int.score == 9
+
+    def test_car_selection_item_empty_highlights(self):
+        """Test car selection item with empty highlights list"""
+        item = CarSelectionItem(index=0, score=7.0, highlights=[], summary="Basic option")
+
+        assert item.highlights == []
+        assert len(item.highlights) == 0
+
+
+class TestCarSelectionResponse:
+    """Test CarSelectionResponse schema"""
+
+    def test_car_selection_response_basic(self):
+        """Test creating a basic car selection response"""
+        items = [
+            CarSelectionItem(
+                index=0,
+                score=8.5,
+                highlights=["Great fuel economy", "Low mileage", "Recent model year"],
+                summary="Excellent value",
+            ),
+            CarSelectionItem(
+                index=2,
+                score=9.0,
+                highlights=["Top safety ratings", "Reliable brand", "Good warranty"],
+                summary="Best overall choice",
+            ),
+        ]
+        response = CarSelectionResponse(recommendations=items)
+
+        assert len(response.recommendations) == 2
+        assert response.recommendations[0].index == 0
+        assert response.recommendations[1].index == 2
+        assert response.recommendations[0].score == 8.5
+        assert response.recommendations[1].score == 9.0
+
+    def test_car_selection_response_single_item(self):
+        """Test car selection response with single recommendation"""
+        item = CarSelectionItem(
+            index=0, score=7.5, highlights=["Good value"], summary="Solid choice"
+        )
+        response = CarSelectionResponse(recommendations=[item])
+
+        assert len(response.recommendations) == 1
+        assert response.recommendations[0].score == 7.5
+
+    def test_car_selection_response_empty(self):
+        """Test car selection response with empty recommendations"""
+        response = CarSelectionResponse(recommendations=[])
+
+        assert len(response.recommendations) == 0
+        assert response.recommendations == []
+
+    def test_car_selection_response_validation(self):
+        """Test validation of required fields"""
+        # Missing required field should raise ValidationError
+        with pytest.raises(ValidationError):
+            CarSelectionResponse()  # Missing recommendations
+
+    def test_car_selection_response_multiple_items(self):
+        """Test car selection response with multiple recommendations"""
+        items = [
+            CarSelectionItem(index=i, score=8.0 + i * 0.5, highlights=[f"Feature {i}"], summary=f"Car {i}")
+            for i in range(5)
+        ]
+        response = CarSelectionResponse(recommendations=items)
+
+        assert len(response.recommendations) == 5
+        assert response.recommendations[0].score == 8.0
+        assert response.recommendations[4].score == 10.0
+        assert all(item.index == i for i, item in enumerate(response.recommendations))

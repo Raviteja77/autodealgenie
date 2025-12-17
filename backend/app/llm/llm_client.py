@@ -7,8 +7,7 @@ import logging
 from typing import Any, TypeVar
 
 import openai
-from langchain.schema import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
+from openai import AsyncOpenAI
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import settings
@@ -29,7 +28,7 @@ class LLMClient:
             logger.warning("OPENAI_API_KEY not set. LLM features will be disabled.")
             self.client = None
         else:
-            self.client = ChatOpenAI(api_key=settings.OPENAI_API_KEY)
+            self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
     def is_available(self) -> bool:
         """Check if the LLM client is available"""

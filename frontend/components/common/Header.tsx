@@ -57,7 +57,7 @@ function Header() {
             <Typography
               variant="h5"
               noWrap
-              sx={{ flexGrow: 1, color: "text.primary", fontWeight: 700 }}
+              sx={{ color: "text.primary", fontWeight: 700 }}
             >
               Auto Deal Genie
             </Typography>
