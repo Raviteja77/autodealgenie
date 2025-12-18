@@ -20,7 +20,36 @@ import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import { Button } from "../ui/Button";
 
-function Header() {
+interface HeaderProps {
+  noButton?: boolean;
+}
+
+const stringToColor = (string: string) => {
+  let hash = 0;
+  // Curated palette of rich, luxury-style colors (Deep Jewel Tones)
+  const colors = [
+    "#0D47A1", // Deep Blue
+    "#1B5E20", // Deep Green
+    "#B71C1C", // Deep Red
+    "#4A148C", // Deep Purple
+    "#3E2723", // Deep Brown
+    "#263238", // Deep Blue Grey
+    "#880E4F", // Deep Burgundy
+    "#006064", // Deep Cyan
+    "#BF360C", // Deep Orange
+    "#311B92", // Deep Indigo
+  ];
+
+  /* eslint-disable no-bitwise */
+  for (let i = 0; i < string.length; i += 1) {
+    hash = string.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+};
+
+function Header({ noButton = false }: HeaderProps) {
   const { user, loading, logout } = useAuth();
   const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
   const router = useRouter();
@@ -38,6 +67,8 @@ function Header() {
     await logout();
     router.push("/auth/login");
   };
+
+  console.log("button: ", noButton);
   return (
     <AppBar
       position="fixed"
@@ -49,63 +80,70 @@ function Header() {
         <Container maxWidth="lg" sx={{ display: "flex", alignItems: "center" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center" }}>
             <Image
-              src="/images/icon.png"
+              src="/images/icon.ico"
               alt="Auto deal genie logomark"
-              width={64}
-              height={64}
+              width={90}
+              height={90}
             />
-            <Typography
-              variant="h5"
-              noWrap
-              sx={{ color: "text.primary", fontWeight: 700 }}
-            >
-              Auto Deal Genie
-            </Typography>
           </Link>
-          <Box sx={{ flexGrow: 1 }} />
-
-          <Box sx={{ flexGrow: 0 }}>
-            {loading ? (
-              <Skeleton variant="circular" width={40} height={40} />
-            ) : user ? (
-              <>
-                <Tooltip title="Open settings">
-                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar alt={user.full_name || "User"} />
-                  </IconButton>
-                </Tooltip>
-                <Menu
-                  sx={{ mt: "45px" }}
-                  id="menu-appbar"
-                  anchorEl={anchorElUser}
-                  anchorOrigin={{
-                    vertical: "top",
-                    horizontal: "right",
-                  }}
-                  keepMounted
-                  transformOrigin={{
-                    vertical: "top",
-                    horizontal: "right",
-                  }}
-                  open={Boolean(anchorElUser)}
-                  onClose={handleCloseUserMenu}
-                >
-                  <MenuItem disabled>
-                    <Typography textAlign="center">
-                      {user.full_name || user.email}
-                    </Typography>
-                  </MenuItem>
-                  <MenuItem onClick={handleSignOut}>
-                    <Typography textAlign="center">Sign Out</Typography>
-                  </MenuItem>
-                </Menu>
-              </>
-            ) : (
-              <Button variant="outline" component={Link} href="/auth/login">
-                Login
-              </Button>
-            )}
-          </Box>
+          {noButton ? null : (
+            <>
+              <Box sx={{ flexGrow: 1 }} />
+              <Box sx={{ flexGrow: 0 }}>
+                {loading ? (
+                  <Skeleton variant="circular" width={40} height={40} />
+                ) : user ? (
+                  <>
+                    <Tooltip title="Open settings">
+                      <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                        <Avatar
+                          alt={user.username || "User"}
+                          sx={{
+                            background: `linear-gradient(45deg, ${stringToColor(
+                              user.username || user.email || "U"
+                            )} 30%, #000000 90%)`,
+                          }}
+                        >
+                          {(user.username || user.email || "U")
+                            .charAt(0)
+                            .toUpperCase()}
+                        </Avatar>
+                      </IconButton>
+                    </Tooltip>
+                    <Menu
+                      sx={{ mt: "45px" }}
+                      id="menu-appbar"
+                      anchorEl={anchorElUser}
+                      anchorOrigin={{
+                        vertical: "top",
+                        horizontal: "right",
+                      }}
+                      keepMounted
+                      transformOrigin={{
+                        vertical: "top",
+                        horizontal: "right",
+                      }}
+                      open={Boolean(anchorElUser)}
+                      onClose={handleCloseUserMenu}
+                    >
+                      <MenuItem disabled>
+                        <Typography textAlign="center">
+                          {user.full_name || user.email}
+                        </Typography>
+                      </MenuItem>
+                      <MenuItem onClick={handleSignOut}>
+                        <Typography textAlign="center">Sign Out</Typography>
+                      </MenuItem>
+                    </Menu>
+                  </>
+                ) : (
+                  <Button variant="outline" component={Link} href="/auth/login">
+                    Login
+                  </Button>
+                )}
+              </Box>
+            </>
+          )}
         </Container>
       </Toolbar>
     </AppBar>

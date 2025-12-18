@@ -70,11 +70,9 @@ export default function SignupPage() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
         display: "flex",
         alignItems: "center",
         bgcolor: "background.default",
-        py: 8,
       }}
     >
       <Container maxWidth="sm">

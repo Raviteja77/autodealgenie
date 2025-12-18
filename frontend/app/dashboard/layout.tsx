@@ -6,7 +6,7 @@ import React from "react";
 import { useStepper } from "@/app/context";
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { currentStep, steps } = useStepper();
+  const { currentStep, steps, navigateToStep } = useStepper();
 
   return (
     <>
@@ -15,6 +15,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       <ProgressStepper
         activeStep={currentStep}
         steps={steps.map(step => step.label)}
+        onStepClick={navigateToStep}
       />
       {children}
       </Container>
