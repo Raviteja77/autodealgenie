@@ -1,5 +1,5 @@
 /**
- * Context providers for form state management
+ * Context providers for form state management and navigation
  */
 
 export { FormProvider, useForm, FormSchema } from "./FormProvider";
@@ -18,3 +18,6 @@ export type {
   CarFormState,
   CarFormContextType,
 } from "./CarFormProvider";
+
+export { StepperProvider, useStepper, STEPS } from "./StepperProvider";
+export type { Step, StepperState, StepperContextType } from "./StepperProvider";

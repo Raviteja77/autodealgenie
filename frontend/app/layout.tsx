@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import ThemeRegistry from "@/lib/theme/ThemeProvider";
+import { StepperProvider } from "@/app/context";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -34,7 +35,9 @@ export default function RootLayout({
       >
         <ThemeRegistry>
           <ErrorBoundary>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              <StepperProvider>{children}</StepperProvider>
+            </AuthProvider>
           </ErrorBoundary>
         </ThemeRegistry>
       </body>

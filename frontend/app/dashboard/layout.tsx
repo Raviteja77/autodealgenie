@@ -3,15 +3,18 @@
 import { Footer, Header, ProgressStepper } from "@/components";
 import { Container } from "@mui/material";
 import React from "react";
+import { useStepper } from "@/app/context";
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { currentStep, steps } = useStepper();
+
   return (
     <>
       <Header />
       <Container maxWidth="xl" sx={{ pt: 12, pb: 12, flexGrow: 1 }}>
       <ProgressStepper
-        activeStep={0}
-        steps={["Search", "Results", "Negotiate", "Evaluate", "Finalize"]}
+        activeStep={currentStep}
+        steps={steps.map(step => step.label)}
       />
       {children}
       </Container>
