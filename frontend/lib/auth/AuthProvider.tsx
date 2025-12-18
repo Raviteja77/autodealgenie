@@ -183,9 +183,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         throw new Error(errorMessage);
       }
-
-      // Return success - backend always returns success for security
-      return;
     },
     [baseUrl]
   );
@@ -215,9 +212,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         throw new Error(errorMessage);
       }
-
-      // Return success
-      return;
     },
     [baseUrl]
   );
