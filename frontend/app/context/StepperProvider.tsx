@@ -35,9 +35,16 @@ export const STEPS: Step[] = [
  * Stepper state interface
  */
 interface StepperState {
+  /** Current active step number based on URL path */
   currentStep: number;
+  /** Set of step IDs that have been completed by the user */
   completedSteps: Set<number>;
-  stepData: Record<number, unknown>; // Store data for each step (e.g., search params, selected vehicle)
+  /** 
+   * Data storage for each step (e.g., search parameters, selected vehicle)
+   * Key: step ID, Value: arbitrary step-specific data
+   */
+  stepData: Record<number, unknown>;
+  /** Flag indicating if a navigation is in progress */
   isNavigating: boolean;
 }
 
@@ -255,7 +262,7 @@ export function StepperProvider({ children }: { children: ReactNode }) {
    * Get data stored for a specific step
    */
   const getStepData = useCallback(
-    <T = unknown,>(stepId: number): T | undefined => {
+    <T = unknown>(stepId: number): T | undefined => {
       return state.stepData[stepId] as T | undefined;
     },
     [state.stepData]

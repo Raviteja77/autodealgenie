@@ -55,6 +55,16 @@ function ResultsContent() {
   // Memoize query string for caching
   const currentQueryString = useMemo(() => searchParams.toString(), [searchParams]);
 
+  /**
+   * Check if we should use cached data instead of making a new API call
+   */
+  const shouldUseCachedData = useCallback(() => {
+    const cachedData = getStepData<{ queryString: string; vehicles: Vehicle[]; message: string | null }>(1);
+    return cachedData && 
+           cachedData.queryString === currentQueryString && 
+           isStepCompleted(1);
+  }, [getStepData, currentQueryString, isStepCompleted]);
+
   useEffect(() => {
     // Check if user can access this step
     if (!canNavigateToStep(1)) {
@@ -64,13 +74,15 @@ function ResultsContent() {
 
     const fetchVehicles = async () => {
       // Check if we have cached results for this exact query
-      const cachedData = getStepData<{ queryString: string; vehicles: Vehicle[]; message: string | null }>(1);
-      if (cachedData && cachedData.queryString === currentQueryString && isStepCompleted(1)) {
-        // Use cached data to avoid redundant API call
-        setVehicles(cachedData.vehicles);
-        setSearchMessage(cachedData.message);
-        setIsLoading(false);
-        return;
+      if (shouldUseCachedData()) {
+        const cachedData = getStepData<{ queryString: string; vehicles: Vehicle[]; message: string | null }>(1);
+        if (cachedData) {
+          // Use cached data to avoid redundant API call
+          setVehicles(cachedData.vehicles);
+          setSearchMessage(cachedData.message);
+          setIsLoading(false);
+          return;
+        }
       }
 
       setIsLoading(true);
@@ -152,7 +164,7 @@ function ResultsContent() {
     };
 
     fetchVehicles();
-  }, [searchParams, currentQueryString, canNavigateToStep, router, completeStep, setStepData, getStepData, isStepCompleted]);
+  }, [searchParams, currentQueryString, canNavigateToStep, router, completeStep, shouldUseCachedData, getStepData]);
 
   const handleVehicleSelection = (vehicle: Vehicle, targetPath: string) => {
     // Store the selected vehicle data for use in subsequent steps
