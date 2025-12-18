@@ -8,7 +8,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.llm import generate_text, llm_client
+from app.llm import generate_text
 from app.models.negotiation import MessageRole, NegotiationSession, NegotiationStatus
 from app.repositories.deal_repository import DealRepository
 from app.repositories.negotiation_repository import NegotiationRepository
