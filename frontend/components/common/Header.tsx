@@ -38,6 +38,32 @@ function Header() {
     await logout();
     router.push("/auth/login");
   };
+
+  const stringToColor = (string: string) => {
+    let hash = 0;
+    // Curated palette of rich, luxury-style colors (Deep Jewel Tones)
+    const colors = [
+      "#0D47A1", // Deep Blue
+      "#1B5E20", // Deep Green
+      "#B71C1C", // Deep Red
+      "#4A148C", // Deep Purple
+      "#3E2723", // Deep Brown
+      "#263238", // Deep Blue Grey
+      "#880E4F", // Deep Burgundy
+      "#006064", // Deep Cyan
+      "#BF360C", // Deep Orange
+      "#311B92", // Deep Indigo
+    ];
+
+    /* eslint-disable no-bitwise */
+    for (let i = 0; i < string.length; i += 1) {
+      hash = string.charCodeAt(i) + ((hash << 5) - hash);
+    }
+
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
+
   return (
     <AppBar
       position="fixed"
@@ -71,7 +97,18 @@ function Header() {
               <>
                 <Tooltip title="Open settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar alt={user.full_name || "User"} />
+                    <Avatar
+                      alt={user.username || "User"}
+                      sx={{
+                        background: `linear-gradient(45deg, ${stringToColor(
+                          user.username || user.email || "U"
+                        )} 30%, #000000 90%)`,
+                      }}
+                    >
+                      {(user.username || user.email || "U")
+                        .charAt(0)
+                        .toUpperCase()}
+                    </Avatar>
                   </IconButton>
                 </Tooltip>
                 <Menu
