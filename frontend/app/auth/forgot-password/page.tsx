@@ -14,8 +14,10 @@ import {
 import { Email, ArrowBack } from "@mui/icons-material";
 import Link from "next/link";
 import { Button } from "@/components";
+import { useAuth } from "@/lib/auth";
 
 export default function ForgotPasswordPage() {
+  const { forgotPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -28,21 +30,7 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${baseUrl}/api/v1/auth/forgot-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Failed to request password reset");
-      }
-
+      await forgotPassword(email);
       setSuccess(true);
       setEmail("");
     } catch (err) {
@@ -71,6 +59,7 @@ export default function ForgotPasswordPage() {
           elevation={3}
           sx={{
             p: 4,
+            pt: 3,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",

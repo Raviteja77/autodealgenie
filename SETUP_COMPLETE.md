@@ -84,7 +84,11 @@ alembic upgrade head
 # Alternatively, ensure only infra is running (if you restarted)
 docker compose up -d postgres mongodb redis kafka zookeeper
 
+# remove all containers with volumes
 docker compose down -v
+
+# build frontend docker image
+docker compose build frontend
 
 cd backend
 
