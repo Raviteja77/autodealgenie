@@ -8,10 +8,10 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.llm import generate_text
 from app.models.negotiation import MessageRole, NegotiationSession, NegotiationStatus
 from app.repositories.deal_repository import DealRepository
 from app.repositories.negotiation_repository import NegotiationRepository
-from app.services.langchain_service import langchain_service
 from app.utils.error_handler import ApiError
 
 logger = logging.getLogger(__name__)
@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 class NegotiationService:
     """Service for managing multi-round negotiations with LLM"""
+
+    MAX_CONVERSATION_HISTORY = 4  # Number of recent messages to include in context
 
     def __init__(self, db: Session):
         self.db = db
@@ -313,36 +315,20 @@ class NegotiationService:
         """Generate agent's initial response using LLM"""
         logger.info(f"[{request_id}] Generating agent response for session {session.id}")
 
-        prompt = f"""
-You are an AI negotiation agent helping a user negotiate a car purchase.
-
-Vehicle Details:
-- Make: {deal.vehicle_make}
-- Model: {deal.vehicle_model}
-- Year: {deal.vehicle_year}
-- Mileage: {deal.vehicle_mileage} miles
-- Asking Price: ${deal.asking_price:,.2f}
-
-User's Target Price: ${user_target_price:,.2f}
-Negotiation Strategy: {strategy or 'Not specified'}
-
-Generate a professional, empathetic response that:
-1. Acknowledges the user's interest and target price
-2. Provides a realistic counter-offer or negotiation advice
-3. Explains the reasoning behind your recommendation
-4. Encourages continued negotiation
-
-Keep your response conversational and under 200 words.
-"""
-
         try:
-            response_content = await langchain_service.generate_customer_response(
-                customer_query=prompt,
-                context={
-                    "session_id": session.id,
-                    "deal_id": deal.id,
-                    "round": session.current_round,
+            # Use centralized LLM client
+            response_content = await generate_text(
+                prompt_id="negotiation_initial",
+                variables={
+                    "make": deal.vehicle_make,
+                    "model": deal.vehicle_model,
+                    "year": deal.vehicle_year,
+                    "mileage": f"{deal.vehicle_mileage:,}",
+                    "asking_price": f"{deal.asking_price:,.2f}",
+                    "target_price": f"{user_target_price:,.2f}",
+                    "strategy": strategy or "Not specified",
                 },
+                temperature=0.7,
             )
 
             # Generate suggested counter offer (simple logic for now)
@@ -396,44 +382,28 @@ Keep your response conversational and under 200 words.
 
         # Get conversation history
         messages = self.negotiation_repo.get_messages(session.id)
-        conversation_history = "\n".join(
-            [f"{msg.role.value}: {msg.content}" for msg in messages[-4:]]  # Last 4 messages
-        )
-
-        prompt = f"""
-You are an AI negotiation agent helping a user negotiate a car purchase.
-
-Vehicle Details:
-- Make: {deal.vehicle_make}
-- Model: {deal.vehicle_model}
-- Year: {deal.vehicle_year}
-- Mileage: {deal.vehicle_mileage} miles
-- Asking Price: ${deal.asking_price:,.2f}
-
-Current Round: {session.current_round}
-Maximum Rounds: {session.max_rounds}
-User's Latest Counter Offer: ${counter_offer:,.2f}
-
-Recent Conversation:
-{conversation_history}
-
-Generate a professional response that:
-1. Acknowledges the user's counter offer
-2. Provides a new counter-offer or accepts if reasonable
-3. Explains the reasoning
-4. Guides toward a mutually beneficial agreement
-
-Keep your response conversational and under 200 words.
-"""
+        offer_history = []
+        for msg in messages[-self.MAX_CONVERSATION_HISTORY :]:  # Last N messages
+            if msg.metadata and "counter_offer" in msg.metadata:
+                offer_history.append(f"${msg.metadata['counter_offer']:,.2f}")
+            elif msg.metadata and "suggested_price" in msg.metadata:
+                offer_history.append(f"${msg.metadata['suggested_price']:,.2f}")
 
         try:
-            response_content = await langchain_service.generate_customer_response(
-                customer_query=prompt,
-                context={
-                    "session_id": session.id,
-                    "deal_id": deal.id,
-                    "round": session.current_round,
+            # Use centralized LLM client
+            response_content = await generate_text(
+                prompt_id="negotiation_counter",
+                variables={
+                    "make": deal.vehicle_make,
+                    "model": deal.vehicle_model,
+                    "year": deal.vehicle_year,
+                    "mileage": f"{deal.vehicle_mileage:,}",
+                    "asking_price": f"{deal.asking_price:,.2f}",
+                    "counter_offer": f"{counter_offer:,.2f}",
+                    "round_number": session.current_round,
+                    "offer_history": ", ".join(offer_history) if offer_history else "None",
                 },
+                temperature=0.7,
             )
 
             # Generate new suggested price (converge toward asking price)

@@ -137,6 +137,77 @@ Provide a side-by-side comparison covering:
 
 Conclude with a recommendation based on the user's specific needs.""",
     ),
+    "car_selection_from_list": PromptTemplate(
+        id="car_selection_from_list",
+        template="""You are an expert automotive advisor helping customers find their ideal vehicle.
+
+Your role is to:
+1. Analyze the provided vehicle listings.
+2. Evaluate each vehicle based on multiple factors: value, condition, features, mileage, and reliability.
+3. Select the top 5 vehicles that best match the user's criteria.
+4. Provide clear reasoning for each recommendation.
+
+User Criteria:
+{user_criteria}
+
+Available Vehicles:
+{listings_summary}
+
+Evaluation Criteria:
+- **Value**: Price relative to market value, features, and condition
+- **Condition**: Mileage, age, ownership history (clean title, single owner)
+- **Features**: Trim level, drivetrain, technology packages
+- **Reliability**: Known reliability ratings for the make/model/year
+- **Market Position**: Days on market, price trends, dealer reputation
+
+Select exactly 5 vehicles and rank them by score (highest first). Be specific with highlights and summaries.""",
+    ),
+    "negotiation_initial": PromptTemplate(
+        id="negotiation_initial",
+        template="""You are an AI negotiation agent helping a user negotiate a car purchase.
+
+Vehicle Details:
+- Make: {make}
+- Model: {model}
+- Year: {year}
+- Mileage: {mileage} miles
+- Asking Price: ${asking_price}
+
+User's Target Price: ${target_price}
+Negotiation Strategy: {strategy}
+
+Generate a professional, empathetic response that:
+1. Acknowledges the user's interest and target price
+2. Provides a realistic counter-offer or negotiation advice
+3. Explains the reasoning behind your recommendation
+4. Encourages continued negotiation
+
+Keep your response conversational and under 200 words.""",
+    ),
+    "negotiation_counter": PromptTemplate(
+        id="negotiation_counter",
+        template="""You are an AI negotiation agent in an active negotiation session.
+
+Vehicle Details:
+- Make: {make}
+- Model: {model}
+- Year: {year}
+- Mileage: {mileage} miles
+- Original Asking Price: ${asking_price}
+
+Current Negotiation Context:
+- User's Counter Offer: ${counter_offer}
+- Current Round: {round_number}
+- Previous Offers: {offer_history}
+
+Generate a professional response that:
+1. Responds to the user's counter offer
+2. Provides a counter-counter offer if appropriate
+3. Explains the reasoning for your position
+4. Keeps the negotiation moving forward constructively
+
+Keep your response conversational and under 200 words.""",
+    ),
 }
 
 

@@ -38,3 +38,28 @@ class LLMError(BaseModel):
     )
     message: str = Field(..., description="Human-readable error message")
     details: dict[str, Any] | None = Field(None, description="Additional error details")
+
+class CarSelectionItem(BaseModel):
+    """Schema for a selected car from a list"""
+
+    index: int = Field(..., description="Index of the vehicle in the provided list")
+    score: float = Field(..., ge=1.0, le=10.0, description="Confidence score (1-10)")
+    highlights: list[str] = Field(..., description="Top 3 reasons to consider this vehicle")
+    summary: str = Field(..., description="Brief recommendation summary")
+
+
+class CarSelectionResponse(BaseModel):
+    """Schema for car selection response"""
+
+    recommendations: list[CarSelectionItem] = Field(
+        ..., description="List of selected vehicles"
+    )
+
+
+class DealEvaluation(BaseModel):
+    """Schema for deal evaluation response"""
+
+    fair_value: float = Field(..., description="Estimated fair market value in USD")
+    score: float = Field(..., ge=1.0, le=10.0, description="Deal quality score from 1-10")
+    insights: list[str] = Field(..., description="3-5 key observations about the deal")
+    talking_points: list[str] = Field(..., description="3-5 specific negotiation strategies")

@@ -8,8 +8,9 @@ import json
 import logging
 from typing import Any
 
-from langchain.schema import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
+from app.llm import generate_structured_json
+from app.llm.llm_client import llm_client
+from app.llm.schemas import CarSelectionResponse
 from tenacity import (
     before_sleep_log,
     retry,
@@ -34,38 +35,8 @@ CACHE_TTL = 900
 class CarRecommendationService:
     """Service for recommending cars using LLM analysis with caching and webhooks"""
 
-    SYSTEM_PROMPT = """You are an expert automotive advisor helping customers find their ideal vehicle.
-
-Your role is to:
-1. Analyze vehicle listings from the MarketCheck API
-2. Evaluate each vehicle based on multiple factors: value, condition, features, mileage, and reliability
-3. Select the top 5 vehicles that best match the user's criteria
-4. Provide clear reasoning for each recommendation
-
-Evaluation Criteria:
-- **Value**: Price relative to market value, features, and condition
-- **Condition**: Mileage, age, ownership history (clean title, single owner)
-- **Features**: Trim level, drivetrain, technology packages
-- **Reliability**: Known reliability ratings for the make/model/year
-- **Market Position**: Days on market, price trends, dealer reputation
-
-For each recommended vehicle, provide:
-1. A confidence score (1-10) indicating how well it matches the criteria
-2. Key highlights (top 3 reasons to consider this vehicle)
-3. A brief recommendation summary
-
-Be objective, data-driven, and focus on helping the user make an informed decision."""
-
     def __init__(self):
-        if not settings.OPENAI_API_KEY:
-            logger.warning("OPENAI_API_KEY not set. Car recommendation features will be limited.")
-            self.llm = None
-        else:
-            self.llm = ChatOpenAI(
-                model=settings.OPENAI_MODEL,
-                openai_api_key=settings.OPENAI_API_KEY,
-                temperature=0.3,  # Lower temperature for more consistent recommendations
-            )
+        pass
 
     def _generate_cache_key(
         self,
@@ -348,7 +319,7 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
         parsed_listings = [marketcheck_client.parse_listing(listing) for listing in listings]
 
         # Get LLM recommendations
-        if self.llm:
+        if llm_client.is_available():
             top_vehicles = await self._get_llm_recommendations(
                 parsed_listings, make, model, car_type, user_priorities
             )
@@ -424,67 +395,30 @@ Be objective, data-driven, and focus on helping the user make an informed decisi
             "priorities": user_priorities or "Best overall value and reliability",
         }
 
-        prompt = f"""Analyze these {len(listings_summary)} vehicles and select the TOP 5 that best match the user's criteria.
-
-User Criteria:
-{json.dumps(user_criteria, indent=2)}
-
-Available Vehicles:
-{json.dumps(listings_summary, indent=2)}
-
-Provide a JSON response with EXACTLY this structure:
-{{
-  "recommendations": [
-    {{
-      "index": 0,
-      "score": 9.5,
-      "highlights": ["Excellent value at $X under market", "Low mileage for year", "Clean Carfax, single owner"],
-      "summary": "This {make} {model} offers exceptional value with verified low mileage and clean history."
-    }}
-  ]
-}}
-
-Select exactly 5 vehicles and rank them by score (highest first). Be specific with highlights and summaries."""
-
         try:
-            messages = [
-                SystemMessage(content=self.SYSTEM_PROMPT),
-                HumanMessage(content=prompt),
-            ]
+            # Use the LLM module to generate structured recommendations
+            response = await generate_structured_json(
+                prompt_id="car_selection_from_list",
+                variables={
+                    "user_criteria": json.dumps(user_criteria, indent=2),
+                    "listings_summary": json.dumps(listings_summary, indent=2),
+                },
+                response_model=CarSelectionResponse,
+                temperature=0.3,  # Lower temperature for more consistent recommendations
+            )
 
-            response = await self.llm.ainvoke(messages)
-            llm_output = response.content
+            recommendations = response.recommendations
 
-            # Parse LLM response - extract JSON from markdown code blocks
-            if "```json" in llm_output:
-                json_start = llm_output.find("```json") + 7
-                json_end = llm_output.find("```", json_start)
-                if json_end != -1:
-                    llm_output = llm_output[json_start:json_end].strip()
-            elif "```" in llm_output:
-                json_start = llm_output.find("```") + 3
-                json_end = llm_output.find("```", json_start)
-                if json_end != -1:
-                    llm_output = llm_output[json_start:json_end].strip()
-
-            try:
-                recommendations_data = json.loads(llm_output)
-            except json.JSONDecodeError as parse_error:
-                logger.error(f"Failed to parse LLM JSON response: {parse_error}")
-                logger.debug(f"LLM output: {llm_output}")
-                return self._fallback_recommendations(listings)
-
-            recommendations = recommendations_data.get("recommendations", [])
 
             # Build final output with full vehicle data
             top_vehicles = []
             for rec in recommendations:
-                idx = rec.get("index")
+                idx = rec.index
                 if idx is not None and 0 <= idx < len(listings):
                     vehicle = listings[idx].copy()
-                    vehicle["recommendation_score"] = rec.get("score")
-                    vehicle["highlights"] = rec.get("highlights", [])
-                    vehicle["recommendation_summary"] = rec.get("summary", "")
+                    vehicle["recommendation_score"] = rec.score
+                    vehicle["highlights"] = rec.highlights
+                    vehicle["recommendation_summary"] = rec.summary
                     top_vehicles.append(vehicle)
 
             return top_vehicles
