@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
@@ -20,10 +20,8 @@ import Link from "next/link";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Alert from "@mui/material/Alert";
-import Header from "@/components/common/Header";
-import Footer from "@/components/common/Footer";
-import ProgressStepper from "@/components/common/ProgressStepper";
 import { apiClient, VehicleRecommendation, CarSearchRequest } from "@/lib/api";
+import { useStepper } from "@/app/context";
 
 interface Vehicle {
   vin?: string;
@@ -47,14 +45,46 @@ interface Vehicle {
 function ResultsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { completeStep, setStepData, getStepData, canNavigateToStep, isStepCompleted } = useStepper();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
 
+  // Memoize query string for caching
+  const currentQueryString = useMemo(() => searchParams.toString(), [searchParams]);
+
+  /**
+   * Check if we should use cached data instead of making a new API call
+   */
+  const shouldUseCachedData = useCallback(() => {
+    const cachedData = getStepData<{ queryString: string; vehicles: Vehicle[]; message: string | null }>(1);
+    return cachedData && 
+           cachedData.queryString === currentQueryString && 
+           isStepCompleted(1);
+  }, [getStepData, currentQueryString, isStepCompleted]);
+
   useEffect(() => {
+    // Check if user can access this step
+    if (!canNavigateToStep(1)) {
+      router.push("/dashboard/search");
+      return;
+    }
+
     const fetchVehicles = async () => {
+      // Check if we have cached results for this exact query
+      if (shouldUseCachedData()) {
+        const cachedData = getStepData<{ queryString: string; vehicles: Vehicle[]; message: string | null }>(1);
+        if (cachedData) {
+          // Use cached data to avoid redundant API call
+          setVehicles(cachedData.vehicles);
+          setSearchMessage(cachedData.message);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       setIsLoading(true);
       setError(null);
       
@@ -117,6 +147,13 @@ function ResultsContent() {
         
         setVehicles(transformedVehicles);
         setSearchMessage(response.message || null);
+        
+        // Mark results step as completed and cache the results
+        completeStep(1, {
+          queryString: currentQueryString,
+          vehicles: transformedVehicles,
+          message: response.message || null,
+        });
       } catch (err: unknown) {
         console.error("Error fetching vehicles:", err);
         const errorMessage = err instanceof Error ? err.message : "Failed to load vehicles. Please try again.";
@@ -127,7 +164,28 @@ function ResultsContent() {
     };
 
     fetchVehicles();
-  }, [searchParams]);
+  }, [searchParams, currentQueryString, canNavigateToStep, router, completeStep, shouldUseCachedData, getStepData]);
+
+  const handleVehicleSelection = (vehicle: Vehicle, targetPath: string) => {
+    // Store the selected vehicle data for use in subsequent steps
+    const existingData = getStepData(1) || {};
+    setStepData(1, {
+      ...existingData,
+      selectedVehicle: vehicle,
+    });
+    
+    // Navigate to the target page
+    const vehicleParams = new URLSearchParams({
+      vin: vehicle.vin || '',
+      make: vehicle.make,
+      model: vehicle.model,
+      year: vehicle.year.toString(),
+      price: vehicle.price.toString(),
+      mileage: vehicle.mileage.toString(),
+      fuelType: vehicle.fuelType || '',
+    });
+    router.push(`${targetPath}?${vehicleParams.toString()}`);
+  };
 
   const toggleFavorite = (vin: string) => {
     const newFavorites = new Set(favorites);
@@ -386,11 +444,7 @@ function ResultsContent() {
                         variant="outline"
                         fullWidth
                         size="sm"
-                        onClick={() =>
-                          router.push(
-                            `/negotiation?vin=${vehicle.vin || ''}&make=${vehicle.make}&model=${vehicle.model}&year=${vehicle.year}&price=${vehicle.price}&mileage=${vehicle.mileage}&fuelType=${vehicle.fuelType || ''}`
-                          )
-                        }
+                        onClick={() => handleVehicleSelection(vehicle, "/negotiation")}
                       >
                         Negotiate
                       </Button>
@@ -398,11 +452,7 @@ function ResultsContent() {
                         variant="primary"
                         fullWidth
                         size="sm"
-                        onClick={() =>
-                          router.push(
-                            `/evaluation?vin=${vehicle.vin || ''}&make=${vehicle.make}&model=${vehicle.model}&year=${vehicle.year}&price=${vehicle.price}&mileage=${vehicle.mileage}&fuelType=${vehicle.fuelType || ''}`
-                          )
-                        }
+                        onClick={() => handleVehicleSelection(vehicle, "/evaluation")}
                       >
                         View Details
                       </Button>

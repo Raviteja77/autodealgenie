@@ -19,10 +19,12 @@ import InputLabel from "@mui/material/InputLabel";
 import Slider from "@mui/material/Slider";
 import Paper from "@mui/material/Paper";
 import { useAuth } from "@/lib/auth";
+import { useStepper } from "@/app/context";
 
 export default function DashboardSearchPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const { completeStep, setStepData } = useStepper();
   const [searchParams, setSearchParams] = useState({
     make: "",
     model: "",
@@ -45,9 +47,17 @@ export default function DashboardSearchPage() {
         queryParams.append(key, value.toString());
       }
     });
-    router.push(
-      user ? `/dashboard/results?${queryParams.toString()}` : `/auth/login`
-    );
+    
+    // Mark search step as completed and store search params
+    completeStep(0, searchParams);
+    setStepData(0, { searchParams, queryString: queryParams.toString() });
+    
+    // Navigate to results
+    if (user) {
+      router.push(`/dashboard/results?${queryParams.toString()}`);
+    } else {
+      router.push(`/auth/login`);
+    }
   };
 
   const make = [

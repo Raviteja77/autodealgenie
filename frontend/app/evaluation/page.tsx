@@ -34,6 +34,7 @@ import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import ProgressStepper from "@/components/common/ProgressStepper";
 import Link from "next/link";
+import { useStepper } from "@/app/context";
 
 interface VehicleInfo {
   vin?: string;
@@ -54,8 +55,16 @@ interface EvaluationScore {
 function EvaluationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { canNavigateToStep, completeStep, currentStep, steps } = useStepper();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Check if user can access this step
+  useEffect(() => {
+    if (!canNavigateToStep(3)) {
+      router.push("/dashboard/search");
+    }
+  }, [canNavigateToStep, router]);
 
   // Extract and validate vehicle data from URL params
   const vehicleData: VehicleInfo | null = (() => {
@@ -153,6 +162,13 @@ function EvaluationContent() {
 
   const handleFinalize = async () => {
     setLoading(true);
+    // Mark evaluation step as completed
+    completeStep(3, {
+      vehicleData: vehicleData,
+      evaluationScores: evaluationScores,
+      overallScore: overallScore,
+      timestamp: new Date().toISOString(),
+    });
     // In production, save the deal to database
     setTimeout(() => {
       router.push("/deals");
@@ -180,8 +196,8 @@ function EvaluationContent() {
       <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
         <Container maxWidth="lg">
           <ProgressStepper
-            activeStep={3}
-            steps={["Search", "Results", "Negotiate", "Evaluate", "Finalize"]}
+            activeStep={currentStep}
+            steps={steps.map(step => step.label)}
           />
 
           <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>

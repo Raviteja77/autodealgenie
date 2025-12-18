@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Box,
   Container,
@@ -31,6 +31,7 @@ import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import ProgressStepper from "@/components/common/ProgressStepper";
 import Link from "next/link";
+import { useStepper } from "@/app/context";
 
 interface Message {
   id: number;
@@ -50,7 +51,9 @@ interface VehicleInfo {
 }
 
 function NegotiationContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { canNavigateToStep, completeStep, currentStep, steps } = useStepper();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -63,6 +66,13 @@ function NegotiationContent() {
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Check if user can access this step
+  useEffect(() => {
+    if (!canNavigateToStep(2)) {
+      router.push("/dashboard/search");
+    }
+  }, [canNavigateToStep, router]);
 
   // Extract and validate vehicle data from URL params
   const vehicleData: VehicleInfo | null = (() => {
@@ -160,6 +170,28 @@ function NegotiationContent() {
     return "I can help you analyze the vehicle's price, market value, and create a negotiation strategy. What specific aspect would you like to discuss?";
   };
 
+  const handleCompleteNegotiation = () => {
+    // Mark negotiation step as completed
+    completeStep(2, {
+      messages: messages,
+      vehicleData: vehicleData,
+      timestamp: new Date().toISOString(),
+    });
+    // Navigate to evaluation page
+    if (vehicleData) {
+      const vehicleParams = new URLSearchParams({
+        vin: vehicleData.vin || '',
+        make: vehicleData.make,
+        model: vehicleData.model,
+        year: vehicleData.year.toString(),
+        price: vehicleData.price.toString(),
+        mileage: vehicleData.mileage.toString(),
+        fuelType: vehicleData.fuelType || '',
+      });
+      router.push(`/evaluation?${vehicleParams.toString()}`);
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -173,8 +205,8 @@ function NegotiationContent() {
       <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
         <Container maxWidth="lg">
           <ProgressStepper
-            activeStep={2}
-            steps={["Search", "Results", "Negotiate", "Evaluate", "Finalize"]}
+            activeStep={currentStep}
+            steps={steps.map(step => step.label)}
           />
 
           {/* Error Alert */}
@@ -376,6 +408,18 @@ function NegotiationContent() {
                       disabled={!inputMessage.trim() || isTyping}
                     >
                       Send
+                    </Button>
+                  </Box>
+                  
+                  {/* Complete Negotiation Button */}
+                  <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={handleCompleteNegotiation}
+                      disabled={!vehicleData}
+                    >
+                      Complete Negotiation & Evaluate
                     </Button>
                   </Box>
                 </Box>
