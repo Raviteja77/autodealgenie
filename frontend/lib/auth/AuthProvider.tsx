@@ -7,6 +7,7 @@ import React, {
   useState,
   useCallback,
 } from "react";
+import { extractErrorMessage } from "../errors";
 
 /**
  * User interface matching backend UserResponse schema
@@ -37,6 +38,8 @@ interface AuthContextType {
   ) => Promise<void>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -89,7 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.detail[0].msg || "Login failed");
+        const errorMessage = extractErrorMessage(error.detail, "Login failed");
+        throw new Error(errorMessage);
       }
 
       // After successful login, fetch user data
@@ -124,7 +128,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.detail[0].msg || "Signup failed");
+        const errorMessage = extractErrorMessage(error.detail, "Signup failed");
+        throw new Error(errorMessage);
       }
 
       // After successful signup, automatically log in
@@ -156,6 +161,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fetchCurrentUser();
   }, [fetchCurrentUser]);
 
+  /**
+   * Forgot password function - request password reset email
+   */
+  const forgotPassword = useCallback(
+    async (email: string) => {
+      const response = await fetch(`${baseUrl}/api/v1/auth/forgot-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = extractErrorMessage(
+          data.detail,
+          "Failed to request password reset"
+        );
+        throw new Error(errorMessage);
+      }
+
+      // Return success - backend always returns success for security
+      return;
+    },
+    [baseUrl]
+  );
+
+  /**
+   * Reset password function - reset password with token
+   */
+  const resetPassword = useCallback(
+    async (token: string, newPassword: string) => {
+      const response = await fetch(`${baseUrl}/api/v1/auth/reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          token,
+          new_password: newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage = extractErrorMessage(
+          data.detail,
+          "Failed to reset password"
+        );
+        throw new Error(errorMessage);
+      }
+
+      // Return success
+      return;
+    },
+    [baseUrl]
+  );
+
   // Check authentication status on mount
   useEffect(() => {
     fetchCurrentUser();
@@ -170,6 +236,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signup,
         logout,
         refreshAuth,
+        forgotPassword,
+        resetPassword,
       }}
     >
       {children}

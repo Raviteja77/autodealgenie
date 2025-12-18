@@ -168,3 +168,45 @@ export function getUserFriendlyErrorMessage(error: unknown): string {
   }
   return 'An unexpected error occurred. Please try again.';
 }
+
+/**
+ * Extract error message from API response detail field
+ * Handles both string and array formats from FastAPI backend
+ * 
+ * FastAPI returns errors in two formats:
+ * 1. HTTPException: { detail: "Error message string" }
+ * 2. Pydantic validation: { detail: [{ msg: "Error message", type: "...", loc: [...] }] }
+ * 
+ * @param detail - The detail field from API error response
+ * @param fallback - Fallback message if extraction fails
+ * @returns Extracted error message
+ */
+export function extractErrorMessage(detail: unknown, fallback: string): string {
+  // Case 1: detail is a string (HTTPException format)
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  // Case 2: detail is an array (Pydantic validation format)
+  if (Array.isArray(detail) && detail.length > 0) {
+    const messages = detail
+      .map((item: unknown) => {
+        if (typeof item === "string") {
+          return item;
+        }
+        if (item && typeof item === "object" && "msg" in item) {
+          const msg = (item as { msg?: unknown }).msg;
+          return typeof msg === "string" ? msg : "";
+        }
+        return "";
+      })
+      .filter((msg) => msg.length > 0);
+
+    if (messages.length > 0) {
+      return messages.join("; ");
+    }
+  }
+
+  // Case 3: Unable to extract message, use fallback
+  return fallback;
+}

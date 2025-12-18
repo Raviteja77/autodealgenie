@@ -88,7 +88,7 @@ docker compose up -d postgres mongodb redis kafka zookeeper
 docker compose down -v
 
 # build frontend docker image
-docker-compose build frontend
+docker compose build frontend
 
 cd backend
 
