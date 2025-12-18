@@ -16,11 +16,13 @@ import {
 import { Lock, Visibility, VisibilityOff, CheckCircle } from "@mui/icons-material";
 import Link from "next/link";
 import { Button } from "@/components";
+import { useAuth } from "@/lib/auth";
 
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const { resetPassword } = useAuth();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -60,24 +62,7 @@ function ResetPasswordForm() {
     setLoading(true);
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${baseUrl}/api/v1/auth/reset-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token,
-          new_password: password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail?.[0]?.msg || "Failed to reset password");
-      }
-
+      await resetPassword(token, password);
       setSuccess(true);
       
       // Redirect to login after 3 seconds
@@ -237,7 +222,7 @@ function ResetPasswordForm() {
                   Reset Password
                 </Button>
                 <Box sx={{ textAlign: "center" }}>
-                  <Typography variant="body2" color="text.default">
+                  <Typography variant="body2" color="text.secondary">
                     Remember your password?{" "}
                     <MuiLink component={Link} href="/auth/login" variant="body2">
                       Sign in
