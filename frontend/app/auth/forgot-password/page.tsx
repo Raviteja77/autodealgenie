@@ -47,11 +47,9 @@ export default function ForgotPasswordPage() {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
         display: "flex",
         alignItems: "center",
         bgcolor: "background.default",
-        py: 8,
       }}
     >
       <Container maxWidth="sm">
@@ -114,7 +112,7 @@ export default function ForgotPasswordPage() {
             <Button
               type="submit"
               fullWidth
-              variant="primary"
+              variant="success"
               disabled={loading || success}
               isLoading={loading}
               sx={{ mt: 3, mb: 2 }}

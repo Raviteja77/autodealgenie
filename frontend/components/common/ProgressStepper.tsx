@@ -102,13 +102,14 @@ export default function ProgressStepper({
         {steps.map((label, index) => (
           <Step key={label}>
             <StepLabel
+              role="button"
               StepIconComponent={ColorlibStepIcon}
               onClick={() => onStepClick?.(index)}
+              onKeyDown={() => onStepClick?.(index)}
               sx={{ cursor: onStepClick ? "pointer" : "default" }}
             >
               {label}
             </StepLabel>
-
           </Step>
         ))}
       </Stepper>
