@@ -93,9 +93,38 @@ export interface CarSearchResponse {
  */
 class ApiClient {
   private baseUrl: string;
+  private useMock: boolean;
 
   constructor() {
     this.baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    this.useMock = process.env.NEXT_PUBLIC_USE_MOCK === "true";
+  }
+
+  /**
+   * Get the appropriate endpoint path based on mock mode
+   */
+  private getEndpointPath(endpoint: string): string {
+    if (!this.useMock) {
+      return endpoint;
+    }
+
+    // Map real endpoints to mock endpoints
+    if (endpoint.includes("/api/v1/cars/search")) {
+      return "/mock/marketcheck/search";
+    } else if (endpoint.includes("/api/v1/negotiations")) {
+      const parts = endpoint.replace("/api/v1/negotiations", "").split("/");
+      if (parts.length === 1 || parts[1] === "") {
+        return "/mock/negotiation/create";
+      } else if (parts[2] === "next") {
+        return `/mock/negotiation/${parts[1]}/next`;
+      } else {
+        return `/mock/negotiation/${parts[1]}`;
+      }
+    } else if (endpoint.includes("/api/v1/deals") && endpoint.includes("evaluation")) {
+      return endpoint.replace("/api/v1/deals", "/mock/evaluation/pipeline");
+    }
+
+    return endpoint;
   }
 
   /**
@@ -105,7 +134,9 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {},
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    // Map to mock endpoint if needed
+    const mappedEndpoint = this.getEndpointPath(endpoint);
+    const url = `${this.baseUrl}${mappedEndpoint}`;
 
     // Always include credentials (cookies)
     const config: RequestInit = {
