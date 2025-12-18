@@ -75,7 +75,7 @@ function ResetPasswordForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Failed to reset password");
+        throw new Error(data.detail?.[0]?.msg || "Failed to reset password");
       }
 
       setSuccess(true);
@@ -237,7 +237,7 @@ function ResetPasswordForm() {
                   Reset Password
                 </Button>
                 <Box sx={{ textAlign: "center" }}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.default">
                     Remember your password?{" "}
                     <MuiLink component={Link} href="/auth/login" variant="body2">
                       Sign in

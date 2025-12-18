@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.detail || "Login failed");
+        throw new Error(error.detail[0].msg || "Login failed");
       }
 
       // After successful login, fetch user data
@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.detail || "Signup failed");
+        throw new Error(error.detail[0].msg || "Signup failed");
       }
 
       // After successful signup, automatically log in

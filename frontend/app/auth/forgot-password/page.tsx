@@ -40,7 +40,9 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || "Failed to request password reset");
+        // Extract the error message from the detail array, if available
+        const errorMessage = data.detail?.[0]?.msg || "Failed to request password reset";
+        throw new Error(errorMessage);
       }
 
       setSuccess(true);
@@ -71,6 +73,7 @@ export default function ForgotPasswordPage() {
           elevation={3}
           sx={{
             p: 4,
+            pt: 3,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",

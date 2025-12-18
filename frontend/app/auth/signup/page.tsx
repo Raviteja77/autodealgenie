@@ -59,8 +59,9 @@ export default function SignupPage() {
     try {
       await signup(formData.email, formData.username, formData.password);
       router.push("/");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create account. Please try again.");
+    } catch (err: unknown) {
+      const errorMessage = (err as Error).message || "Failed to create account. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
