@@ -88,6 +88,37 @@ export interface CarSearchResponse {
   message?: string | null;
 }
 
+export interface Favorite {
+  id: string;
+  user_id: number;
+  vin: string;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  mileage: number;
+  fuel_type?: string | null;
+  location?: string | null;
+  color?: string | null;
+  condition?: string | null;
+  image?: string | null;
+  created_at: string;
+}
+
+export interface FavoriteCreate {
+  vin: string;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  mileage: number;
+  fuel_type?: string | null;
+  location?: string | null;
+  color?: string | null;
+  condition?: string | null;
+  image?: string | null;
+}
+
 /**
  * API Client class for making requests to the backend
  */
@@ -190,6 +221,39 @@ class ApiClient {
       method: "POST",
       body: JSON.stringify(params),
     });
+  }
+
+  /**
+   * Get all favorites for the current user
+   */
+  async getFavorites(): Promise<Favorite[]> {
+    return this.request<Favorite[]>("/api/v1/favorites");
+  }
+
+  /**
+   * Add a car to favorites
+   */
+  async addFavorite(favorite: FavoriteCreate): Promise<Favorite> {
+    return this.request<Favorite>("/api/v1/favorites", {
+      method: "POST",
+      body: JSON.stringify(favorite),
+    });
+  }
+
+  /**
+   * Remove a car from favorites
+   */
+  async removeFavorite(vin: string): Promise<void> {
+    return this.request<void>(`/api/v1/favorites/${vin}`, {
+      method: "DELETE",
+    });
+  }
+
+  /**
+   * Check if a specific vehicle is in favorites
+   */
+  async checkFavorite(vin: string): Promise<Favorite> {
+    return this.request<Favorite>(`/api/v1/favorites/${vin}`);
   }
 }
 
