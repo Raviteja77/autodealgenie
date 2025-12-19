@@ -444,7 +444,7 @@ function ResultsContent() {
                         variant="outline"
                         fullWidth
                         size="sm"
-                        onClick={() => handleVehicleSelection(vehicle, "/negotiation")}
+                        onClick={() => handleVehicleSelection(vehicle, "/dashboard/negotiation")}
                       >
                         Negotiate
                       </Button>

@@ -191,14 +191,9 @@ function EvaluationContent() {
   const rating = getOverallRating(overallScore);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Header />
-      <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
+    <Box sx={{ display: "flex", flexDirection: "column" }}>
+      <Box sx={{ bgcolor: "background.default", flexGrow: 1 }}>
         <Container maxWidth="lg">
-          <ProgressStepper
-            activeStep={currentStep}
-            steps={steps.map(step => step.label)}
-          />
 
           <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
             Deal Evaluation
@@ -466,7 +461,6 @@ function EvaluationContent() {
           )}
         </Container>
       </Box>
-      <Footer />
     </Box>
   );
 }

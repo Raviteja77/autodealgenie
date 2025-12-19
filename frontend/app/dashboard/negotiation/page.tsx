@@ -53,7 +53,7 @@ interface VehicleInfo {
 function NegotiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { canNavigateToStep, completeStep, currentStep, steps } = useStepper();
+  const { completeStep, setStepData, getStepData, canNavigateToStep, isStepCompleted } = useStepper();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -188,7 +188,7 @@ function NegotiationContent() {
         mileage: vehicleData.mileage.toString(),
         fuelType: vehicleData.fuelType || '',
       });
-      router.push(`/evaluation?${vehicleParams.toString()}`);
+      router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
     }
   };
 
@@ -200,14 +200,9 @@ function NegotiationContent() {
   };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Header />
-      <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
+    <Box sx={{ display: "flex", flexDirection: "column" }}>
+      <Box sx={{ bgcolor: "background.default", flexGrow: 1 }}>
         <Container maxWidth="lg">
-          <ProgressStepper
-            activeStep={currentStep}
-            steps={steps.map(step => step.label)}
-          />
 
           {/* Error Alert */}
           {error && (
@@ -429,7 +424,6 @@ function NegotiationContent() {
           )}
         </Container>
       </Box>
-      <Footer />
     </Box>
   );
 }
