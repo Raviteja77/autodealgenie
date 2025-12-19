@@ -6,7 +6,6 @@ import {
   Box,
   Container,
   Typography,
-  Button,
   Grid,
   Card,
   CardContent,
@@ -35,6 +34,7 @@ import Footer from "@/components/common/Footer";
 import ProgressStepper from "@/components/common/ProgressStepper";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
+import { Button } from "@/components";
 
 interface VehicleInfo {
   vin?: string;
@@ -214,7 +214,7 @@ function EvaluationContent() {
                 {error}
               </Typography>
               <Link href="/dashboard/results" style={{ textDecoration: "none" }}>
-                <Button variant="contained" size="small">
+                <Button variant="success" size="sm">
                   Back to Results
                 </Button>
               </Link>
@@ -225,7 +225,7 @@ function EvaluationContent() {
           <Grid container spacing={3}>
             {/* Overall Score Card */}
             <Grid item xs={12}>
-              <Card sx={{ bgcolor: "primary.main", color: "white" }}>
+              <Card sx={{ bgcolor: "success.main", color: "white" }}>
                 <CardContent>
                   <Box
                     sx={{
@@ -437,24 +437,23 @@ function EvaluationContent() {
                 }}
               >
                 <Button
-                  variant="outlined"
-                  size="large"
+                  variant="outline"
+                  size="lg"
                   onClick={() => router.back()}
                 >
                   Go Back
                 </Button>
                 <Box sx={{ display: "flex", gap: 2 }}>
                   <Button
-                    variant="outlined"
-                    color="error"
-                    size="large"
+                    variant="danger"
+                    size="lg"
                     onClick={() => router.push("/dashboard/results")}
                   >
                     Reject Deal
                   </Button>
                   <Button
-                    variant="contained"
-                    size="large"
+                    variant="success"
+                    size="lg"
                     disabled={loading}
                     onClick={handleFinalize}
                   >
