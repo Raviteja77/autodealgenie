@@ -2,7 +2,7 @@
 Favorites endpoints - Mock implementation
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -52,7 +52,7 @@ def add_favorite(
         "color": favorite_in.color,
         "condition": favorite_in.condition,
         "image": favorite_in.image,
-        "created_at": datetime.now(datetime.UTC),
+        "created_at": datetime.now(timezone.utc),
     }
 
     favorites_storage[user_id][favorite_in.vin] = favorite_data
