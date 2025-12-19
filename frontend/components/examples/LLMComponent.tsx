@@ -20,7 +20,7 @@ import {
 import { Button, Card } from "../ui";
 
 interface LLMResponse {
-  content: string | Record<string, any>;
+  content: string | Record<string, unknown>;
   prompt_id: string;
   model: string;
   tokens_used?: number;
@@ -31,7 +31,7 @@ function LLMComponent() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LLMResponse | null>(null);
   const [promptType, setPromptType] = useState<string>("negotiation");
-  const [variables, setVariables] = useState<Record<string, any>>({
+  const [variables, setVariables] = useState<Record<string, unknown>>({
     round_number: 1,
     asking_price: 30000,
     counter_offer: 28000,
@@ -71,10 +71,6 @@ function LLMComponent() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleVariableChange = (key: string, value: any) => {
-    setVariables({ ...variables, [key]: value });
   };
 
   const useMock = process.env.NEXT_PUBLIC_USE_MOCK === "true";
