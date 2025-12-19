@@ -8,11 +8,9 @@
 import React, { useState } from "react";
 import { Box, Typography, CircularProgress, Alert } from "@mui/material";
 import { apiClient, CarSearchRequest, CarSearchResponse } from "@/lib/api";
-import Button from "../ui/Button";
-import Input from "../ui/Input";
-import Card from "../ui/Card";
+import { Button, Input, Card } from "../ui";
 
-export default function MarketCheckComponent() {
+function MarketCheckComponent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<CarSearchResponse | null>(null);
@@ -173,3 +171,5 @@ export default function MarketCheckComponent() {
     </Box>
   );
 }
+
+export default MarketCheckComponent;

@@ -5,6 +5,7 @@ API v1 router configuration
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import auth, cars, deals, health, webhooks, preferences, recommendations, negotiation, evaluations
+from app.core.config import settings
 
 api_router = APIRouter()
 
@@ -19,3 +20,8 @@ api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"]
 api_router.include_router(preferences.router, prefix="/users", tags=["preferences"])
 api_router.include_router(negotiation.router, prefix="/negotiations", tags=["negotiations"])
 api_router.include_router(recommendations.router, prefix="/recommendations", tags=["recommendations"])
+
+if settings.USE_MOCK_SERVICES:
+    from app.api.mock import mock_router
+
+    api_router.include_router(mock_router, prefix="/mock", tags=["mock"])

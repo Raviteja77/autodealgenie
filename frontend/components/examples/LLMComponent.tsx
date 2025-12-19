@@ -17,8 +17,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-import Button from "../ui/Button";
-import Card from "../ui/Card";
+import { Button, Card } from "../ui";
 
 interface LLMResponse {
   content: string | Record<string, any>;
@@ -27,7 +26,7 @@ interface LLMResponse {
   tokens_used?: number;
 }
 
-export default function LLMComponent() {
+function LLMComponent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LLMResponse | null>(null);
@@ -209,3 +208,5 @@ export default function LLMComponent() {
     </Box>
   );
 }
+
+export default LLMComponent;

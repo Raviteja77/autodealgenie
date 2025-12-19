@@ -237,7 +237,7 @@ function ResultsContent() {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
+      <Box sx={{ bgcolor: "background.default", flexGrow: 1 }}>
         <Container maxWidth="lg">
           {/* Header */}
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
