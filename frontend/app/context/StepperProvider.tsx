@@ -26,8 +26,8 @@ export interface Step {
 export const STEPS: Step[] = [
   { id: 0, label: "Search", path: "/dashboard/search", requiresPrevious: false },
   { id: 1, label: "Results", path: "/dashboard/results", requiresPrevious: true },
-  { id: 2, label: "Negotiate", path: "/negotiation", requiresPrevious: true },
-  { id: 3, label: "Evaluate", path: "/evaluation", requiresPrevious: true },
+  { id: 2, label: "Negotiate", path: "/dashboard/negotiation", requiresPrevious: true },
+  { id: 3, label: "Evaluate", path: "/dashboard/evaluation", requiresPrevious: true },
   { id: 4, label: "Finalize", path: "/deals", requiresPrevious: true },
 ];
 

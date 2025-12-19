@@ -27,9 +27,6 @@ import {
   LocalGasStation,
   Warning,
 } from "@mui/icons-material";
-import Header from "@/components/common/Header";
-import Footer from "@/components/common/Footer";
-import ProgressStepper from "@/components/common/ProgressStepper";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
 
@@ -53,7 +50,7 @@ interface VehicleInfo {
 function NegotiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { canNavigateToStep, completeStep, currentStep, steps } = useStepper();
+  const { completeStep, canNavigateToStep, isStepCompleted } = useStepper();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -66,13 +63,6 @@ function NegotiationContent() {
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Check if user can access this step
-  useEffect(() => {
-    if (!canNavigateToStep(2)) {
-      router.push("/dashboard/search");
-    }
-  }, [canNavigateToStep, router]);
 
   // Extract and validate vehicle data from URL params
   const vehicleData: VehicleInfo | null = (() => {
@@ -113,6 +103,22 @@ function NegotiationContent() {
       return null;
     }
   })();
+
+  // Check if user can access this step and mark it as active
+  useEffect(() => {
+    if (!canNavigateToStep(2)) {
+      router.push("/dashboard/search");
+    } else if (!isStepCompleted(2)) {
+      // Mark the negotiation step as in-progress when landing on the page
+      // This will update the stepper to show we're on this step
+      completeStep(2, {
+        status: 'in-progress',
+        vehicleData: vehicleData,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canNavigateToStep, router, vehicleData]);
 
   // Set error if vehicle data is invalid
   useEffect(() => {
@@ -188,7 +194,7 @@ function NegotiationContent() {
         mileage: vehicleData.mileage.toString(),
         fuelType: vehicleData.fuelType || '',
       });
-      router.push(`/evaluation?${vehicleParams.toString()}`);
+      router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
     }
   };
 
@@ -200,14 +206,9 @@ function NegotiationContent() {
   };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Header />
-      <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
+    <Box sx={{ display: "flex", flexDirection: "column" }}>
+      <Box sx={{ bgcolor: "background.default", flexGrow: 1 }}>
         <Container maxWidth="lg">
-          <ProgressStepper
-            activeStep={currentStep}
-            steps={steps.map(step => step.label)}
-          />
 
           {/* Error Alert */}
           {error && (
@@ -429,7 +430,6 @@ function NegotiationContent() {
           )}
         </Container>
       </Box>
-      <Footer />
     </Box>
   );
 }
