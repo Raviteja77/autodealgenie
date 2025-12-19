@@ -127,3 +127,36 @@ class DealEvaluationResponse(BaseModel):
     talking_points: list[str] = Field(
         default_factory=list, description="Negotiation talking points"
     )
+
+
+class FavoriteBase(BaseModel):
+    """Base favorite schema"""
+
+    vin: str = Field(..., min_length=1, max_length=100)
+    make: str = Field(..., min_length=1, max_length=100)
+    model: str = Field(..., min_length=1, max_length=100)
+    year: int = Field(..., ge=1900, le=2100)
+    price: float = Field(..., gt=0)
+    mileage: int = Field(default=0, ge=0)
+    fuel_type: str | None = Field(None, max_length=50)
+    location: str | None = Field(None, max_length=255)
+    color: str | None = Field(None, max_length=50)
+    condition: str | None = Field(None, max_length=50)
+    image: str | None = Field(None, max_length=512)
+
+
+class FavoriteCreate(FavoriteBase):
+    """Schema for creating a favorite"""
+
+    pass
+
+
+class FavoriteResponse(FavoriteBase):
+    """Schema for favorite response"""
+
+    id: str
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
