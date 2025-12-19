@@ -69,6 +69,9 @@ class Settings(BaseSettings):
 
     # Environment
     ENVIRONMENT: str = "development"  # development, staging, production
+    
+    # Mock Services (for development/testing)
+    USE_MOCK_SERVICES: bool = False
 
     @property
     def COOKIE_SECURE(self) -> bool:

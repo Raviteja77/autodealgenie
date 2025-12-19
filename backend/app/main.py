@@ -23,6 +23,8 @@ async def lifespan(app: FastAPI):
     # Startup
     configure_logging()
     print("Starting up AutoDealGenie backend...")
+    if settings.USE_MOCK_SERVICES:
+        print("Mock services are ENABLED - using mock endpoints for development")
     yield
     # Shutdown
     print("Shutting down AutoDealGenie backend...")
@@ -51,6 +53,14 @@ app.add_middleware(
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Conditionally include mock router if USE_MOCK_SERVICES is enabled
+if settings.USE_MOCK_SERVICES:
+    from app.api.mock import mock_router
+
+    app.include_router(mock_router, prefix="/mock")
+    print("Mock router registered at /mock")
+
 
 
 # Request ID Middleware
