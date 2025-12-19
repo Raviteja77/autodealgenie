@@ -99,3 +99,28 @@ class WebhookSubscription(Base):
 
     def __repr__(self):
         return f"<WebhookSubscription {self.id}: {self.user_id} -> {self.webhook_url}>"
+
+
+class Favorite(Base):
+    """Favorite vehicle model"""
+
+    __tablename__ = "favorites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    vin = Column(String(17), nullable=False, index=True)
+    make = Column(String(100), nullable=False)
+    model = Column(String(100), nullable=False)
+    year = Column(Integer, nullable=False)
+    price = Column(Float, nullable=False)
+    mileage = Column(Integer, default=0)
+    fuel_type = Column(String(50), nullable=True)
+    location = Column(String(255), nullable=True)
+    color = Column(String(50), nullable=True)
+    condition = Column(String(50), nullable=True)
+    image = Column(String(512), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+    def __repr__(self):
+        return f"<Favorite {self.id}: {self.user_id} - {self.year} {self.make} {self.model}>"

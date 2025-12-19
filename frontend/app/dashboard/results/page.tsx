@@ -205,13 +205,19 @@ function ResultsContent() {
     const vin = vehicle.vin;
     const isFavorited = favorites.has(vin);
 
+    // Optimistic UI update
+    const newFavorites = new Set(favorites);
+    if (isFavorited) {
+      newFavorites.delete(vin);
+    } else {
+      newFavorites.add(vin);
+    }
+    setFavorites(newFavorites);
+
     try {
       if (isFavorited) {
         // Remove from favorites
         await apiClient.removeFavorite(vin);
-        const newFavorites = new Set(favorites);
-        newFavorites.delete(vin);
-        setFavorites(newFavorites);
       } else {
         // Add to favorites
         const favoriteData: FavoriteCreate = {
@@ -228,12 +234,11 @@ function ResultsContent() {
           image: vehicle.image || null,
         };
         await apiClient.addFavorite(favoriteData);
-        const newFavorites = new Set(favorites);
-        newFavorites.add(vin);
-        setFavorites(newFavorites);
       }
     } catch (err: unknown) {
       console.error("Error toggling favorite:", err);
+      // Revert optimistic update on error
+      setFavorites(favorites);
       // Optionally show an error message to the user
     }
   };

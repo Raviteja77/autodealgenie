@@ -132,7 +132,7 @@ class DealEvaluationResponse(BaseModel):
 class FavoriteBase(BaseModel):
     """Base favorite schema"""
 
-    vin: str = Field(..., min_length=1, max_length=100)
+    vin: str = Field(..., min_length=17, max_length=17, description="17-character VIN")
     make: str = Field(..., min_length=1, max_length=100)
     model: str = Field(..., min_length=1, max_length=100)
     year: int = Field(..., ge=1900, le=2100)
@@ -154,7 +154,7 @@ class FavoriteCreate(FavoriteBase):
 class FavoriteResponse(FavoriteBase):
     """Schema for favorite response"""
 
-    id: str
+    id: int
     user_id: int
     created_at: datetime
 

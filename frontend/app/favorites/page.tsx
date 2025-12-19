@@ -26,6 +26,7 @@ export default function FavoritesPage() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -55,15 +56,25 @@ export default function FavoritesPage() {
   }, [user, router]);
 
   const handleRemoveFavorite = async (vin: string) => {
+    setRemoveError(null);
+    
+    // Optimistic update
+    const previousFavorites = favorites;
+    setFavorites((prev) => prev.filter((fav) => fav.vin !== vin));
+    
     try {
       await apiClient.removeFavorite(vin);
-      // Update local state to remove the deleted favorite
-      setFavorites((prev) => prev.filter((fav) => fav.vin !== vin));
     } catch (err: unknown) {
       console.error("Error removing favorite:", err);
       const errorMessage =
         err instanceof Error ? err.message : "Failed to remove favorite. Please try again.";
-      setError(errorMessage);
+      
+      // Revert optimistic update
+      setFavorites(previousFavorites);
+      
+      // Show temporary error message without replacing entire page
+      setRemoveError(errorMessage);
+      setTimeout(() => setRemoveError(null), 5000); // Clear after 5 seconds
     }
   };
 
@@ -135,6 +146,13 @@ export default function FavoritesPage() {
               </Link>
             </Box>
           </Box>
+
+          {/* Remove Error Alert */}
+          {removeError && (
+            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setRemoveError(null)}>
+              {removeError}
+            </Alert>
+          )}
 
           {/* Empty State */}
           {favorites.length === 0 ? (
@@ -266,11 +284,17 @@ export default function FavoritesPage() {
                           variant="outline"
                           fullWidth
                           size="sm"
-                          onClick={() =>
-                            router.push(
-                              `/negotiation?vin=${favorite.vin}&make=${favorite.make}&model=${favorite.model}&year=${favorite.year}&price=${favorite.price}&mileage=${favorite.mileage}`
-                            )
-                          }
+                          onClick={() => {
+                            const params = new URLSearchParams({
+                              vin: favorite.vin,
+                              make: favorite.make,
+                              model: favorite.model,
+                              year: favorite.year.toString(),
+                              price: favorite.price.toString(),
+                              mileage: favorite.mileage.toString(),
+                            });
+                            router.push(`/negotiation?${params.toString()}`);
+                          }}
                         >
                           Negotiate
                         </Button>
@@ -278,11 +302,17 @@ export default function FavoritesPage() {
                           variant="primary"
                           fullWidth
                           size="sm"
-                          onClick={() =>
-                            router.push(
-                              `/evaluation?vin=${favorite.vin}&make=${favorite.make}&model=${favorite.model}&year=${favorite.year}&price=${favorite.price}&mileage=${favorite.mileage}`
-                            )
-                          }
+                          onClick={() => {
+                            const params = new URLSearchParams({
+                              vin: favorite.vin,
+                              make: favorite.make,
+                              model: favorite.model,
+                              year: favorite.year.toString(),
+                              price: favorite.price.toString(),
+                              mileage: favorite.mileage.toString(),
+                            });
+                            router.push(`/evaluation?${params.toString()}`);
+                          }}
                         >
                           View Details
                         </Button>

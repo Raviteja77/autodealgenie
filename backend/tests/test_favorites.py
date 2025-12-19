@@ -3,8 +3,7 @@
 import pytest
 
 from app.api.dependencies import get_current_user
-from app.api.v1.endpoints.favorites import favorites_storage
-from app.models.models import User
+from app.models.models import Favorite, User
 
 
 @pytest.fixture
@@ -36,11 +35,13 @@ def authenticated_client(client, mock_user):
 
 
 @pytest.fixture(autouse=True)
-def clear_favorites_storage():
-    """Clear the in-memory favorites storage before each test"""
-    favorites_storage.clear()
+def clear_favorites(db):
+    """Clear favorites from database before each test"""
+    db.query(Favorite).delete()
+    db.commit()
     yield
-    favorites_storage.clear()
+    db.query(Favorite).delete()
+    db.commit()
 
 
 @pytest.fixture
