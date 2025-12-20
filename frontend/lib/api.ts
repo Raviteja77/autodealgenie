@@ -27,6 +27,19 @@ export interface Deal {
   updated_at?: string | null;
 }
 
+export interface DealCreate {
+  customer_name: string;
+  customer_email: string;
+  vehicle_make: string;
+  vehicle_model: string;
+  vehicle_year: number;
+  vehicle_mileage: number;
+  asking_price: number;
+  offer_price?: number | null;
+  status?: "pending" | "in_progress" | "completed" | "cancelled";
+  notes?: string | null;
+}
+
 export interface CarSearchRequest {
   make?: string;
   model?: string;
@@ -119,6 +132,57 @@ export interface FavoriteCreate {
   image?: string | null;
 }
 
+export type NegotiationStatus = "active" | "completed" | "cancelled";
+export type MessageRole = "user" | "agent" | "dealer_sim";
+export type UserAction = "confirm" | "reject" | "counter";
+
+export interface NegotiationMessage {
+  id: number;
+  session_id: number;
+  role: MessageRole;
+  content: string;
+  round_number: number;
+  metadata?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface NegotiationSession {
+  id: number;
+  user_id: number;
+  deal_id: number;
+  status: NegotiationStatus;
+  current_round: number;
+  max_rounds: number;
+  created_at: string;
+  updated_at?: string | null;
+  messages: NegotiationMessage[];
+}
+
+export interface CreateNegotiationRequest {
+  deal_id: number;
+  user_target_price: number;
+  strategy?: string | null;
+}
+
+export interface CreateNegotiationResponse {
+  session_id: number;
+  status: NegotiationStatus;
+  current_round: number;
+  agent_message: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface NextRoundRequest {
+  user_action: UserAction;
+  counter_offer?: number | null;
+}
+
+export interface NextRoundResponse {
+  session_id: number;
+  status: NegotiationStatus;
+  current_round: number;
+  agent_message: string;
+  metadata: Record<string, unknown>;
 export interface SavedSearch {
   id: number;
   user_id: number;
@@ -259,6 +323,16 @@ class ApiClient {
   }
 
   /**
+   * Create a new deal
+   */
+  async createDeal(deal: DealCreate): Promise<Deal> {
+    return this.request<Deal>("/api/v1/deals", {
+      method: "POST",
+      body: JSON.stringify(deal),
+    });
+  }
+
+  /**
    * Search for cars with AI recommendations
    */
   async searchCars(params: CarSearchRequest): Promise<CarSearchResponse> {
@@ -302,6 +376,40 @@ class ApiClient {
   }
 
   /**
+   * Create a new negotiation session
+   */
+  async createNegotiation(
+    request: CreateNegotiationRequest
+  ): Promise<CreateNegotiationResponse> {
+    return this.request<CreateNegotiationResponse>("/api/v1/negotiations/", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * Process the next round of negotiation
+   */
+  async processNextRound(
+    sessionId: number,
+    request: NextRoundRequest
+  ): Promise<NextRoundResponse> {
+    return this.request<NextRoundResponse>(
+      `/api/v1/negotiations/${sessionId}/next`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      }
+    );
+  }
+
+  /**
+   * Get a negotiation session with full message history
+   */
+  async getNegotiationSession(sessionId: number): Promise<NegotiationSession> {
+    return this.request<NegotiationSession>(
+      `/api/v1/negotiations/${sessionId}`
+    );
    * Get all saved searches for the current user
    */
   async getSavedSearches(): Promise<SavedSearchList> {
