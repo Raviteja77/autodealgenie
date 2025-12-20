@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth,
     cars,
+    comparisons,
     deals,
     evaluations,
     favorites,
@@ -14,6 +15,7 @@ from app.api.v1.endpoints import (
     negotiation,
     preferences,
     recommendations,
+    saved_searches,
     webhooks,
 )
 from app.core.config import settings
@@ -34,6 +36,10 @@ api_router.include_router(
     recommendations.router, prefix="/recommendations", tags=["recommendations"]
 )
 api_router.include_router(favorites.router, prefix="/favorites", tags=["favorites"])
+api_router.include_router(
+    saved_searches.router, prefix="/saved-searches", tags=["saved-searches"]
+)
+api_router.include_router(comparisons.router, prefix="/vehicles", tags=["comparisons"])
 
 if settings.USE_MOCK_SERVICES:
     from app.api.mock import mock_router
