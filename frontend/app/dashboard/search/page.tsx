@@ -166,7 +166,7 @@ export default function DashboardSearchPage() {
                   variant="outline"
                   fullWidth
                   leftIcon={<FavoriteIcon />}
-                  onClick={() => router.push("/favorites")}
+                  onClick={() => router.push("/dashboard/favorites")}
                 >
                   My Favorites
                 </Button>

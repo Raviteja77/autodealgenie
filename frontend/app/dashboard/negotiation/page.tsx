@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -65,7 +65,7 @@ function NegotiationContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Extract and validate vehicle data from URL params
-  const vehicleData: VehicleInfo | null = (() => {
+  const vehicleData: VehicleInfo | null = useMemo(() => {
     try {
       const vin = searchParams.get("vin") || undefined;
       const make = searchParams.get("make");
@@ -102,23 +102,25 @@ function NegotiationContent() {
       console.error("Error parsing vehicle data:", err);
       return null;
     }
-  })();
+  }, [searchParams]);
 
   // Check if user can access this step and mark it as active
   useEffect(() => {
     if (!canNavigateToStep(2)) {
       router.push("/dashboard/search");
-    } else if (!isStepCompleted(2)) {
-      // Mark the negotiation step as in-progress when landing on the page
-      // This will update the stepper to show we're on this step
-      completeStep(2, {
-        status: 'in-progress',
-        vehicleData: vehicleData,
-        timestamp: new Date().toISOString(),
-      });
     }
+  }, [canNavigateToStep, router]);
+
+  useEffect(() => {
+    // Mark the negotiation step as in-progress when landing on the page
+    // This will update the stepper to show we're on this step
+    completeStep(2, {
+      status: 'in-progress',
+      vehicleData: vehicleData,
+      timestamp: new Date().toISOString(),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canNavigateToStep, router, vehicleData]);
+  }, [completeStep, vehicleData]);
 
   // Set error if vehicle data is invalid
   useEffect(() => {

@@ -17,7 +17,7 @@ export interface Step {
   id: number;
   label: string;
   path: string;
-  requiresPrevious: boolean; // Whether this step requires the previous step to be completed
+  requiresPrevious: boolean;
 }
 
 /**
@@ -32,19 +32,22 @@ export const STEPS: Step[] = [
 ];
 
 /**
+ * Paths where stepper should be hidden
+ */
+const STEPPER_HIDDEN_PATHS = [
+  "/dashboard/favorites",
+  "/deals",
+  "/dashboard/profile",
+  "/dashboard/settings",
+];
+
+/**
  * Stepper state interface
  */
 interface StepperState {
-  /** Current active step number based on URL path */
   currentStep: number;
-  /** Set of step IDs that have been completed by the user */
   completedSteps: Set<number>;
-  /** 
-   * Data storage for each step (e.g., search parameters, selected vehicle)
-   * Key: step ID, Value: arbitrary step-specific data
-   */
   stepData: Record<number, unknown>;
-  /** Flag indicating if a navigation is in progress */
   isNavigating: boolean;
 }
 
@@ -65,6 +68,8 @@ interface StepperContextType {
   resetStepper: () => void;
   goToNextStep: () => void;
   goToPreviousStep: () => void;
+  shouldShowStepper: () => boolean; // NEW: Function to determine if stepper should be shown
+  isStepperPath: (path: string) => boolean; // NEW: Check if path is a stepper path
 }
 
 const StepperContext = createContext<StepperContextType | undefined>(undefined);
@@ -92,6 +97,19 @@ const initialState: StepperState = {
 function getStepIdFromPath(pathname: string): number {
   const step = STEPS.find((s) => pathname.startsWith(s.path));
   return step?.id ?? 0;
+}
+
+/**
+ * Check if a path should show the stepper
+ */
+function shouldShowStepperForPath(pathname: string): boolean {
+  // Check if path is in the hidden paths list
+  if (STEPPER_HIDDEN_PATHS.some(hiddenPath => pathname.startsWith(hiddenPath))) {
+    return false;
+  }
+  
+  // Check if path is one of the stepper steps
+  return STEPS.some((step) => pathname.startsWith(step.path));
 }
 
 /**
@@ -138,7 +156,6 @@ function persistState(state: StepperState): void {
 
 /**
  * StepperProvider component for managing navigation state
- * Provides stepper state management, step completion tracking, and navigation guards
  */
 export function StepperProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -186,30 +203,20 @@ export function StepperProvider({ children }: { children: ReactNode }) {
 
   /**
    * Check if navigation to a step is allowed
-   * Rules:
-   * - Can always navigate to completed steps
-   * - Can navigate to the current step
-   * - Can navigate to the next step if current is completed
-   * - Cannot skip steps that require previous steps
    */
   const canNavigateToStep = useCallback(
     (stepId: number): boolean => {
       const targetStep = STEPS.find((s) => s.id === stepId);
       if (!targetStep) return false;
 
-      // Can always navigate to completed steps (for refinement)
       if (state.completedSteps.has(stepId)) return true;
-
-      // Can navigate to current step
       if (stepId === state.currentStep) return true;
 
-      // Check if step requires previous step
       if (targetStep.requiresPrevious && stepId > 0) {
         const previousStepCompleted = state.completedSteps.has(stepId - 1);
         return previousStepCompleted;
       }
 
-      // First step is always accessible
       return stepId === 0;
     },
     [state.completedSteps, state.currentStep]
@@ -249,7 +256,6 @@ export function StepperProvider({ children }: { children: ReactNode }) {
       if (targetStep) {
         setState((prev) => ({ ...prev, isNavigating: true }));
         router.push(targetStep.path);
-        // isNavigating will be reset by pathname change effect
         setTimeout(() => {
           setState((prev) => ({ ...prev, isNavigating: false }));
         }, 100);
@@ -310,6 +316,20 @@ export function StepperProvider({ children }: { children: ReactNode }) {
     }
   }, [state.currentStep, navigateToStep]);
 
+  /**
+   * NEW: Determine if stepper should be shown based on current path
+   */
+  const shouldShowStepper = useCallback(() => {
+    return shouldShowStepperForPath(pathname);
+  }, [pathname]);
+
+  /**
+   * NEW: Check if a given path is a stepper path
+   */
+  const isStepperPath = useCallback((path: string) => {
+    return STEPS.some((step) => path.startsWith(step.path));
+  }, []);
+
   const contextValue: StepperContextType = {
     state,
     steps: STEPS,
@@ -324,6 +344,8 @@ export function StepperProvider({ children }: { children: ReactNode }) {
     resetStepper,
     goToNextStep,
     goToPreviousStep,
+    shouldShowStepper,
+    isStepperPath,
   };
 
   return (
@@ -335,7 +357,6 @@ export function StepperProvider({ children }: { children: ReactNode }) {
 
 /**
  * Hook to use the stepper context
- * Must be used within a StepperProvider
  */
 export function useStepper() {
   const context = useContext(StepperContext);
@@ -345,7 +366,4 @@ export function useStepper() {
   return context;
 }
 
-/**
- * Type exports for external use
- */
 export type { StepperState, StepperContextType };

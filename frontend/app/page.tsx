@@ -51,7 +51,7 @@ export default function Home() {
       description: "View your saved vehicles and watchlist",
       icon: FavoriteIcon,
       color: "error",
-      href: "/favorites",
+      href: "/dashboard/favorites",
     },
   ];
 
