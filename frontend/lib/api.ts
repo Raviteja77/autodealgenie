@@ -132,6 +132,41 @@ export interface FavoriteCreate {
   image?: string | null;
 }
 
+// Evaluation types
+export type EvaluationStatus = "analyzing" | "awaiting_input" | "completed";
+export type PipelineStep = "vehicle_condition" | "price" | "financing" | "risk" | "final";
+
+export interface EvaluationResponse {
+  id: number;
+  user_id: number;
+  deal_id: number;
+  status: EvaluationStatus;
+  current_step: PipelineStep;
+  result_json: Record<string, any> | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface EvaluationStepResult {
+  evaluation_id: number;
+  deal_id: number;
+  status: EvaluationStatus;
+  current_step: PipelineStep;
+  step_result: {
+    questions?: string[];
+    required_fields?: string[];
+    assessment?: Record<string, any>;
+    completed?: boolean;
+  };
+  result_json: Record<string, any> | null;
+}
+
+export interface EvaluationInitiateRequest {
+  answers?: Record<string, string | number> | null;
+}
+
+export interface EvaluationAnswerRequest {
+  answers: Record<string, string | number>;
 export type NegotiationStatus = "active" | "completed" | "cancelled";
 export type MessageRole = "user" | "agent" | "dealer_sim";
 export type UserAction = "confirm" | "reject" | "counter";
@@ -261,6 +296,20 @@ class ApiClient {
         return `/mock/negotiation/${parts[1]}`;
       }
     } else if (endpoint.includes("/api/v1/deals") && endpoint.includes("evaluation")) {
+      // Map evaluation endpoints to mock
+      const match = endpoint.match(/\/api\/v1\/deals\/(\d+)\/evaluation(?:\/(\d+))?(?:\/answers)?/);
+      if (match) {
+        const dealId = match[1];
+        const evaluationId = match[2];
+        
+        if (endpoint.includes("/answers")) {
+          return `/mock/evaluation/pipeline/${dealId}/evaluation/${evaluationId}/answers`;
+        } else if (evaluationId) {
+          return `/mock/evaluation/pipeline/${dealId}/evaluation/${evaluationId}`;
+        } else {
+          return `/mock/evaluation/pipeline/${dealId}/evaluation`;
+        }
+      }
       return endpoint.replace("/api/v1/deals", "/mock/evaluation/pipeline");
     }
 
@@ -376,6 +425,21 @@ class ApiClient {
   }
 
   /**
+   * Start or continue a deal evaluation
+   */
+  async startEvaluation(
+    dealId: number,
+    request: EvaluationInitiateRequest
+  ): Promise<EvaluationStepResult> {
+    return this.request<EvaluationStepResult>(
+      `/api/v1/deals/${dealId}/evaluation`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      }
+    );
+  }
+  
    * Create a new negotiation session
    */
   async createNegotiation(
@@ -404,12 +468,42 @@ class ApiClient {
   }
 
   /**
+   * Get evaluation status
+   */
+  async getEvaluation(
+    dealId: number,
+    evaluationId: number
+  ): Promise<EvaluationResponse> {
+    return this.request<EvaluationResponse>(
+      `/api/v1/deals/${dealId}/evaluation/${evaluationId}`
+    );
+  }
+  }
+
+  /**
+   * Submit answers to evaluation questions
+   */
+  async submitEvaluationAnswers(
+    dealId: number,
+    evaluationId: number,
+    request: EvaluationAnswerRequest
+  ): Promise<EvaluationStepResult> {
+    return this.request<EvaluationStepResult>(
+      `/api/v1/deals/${dealId}/evaluation/${evaluationId}/answers`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      }
+    );
+}
    * Get a negotiation session with full message history
    */
   async getNegotiationSession(sessionId: number): Promise<NegotiationSession> {
     return this.request<NegotiationSession>(
       `/api/v1/negotiations/${sessionId}`
     );
+    }
+    
    * Get all saved searches for the current user
    */
   async getSavedSearches(): Promise<SavedSearchList> {

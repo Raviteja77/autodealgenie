@@ -6,32 +6,29 @@ import {
   Box,
   Container,
   Typography,
-  Grid,
-  Card,
-  CardContent,
-  Divider,
-  Chip,
-  LinearProgress,
   Alert,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
 } from "@mui/material";
-import {
-  CheckCircle,
-  Warning,
-  TrendingUp,
-  AttachMoney,
-  Speed,
-  DirectionsCar,
-  LocalGasStation,
-  ThumbUp,
-  ThumbDown,
-} from "@mui/icons-material";
+import { Warning } from "@mui/icons-material";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
 import { Button } from "@/components";
+import {
+  apiClient,
+  PipelineStep,
+  EvaluationStepResult,
+  EvaluationStatus,
+} from "@/lib/api";
+import {
+  ProgressIndicator,
+  ScoreCard,
+  InsightsPanel,
+  QuestionForm,
+  ConditionStep,
+  PriceStep,
+  FinancingStep,
+  RiskStep,
+  FinalStep,
+} from "./components";
 
 interface VehicleInfo {
   vin?: string;
@@ -43,18 +40,24 @@ interface VehicleInfo {
   fuelType: string;
 }
 
-interface EvaluationScore {
-  category: string;
-  score: number;
-  description: string;
+interface EvaluationState {
+  evaluationId: number | null;
+  dealId: number;
+  status: EvaluationStatus;
+  currentStep: PipelineStep;
+  stepResult: any;
+  resultJson: Record<string, any> | null;
+  completedSteps: PipelineStep[];
 }
 
 function EvaluationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { canNavigateToStep, completeStep, isStepCompleted } = useStepper();
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [evaluationState, setEvaluationState] = useState<EvaluationState | null>(null);
 
   // Extract and validate vehicle data from URL params
   const vehicleData: VehicleInfo | null = (() => {
@@ -96,13 +99,14 @@ function EvaluationContent() {
     }
   })();
 
-  // Check if user can access this step and mark it as active
+  // Mock deal ID - in production, this would come from backend
+  const dealId = 1;
+
+  // Check if user can access this step
   useEffect(() => {
     if (!canNavigateToStep(3)) {
       router.push("/dashboard/search");
     } else if (!isStepCompleted(3)) {
-      // Mark the evaluation step as in-progress when landing on the page
-      // This will update the stepper to show we're on this step
       completeStep(3, {
         status: 'in-progress',
         vehicleData: vehicleData,
@@ -112,95 +116,282 @@ function EvaluationContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canNavigateToStep, router, vehicleData]);
 
-  // Set error if vehicle data is invalid
+  // Start evaluation on mount
   useEffect(() => {
-    if (!vehicleData) {
-      setError("Invalid vehicle data. Please select a vehicle from the search results.");
+    if (vehicleData && !evaluationState) {
+      startEvaluation();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicleData]);
 
-  // Mock evaluation scores
-  const evaluationScores: EvaluationScore[] = [
-    {
-      category: "Market Value",
-      score: 85,
-      description: "Price is 8% below market average",
-    },
-    {
-      category: "Vehicle Condition",
-      score: 90,
-      description: "Excellent condition with low mileage",
-    },
-    {
-      category: "Reliability",
-      score: 92,
-      description: "High reliability rating for this model",
-    },
-    {
-      category: "Fuel Efficiency",
-      score: 78,
-      description: "Above average fuel economy",
-    },
-    {
-      category: "Negotiation Success",
-      score: 88,
-      description: "Secured $3,000 below asking price",
-    },
-  ];
+  const startEvaluation = async () => {
+    if (!vehicleData) return;
 
-  const overallScore =
-    evaluationScores.reduce((sum, item) => sum + item.score, 0) /
-    evaluationScores.length;
+    setLoading(true);
+    setError(null);
 
-  const pros = [
-    "Low mileage for the year",
-    "Clean vehicle history report",
-    "Single owner vehicle",
-    "Regular maintenance records available",
-    "Price below market average",
-  ];
+    try {
+      // Initial answers with VIN if available
+      const initialAnswers: Record<string, string | number> = {};
+      if (vehicleData.vin) {
+        initialAnswers.vin = vehicleData.vin;
+      }
 
-  const cons = [
-    "Minor cosmetic wear on interior",
-    "Aftermarket stereo system installed",
-    "Tires will need replacement within 6 months",
-  ];
+      const response = await apiClient.startEvaluation(dealId, {
+        answers: Object.keys(initialAnswers).length > 0 ? initialAnswers : null,
+      });
+
+      updateEvaluationState(response);
+    } catch (err: any) {
+      console.error("Error starting evaluation:", err);
+      setError(err.message || "Failed to start evaluation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitAnswers = async (answers: Record<string, string | number>) => {
+    if (!evaluationState) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await apiClient.submitEvaluationAnswers(
+        evaluationState.dealId,
+        evaluationState.evaluationId!,
+        { answers }
+      );
+
+      updateEvaluationState(response);
+    } catch (err: any) {
+      console.error("Error submitting answers:", err);
+      setError(err.message || "Failed to submit answers");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateEvaluationState = (response: EvaluationStepResult) => {
+    const completedSteps: PipelineStep[] = [];
+    
+    // Add completed steps based on result_json
+    if (response.result_json) {
+      if (response.result_json.vehicle_condition?.completed) {
+        completedSteps.push('vehicle_condition');
+      }
+      if (response.result_json.price?.completed) {
+        completedSteps.push('price');
+      }
+      if (response.result_json.financing?.completed) {
+        completedSteps.push('financing');
+      }
+      if (response.result_json.risk?.completed) {
+        completedSteps.push('risk');
+      }
+      if (response.status === 'completed') {
+        completedSteps.push('final');
+      }
+    }
+
+    setEvaluationState({
+      evaluationId: response.evaluation_id,
+      dealId: response.deal_id,
+      status: response.status,
+      currentStep: response.current_step,
+      stepResult: response.step_result,
+      resultJson: response.result_json,
+      completedSteps,
+    });
+  };
 
   const handleFinalize = async () => {
-    setLoading(true);
-    // Mark evaluation step as completed
     completeStep(3, {
       vehicleData: vehicleData,
-      evaluationScores: evaluationScores,
-      overallScore: overallScore,
+      evaluationState: evaluationState,
       timestamp: new Date().toISOString(),
     });
-    // In production, save the deal to database
-    setTimeout(() => {
-      router.push("/deals");
-    }, 1500);
+    router.push("/deals");
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "success";
-    if (score >= 60) return "warning";
-    return "error";
+  // Calculate scores from results
+  const getScores = () => {
+    if (!evaluationState?.resultJson) {
+      return { overall: 0 };
+    }
+
+    const conditionScore =
+      evaluationState.resultJson.vehicle_condition?.assessment?.condition_score || 0;
+    const priceScore = evaluationState.resultJson.price?.assessment?.score || 0;
+    const riskScore = evaluationState.resultJson.risk?.assessment?.risk_score || 0;
+    
+    // Calculate overall score from final if available, otherwise calculate
+    let overall = 0;
+    if (evaluationState.resultJson.final?.assessment?.overall_score) {
+      overall = evaluationState.resultJson.final.assessment.overall_score;
+    } else if (conditionScore || priceScore || riskScore) {
+      // Weighted average: condition 20%, price 50%, risk 30% (inverted)
+      overall = (conditionScore * 0.2) + (priceScore * 0.5) + ((10 - riskScore) * 0.3);
+    }
+
+    return {
+      overall,
+      condition: conditionScore,
+      price: priceScore,
+      risk: riskScore,
+    };
   };
 
-  const getOverallRating = (score: number) => {
-    if (score >= 85) return { text: "Excellent Deal", icon: <CheckCircle /> };
-    if (score >= 70) return { text: "Good Deal", icon: <ThumbUp /> };
-    if (score >= 60) return { text: "Fair Deal", icon: <Warning /> };
-    return { text: "Reconsider", icon: <ThumbDown /> };
+  const scores = getScores();
+
+  // Generate insights based on current step
+  const getInsights = () => {
+    const insights: Array<{ type: 'success' | 'warning' | 'info'; message: string }> = [];
+
+    if (!evaluationState?.stepResult) return insights;
+
+    const { assessment } = evaluationState.stepResult;
+
+    if (assessment?.insights) {
+      assessment.insights.forEach((insight: string) => {
+        insights.push({ type: 'info', message: insight });
+      });
+    }
+
+    if (assessment?.condition_notes) {
+      assessment.condition_notes.forEach((note: string) => {
+        insights.push({ type: 'success', message: note });
+      });
+    }
+
+    if (assessment?.recommended_inspection) {
+      insights.push({
+        type: 'warning',
+        message: 'Professional inspection recommended before purchase',
+      });
+    }
+
+    return insights.slice(0, 5); // Limit to 5 insights
   };
 
-  const rating = getOverallRating(overallScore);
+  const renderStepContent = () => {
+    if (!evaluationState) return null;
+
+    const { currentStep, stepResult, resultJson, status } = evaluationState;
+
+    // If awaiting input, show question form
+    if (status === 'awaiting_input' && stepResult?.questions) {
+      const questions = stepResult.questions.map((q: string, index: number) => {
+        const fieldId = stepResult.required_fields?.[index] || `field_${index}`;
+        
+        // Determine question type based on content
+        let type: 'text' | 'radio' | 'number' = 'text';
+        let options: string[] | undefined;
+
+        if (q.toLowerCase().includes('vin')) {
+          type = 'text';
+        } else if (
+          q.toLowerCase().includes('condition') &&
+          !q.toLowerCase().includes('description')
+        ) {
+          type = 'radio';
+          options = ['Excellent', 'Good', 'Fair', 'Poor'];
+        } else if (q.toLowerCase().includes('financing')) {
+          type = 'radio';
+          options = ['cash', 'loan', 'lease'];
+        } else if (
+          q.toLowerCase().includes('rate') ||
+          q.toLowerCase().includes('payment')
+        ) {
+          type = 'number';
+        }
+
+        return {
+          id: fieldId,
+          label: q,
+          type,
+          options,
+          required: true,
+        };
+      });
+
+      return (
+        <QuestionForm
+          questions={questions}
+          onSubmit={submitAnswers}
+          loading={loading}
+          error={error}
+        />
+      );
+    }
+
+    // Show step results
+    if (stepResult?.assessment) {
+      const { assessment } = stepResult;
+
+      switch (currentStep) {
+        case 'vehicle_condition':
+          return <ConditionStep assessment={assessment} />;
+        case 'price':
+          return (
+            <PriceStep
+              assessment={assessment}
+              askingPrice={vehicleData?.price || 0}
+            />
+          );
+        case 'financing':
+          return (
+            <FinancingStep
+              assessment={assessment}
+              purchasePrice={vehicleData?.price || 0}
+            />
+          );
+        case 'risk':
+          return <RiskStep assessment={assessment} />;
+        case 'final':
+          return (
+            <FinalStep
+              assessment={assessment}
+              vehicleInfo={{
+                make: vehicleData?.make || '',
+                model: vehicleData?.model || '',
+                year: vehicleData?.year || 0,
+              }}
+            />
+          );
+        default:
+          return null;
+      }
+    }
+
+    return null;
+  };
+
+  const handleContinue = async () => {
+    if (!evaluationState) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Continue with empty answers to advance to next step
+      const response = await apiClient.startEvaluation(evaluationState.dealId, {
+        answers: null,
+      });
+
+      updateEvaluationState(response);
+    } catch (err: any) {
+      console.error("Error continuing evaluation:", err);
+      setError(err.message || "Failed to continue evaluation");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column" }}>
-      <Box sx={{ bgcolor: "background.default", flexGrow: 1 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <Box sx={{ bgcolor: "background.default", flexGrow: 1, py: 4 }}>
         <Container maxWidth="lg">
-
           <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
             Deal Evaluation
           </Typography>
@@ -209,10 +400,24 @@ function EvaluationContent() {
           {error && (
             <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
               <Typography variant="h6" gutterBottom>
-                Unable to Load Vehicle Data
+                Error
               </Typography>
               <Typography variant="body2" sx={{ mb: 2 }}>
                 {error}
+              </Typography>
+              <Button variant="primary" size="sm" onClick={startEvaluation}>
+                Retry
+              </Button>
+            </Alert>
+          )}
+
+          {!vehicleData && (
+            <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
+              <Typography variant="h6" gutterBottom>
+                Unable to Load Vehicle Data
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Invalid vehicle data. Please select a vehicle from the search results.
               </Typography>
               <Link href="/dashboard/results" style={{ textDecoration: "none" }}>
                 <Button variant="success" size="sm">
@@ -222,213 +427,37 @@ function EvaluationContent() {
             </Alert>
           )}
 
-          {vehicleData && (
-          <Grid container spacing={3}>
-            {/* Overall Score Card */}
-            <Grid item xs={12}>
-              <Card sx={{ bgcolor: "success.main", color: "white" }}>
-                <CardContent>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <Box>
-                      <Typography variant="h5" gutterBottom>
-                        Overall Deal Score
-                      </Typography>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        {rating.icon}
-                        <Typography variant="h6">{rating.text}</Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ textAlign: "center" }}>
-                      <Typography variant="h2" fontWeight="bold">
-                        {overallScore.toFixed(0)}
-                      </Typography>
-                      <Typography variant="body2">out of 100</Typography>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
+          {vehicleData && evaluationState && (
+            <Box>
+              {/* Progress Indicator */}
+              <ProgressIndicator
+                currentStep={evaluationState.currentStep}
+                completedSteps={evaluationState.completedSteps}
+              />
 
-            {/* Vehicle Details */}
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Vehicle Information
-                  </Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <DirectionsCar sx={{ mr: 2, color: "primary.main" }} />
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Vehicle
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {vehicleData.year} {vehicleData.make} {vehicleData.model}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    {vehicleData.vin && (
-                      <Box sx={{ display: "flex", alignItems: "center" }}>
-                        <Box sx={{ ml: 6 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            VIN: {vehicleData.vin}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    )}
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <AttachMoney sx={{ mr: 2, color: "primary.main" }} />
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Final Price
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          ${vehicleData.price.toLocaleString()}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <Speed sx={{ mr: 2, color: "primary.main" }} />
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Mileage
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {vehicleData.mileage.toLocaleString()} miles
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <LocalGasStation sx={{ mr: 2, color: "primary.main" }} />
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          Fuel Type
-                        </Typography>
-                        <Typography variant="body1" fontWeight="medium">
-                          {vehicleData.fuelType}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
+              {/* Score Card */}
+              {scores.overall > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <ScoreCard
+                    overallScore={scores.overall}
+                    conditionScore={scores.condition}
+                    priceScore={scores.price}
+                    riskScore={scores.risk}
+                  />
+                </Box>
+              )}
 
-            {/* Detailed Scores */}
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Detailed Evaluation
-                  </Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  {evaluationScores.map((item, index) => (
-                    <Box key={index} sx={{ mb: 3 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          mb: 1,
-                        }}
-                      >
-                        <Typography variant="body2" fontWeight="medium">
-                          {item.category}
-                        </Typography>
-                        <Chip
-                          label={item.score}
-                          size="small"
-                          color={getScoreColor(item.score)}
-                        />
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={item.score}
-                        color={getScoreColor(item.score)}
-                        sx={{ mb: 0.5, height: 8, borderRadius: 1 }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {item.description}
-                      </Typography>
-                    </Box>
-                  ))}
-                </CardContent>
-              </Card>
-            </Grid>
+              {/* Step Content */}
+              <Box sx={{ mb: 3 }}>{renderStepContent()}</Box>
 
-            {/* Pros */}
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom color="success.main">
-                    Pros
-                  </Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  <List dense>
-                    {pros.map((pro, index) => (
-                      <ListItem key={index}>
-                        <ListItemIcon>
-                          <CheckCircle color="success" />
-                        </ListItemIcon>
-                        <ListItemText primary={pro} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </CardContent>
-              </Card>
-            </Grid>
+              {/* Insights Panel */}
+              {getInsights().length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <InsightsPanel insights={getInsights()} />
+                </Box>
+              )}
 
-            {/* Cons */}
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom color="warning.main">
-                    Considerations
-                  </Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  <List dense>
-                    {cons.map((con, index) => (
-                      <ListItem key={index}>
-                        <ListItemIcon>
-                          <Warning color="warning" />
-                        </ListItemIcon>
-                        <ListItemText primary={con} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            {/* AI Recommendation */}
-            <Grid item xs={12}>
-              <Alert
-                severity={overallScore >= 80 ? "success" : "info"}
-                icon={<TrendingUp />}
-              >
-                <Typography variant="body1" fontWeight="medium" gutterBottom>
-                  AI Recommendation
-                </Typography>
-                <Typography variant="body2">
-                  {overallScore >= 85
-                    ? "This is an excellent deal! The price is competitive, the vehicle is in great condition, and your negotiation was successful. We recommend proceeding with this purchase."
-                    : overallScore >= 70
-                    ? "This is a good deal overall. The vehicle meets your criteria and the price is fair. Consider the noted considerations before finalizing."
-                    : "This deal has some concerns. Review the evaluation carefully and consider if the trade-offs are acceptable for your needs."}
-                </Typography>
-              </Alert>
-            </Grid>
-
-            {/* Action Buttons */}
-            <Grid item xs={12}>
+              {/* Action Buttons */}
               <Box
                 sx={{
                   display: "flex",
@@ -445,40 +474,68 @@ function EvaluationContent() {
                   Go Back
                 </Button>
                 <Box sx={{ display: "flex", gap: 2 }}>
-                  <Button
-                    variant="danger"
-                    size="lg"
-                    onClick={() => router.push("/dashboard/results")}
-                  >
-                    Reject Deal
-                  </Button>
-                  <Button
-                    variant="success"
-                    size="lg"
-                    disabled={loading}
-                    onClick={handleFinalize}
-                  >
-                    {loading ? "Finalizing..." : "Accept & Finalize Deal"}
-                  </Button>
+                  {evaluationState.status === 'completed' ? (
+                    <>
+                      <Button
+                        variant="danger"
+                        size="lg"
+                        onClick={() => router.push("/dashboard/results")}
+                      >
+                        Reject Deal
+                      </Button>
+                      <Button
+                        variant="success"
+                        size="lg"
+                        disabled={loading}
+                        onClick={handleFinalize}
+                      >
+                        {loading ? "Finalizing..." : "Accept & Finalize Deal"}
+                      </Button>
+                    </>
+                  ) : (
+                    evaluationState.status === 'analyzing' &&
+                    evaluationState.stepResult?.assessment && (
+                      <Button
+                        variant="primary"
+                        size="lg"
+                        disabled={loading}
+                        isLoading={loading}
+                        onClick={handleContinue}
+                      >
+                        Continue to Next Step
+                      </Button>
+                    )
+                  )}
                 </Box>
               </Box>
-            </Grid>
-          </Grid>
+            </Box>
+          )}
+
+          {/* Loading State */}
+          {!evaluationState && vehicleData && !error && (
+            <Box sx={{ textAlign: "center", py: 8 }}>
+              <Typography variant="h6" gutterBottom>
+                Starting Evaluation...
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Analyzing vehicle data and generating insights
+              </Typography>
+            </Box>
           )}
         </Container>
       </Box>
     </Box>
   );
 }
-
 export default function EvaluationPage() {
   return (
     <Suspense fallback={
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
-        <Typography>Loading...</Typography>
+        <Typography>Loading evaluation...</Typography>
       </Box>
     }>
       <EvaluationContent />
     </Suspense>
   );
 }
+
