@@ -12,6 +12,7 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import AttachMoneyIcon from "@mui/icons-material/AttachMoney";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import SpeedIcon from "@mui/icons-material/Speed";
+import FavoriteIcon from "@mui/icons-material/Favorite";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
@@ -158,6 +159,18 @@ export default function DashboardSearchPage() {
                   </Grid>
                 ))}
               </Grid>
+              
+              {/* Favorites Button */}
+              <Box sx={{ mt: 3 }}>
+                <Button
+                  variant="outline"
+                  fullWidth
+                  leftIcon={<FavoriteIcon />}
+                  onClick={() => router.push("/favorites")}
+                >
+                  My Favorites
+                </Button>
+              </Box>
             </Box>
           </Grid>
           {/* Search Form */}

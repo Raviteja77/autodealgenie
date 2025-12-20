@@ -20,7 +20,7 @@ import Link from "next/link";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Alert from "@mui/material/Alert";
-import { apiClient, VehicleRecommendation, CarSearchRequest } from "@/lib/api";
+import { apiClient, VehicleRecommendation, CarSearchRequest, FavoriteCreate } from "@/lib/api";
 import { useStepper } from "@/app/context";
 
 interface Vehicle {
@@ -163,7 +163,19 @@ function ResultsContent() {
       }
     };
 
+    const fetchFavorites = async () => {
+      try {
+        const favoritesData = await apiClient.getFavorites();
+        const favoriteVins = new Set(favoritesData.map(fav => fav.vin));
+        setFavorites(favoriteVins);
+      } catch (err: unknown) {
+        console.error("Error fetching favorites:", err);
+        // Non-critical error, don't show to user
+      }
+    };
+
     fetchVehicles();
+    fetchFavorites();
   }, [searchParams, currentQueryString, canNavigateToStep, router, completeStep, shouldUseCachedData, getStepData]);
 
   const handleVehicleSelection = (vehicle: Vehicle, targetPath: string) => {
@@ -187,14 +199,48 @@ function ResultsContent() {
     router.push(`${targetPath}?${vehicleParams.toString()}`);
   };
 
-  const toggleFavorite = (vin: string) => {
+  const toggleFavorite = async (vehicle: Vehicle) => {
+    if (!vehicle.vin) return;
+
+    const vin = vehicle.vin;
+    const isFavorited = favorites.has(vin);
+
+    // Optimistic UI update
     const newFavorites = new Set(favorites);
-    if (newFavorites.has(vin)) {
+    if (isFavorited) {
       newFavorites.delete(vin);
     } else {
       newFavorites.add(vin);
     }
     setFavorites(newFavorites);
+
+    try {
+      if (isFavorited) {
+        // Remove from favorites
+        await apiClient.removeFavorite(vin);
+      } else {
+        // Add to favorites
+        const favoriteData: FavoriteCreate = {
+          vin: vin,
+          make: vehicle.make,
+          model: vehicle.model,
+          year: vehicle.year,
+          price: vehicle.price,
+          mileage: vehicle.mileage,
+          fuel_type: vehicle.fuelType || null,
+          location: vehicle.location || null,
+          color: vehicle.color || null,
+          condition: vehicle.condition || null,
+          image: vehicle.image || null,
+        };
+        await apiClient.addFavorite(favoriteData);
+      }
+    } catch (err: unknown) {
+      console.error("Error toggling favorite:", err);
+      // Revert optimistic update on error
+      setFavorites(favorites);
+      // Optionally show an error message to the user
+    }
   };
 
   if (isLoading) {
@@ -250,6 +296,11 @@ function ResultsContent() {
             </Typography>
           </Box>
           <Box sx={{ display: "flex", gap: 2 }}>
+            <Link href="/favorites" style={{ textDecoration: "none" }}>
+              <Button variant="primary" leftIcon={<FavoriteIcon />}>
+                View Favorites
+              </Button>
+            </Link>
             <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
               <Button variant="outline">Refine Search</Button>
             </Link>
@@ -326,7 +377,7 @@ function ResultsContent() {
                         bgcolor: "background.paper",
                         "&:hover": { bgcolor: "background.paper" },
                       }}
-                      onClick={() => vehicle.vin && toggleFavorite(vehicle.vin)}
+                      onClick={() => toggleFavorite(vehicle)}
                     >
                       {vehicle.vin && favorites.has(vehicle.vin) ? (
                         <FavoriteIcon color="error" />
