@@ -119,6 +119,51 @@ export interface FavoriteCreate {
   image?: string | null;
 }
 
+export interface SavedSearch {
+  id: number;
+  user_id: number;
+  name: string;
+  make?: string | null;
+  model?: string | null;
+  budget_min?: number | null;
+  budget_max?: number | null;
+  car_type?: string | null;
+  year_min?: number | null;
+  year_max?: number | null;
+  mileage_max?: number | null;
+  fuel_type?: string | null;
+  transmission?: string | null;
+  condition?: string | null;
+  user_priorities?: string | null;
+  notification_enabled: boolean;
+  new_matches_count: number;
+  last_checked?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface SavedSearchCreate {
+  name: string;
+  make?: string;
+  model?: string;
+  budget_min?: number;
+  budget_max?: number;
+  car_type?: string;
+  year_min?: number;
+  year_max?: number;
+  mileage_max?: number;
+  fuel_type?: string;
+  transmission?: string;
+  condition?: string;
+  user_priorities?: string;
+  notification_enabled?: boolean;
+}
+
+export interface SavedSearchList {
+  searches: SavedSearch[];
+  total: number;
+}
+
 /**
  * API Client class for making requests to the backend
  */
@@ -254,6 +299,32 @@ class ApiClient {
    */
   async checkFavorite(vin: string): Promise<Favorite> {
     return this.request<Favorite>(`/api/v1/favorites/${vin}`);
+  }
+
+  /**
+   * Get all saved searches for the current user
+   */
+  async getSavedSearches(): Promise<SavedSearchList> {
+    return this.request<SavedSearchList>("/api/v1/saved-searches");
+  }
+
+  /**
+   * Create a new saved search
+   */
+  async createSavedSearch(search: SavedSearchCreate): Promise<SavedSearch> {
+    return this.request<SavedSearch>("/api/v1/saved-searches", {
+      method: "POST",
+      body: JSON.stringify(search),
+    });
+  }
+
+  /**
+   * Delete a saved search
+   */
+  async deleteSavedSearch(searchId: number): Promise<void> {
+    return this.request<void>(`/api/v1/saved-searches/${searchId}`, {
+      method: "DELETE",
+    });
   }
 }
 
