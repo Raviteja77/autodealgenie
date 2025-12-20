@@ -36,9 +36,7 @@ const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
   },
   [`&.${stepConnectorClasses.completed}`]: {
     [`& .${stepConnectorClasses.line}`]: {
-      "& .MuiStepConnector-line": {
-        backgroundImage: SUCCESS_GRADIENT,
-      },
+      backgroundImage: SUCCESS_GRADIENT,
     },
   },
   [`& .${stepConnectorClasses.line}`]: {
