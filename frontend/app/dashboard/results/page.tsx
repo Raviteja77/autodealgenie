@@ -286,7 +286,7 @@ function ResultsContent() {
       <Box sx={{ bgcolor: "background.default", flexGrow: 1 }}>
         <Container maxWidth="lg">
           {/* Header */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+          {/* <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
             <Box>
             <Typography variant="h3" gutterBottom fontWeight={700}>
               Search Results
@@ -305,7 +305,7 @@ function ResultsContent() {
               <Button variant="outline">Refine Search</Button>
             </Link>
           </Box>
-        </Box>
+        </Box> */}
 
         {/* AI Message */}
         {searchMessage && (
@@ -321,6 +321,8 @@ function ResultsContent() {
               <Typography variant="subtitle2" gutterBottom fontWeight={600}>
                 Active Filters:
               </Typography>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+
               <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
                 {Array.from(searchParams.entries()).map(([key, value]) => (
                   <Chip
@@ -331,6 +333,10 @@ function ResultsContent() {
                   />
                 ))}
               </Stack>
+              <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
+              <Button variant="outline">Refine Search</Button>
+            </Link>
+              </Box>
             </Card.Body>
           </Card>
         )}

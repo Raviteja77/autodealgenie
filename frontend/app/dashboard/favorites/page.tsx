@@ -19,6 +19,7 @@ import Divider from "@mui/material/Divider";
 import Link from "next/link";
 import { apiClient, Favorite } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import DashboardLayout from "../layout";
 
 export default function FavoritesPage() {
   const router = useRouter();
@@ -45,7 +46,9 @@ export default function FavoritesPage() {
       } catch (err: unknown) {
         console.error("Error fetching favorites:", err);
         const errorMessage =
-          err instanceof Error ? err.message : "Failed to load favorites. Please try again.";
+          err instanceof Error
+            ? err.message
+            : "Failed to load favorites. Please try again.";
         setError(errorMessage);
       } finally {
         setIsLoading(false);
@@ -57,46 +60,52 @@ export default function FavoritesPage() {
 
   const handleRemoveFavorite = async (vin: string) => {
     setRemoveError(null);
-    
+
     // Optimistic update
     const previousFavorites = favorites;
     setFavorites((prev) => prev.filter((fav) => fav.vin !== vin));
-    
+
     try {
       await apiClient.removeFavorite(vin);
     } catch (err: unknown) {
       console.error("Error removing favorite:", err);
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to remove favorite. Please try again.";
-      
+        err instanceof Error
+          ? err.message
+          : "Failed to remove favorite. Please try again.";
+
       // Revert optimistic update
       setFavorites(previousFavorites);
-      
-      // Show temporary error message without replacing entire page
+
+      // Show temporary error message
       setRemoveError(errorMessage);
-      setTimeout(() => setRemoveError(null), 5000); // Clear after 5 seconds
+      setTimeout(() => setRemoveError(null), 5000);
     }
   };
 
   if (isLoading) {
     return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          bgcolor: "background.default",
-        }}
-      >
-        <Spinner size="lg" text="Loading your favorites..." />
-      </Box>
+      <DashboardLayout>
+        <Box
+          sx={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "background.default",
+          }}
+        >
+          <Spinner size="lg" text="Loading your favorites..." />
+        </Box>
+      </DashboardLayout>
     );
   }
 
   if (error) {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <Box
+        sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
+      >
         <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
           <Container maxWidth="lg">
             <Alert severity="error" sx={{ mb: 3 }}>
@@ -137,7 +146,9 @@ export default function FavoritesPage() {
               <Typography variant="body1" color="text.secondary">
                 {favorites.length === 0
                   ? "You haven't added any favorites yet"
-                  : `You have ${favorites.length} saved ${favorites.length === 1 ? "vehicle" : "vehicles"}`}
+                  : `You have ${favorites.length} saved ${
+                      favorites.length === 1 ? "vehicle" : "vehicles"
+                    }`}
               </Typography>
             </Box>
             <Box sx={{ display: "flex", gap: 2 }}>
@@ -149,7 +160,11 @@ export default function FavoritesPage() {
 
           {/* Remove Error Alert */}
           {removeError && (
-            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setRemoveError(null)}>
+            <Alert
+              severity="error"
+              sx={{ mb: 3 }}
+              onClose={() => setRemoveError(null)}
+            >
               {removeError}
             </Alert>
           )}
@@ -162,10 +177,17 @@ export default function FavoritesPage() {
                   <Typography variant="h6" color="text.secondary" gutterBottom>
                     No favorites yet
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 3 }}
+                  >
                     Start browsing and save your favorite vehicles
                   </Typography>
-                  <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
+                  <Link
+                    href="/dashboard/search"
+                    style={{ textDecoration: "none" }}
+                  >
                     <Button variant="primary">Browse Cars</Button>
                   </Link>
                 </Box>
@@ -179,7 +201,11 @@ export default function FavoritesPage() {
                   <Card
                     hover
                     shadow="md"
-                    sx={{ height: "100%", display: "flex", flexDirection: "column" }}
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
                   >
                     {/* Vehicle Image */}
                     <Box
@@ -216,7 +242,12 @@ export default function FavoritesPage() {
                       </Typography>
 
                       {/* Price */}
-                      <Typography variant="h5" color="primary" gutterBottom fontWeight={700}>
+                      <Typography
+                        variant="h5"
+                        color="primary"
+                        gutterBottom
+                        fontWeight={700}
+                      >
                         ${favorite.price.toLocaleString()}
                       </Typography>
 
@@ -225,7 +256,13 @@ export default function FavoritesPage() {
                       {/* Details */}
                       <Grid container spacing={1}>
                         <Grid item xs={6}>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
                             <SpeedIcon fontSize="small" color="action" />
                             <Typography variant="body2" color="text.secondary">
                               {favorite.mileage.toLocaleString()} mi
@@ -233,24 +270,51 @@ export default function FavoritesPage() {
                           </Box>
                         </Grid>
                         <Grid item xs={6}>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                            <LocalGasStationIcon fontSize="small" color="action" />
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
+                            <LocalGasStationIcon
+                              fontSize="small"
+                              color="action"
+                            />
                             <Typography variant="body2" color="text.secondary">
                               {favorite.fuel_type || "N/A"}
                             </Typography>
                           </Box>
                         </Grid>
                         <Grid item xs={6}>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                            <CalendarTodayIcon fontSize="small" color="action" />
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
+                            <CalendarTodayIcon
+                              fontSize="small"
+                              color="action"
+                            />
                             <Typography variant="body2" color="text.secondary">
                               {favorite.year}
                             </Typography>
                           </Box>
                         </Grid>
                         <Grid item xs={6}>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                            <DirectionsCarIcon fontSize="small" color="action" />
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
+                            <DirectionsCarIcon
+                              fontSize="small"
+                              color="action"
+                            />
                             <Typography variant="body2" color="text.secondary">
                               {favorite.color || "N/A"}
                             </Typography>
@@ -260,7 +324,14 @@ export default function FavoritesPage() {
 
                       {/* Location */}
                       {favorite.location && (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 2 }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                            mt: 2,
+                          }}
+                        >
                           <LocationOnIcon fontSize="small" color="action" />
                           <Typography variant="body2" color="text.secondary">
                             {favorite.location}
