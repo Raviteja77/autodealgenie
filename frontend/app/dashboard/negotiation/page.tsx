@@ -36,6 +36,7 @@ import {
 } from "@mui/icons-material";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
@@ -76,6 +77,7 @@ function NegotiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { completeStep, canNavigateToStep } = useStepper();
+  const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // State management
@@ -173,8 +175,8 @@ function NegotiationContent() {
 
         // Create a deal for this vehicle first
         const dealData: DealCreate = {
-          customer_name: "Guest User", // This should come from auth context
-          customer_email: "guest@autodealgenie.com", // This should come from auth context
+          customer_name: user?.full_name || user?.username || "Guest User",
+          customer_email: user?.email || "guest@autodealgenie.com",
           vehicle_make: vehicleData.make,
           vehicle_model: vehicleData.model,
           vehicle_year: vehicleData.year,
@@ -227,7 +229,7 @@ function NegotiationContent() {
     };
 
     initializeNegotiation();
-  }, [vehicleData, state.sessionId]);
+  }, [vehicleData, state.sessionId, user]);
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
