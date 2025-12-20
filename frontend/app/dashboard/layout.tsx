@@ -7,16 +7,12 @@ import { useStepper } from "@/app/context";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  hideStepper?: boolean; // Optional override to force hide stepper
 }
 
-function DashboardLayout({ children, hideStepper = false }: DashboardLayoutProps) {
+function DashboardLayout({ children }: DashboardLayoutProps) {
   const { currentStep, steps, navigateToStep, shouldShowStepper } = useStepper();
   
-  // Determine if stepper should be shown:
-  // - Hidden if hideStepper prop is true (manual override)
-  // - Otherwise, use the context's shouldShowStepper logic based on current path
-  const showStepper = !hideStepper && shouldShowStepper();
+  const showStepper = shouldShowStepper();
 
   return (
     <>
