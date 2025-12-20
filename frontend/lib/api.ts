@@ -189,6 +189,20 @@ class ApiClient {
         return `/mock/negotiation/${parts[1]}`;
       }
     } else if (endpoint.includes("/api/v1/deals") && endpoint.includes("evaluation")) {
+      // Map evaluation endpoints to mock
+      const match = endpoint.match(/\/api\/v1\/deals\/(\d+)\/evaluation(?:\/(\d+))?(?:\/answers)?/);
+      if (match) {
+        const dealId = match[1];
+        const evaluationId = match[2];
+        
+        if (endpoint.includes("/answers")) {
+          return `/mock/evaluation/pipeline/${dealId}/evaluation/${evaluationId}/answers`;
+        } else if (evaluationId) {
+          return `/mock/evaluation/pipeline/${dealId}/evaluation/${evaluationId}`;
+        } else {
+          return `/mock/evaluation/pipeline/${dealId}/evaluation`;
+        }
+      }
       return endpoint.replace("/api/v1/deals", "/mock/evaluation/pipeline");
     }
 

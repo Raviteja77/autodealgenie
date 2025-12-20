@@ -595,77 +595,271 @@ async def mock_evaluate_deal(request_data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-@router.post("/pipeline/start")
-async def mock_start_evaluation_pipeline(request_data: dict[str, Any]) -> dict[str, Any]:
+# ============================================================================
+# Evaluation Pipeline Mock Endpoints
+# ============================================================================
+
+# Store evaluation state in memory
+MOCK_EVALUATIONS = {}
+EVALUATION_ID_COUNTER = 5000
+
+
+@router.post("/evaluation/pipeline/{deal_id}/evaluation")
+async def mock_start_evaluation(deal_id: int, request_data: dict[str, Any]) -> dict[str, Any]:
     """
     Mock endpoint for starting evaluation pipeline
+    Simulates POST /api/v1/deals/{deal_id}/evaluation
     """
-    deal_id = request_data.get("deal_id")
-
-    if not deal_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="deal_id is required"
-        )
-
-    return {
-        "evaluation_id": 5000 + deal_id,
-        "deal_id": deal_id,
-        "status": "analyzing",
-        "current_step": "vehicle_condition",
-        "step_result": {
+    global EVALUATION_ID_COUNTER
+    
+    answers = request_data.get("answers", {})
+    evaluation_id = EVALUATION_ID_COUNTER
+    EVALUATION_ID_COUNTER += 1
+    
+    # Check if VIN was provided
+    if answers and "vin" in answers:
+        # Start with condition assessment (no questions needed)
+        step_result = {
+            "assessment": {
+                "condition_score": 8.5,
+                "condition_notes": [
+                    "Vehicle appears well-maintained based on reported condition",
+                    "Mileage is reasonable for the year",
+                    "No major concerns identified in initial assessment",
+                ],
+                "recommended_inspection": True,
+            },
+            "completed": True,
+        }
+        status = "analyzing"
+        current_step = "vehicle_condition"
+        result_json = {
+            "user_inputs": answers,
+            "vehicle_condition": step_result,
+        }
+    else:
+        # Ask for VIN and condition
+        step_result = {
             "questions": [
-                {
-                    "id": "exterior_condition",
-                    "text": "How would you rate the exterior condition?",
-                    "type": "choice",
-                    "choices": ["Excellent", "Good", "Fair", "Poor"],
-                },
-                {
-                    "id": "interior_condition",
-                    "text": "How would you rate the interior condition?",
-                    "type": "choice",
-                    "choices": ["Excellent", "Good", "Fair", "Poor"],
-                },
+                "What is the Vehicle Identification Number (VIN)?",
+                "Please describe the vehicle's condition (e.g., excellent, good, fair, poor)",
             ],
-            "message": "Please answer these questions about the vehicle condition",
-        },
-        "result_json": None,
+            "required_fields": ["vin", "condition_description"],
+        }
+        status = "awaiting_input"
+        current_step = "vehicle_condition"
+        result_json = {"user_inputs": answers} if answers else None
+    
+    # Store evaluation state
+    MOCK_EVALUATIONS[evaluation_id] = {
+        "deal_id": deal_id,
+        "status": status,
+        "current_step": current_step,
+        "result_json": result_json,
+    }
+    
+    return {
+        "evaluation_id": evaluation_id,
+        "deal_id": deal_id,
+        "status": status,
+        "current_step": current_step,
+        "step_result": step_result,
+        "result_json": result_json,
     }
 
 
-@router.post("/pipeline/{evaluation_id}/submit")
+@router.post("/evaluation/pipeline/{deal_id}/evaluation/{evaluation_id}/answers")
 async def mock_submit_evaluation_answers(
-    evaluation_id: int, request_data: dict[str, Any]
+    deal_id: int, evaluation_id: int, request_data: dict[str, Any]
 ) -> dict[str, Any]:
     """
     Mock endpoint for submitting evaluation answers
+    Simulates POST /api/v1/deals/{deal_id}/evaluation/{evaluation_id}/answers
     """
     answers = request_data.get("answers", {})
-
-    # Simulate completion after receiving answers
+    
+    # Get current evaluation state or create new one
+    eval_state = MOCK_EVALUATIONS.get(evaluation_id, {
+        "deal_id": deal_id,
+        "status": "analyzing",
+        "current_step": "vehicle_condition",
+        "result_json": {"user_inputs": {}},
+    })
+    
+    # Update user inputs
+    if not eval_state.get("result_json"):
+        eval_state["result_json"] = {"user_inputs": {}}
+    eval_state["result_json"]["user_inputs"].update(answers)
+    
+    current_step = eval_state["current_step"]
+    result_json = eval_state["result_json"]
+    
+    # Process based on current step
+    if current_step == "vehicle_condition":
+        # Complete condition assessment
+        step_result = {
+            "assessment": {
+                "condition_score": 8.5,
+                "condition_notes": [
+                    "Vehicle condition assessment complete",
+                    "Overall condition appears good",
+                    "No major red flags identified",
+                ],
+                "recommended_inspection": True,
+            },
+            "completed": True,
+        }
+        result_json["vehicle_condition"] = step_result
+        next_step = "price"
+        
+    elif current_step == "price":
+        # Complete price analysis
+        step_result = {
+            "assessment": {
+                "fair_value": 27500,
+                "score": 8.8,
+                "insights": [
+                    "Price is competitive for current market conditions",
+                    "Vehicle is priced approximately 3% below fair market value",
+                    "Similar vehicles in the area are priced higher",
+                ],
+                "talking_points": [
+                    "Mention comparable vehicles are selling for $28,000-$29,500",
+                    "Highlight the good condition to justify the price",
+                    "Request maintenance records for additional negotiation leverage",
+                ],
+            },
+            "completed": True,
+        }
+        result_json["price"] = step_result
+        next_step = "financing"
+        
+    elif current_step == "financing":
+        # Check if financing info provided
+        if "financing_type" in answers:
+            step_result = {
+                "assessment": {
+                    "financing_type": answers["financing_type"],
+                    "loan_amount": 23500,
+                    "estimated_monthly_payment": 438,
+                    "estimated_total_cost": 31270,
+                    "total_interest": 2770,
+                },
+                "completed": True,
+            }
+            result_json["financing"] = step_result
+            next_step = "risk"
+        else:
+            # Ask financing questions
+            step_result = {
+                "questions": [
+                    "What type of financing are you considering? (cash, loan, lease)",
+                    "If financing, what is your estimated interest rate? (optional)",
+                    "What is your planned down payment amount? (optional)",
+                ],
+                "required_fields": ["financing_type"],
+            }
+            eval_state["status"] = "awaiting_input"
+            MOCK_EVALUATIONS[evaluation_id] = eval_state
+            
+            return {
+                "evaluation_id": evaluation_id,
+                "deal_id": deal_id,
+                "status": "awaiting_input",
+                "current_step": current_step,
+                "step_result": step_result,
+                "result_json": result_json,
+            }
+            
+    elif current_step == "risk":
+        # Complete risk assessment
+        step_result = {
+            "assessment": {
+                "risk_score": 4.5,
+                "risk_factors": [
+                    "Moderate mileage - monitor maintenance history",
+                    "Pre-purchase inspection strongly recommended",
+                ],
+                "recommendation": "Moderate risk - proceed with caution",
+            },
+            "completed": True,
+        }
+        result_json["risk"] = step_result
+        next_step = "final"
+        
+    elif current_step == "final":
+        # Generate final recommendation
+        step_result = {
+            "assessment": {
+                "overall_score": 8.2,
+                "recommendation": "Recommended - Good deal with minor considerations",
+                "summary": {
+                    "condition_score": 8.5,
+                    "price_score": 8.8,
+                    "risk_score": 4.5,
+                },
+                "next_steps": [
+                    "Schedule a pre-purchase inspection",
+                    "Use provided talking points for negotiation",
+                    "Review vehicle history report carefully",
+                ],
+            },
+            "completed": True,
+        }
+        result_json["final"] = step_result
+        next_step = None
+        eval_state["status"] = "completed"
+        
+    else:
+        next_step = None
+    
+    # Update evaluation state
+    if next_step:
+        eval_state["current_step"] = next_step
+        eval_state["status"] = "analyzing"
+    
+    eval_state["result_json"] = result_json
+    MOCK_EVALUATIONS[evaluation_id] = eval_state
+    
     return {
         "evaluation_id": evaluation_id,
-        "status": "completed",
-        "current_step": "final_recommendation",
-        "step_result": {
-            "message": "Evaluation complete! Here's your comprehensive analysis.",
-            "completed": True,
-        },
-        "result_json": {
-            "overall_score": 8.5,
-            "fair_value": 28500,
-            "recommendation": "This is a good deal based on current market conditions",
-            "condition_assessment": {
-                "exterior": answers.get("exterior_condition", "Good"),
-                "interior": answers.get("interior_condition", "Good"),
-            },
-            "final_insights": [
-                "Vehicle condition matches price expectations",
-                "Comparable vehicles sell in this price range",
-                "Consider requesting a warranty for added protection",
-            ],
-        },
+        "deal_id": deal_id,
+        "status": eval_state["status"],
+        "current_step": eval_state["current_step"],
+        "step_result": step_result,
+        "result_json": result_json,
     }
+
+
+@router.get("/evaluation/pipeline/{deal_id}/evaluation/{evaluation_id}")
+async def mock_get_evaluation(deal_id: int, evaluation_id: int) -> dict[str, Any]:
+    """
+    Mock endpoint for getting evaluation status
+    Simulates GET /api/v1/deals/{deal_id}/evaluation/{evaluation_id}
+    """
+    eval_state = MOCK_EVALUATIONS.get(evaluation_id)
+    
+    if not eval_state:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Evaluation {evaluation_id} not found",
+        )
+    
+    return {
+        "id": evaluation_id,
+        "user_id": 1,
+        "deal_id": deal_id,
+        "status": eval_state["status"],
+        "current_step": eval_state["current_step"],
+        "result_json": eval_state.get("result_json"),
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z",
+    }
+
+
+# ============================================================================
+# Legacy evaluation endpoints (deprecated)
+# ============================================================================
 
 
 # ============================================================================
