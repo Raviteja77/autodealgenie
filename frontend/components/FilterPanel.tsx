@@ -18,7 +18,7 @@ import Stack from '@mui/material/Stack';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import { Button } from '@/components';
-import { useFilters, FilterState } from '@/lib/hooks/useFilters';
+import { useFilters } from '@/lib/hooks/useFilters';
 
 interface FilterPanelProps {
   isOpen: boolean;

@@ -54,7 +54,7 @@ export function useFilters() {
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [isOpen, setIsOpen] = useState(false);
 
-  const updateFilter = useCallback((key: keyof FilterState, value: any) => {
+  const updateFilter = useCallback((key: keyof FilterState, value: string | number | string[] | undefined) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value,
@@ -94,7 +94,7 @@ export function useFilters() {
   }, [filters, router, searchParams]);
 
   const hasActiveFilters = useMemo(() => {
-    return Object.entries(filters).some(([key, value]) => {
+    return Object.entries(filters).some(([, value]) => {
       if (Array.isArray(value)) {
         return value.length > 0;
       }

@@ -24,7 +24,6 @@ import Link from "next/link";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Alert from "@mui/material/Alert";
-import Toolbar from "@mui/material/Toolbar";
 import {
   apiClient,
   VehicleRecommendation,
@@ -368,7 +367,7 @@ function ResultsContent() {
 
   // Sort and filter vehicles
   const sortedAndFilteredVehicles = useMemo(() => {
-    let filtered = [...vehicles];
+    const filtered = [...vehicles];
 
     // Apply sorting
     switch (sortBy) {

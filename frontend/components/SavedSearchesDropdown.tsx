@@ -13,7 +13,6 @@ import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Chip from '@mui/material/Chip';
-import { Button } from '@/components';
 import { SavedSearch } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
