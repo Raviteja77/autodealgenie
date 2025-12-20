@@ -27,6 +27,19 @@ export interface Deal {
   updated_at?: string | null;
 }
 
+export interface DealCreate {
+  customer_name: string;
+  customer_email: string;
+  vehicle_make: string;
+  vehicle_model: string;
+  vehicle_year: number;
+  vehicle_mileage: number;
+  asking_price: number;
+  offer_price?: number | null;
+  status?: "pending" | "in_progress" | "completed" | "cancelled";
+  notes?: string | null;
+}
+
 export interface CarSearchRequest {
   make?: string;
   model?: string;
@@ -264,6 +277,16 @@ class ApiClient {
    */
   async getDeals(): Promise<Deal[]> {
     return this.request<Deal[]>("/api/v1/deals");
+  }
+
+  /**
+   * Create a new deal
+   */
+  async createDeal(deal: DealCreate): Promise<Deal> {
+    return this.request<Deal>("/api/v1/deals", {
+      method: "POST",
+      body: JSON.stringify(deal),
+    });
   }
 
   /**

@@ -43,6 +43,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import {
   apiClient,
   type NegotiationMessage,
+  type DealCreate,
 } from "@/lib/api";
 
 interface VehicleInfo {
@@ -170,13 +171,24 @@ function NegotiationContent() {
       try {
         setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-        // First, create a deal for this vehicle
-        // For now, we'll use a mock deal ID. In production, this would come from the backend
-        const mockDealId = 1; // This should be created from vehicle selection
+        // Create a deal for this vehicle first
+        const dealData: DealCreate = {
+          customer_name: "Guest User", // This should come from auth context
+          customer_email: "guest@autodealgenie.com", // This should come from auth context
+          vehicle_make: vehicleData.make,
+          vehicle_model: vehicleData.model,
+          vehicle_year: vehicleData.year,
+          vehicle_mileage: vehicleData.mileage,
+          asking_price: vehicleData.price,
+          status: "in_progress",
+          notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
+        };
+
+        const deal = await apiClient.createDeal(dealData);
         const targetPrice = vehicleData.price * 0.9; // 10% below asking price
 
         const response = await apiClient.createNegotiation({
-          deal_id: mockDealId,
+          deal_id: deal.id,
           user_target_price: targetPrice,
           strategy: "moderate",
         });
@@ -194,7 +206,7 @@ function NegotiationContent() {
           currentRound: session.current_round,
           maxRounds: session.max_rounds,
           messages: session.messages,
-          suggestedPrice: response.metadata.suggested_price || null,
+          suggestedPrice: response.metadata.suggested_price as number || null,
           confidence: 0.85, // Default confidence
           isLoading: false,
         }));
@@ -344,7 +356,7 @@ function NegotiationContent() {
         ...prev,
         currentRound: session.current_round,
         messages: session.messages,
-        suggestedPrice: response.metadata.suggested_price || prev.suggestedPrice,
+        suggestedPrice: (response.metadata.suggested_price as number) || prev.suggestedPrice,
         isLoading: false,
         isTyping: false,
       }));
