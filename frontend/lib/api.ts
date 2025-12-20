@@ -119,6 +119,43 @@ export interface FavoriteCreate {
   image?: string | null;
 }
 
+// Evaluation types
+export type EvaluationStatus = "analyzing" | "awaiting_input" | "completed";
+export type PipelineStep = "vehicle_condition" | "price" | "financing" | "risk" | "final";
+
+export interface EvaluationResponse {
+  id: number;
+  user_id: number;
+  deal_id: number;
+  status: EvaluationStatus;
+  current_step: PipelineStep;
+  result_json: Record<string, any> | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface EvaluationStepResult {
+  evaluation_id: number;
+  deal_id: number;
+  status: EvaluationStatus;
+  current_step: PipelineStep;
+  step_result: {
+    questions?: string[];
+    required_fields?: string[];
+    assessment?: Record<string, any>;
+    completed?: boolean;
+  };
+  result_json: Record<string, any> | null;
+}
+
+export interface EvaluationInitiateRequest {
+  answers?: Record<string, string | number> | null;
+}
+
+export interface EvaluationAnswerRequest {
+  answers: Record<string, string | number>;
+}
+
 /**
  * API Client class for making requests to the backend
  */
@@ -254,6 +291,51 @@ class ApiClient {
    */
   async checkFavorite(vin: string): Promise<Favorite> {
     return this.request<Favorite>(`/api/v1/favorites/${vin}`);
+  }
+
+  /**
+   * Start or continue a deal evaluation
+   */
+  async startEvaluation(
+    dealId: number,
+    request: EvaluationInitiateRequest
+  ): Promise<EvaluationStepResult> {
+    return this.request<EvaluationStepResult>(
+      `/api/v1/deals/${dealId}/evaluation`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      }
+    );
+  }
+
+  /**
+   * Get evaluation status
+   */
+  async getEvaluation(
+    dealId: number,
+    evaluationId: number
+  ): Promise<EvaluationResponse> {
+    return this.request<EvaluationResponse>(
+      `/api/v1/deals/${dealId}/evaluation/${evaluationId}`
+    );
+  }
+
+  /**
+   * Submit answers to evaluation questions
+   */
+  async submitEvaluationAnswers(
+    dealId: number,
+    evaluationId: number,
+    request: EvaluationAnswerRequest
+  ): Promise<EvaluationStepResult> {
+    return this.request<EvaluationStepResult>(
+      `/api/v1/deals/${dealId}/evaluation/${evaluationId}/answers`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      }
+    );
   }
 }
 
