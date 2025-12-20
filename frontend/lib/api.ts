@@ -27,6 +27,19 @@ export interface Deal {
   updated_at?: string | null;
 }
 
+export interface DealCreate {
+  customer_name: string;
+  customer_email: string;
+  vehicle_make: string;
+  vehicle_model: string;
+  vehicle_year: number;
+  vehicle_mileage: number;
+  asking_price: number;
+  offer_price?: number | null;
+  status?: "pending" | "in_progress" | "completed" | "cancelled";
+  notes?: string | null;
+}
+
 export interface CarSearchRequest {
   make?: string;
   model?: string;
@@ -154,6 +167,100 @@ export interface EvaluationInitiateRequest {
 
 export interface EvaluationAnswerRequest {
   answers: Record<string, string | number>;
+export type NegotiationStatus = "active" | "completed" | "cancelled";
+export type MessageRole = "user" | "agent" | "dealer_sim";
+export type UserAction = "confirm" | "reject" | "counter";
+
+export interface NegotiationMessage {
+  id: number;
+  session_id: number;
+  role: MessageRole;
+  content: string;
+  round_number: number;
+  metadata?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface NegotiationSession {
+  id: number;
+  user_id: number;
+  deal_id: number;
+  status: NegotiationStatus;
+  current_round: number;
+  max_rounds: number;
+  created_at: string;
+  updated_at?: string | null;
+  messages: NegotiationMessage[];
+}
+
+export interface CreateNegotiationRequest {
+  deal_id: number;
+  user_target_price: number;
+  strategy?: string | null;
+}
+
+export interface CreateNegotiationResponse {
+  session_id: number;
+  status: NegotiationStatus;
+  current_round: number;
+  agent_message: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface NextRoundRequest {
+  user_action: UserAction;
+  counter_offer?: number | null;
+}
+
+export interface NextRoundResponse {
+  session_id: number;
+  status: NegotiationStatus;
+  current_round: number;
+  agent_message: string;
+  metadata: Record<string, unknown>;
+export interface SavedSearch {
+  id: number;
+  user_id: number;
+  name: string;
+  make?: string | null;
+  model?: string | null;
+  budget_min?: number | null;
+  budget_max?: number | null;
+  car_type?: string | null;
+  year_min?: number | null;
+  year_max?: number | null;
+  mileage_max?: number | null;
+  fuel_type?: string | null;
+  transmission?: string | null;
+  condition?: string | null;
+  user_priorities?: string | null;
+  notification_enabled: boolean;
+  new_matches_count: number;
+  last_checked?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface SavedSearchCreate {
+  name: string;
+  make?: string;
+  model?: string;
+  budget_min?: number;
+  budget_max?: number;
+  car_type?: string;
+  year_min?: number;
+  year_max?: number;
+  mileage_max?: number;
+  fuel_type?: string;
+  transmission?: string;
+  condition?: string;
+  user_priorities?: string;
+  notification_enabled?: boolean;
+}
+
+export interface SavedSearchList {
+  searches: SavedSearch[];
+  total: number;
 }
 
 /**
@@ -265,6 +372,16 @@ class ApiClient {
   }
 
   /**
+   * Create a new deal
+   */
+  async createDeal(deal: DealCreate): Promise<Deal> {
+    return this.request<Deal>("/api/v1/deals", {
+      method: "POST",
+      body: JSON.stringify(deal),
+    });
+  }
+
+  /**
    * Search for cars with AI recommendations
    */
   async searchCars(params: CarSearchRequest): Promise<CarSearchResponse> {
@@ -322,6 +439,33 @@ class ApiClient {
       }
     );
   }
+  
+   * Create a new negotiation session
+   */
+  async createNegotiation(
+    request: CreateNegotiationRequest
+  ): Promise<CreateNegotiationResponse> {
+    return this.request<CreateNegotiationResponse>("/api/v1/negotiations/", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * Process the next round of negotiation
+   */
+  async processNextRound(
+    sessionId: number,
+    request: NextRoundRequest
+  ): Promise<NextRoundResponse> {
+    return this.request<NextRoundResponse>(
+      `/api/v1/negotiations/${sessionId}/next`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      }
+    );
+  }
 
   /**
    * Get evaluation status
@@ -333,6 +477,7 @@ class ApiClient {
     return this.request<EvaluationResponse>(
       `/api/v1/deals/${dealId}/evaluation/${evaluationId}`
     );
+  }
   }
 
   /**
@@ -350,6 +495,38 @@ class ApiClient {
         body: JSON.stringify(request),
       }
     );
+}
+   * Get a negotiation session with full message history
+   */
+  async getNegotiationSession(sessionId: number): Promise<NegotiationSession> {
+    return this.request<NegotiationSession>(
+      `/api/v1/negotiations/${sessionId}`
+    );
+    }
+    
+   * Get all saved searches for the current user
+   */
+  async getSavedSearches(): Promise<SavedSearchList> {
+    return this.request<SavedSearchList>("/api/v1/saved-searches");
+  }
+
+  /**
+   * Create a new saved search
+   */
+  async createSavedSearch(search: SavedSearchCreate): Promise<SavedSearch> {
+    return this.request<SavedSearch>("/api/v1/saved-searches", {
+      method: "POST",
+      body: JSON.stringify(search),
+    });
+  }
+
+  /**
+   * Delete a saved search
+   */
+  async deleteSavedSearch(searchId: number): Promise<void> {
+    return this.request<void>(`/api/v1/saved-searches/${searchId}`, {
+      method: "DELETE",
+    });
   }
 }
 

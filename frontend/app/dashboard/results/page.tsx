@@ -8,6 +8,8 @@ import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
 import { Button, Card, Spinner } from "@/components";
 import Chip from "@mui/material/Chip";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import LocalGasStationIcon from "@mui/icons-material/LocalGasStation";
 import SpeedIcon from "@mui/icons-material/Speed";
@@ -15,6 +17,8 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
 import IconButton from "@mui/material/IconButton";
 import Link from "next/link";
 import Divider from "@mui/material/Divider";
@@ -25,8 +29,19 @@ import {
   VehicleRecommendation,
   CarSearchRequest,
   FavoriteCreate,
+  SavedSearchCreate,
 } from "@/lib/api";
 import { useStepper } from "@/app/context";
+import { FilterPanel } from "@/components/FilterPanel";
+import { SortDropdown, SortOption } from "@/components/SortDropdown";
+import { ViewModeToggle } from "@/components/ViewModeToggle";
+import { ComparisonBar } from "@/components/ComparisonBar";
+import { ComparisonModal } from "@/components/ComparisonModal";
+import { SaveSearchModal } from "@/components/SaveSearchModal";
+import { SavedSearchesDropdown } from "@/components/SavedSearchesDropdown";
+import { useComparison, ComparisonVehicle } from "@/lib/hooks/useComparison";
+import { useViewMode } from "@/lib/hooks/useViewMode";
+import { useSavedSearches } from "@/lib/hooks/useSavedSearches";
 
 interface Vehicle {
   vin?: string;
@@ -62,6 +77,16 @@ function ResultsContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
+
+  // New state for enhanced features
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('score_high');
+  const [isSaveSearchModalOpen, setIsSaveSearchModalOpen] = useState(false);
+  
+  // Custom hooks
+  const comparison = useComparison();
+  const { viewMode, setViewMode } = useViewMode('grid');
+  const savedSearches = useSavedSearches();
 
   // Memoize query string for caching
   const currentQueryString = useMemo(
@@ -283,6 +308,94 @@ function ResultsContent() {
     }
   };
 
+  // Handler for toggling vehicle comparison
+  const handleToggleComparison = (vehicle: Vehicle) => {
+    if (!vehicle.vin) return;
+
+    const comparisonVehicle: ComparisonVehicle = {
+      vin: vehicle.vin,
+      make: vehicle.make,
+      model: vehicle.model,
+      year: vehicle.year,
+      price: vehicle.price,
+      mileage: vehicle.mileage,
+      fuelType: vehicle.fuelType,
+      condition: vehicle.condition,
+      image: vehicle.image,
+      highlights: vehicle.highlights,
+      recommendation_score: vehicle.recommendation_score,
+    };
+
+    comparison.toggleVehicle(comparisonVehicle);
+  };
+
+  // Handler for saving search
+  const handleSaveSearch = async (search: SavedSearchCreate) => {
+    try {
+      await savedSearches.createSearch(search);
+    } catch (err: unknown) {
+      console.error("Error saving search:", err);
+      throw err;
+    }
+  };
+
+  // Handler for deleting saved search
+  const handleDeleteSavedSearch = async (searchId: number) => {
+    try {
+      await savedSearches.deleteSearch(searchId);
+    } catch (err: unknown) {
+      console.error("Error deleting saved search:", err);
+    }
+  };
+
+  // Get current search criteria for save modal
+  const getCurrentSearchCriteria = (): Partial<SavedSearchCreate> => {
+    return {
+      make: searchParams.get('make') || undefined,
+      model: searchParams.get('model') || undefined,
+      budget_min: searchParams.get('budgetMin') ? Number(searchParams.get('budgetMin')) : undefined,
+      budget_max: searchParams.get('budgetMax') ? Number(searchParams.get('budgetMax')) : undefined,
+      car_type: searchParams.get('carType') || undefined,
+      year_min: searchParams.get('yearMin') ? Number(searchParams.get('yearMin')) : undefined,
+      year_max: searchParams.get('yearMax') ? Number(searchParams.get('yearMax')) : undefined,
+      mileage_max: searchParams.get('mileageMax') ? Number(searchParams.get('mileageMax')) : undefined,
+      fuel_type: searchParams.get('fuelType') || undefined,
+      transmission: searchParams.get('transmission') || undefined,
+      user_priorities: searchParams.get('userPriorities') || undefined,
+    };
+  };
+
+  // Sort and filter vehicles
+  const sortedAndFilteredVehicles = useMemo(() => {
+    const filtered = [...vehicles];
+
+    // Apply sorting
+    switch (sortBy) {
+      case 'price_low':
+        filtered.sort((a, b) => a.price - b.price);
+        break;
+      case 'price_high':
+        filtered.sort((a, b) => b.price - a.price);
+        break;
+      case 'mileage_low':
+        filtered.sort((a, b) => a.mileage - b.mileage);
+        break;
+      case 'year_new':
+        filtered.sort((a, b) => b.year - a.year);
+        break;
+      case 'score_high':
+        filtered.sort((a, b) => 
+          (b.recommendation_score || 0) - (a.recommendation_score || 0)
+        );
+        break;
+      case 'recently_added':
+        // Keep original order (assuming it's by recent)
+        break;
+    }
+
+    return filtered;
+  }, [vehicles, sortBy]);
+
   if (isLoading) {
     return (
       <Box
@@ -356,6 +469,53 @@ function ResultsContent() {
             </Alert>
           )}
 
+          {/* Toolbar with controls */}
+          <Card shadow="sm" sx={{ mb: 3 }}>
+            <Card.Body>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 2,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<FilterListIcon />}
+                    onClick={() => setIsFilterPanelOpen(true)}
+                  >
+                    Filters
+                  </Button>
+                  <SortDropdown value={sortBy} onChange={setSortBy} />
+                  <Typography variant="body2" color="text.secondary">
+                    {sortedAndFilteredVehicles.length} vehicles
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <SavedSearchesDropdown
+                    searches={savedSearches.searches}
+                    totalNewMatches={savedSearches.totalNewMatches}
+                    onDelete={handleDeleteSavedSearch}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<BookmarkAddIcon />}
+                    onClick={() => setIsSaveSearchModalOpen(true)}
+                  >
+                    Save Search
+                  </Button>
+                  <ViewModeToggle value={viewMode} onChange={setViewMode} />
+                </Box>
+              </Box>
+            </Card.Body>
+          </Card>
+
           {/* Applied Filters */}
           {searchParams.toString() && (
             <Card shadow="sm" sx={{ mb: 3 }}>
@@ -397,7 +557,7 @@ function ResultsContent() {
           )}
 
           {/* Results Grid */}
-          {vehicles.length === 0 ? (
+          {sortedAndFilteredVehicles.length === 0 ? (
             <Card padding="lg">
               <Card.Body>
                 <Box sx={{ textAlign: "center", py: 4 }}>
@@ -421,13 +581,13 @@ function ResultsContent() {
               </Card.Body>
             </Card>
           ) : (
-            <Grid container spacing={3}>
-              {vehicles.map((vehicle) => (
+            <Grid container spacing={viewMode === 'list' ? 2 : 3}>
+              {sortedAndFilteredVehicles.map((vehicle) => (
                 <Grid
                   item
                   xs={12}
-                  md={6}
-                  lg={4}
+                  md={viewMode === 'list' ? 12 : viewMode === 'compact' ? 6 : 6}
+                  lg={viewMode === 'list' ? 12 : viewMode === 'compact' ? 6 : 4}
                   key={
                     vehicle.vin ||
                     `${vehicle.make}-${vehicle.model}-${vehicle.year}`
@@ -439,21 +599,49 @@ function ResultsContent() {
                     sx={{
                       height: "100%",
                       display: "flex",
-                      flexDirection: "column",
+                      flexDirection: viewMode === 'list' ? 'row' : 'column',
                     }}
                   >
                     {/* Vehicle Image */}
                     <Box
                       sx={{
                         position: "relative",
-                        width: "100%",
-                        height: 200,
+                        width: viewMode === 'list' ? 300 : '100%',
+                        height: viewMode === 'list' ? 'auto' : viewMode === 'compact' ? 150 : 200,
                         bgcolor: "grey.200",
                         backgroundImage: `url(${vehicle.image})`,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
+                        flexShrink: 0,
                       }}
                     >
+                      {/* Comparison Checkbox */}
+                      {vehicle.vin && (
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            top: 8,
+                            left: 8,
+                            bgcolor: "background.paper",
+                            borderRadius: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <FormControlLabel
+                            control={
+                              <Checkbox
+                                checked={comparison.isSelected(vehicle.vin)}
+                                onChange={() => handleToggleComparison(vehicle)}
+                                disabled={!comparison.canAddMore && !comparison.isSelected(vehicle.vin)}
+                                size="small"
+                              />
+                            }
+                            label=""
+                            sx={{ m: 0, p: 0.5 }}
+                          />
+                        </Box>
+                      )}
                       <IconButton
                         sx={{
                           position: "absolute",
@@ -676,6 +864,38 @@ function ResultsContent() {
           )}
         </Container>
       </Box>
+
+      {/* Filter Panel */}
+      <FilterPanel
+        isOpen={isFilterPanelOpen}
+        onClose={() => setIsFilterPanelOpen(false)}
+        vehicleCount={sortedAndFilteredVehicles.length}
+      />
+
+      {/* Comparison Bar */}
+      <ComparisonBar
+        selectedVehicles={comparison.selectedVehicles}
+        onRemove={comparison.removeVehicle}
+        onCompare={comparison.openModal}
+        onClear={comparison.clearAll}
+        maxCount={comparison.maxCount}
+        canCompare={comparison.canCompare}
+      />
+
+      {/* Comparison Modal */}
+      <ComparisonModal
+        isOpen={comparison.isModalOpen}
+        onClose={comparison.closeModal}
+        vehicles={comparison.selectedVehicles}
+      />
+
+      {/* Save Search Modal */}
+      <SaveSearchModal
+        isOpen={isSaveSearchModalOpen}
+        onClose={() => setIsSaveSearchModalOpen(false)}
+        onSave={handleSaveSearch}
+        currentSearchCriteria={getCurrentSearchCriteria()}
+      />
     </Box>
   );
 }

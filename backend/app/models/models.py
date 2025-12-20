@@ -124,3 +124,37 @@ class Favorite(Base):
 
     def __repr__(self):
         return f"<Favorite {self.id}: {self.user_id} - {self.year} {self.make} {self.model}>"
+
+
+class SavedSearch(Base):
+    """Saved search model for storing user search criteria"""
+
+    __tablename__ = "saved_searches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    
+    # Search criteria
+    make = Column(String(100), nullable=True)
+    model = Column(String(100), nullable=True)
+    budget_min = Column(Float, nullable=True)
+    budget_max = Column(Float, nullable=True)
+    car_type = Column(String(50), nullable=True)
+    year_min = Column(Integer, nullable=True)
+    year_max = Column(Integer, nullable=True)
+    mileage_max = Column(Integer, nullable=True)
+    fuel_type = Column(String(50), nullable=True)
+    transmission = Column(String(50), nullable=True)
+    condition = Column(String(50), nullable=True)
+    user_priorities = Column(Text, nullable=True)
+    
+    # Metadata
+    notification_enabled = Column(Integer, default=1)
+    last_checked = Column(DateTime(timezone=True), nullable=True)
+    new_matches_count = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+    def __repr__(self):
+        return f"<SavedSearch {self.id}: {self.user_id} - {self.name}>"
