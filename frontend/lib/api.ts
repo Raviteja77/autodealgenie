@@ -119,6 +119,59 @@ export interface FavoriteCreate {
   image?: string | null;
 }
 
+export type NegotiationStatus = "active" | "completed" | "cancelled";
+export type MessageRole = "user" | "agent" | "dealer_sim";
+export type UserAction = "confirm" | "reject" | "counter";
+
+export interface NegotiationMessage {
+  id: number;
+  session_id: number;
+  role: MessageRole;
+  content: string;
+  round_number: number;
+  metadata?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface NegotiationSession {
+  id: number;
+  user_id: number;
+  deal_id: number;
+  status: NegotiationStatus;
+  current_round: number;
+  max_rounds: number;
+  created_at: string;
+  updated_at?: string | null;
+  messages: NegotiationMessage[];
+}
+
+export interface CreateNegotiationRequest {
+  deal_id: number;
+  user_target_price: number;
+  strategy?: string | null;
+}
+
+export interface CreateNegotiationResponse {
+  session_id: number;
+  status: NegotiationStatus;
+  current_round: number;
+  agent_message: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface NextRoundRequest {
+  user_action: UserAction;
+  counter_offer?: number | null;
+}
+
+export interface NextRoundResponse {
+  session_id: number;
+  status: NegotiationStatus;
+  current_round: number;
+  agent_message: string;
+  metadata: Record<string, unknown>;
+}
+
 /**
  * API Client class for making requests to the backend
  */
@@ -254,6 +307,43 @@ class ApiClient {
    */
   async checkFavorite(vin: string): Promise<Favorite> {
     return this.request<Favorite>(`/api/v1/favorites/${vin}`);
+  }
+
+  /**
+   * Create a new negotiation session
+   */
+  async createNegotiation(
+    request: CreateNegotiationRequest
+  ): Promise<CreateNegotiationResponse> {
+    return this.request<CreateNegotiationResponse>("/api/v1/negotiations/", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * Process the next round of negotiation
+   */
+  async processNextRound(
+    sessionId: number,
+    request: NextRoundRequest
+  ): Promise<NextRoundResponse> {
+    return this.request<NextRoundResponse>(
+      `/api/v1/negotiations/${sessionId}/next`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      }
+    );
+  }
+
+  /**
+   * Get a negotiation session with full message history
+   */
+  async getNegotiationSession(sessionId: number): Promise<NegotiationSession> {
+    return this.request<NegotiationSession>(
+      `/api/v1/negotiations/${sessionId}`
+    );
   }
 }
 

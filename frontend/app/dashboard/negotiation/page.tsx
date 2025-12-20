@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Box,
@@ -9,16 +8,18 @@ import {
   Paper,
   Typography,
   TextField,
-  Button,
   Avatar,
-  Card,
-  CardContent,
   Grid,
   Divider,
   Alert,
+  LinearProgress,
+  Chip,
+  Stack,
+  AlertTitle,
+  Collapse,
+  IconButton,
 } from "@mui/material";
 import {
-  Send,
   SmartToy,
   Person,
   AttachMoney,
@@ -26,16 +27,23 @@ import {
   Speed,
   LocalGasStation,
   Warning,
+  CheckCircle,
+  Cancel,
+  TrendingUp,
+  TrendingDown,
+  ExpandMore,
+  ExpandLess,
 } from "@mui/icons-material";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
-
-interface Message {
-  id: number;
-  text: string;
-  sender: "user" | "ai";
-  timestamp: Date;
-}
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Modal } from "@/components/ui/Modal";
+import { Spinner } from "@/components/ui/Spinner";
+import {
+  apiClient,
+  type NegotiationMessage,
+} from "@/lib/api";
 
 interface VehicleInfo {
   vin?: string;
@@ -47,24 +55,57 @@ interface VehicleInfo {
   fuelType: string;
 }
 
+interface NegotiationState {
+  sessionId: number | null;
+  status: "idle" | "active" | "completed" | "cancelled";
+  dealId: number | null;
+  vehicleData: VehicleInfo | null;
+  targetPrice: number | null;
+  currentRound: number;
+  maxRounds: number;
+  messages: NegotiationMessage[];
+  suggestedPrice: number | null;
+  confidence: number | null;
+  isLoading: boolean;
+  error: string | null;
+  isTyping: boolean;
+}
+
 function NegotiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeStep, canNavigateToStep, isStepCompleted } = useStepper();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      text: "Hello! I'm your AI negotiation assistant. I'll help you get the best deal on this vehicle. What would you like to discuss?",
-      sender: "ai",
-      timestamp: new Date(),
-    },
-  ]);
-  const [inputMessage, setInputMessage] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { completeStep, canNavigateToStep } = useStepper();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // State management
+  const [state, setState] = useState<NegotiationState>({
+    sessionId: null,
+    status: "idle",
+    dealId: null,
+    vehicleData: null,
+    targetPrice: null,
+    currentRound: 1,
+    maxRounds: 10,
+    messages: [],
+    suggestedPrice: null,
+    confidence: null,
+    isLoading: false,
+    error: null,
+    isTyping: false,
+  });
 
-  // Extract and validate vehicle data from URL params
+  // UI state
+  const [showCounterOfferModal, setShowCounterOfferModal] = useState(false);
+  const [counterOfferValue, setCounterOfferValue] = useState("");
+  const [showAcceptDialog, setShowAcceptDialog] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set([1]));
+  const [notification, setNotification] = useState<{
+    type: "success" | "warning" | "info" | "error";
+    message: string;
+  } | null>(null);
+
+  // Extract vehicle data from URL params
   const vehicleData: VehicleInfo | null = useMemo(() => {
     try {
       const vin = searchParams.get("vin") || undefined;
@@ -75,7 +116,6 @@ function NegotiationContent() {
       const mileageStr = searchParams.get("mileage");
       const fuelType = searchParams.get("fuelType");
 
-      // Validate required fields
       if (!make || !model || !yearStr || !priceStr || !mileageStr) {
         return null;
       }
@@ -84,7 +124,6 @@ function NegotiationContent() {
       const price = parseFloat(priceStr);
       const mileage = parseInt(mileageStr);
 
-      // Validate parsed values
       if (isNaN(year) || isNaN(price) || isNaN(mileage)) {
         return null;
       }
@@ -104,345 +143,882 @@ function NegotiationContent() {
     }
   }, [searchParams]);
 
-  // Check if user can access this step and mark it as active
+  // Check if user can access this step
   useEffect(() => {
     if (!canNavigateToStep(2)) {
       router.push("/dashboard/search");
     }
   }, [canNavigateToStep, router]);
 
+  // Mark step as in-progress
   useEffect(() => {
-    // Mark the negotiation step as in-progress when landing on the page
-    // This will update the stepper to show we're on this step
-    completeStep(2, {
-      status: 'in-progress',
-      vehicleData: vehicleData,
-      timestamp: new Date().toISOString(),
-    });
+    if (vehicleData) {
+      completeStep(2, {
+        status: "in-progress",
+        vehicleData: vehicleData,
+        timestamp: new Date().toISOString(),
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [completeStep, vehicleData]);
 
-  // Set error if vehicle data is invalid
+  // Initialize negotiation session
   useEffect(() => {
-    if (!vehicleData) {
-      setError("Invalid vehicle data. Please select a vehicle from the search results.");
-    }
-  }, [vehicleData]);
+    const initializeNegotiation = async () => {
+      if (!vehicleData || state.sessionId !== null) return;
 
-  const scrollToBottom = () => {
+      try {
+        setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+        // First, create a deal for this vehicle
+        // For now, we'll use a mock deal ID. In production, this would come from the backend
+        const mockDealId = 1; // This should be created from vehicle selection
+        const targetPrice = vehicleData.price * 0.9; // 10% below asking price
+
+        const response = await apiClient.createNegotiation({
+          deal_id: mockDealId,
+          user_target_price: targetPrice,
+          strategy: "moderate",
+        });
+
+        // Fetch full session details
+        const session = await apiClient.getNegotiationSession(response.session_id);
+
+        setState((prev) => ({
+          ...prev,
+          sessionId: session.id,
+          status: "active",
+          dealId: session.deal_id,
+          vehicleData,
+          targetPrice,
+          currentRound: session.current_round,
+          maxRounds: session.max_rounds,
+          messages: session.messages,
+          suggestedPrice: response.metadata.suggested_price || null,
+          confidence: 0.85, // Default confidence
+          isLoading: false,
+        }));
+
+        setNotification({
+          type: "success",
+          message: "Negotiation session started! Let's get you the best deal.",
+        });
+      } catch (err) {
+        console.error("Failed to initialize negotiation:", err);
+        const errorMessage = err instanceof Error ? err.message : "Failed to initialize negotiation session";
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: errorMessage,
+        }));
+      }
+    };
+
+    initializeNegotiation();
+  }, [vehicleData, state.sessionId]);
+
+  // Auto-scroll to bottom
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [state.messages, scrollToBottom]);
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
-
-    const userMessage: Message = {
-      id: messages.length + 1,
-      text: inputMessage,
-      sender: "user",
-      timestamp: new Date(),
-    };
-
-    setMessages([...messages, userMessage]);
-    setInputMessage("");
-    setIsTyping(true);
-
-    // Simulate AI response (in production, call your AI service)
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: messages.length + 2,
-        text: getAIResponse(inputMessage),
-        sender: "ai",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiResponse]);
-      setIsTyping(false);
-    }, 1500);
-  };
-
-  const getAIResponse = (userInput: string): string => {
-    if (!vehicleData) return "Sorry, I don't have vehicle information to work with.";
-    
-    const input = userInput.toLowerCase();
-    if (input.includes("price") || input.includes("cost")) {
-      return `Based on market analysis, the fair market value for this ${vehicleData.year} ${vehicleData.make} ${vehicleData.model} is around $${vehicleData.price - 2000}. I recommend making an initial offer of $${vehicleData.price - 3000} to leave room for negotiation.`;
-    } else if (input.includes("mileage")) {
-      return `The vehicle has ${vehicleData.mileage.toLocaleString()} miles, which is ${vehicleData.mileage < 30000 ? "excellent" : "acceptable"} for a ${vehicleData.year} model. This is a positive factor in negotiation.`;
-    } else if (input.includes("offer")) {
-      return `I suggest starting with an offer of $${vehicleData.price - 3000}. Be prepared to go up to $${vehicleData.price - 1500} if needed. Would you like me to draft a negotiation script?`;
+  // Clear notifications after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
     }
-    return "I can help you analyze the vehicle's price, market value, and create a negotiation strategy. What specific aspect would you like to discuss?";
-  };
+  }, [notification]);
 
-  const handleCompleteNegotiation = () => {
-    // Mark negotiation step as completed
-    completeStep(2, {
-      messages: messages,
-      vehicleData: vehicleData,
-      timestamp: new Date().toISOString(),
-    });
-    // Navigate to evaluation page
-    if (vehicleData) {
-      const vehicleParams = new URLSearchParams({
-        vin: vehicleData.vin || '',
-        make: vehicleData.make,
-        model: vehicleData.model,
-        year: vehicleData.year.toString(),
-        price: vehicleData.price.toString(),
-        mileage: vehicleData.mileage.toString(),
-        fuelType: vehicleData.fuelType || '',
+  // Handle accept offer
+  const handleAcceptOffer = async () => {
+    if (!state.sessionId) return;
+
+    try {
+      setState((prev) => ({ ...prev, isLoading: true, isTyping: true }));
+      setShowAcceptDialog(false);
+
+      await apiClient.processNextRound(state.sessionId, {
+        user_action: "confirm",
       });
-      router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
+
+      // Fetch updated session
+      const session = await apiClient.getNegotiationSession(state.sessionId);
+
+      setState((prev) => ({
+        ...prev,
+        status: "completed",
+        currentRound: session.current_round,
+        messages: session.messages,
+        isLoading: false,
+        isTyping: false,
+      }));
+
+      setNotification({
+        type: "success",
+        message: "Congratulations! You've successfully negotiated the deal!",
+      });
+    } catch (err) {
+      console.error("Failed to accept offer:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to accept offer";
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        isTyping: false,
+        error: errorMessage,
+      }));
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+  // Handle reject offer
+  const handleRejectOffer = async () => {
+    if (!state.sessionId) return;
+
+    try {
+      setState((prev) => ({ ...prev, isLoading: true, isTyping: true }));
+      setShowRejectDialog(false);
+
+      await apiClient.processNextRound(state.sessionId, {
+        user_action: "reject",
+      });
+
+      // Fetch updated session
+      const session = await apiClient.getNegotiationSession(state.sessionId);
+
+      setState((prev) => ({
+        ...prev,
+        status: "cancelled",
+        currentRound: session.current_round,
+        messages: session.messages,
+        isLoading: false,
+        isTyping: false,
+      }));
+
+      setNotification({
+        type: "info",
+        message: "Negotiation cancelled. You can start a new one anytime.",
+      });
+    } catch (err) {
+      console.error("Failed to reject offer:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to reject offer";
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        isTyping: false,
+        error: errorMessage,
+      }));
     }
   };
 
+  // Handle counter offer
+  const handleCounterOffer = async () => {
+    if (!state.sessionId || !counterOfferValue) return;
+
+    const counterPrice = parseFloat(counterOfferValue);
+    if (isNaN(counterPrice) || counterPrice <= 0) {
+      setNotification({
+        type: "error",
+        message: "Please enter a valid price",
+      });
+      return;
+    }
+
+    try {
+      setState((prev) => ({ ...prev, isLoading: true, isTyping: true }));
+      setShowCounterOfferModal(false);
+      setCounterOfferValue("");
+
+      const response = await apiClient.processNextRound(state.sessionId, {
+        user_action: "counter",
+        counter_offer: counterPrice,
+      });
+
+      // Fetch updated session
+      const session = await apiClient.getNegotiationSession(state.sessionId);
+
+      setState((prev) => ({
+        ...prev,
+        currentRound: session.current_round,
+        messages: session.messages,
+        suggestedPrice: response.metadata.suggested_price || prev.suggestedPrice,
+        isLoading: false,
+        isTyping: false,
+      }));
+
+      // Expand the new round
+      setExpandedRounds((prev) => new Set(prev).add(session.current_round));
+
+      setNotification({
+        type: "info",
+        message: `Counter offer of $${counterPrice.toLocaleString()} submitted!`,
+      });
+    } catch (err) {
+      console.error("Failed to submit counter offer:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to submit counter offer";
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        isTyping: false,
+        error: errorMessage,
+      }));
+    }
+  };
+
+  // Toggle round expansion
+  const toggleRoundExpansion = (round: number) => {
+    setExpandedRounds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(round)) {
+        newSet.delete(round);
+      } else {
+        newSet.add(round);
+      }
+      return newSet;
+    });
+  };
+
+  // Group messages by round
+  const messagesByRound = useMemo(() => {
+    const grouped: Record<number, NegotiationMessage[]> = {};
+    state.messages.forEach((msg) => {
+      if (!grouped[msg.round_number]) {
+        grouped[msg.round_number] = [];
+      }
+      grouped[msg.round_number].push(msg);
+    });
+    return grouped;
+  }, [state.messages]);
+
+  // Calculate progress
+  const progress = (state.currentRound / state.maxRounds) * 100;
+  const priceProgress = state.vehicleData && state.suggestedPrice
+    ? ((state.vehicleData.price - state.suggestedPrice) / (state.vehicleData.price - (state.targetPrice || state.vehicleData.price * 0.9))) * 100
+    : 0;
+
+  // Render deal outcome screens
+  if (state.status === "completed") {
+    return (
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Card shadow="lg">
+          <Card.Body>
+            <Box sx={{ textAlign: "center", py: 4 }}>
+              <CheckCircle sx={{ fontSize: 80, color: "success.main", mb: 2 }} />
+              <Typography variant="h4" gutterBottom>
+                Congratulations!
+              </Typography>
+              <Typography variant="body1" color="text.secondary" paragraph>
+                You&apos;ve successfully negotiated the deal for your{" "}
+                {state.vehicleData?.year} {state.vehicleData?.make}{" "}
+                {state.vehicleData?.model}!
+              </Typography>
+              <Divider sx={{ my: 3 }} />
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Original Price
+                  </Typography>
+                  <Typography variant="h6">
+                    ${state.vehicleData?.price.toLocaleString()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Final Price
+                  </Typography>
+                  <Typography variant="h6" color="success.main">
+                    ${state.suggestedPrice?.toLocaleString()}
+                  </Typography>
+                </Grid>
+              </Grid>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                You saved ${((state.vehicleData?.price || 0) - (state.suggestedPrice || 0)).toLocaleString()}!
+              </Typography>
+              <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 3 }}>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    if (state.vehicleData) {
+                      const vehicleParams = new URLSearchParams({
+                        vin: state.vehicleData.vin || "",
+                        make: state.vehicleData.make,
+                        model: state.vehicleData.model,
+                        year: state.vehicleData.year.toString(),
+                        price: (state.suggestedPrice || state.vehicleData.price).toString(),
+                        mileage: state.vehicleData.mileage.toString(),
+                        fuelType: state.vehicleData.fuelType || "",
+                      });
+                      router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
+                    }
+                  }}
+                >
+                  Evaluate Deal
+                </Button>
+                <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
+                  <Button variant="outline">Search More Vehicles</Button>
+                </Link>
+              </Stack>
+            </Box>
+          </Card.Body>
+        </Card>
+      </Container>
+    );
+  }
+
+  if (state.status === "cancelled") {
+    return (
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Card shadow="lg">
+          <Card.Body>
+            <Box sx={{ textAlign: "center", py: 4 }}>
+              <Cancel sx={{ fontSize: 80, color: "warning.main", mb: 2 }} />
+              <Typography variant="h4" gutterBottom>
+                Negotiation Cancelled
+              </Typography>
+              <Typography variant="body1" color="text.secondary" paragraph>
+                You&apos;ve cancelled the negotiation for this vehicle. Don&apos;t worry, there
+                are plenty of other great deals waiting for you!
+              </Typography>
+              <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 3 }}>
+                <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
+                  <Button variant="primary">Search More Vehicles</Button>
+                </Link>
+                <Link href="/dashboard/results" style={{ textDecoration: "none" }}>
+                  <Button variant="outline">Back to Results</Button>
+                </Link>
+              </Stack>
+            </Box>
+          </Card.Body>
+        </Card>
+      </Container>
+    );
+  }
+
+  // Main negotiation UI
   return (
-    <Box sx={{ display: "flex", flexDirection: "column" }}>
-      <Box sx={{ bgcolor: "background.default", flexGrow: 1 }}>
-        <Container maxWidth="lg">
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <Box sx={{ bgcolor: "background.default", flexGrow: 1, py: 3 }}>
+        <Container maxWidth="xl">
+          {/* Notification */}
+          <Collapse in={!!notification}>
+            <Alert
+              severity={notification?.type || "info"}
+              onClose={() => setNotification(null)}
+              sx={{ mb: 3 }}
+            >
+              {notification?.message}
+            </Alert>
+          </Collapse>
 
           {/* Error Alert */}
-          {error && (
+          {state.error && (
             <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
-              <Typography variant="h6" gutterBottom>
-                Unable to Load Vehicle Data
-              </Typography>
+              <AlertTitle>Unable to Load Negotiation</AlertTitle>
               <Typography variant="body2" sx={{ mb: 2 }}>
-                {error}
+                {state.error}
               </Typography>
               <Link href="/dashboard/results" style={{ textDecoration: "none" }}>
-                <Button variant="contained" size="small">
+                <Button variant="primary" size="sm">
                   Back to Results
                 </Button>
               </Link>
             </Alert>
           )}
 
-          {vehicleData && (
-          <Grid container spacing={3}>
-            {/* Vehicle Info Sidebar */}
-            <Grid item xs={12} md={4}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Vehicle Details
-                  </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                    <DirectionsCar sx={{ mr: 1, color: "primary.main" }} />
-                    <Typography variant="body1">
-                      {vehicleData.year} {vehicleData.make} {vehicleData.model}
+          {/* Loading State */}
+          {state.isLoading && state.messages.length === 0 && (
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 8 }}>
+              <Spinner size="lg" />
+              <Typography variant="h6" sx={{ ml: 2 }}>
+                Starting your negotiation...
+              </Typography>
+            </Box>
+          )}
+
+          {/* Main Content */}
+          {vehicleData && state.messages.length > 0 && (
+            <Grid container spacing={3}>
+              {/* Price Tracking Panel - Left Sidebar */}
+              <Grid item xs={12} md={3}>
+                <Card shadow="md" sx={{ position: "sticky", top: 16 }}>
+                  <Card.Body>
+                    <Typography variant="h6" gutterBottom>
+                      Vehicle Details
                     </Typography>
-                  </Box>
-                  {vehicleData.vin && (
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        VIN: {vehicleData.vin}
+                    <Box sx={{ mb: 2 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+                        <DirectionsCar sx={{ mr: 1, color: "primary.main", fontSize: 20 }} />
+                        <Typography variant="body2" fontWeight="medium">
+                          {vehicleData.year} {vehicleData.make} {vehicleData.model}
+                        </Typography>
+                      </Box>
+                      {vehicleData.vin && (
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 3 }}>
+                          VIN: {vehicleData.vin}
+                        </Typography>
+                      )}
+                    </Box>
+
+                    <Divider sx={{ my: 2 }} />
+
+                    <Typography variant="subtitle2" gutterBottom>
+                      Price Tracking
+                    </Typography>
+                    <Box sx={{ mb: 2 }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Asking Price
+                        </Typography>
+                        <Typography variant="body2" fontWeight="medium">
+                          ${vehicleData.price.toLocaleString()}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Your Target
+                        </Typography>
+                        <Typography variant="body2" color="primary.main">
+                          ${state.targetPrice?.toLocaleString()}
+                        </Typography>
+                      </Box>
+                      {state.suggestedPrice && (
+                        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            Current Offer
+                          </Typography>
+                          <Typography variant="body2" color="success.main" fontWeight="bold">
+                            ${state.suggestedPrice.toLocaleString()}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+
+                    {/* Price Progress */}
+                    <Box sx={{ mb: 2 }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                        <Typography variant="caption">Progress</Typography>
+                        <Typography variant="caption">{Math.round(priceProgress)}%</Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={Math.min(priceProgress, 100)}
+                        sx={{ height: 8, borderRadius: 1 }}
+                      />
+                    </Box>
+
+                    <Divider sx={{ my: 2 }} />
+
+                    <Typography variant="subtitle2" gutterBottom>
+                      Negotiation Progress
+                    </Typography>
+                    <Box sx={{ mb: 2 }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                        <Typography variant="caption">
+                          Round {state.currentRound} of {state.maxRounds}
+                        </Typography>
+                        <Typography variant="caption">{Math.round(progress)}%</Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={progress}
+                        color={progress > 80 ? "warning" : "primary"}
+                        sx={{ height: 6, borderRadius: 1 }}
+                      />
+                    </Box>
+
+                    <Divider sx={{ my: 2 }} />
+
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+                      <Speed sx={{ mr: 1, color: "text.secondary", fontSize: 18 }} />
+                      <Typography variant="caption">
+                        {vehicleData.mileage.toLocaleString()} miles
                       </Typography>
                     </Box>
-                  )}
-                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                    <AttachMoney sx={{ mr: 1, color: "primary.main" }} />
-                    <Typography variant="body1">
-                      ${vehicleData.price.toLocaleString()}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                    <Speed sx={{ mr: 1, color: "primary.main" }} />
-                    <Typography variant="body1">
-                      {vehicleData.mileage.toLocaleString()} miles
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                    <LocalGasStation sx={{ mr: 1, color: "primary.main" }} />
-                    <Typography variant="body1">{vehicleData.fuelType}</Typography>
-                  </Box>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle2" gutterBottom>
-                    Negotiation Tips
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    • Research market value before making an offer
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    • Be polite but firm in your negotiations
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    • Don&apos;t be afraid to walk away
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <LocalGasStation sx={{ mr: 1, color: "text.secondary", fontSize: 18 }} />
+                      <Typography variant="caption">{vehicleData.fuelType}</Typography>
+                    </Box>
+                  </Card.Body>
+                </Card>
+              </Grid>
 
-            {/* Chat Area */}
-            <Grid item xs={12} md={8}>
-              <Paper
-                elevation={2}
-                sx={{
-                  height: "600px",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                {/* Messages Area */}
-                <Box
-                  sx={{
-                    flexGrow: 1,
-                    overflow: "auto",
-                    p: 3,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 2,
-                  }}
-                >
-                  {messages.map((message) => (
-                    <Box
-                      key={message.id}
-                      sx={{
-                        display: "flex",
-                        justifyContent:
-                          message.sender === "user" ? "flex-end" : "flex-start",
-                        gap: 1,
-                      }}
-                    >
-                      {message.sender === "ai" && (
-                        <Avatar
+              {/* Chat Interface - Center */}
+              <Grid item xs={12} md={6}>
+                <Paper elevation={3} sx={{ height: "700px", display: "flex", flexDirection: "column" }}>
+                  {/* Header */}
+                  <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+                    <Typography variant="h6">Negotiation Chat</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Communicate with the AI negotiation assistant
+                    </Typography>
+                  </Box>
+
+                  {/* Messages Area */}
+                  <Box
+                    sx={{
+                      flexGrow: 1,
+                      overflow: "auto",
+                      p: 2,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                    }}
+                  >
+                    {Object.entries(messagesByRound).map(([round, roundMessages]) => (
+                      <Box key={round}>
+                        <Box
                           sx={{
-                            bgcolor: "primary.main",
-                            width: 36,
-                            height: 36,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            mb: 1,
                           }}
                         >
+                          <Chip
+                            label={`Round ${round}`}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                          <IconButton
+                            size="small"
+                            onClick={() => toggleRoundExpansion(Number(round))}
+                          >
+                            {expandedRounds.has(Number(round)) ? <ExpandLess /> : <ExpandMore />}
+                          </IconButton>
+                        </Box>
+
+                        <Collapse in={expandedRounds.has(Number(round))}>
+                          <Stack spacing={1}>
+                            {roundMessages.map((message) => (
+                              <Box
+                                key={message.id}
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: message.role === "user" ? "flex-end" : "flex-start",
+                                  gap: 1,
+                                }}
+                              >
+                                {message.role === "agent" && (
+                                  <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32 }}>
+                                    <SmartToy fontSize="small" />
+                                  </Avatar>
+                                )}
+                                <Paper
+                                  elevation={1}
+                                  sx={{
+                                    p: 1.5,
+                                    maxWidth: "75%",
+                                    bgcolor: message.role === "user" ? "primary.main" : "background.paper",
+                                    color: message.role === "user" ? "primary.contrastText" : "text.primary",
+                                  }}
+                                >
+                                  <Typography variant="body2">{message.content}</Typography>
+                                  {message.metadata?.suggested_price && (
+                                    <Typography
+                                      variant="caption"
+                                      sx={{
+                                        display: "block",
+                                        mt: 0.5,
+                                        fontWeight: "bold",
+                                        color: message.role === "user" ? "inherit" : "success.main",
+                                      }}
+                                    >
+                                      Suggested: ${message.metadata.suggested_price.toLocaleString()}
+                                    </Typography>
+                                  )}
+                                  <Typography
+                                    variant="caption"
+                                    sx={{ display: "block", mt: 0.5, opacity: 0.7 }}
+                                  >
+                                    {new Date(message.created_at).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </Typography>
+                                </Paper>
+                                {message.role === "user" && (
+                                  <Avatar sx={{ bgcolor: "secondary.main", width: 32, height: 32 }}>
+                                    <Person fontSize="small" />
+                                  </Avatar>
+                                )}
+                              </Box>
+                            ))}
+                          </Stack>
+                        </Collapse>
+                      </Box>
+                    ))}
+
+                    {state.isTyping && (
+                      <Box sx={{ display: "flex", gap: 1 }}>
+                        <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32 }}>
                           <SmartToy fontSize="small" />
                         </Avatar>
-                      )}
-                      <Paper
-                        elevation={1}
-                        sx={{
-                          p: 2,
-                          maxWidth: "70%",
-                          bgcolor:
-                            message.sender === "user"
-                              ? "primary.main"
-                              : "background.paper",
-                          color:
-                            message.sender === "user"
-                              ? "primary.contrastText"
-                              : "text.primary",
-                        }}
-                      >
-                        <Typography variant="body1">{message.text}</Typography>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            display: "block",
-                            mt: 0.5,
-                            opacity: 0.7,
-                          }}
-                        >
-                          {message.timestamp.toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </Typography>
-                      </Paper>
-                      {message.sender === "user" && (
-                        <Avatar
-                          sx={{
-                            bgcolor: "secondary.main",
-                            width: 36,
-                            height: 36,
-                          }}
-                        >
-                          <Person fontSize="small" />
-                        </Avatar>
-                      )}
-                    </Box>
-                  ))}
-                  {isTyping && (
-                    <Box sx={{ display: "flex", gap: 1 }}>
-                      <Avatar
-                        sx={{ bgcolor: "primary.main", width: 36, height: 36 }}
-                      >
-                        <SmartToy fontSize="small" />
-                      </Avatar>
-                      <Paper elevation={1} sx={{ p: 2 }}>
-                        <Typography variant="body2">Typing...</Typography>
-                      </Paper>
-                    </Box>
-                  )}
-                  <div ref={messagesEndRef} />
-                </Box>
+                        <Paper elevation={1} sx={{ p: 1.5 }}>
+                          <Typography variant="body2">Typing...</Typography>
+                        </Paper>
+                      </Box>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </Box>
 
-                {/* Input Area */}
-                <Box
-                  sx={{
-                    p: 2,
-                    borderTop: "1px solid",
-                    borderColor: "divider",
-                  }}
-                >
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <TextField
-                      fullWidth
-                      multiline
-                      maxRows={3}
-                      placeholder="Type your message..."
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      variant="outlined"
-                      size="small"
-                    />
-                    <Button
-                      variant="contained"
-                      endIcon={<Send />}
-                      onClick={handleSendMessage}
-                      disabled={!inputMessage.trim() || isTyping}
-                    >
-                      Send
-                    </Button>
+                  {/* Action Buttons */}
+                  <Box sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
+                    <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                      Choose your action:
+                    </Typography>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                      <Button
+                        variant="success"
+                        size="sm"
+                        fullWidth
+                        leftIcon={<CheckCircle />}
+                        onClick={() => setShowAcceptDialog(true)}
+                        disabled={state.isLoading || !state.suggestedPrice}
+                      >
+                        Accept Offer
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        fullWidth
+                        leftIcon={<AttachMoney />}
+                        onClick={() => setShowCounterOfferModal(true)}
+                        disabled={state.isLoading || state.currentRound >= state.maxRounds}
+                      >
+                        Counter Offer
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        fullWidth
+                        leftIcon={<Cancel />}
+                        onClick={() => setShowRejectDialog(true)}
+                        disabled={state.isLoading}
+                      >
+                        Reject
+                      </Button>
+                    </Stack>
                   </Box>
-                  
-                  {/* Complete Negotiation Button */}
-                  <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      onClick={handleCompleteNegotiation}
-                      disabled={!vehicleData}
-                    >
-                      Complete Negotiation & Evaluate
-                    </Button>
-                  </Box>
-                </Box>
-              </Paper>
+                </Paper>
+              </Grid>
+
+              {/* AI Assistant Panel - Right Sidebar */}
+              <Grid item xs={12} md={3}>
+                <Card shadow="md" sx={{ position: "sticky", top: 16 }}>
+                  <Card.Body>
+                    <Typography variant="h6" gutterBottom>
+                      AI Insights
+                    </Typography>
+
+                    {/* Confidence Score */}
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Deal Confidence
+                      </Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <LinearProgress
+                          variant="determinate"
+                          value={(state.confidence || 0) * 100}
+                          sx={{ flexGrow: 1, height: 8, borderRadius: 1 }}
+                          color={
+                            (state.confidence || 0) > 0.7
+                              ? "success"
+                              : (state.confidence || 0) > 0.5
+                              ? "warning"
+                              : "error"
+                          }
+                        />
+                        <Typography variant="caption" fontWeight="bold">
+                          {Math.round((state.confidence || 0) * 100)}%
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Divider sx={{ my: 2 }} />
+
+                    {/* Recommendations */}
+                    <Typography variant="subtitle2" gutterBottom>
+                      Recommendations
+                    </Typography>
+                    <Stack spacing={1} sx={{ mb: 3 }}>
+                      {state.suggestedPrice && state.targetPrice && state.suggestedPrice <= state.targetPrice && (
+                        <Alert severity="success" icon={<TrendingDown />} sx={{ py: 0.5 }}>
+                          <Typography variant="caption">
+                            You&apos;re below your target! Consider accepting.
+                          </Typography>
+                        </Alert>
+                      )}
+                      {state.currentRound > state.maxRounds * 0.7 && (
+                        <Alert severity="warning" icon={<Warning />} sx={{ py: 0.5 }}>
+                          <Typography variant="caption">
+                            Approaching max rounds. Consider finalizing soon.
+                          </Typography>
+                        </Alert>
+                      )}
+                      {state.suggestedPrice && vehicleData.price && (
+                        <Alert severity="info" icon={<TrendingUp />} sx={{ py: 0.5 }}>
+                          <Typography variant="caption">
+                            Current savings: $
+                            {(vehicleData.price - state.suggestedPrice).toLocaleString()}
+                          </Typography>
+                        </Alert>
+                      )}
+                    </Stack>
+
+                    <Divider sx={{ my: 2 }} />
+
+                    {/* Strategy Tips */}
+                    <Typography variant="subtitle2" gutterBottom>
+                      Strategy Tips
+                    </Typography>
+                    <Stack spacing={1}>
+                      <Typography variant="caption" color="text.secondary">
+                        • Be patient and don&apos;t rush
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        • Counter with realistic offers
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        • Know your walk-away price
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        • Ask about additional perks
+                      </Typography>
+                    </Stack>
+                  </Card.Body>
+                </Card>
+              </Grid>
             </Grid>
-          </Grid>
           )}
         </Container>
       </Box>
+
+      {/* Counter Offer Modal */}
+      <Modal
+        isOpen={showCounterOfferModal}
+        onClose={() => {
+          setShowCounterOfferModal(false);
+          setCounterOfferValue("");
+        }}
+        title="Make Counter Offer"
+        size="sm"
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Enter your counter offer price. Be realistic and strategic to keep the negotiation
+            moving forward.
+          </Typography>
+          <TextField
+            fullWidth
+            label="Counter Offer Price"
+            type="number"
+            value={counterOfferValue}
+            onChange={(e) => setCounterOfferValue(e.target.value)}
+            placeholder="Enter price"
+            InputProps={{
+              startAdornment: "$",
+            }}
+            sx={{ mb: 2 }}
+          />
+          {state.suggestedPrice && (
+            <Typography variant="caption" color="text.secondary">
+              Current offer: ${state.suggestedPrice.toLocaleString()}
+            </Typography>
+          )}
+          <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
+            <Button variant="outline" fullWidth onClick={() => setShowCounterOfferModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={handleCounterOffer}
+              disabled={!counterOfferValue || state.isLoading}
+            >
+              Submit Offer
+            </Button>
+          </Stack>
+        </Box>
+      </Modal>
+
+      {/* Accept Offer Dialog */}
+      <Modal
+        isOpen={showAcceptDialog}
+        onClose={() => setShowAcceptDialog(false)}
+        title="Accept Offer?"
+        size="sm"
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" paragraph>
+            Are you sure you want to accept the current offer of{" "}
+            <strong>${state.suggestedPrice?.toLocaleString()}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            This will complete the negotiation and move forward with the deal.
+          </Typography>
+          <Stack direction="row" spacing={2}>
+            <Button variant="outline" fullWidth onClick={() => setShowAcceptDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="success"
+              fullWidth
+              onClick={handleAcceptOffer}
+              disabled={state.isLoading}
+            >
+              Yes, Accept
+            </Button>
+          </Stack>
+        </Box>
+      </Modal>
+
+      {/* Reject Offer Dialog */}
+      <Modal
+        isOpen={showRejectDialog}
+        onClose={() => setShowRejectDialog(false)}
+        title="Cancel Negotiation?"
+        size="sm"
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="body2" paragraph>
+            Are you sure you want to cancel this negotiation?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            This will end the current negotiation session. You can always start a new one later.
+          </Typography>
+          <Stack direction="row" spacing={2}>
+            <Button variant="outline" fullWidth onClick={() => setShowRejectDialog(false)}>
+              Go Back
+            </Button>
+            <Button
+              variant="danger"
+              fullWidth
+              onClick={handleRejectOffer}
+              disabled={state.isLoading}
+            >
+              Yes, Cancel
+            </Button>
+          </Stack>
+        </Box>
+      </Modal>
     </Box>
   );
 }
 
 export default function NegotiationPage() {
   return (
-    <Suspense fallback={
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
-        <Typography>Loading...</Typography>
-      </Box>
-    }>
+    <Suspense
+      fallback={
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+          <Spinner size="lg" />
+          <Typography sx={{ ml: 2 }}>Loading negotiation...</Typography>
+        </Box>
+      }
+    >
       <NegotiationContent />
     </Suspense>
   );
