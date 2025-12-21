@@ -3,11 +3,7 @@
  * Handles communication with the FastAPI backend
  */
 
-import {
-  createErrorFromResponse,
-  NetworkError,
-  isApiError,
-} from './errors';
+import { createErrorFromResponse, NetworkError, isApiError } from "./errors";
 
 // TypeScript type definitions matching backend schemas
 
@@ -134,7 +130,12 @@ export interface FavoriteCreate {
 
 // Evaluation types
 export type EvaluationStatus = "analyzing" | "awaiting_input" | "completed";
-export type PipelineStep = "vehicle_condition" | "price" | "financing" | "risk" | "final";
+export type PipelineStep =
+  | "vehicle_condition"
+  | "price"
+  | "financing"
+  | "risk"
+  | "final";
 
 export interface EvaluationResponse {
   id: number;
@@ -165,11 +166,12 @@ export interface EvaluationInitiateRequest {
   answers?: Record<string, string | number> | null;
 }
 
-export interface EvaluationAnswerRequest {
-  answers: Record<string, string | number>;
 export type NegotiationStatus = "active" | "completed" | "cancelled";
 export type MessageRole = "user" | "agent" | "dealer_sim";
 export type UserAction = "confirm" | "reject" | "counter";
+export interface EvaluationAnswerRequest {
+  answers: Record<string, string | number>;
+}
 
 export interface NegotiationMessage {
   id: number;
@@ -218,6 +220,7 @@ export interface NextRoundResponse {
   current_round: number;
   agent_message: string;
   metadata: Record<string, unknown>;
+}
 export interface SavedSearch {
   id: number;
   user_id: number;
@@ -295,13 +298,18 @@ class ApiClient {
       } else {
         return `/mock/negotiation/${parts[1]}`;
       }
-    } else if (endpoint.includes("/api/v1/deals") && endpoint.includes("evaluation")) {
+    } else if (
+      endpoint.includes("/api/v1/deals") &&
+      endpoint.includes("evaluation")
+    ) {
       // Map evaluation endpoints to mock
-      const match = endpoint.match(/\/api\/v1\/deals\/(\d+)\/evaluation(?:\/(\d+))?(?:\/answers)?/);
+      const match = endpoint.match(
+        /\/api\/v1\/deals\/(\d+)\/evaluation(?:\/(\d+))?(?:\/answers)?/
+      );
       if (match) {
         const dealId = match[1];
         const evaluationId = match[2];
-        
+
         if (endpoint.includes("/answers")) {
           return `/mock/evaluation/pipeline/${dealId}/evaluation/${evaluationId}/answers`;
         } else if (evaluationId) {
@@ -321,7 +329,7 @@ class ApiClient {
    */
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {},
+    options: RequestInit = {}
   ): Promise<T> {
     // Map to mock endpoint if needed
     const mappedEndpoint = this.getEndpointPath(endpoint);
@@ -345,9 +353,12 @@ class ApiClient {
         const errorData = await response
           .json()
           .catch(() => ({ detail: response.statusText }));
-        
-        const errorMessage = errorData.detail || errorData.message || `Request failed: ${response.statusText}`;
-        
+
+        const errorMessage =
+          errorData.detail ||
+          errorData.message ||
+          `Request failed: ${response.statusText}`;
+
         // Create and throw structured error
         throw createErrorFromResponse(response.status, errorMessage, errorData);
       }
@@ -358,9 +369,11 @@ class ApiClient {
       if (isApiError(error)) {
         throw error;
       }
-      
+
       // Otherwise, it's likely a network error
-      throw new NetworkError('Failed to connect to the server. Please check your internet connection.');
+      throw new NetworkError(
+        "Failed to connect to the server. Please check your internet connection."
+      );
     }
   }
 
@@ -439,9 +452,9 @@ class ApiClient {
       }
     );
   }
-  
-   * Create a new negotiation session
-   */
+
+  //  * Create a new negotiation session
+  //  */
   async createNegotiation(
     request: CreateNegotiationRequest
   ): Promise<CreateNegotiationResponse> {
@@ -478,7 +491,6 @@ class ApiClient {
       `/api/v1/deals/${dealId}/evaluation/${evaluationId}`
     );
   }
-  }
 
   /**
    * Submit answers to evaluation questions
@@ -495,17 +507,18 @@ class ApiClient {
         body: JSON.stringify(request),
       }
     );
-}
-   * Get a negotiation session with full message history
-   */
+  }
+
+  //  * Get a negotiation session with full message history
+  //  */
   async getNegotiationSession(sessionId: number): Promise<NegotiationSession> {
     return this.request<NegotiationSession>(
       `/api/v1/negotiations/${sessionId}`
     );
-    }
-    
-   * Get all saved searches for the current user
-   */
+  }
+
+  //  * Get all saved searches for the current user
+  //  */
   async getSavedSearches(): Promise<SavedSearchList> {
     return this.request<SavedSearchList>("/api/v1/saved-searches");
   }

@@ -731,7 +731,7 @@ function NegotiationContent() {
                                   }}
                                 >
                                   <Typography variant="body2">{message.content}</Typography>
-                                  {message.metadata?.suggested_price && (
+                                  {typeof message.metadata?.suggested_price === "number" && (
                                     <Typography
                                       variant="caption"
                                       sx={{
