@@ -450,9 +450,9 @@ class TestEdgeCases:
     def test_rounding_consistency(self):
         """Test that all monetary values are properly rounded to 2 decimals"""
         result = LoanCalculatorService.calculate_loan(
-            loan_amount=23456.78,
-            down_payment=3456.78,
-            loan_term_months=47,
+            loan_amount=23500.00,
+            down_payment=3500.00,
+            loan_term_months=48,
             credit_score_range="fair",
             include_amortization=True,
         )

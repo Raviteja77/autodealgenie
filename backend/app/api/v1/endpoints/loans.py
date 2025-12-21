@@ -11,7 +11,11 @@ from app.schemas.loan_schemas import (
     LoanOffer,
     LoanOffersResponse,
 )
-from app.services.loan_calculator_service import LoanCalculatorService
+from app.services.loan_calculator_service import (
+    APR_RATES,
+    CreditScoreRange,
+    LoanCalculatorService,
+)
 
 router = APIRouter()
 
@@ -26,12 +30,6 @@ def generate_mock_loan_offers(
     In production this would be replaced with real lender integrations.
     Uses APR rates consistent with LoanCalculatorService for accuracy.
     """
-    # Use APR rates from LoanCalculatorService for consistency
-    from app.services.loan_calculator_service import (
-        APR_RATES,
-        CreditScoreRange,
-    )
-
     # Get base rate for credit score
     try:
         credit_range = CreditScoreRange(credit_score.lower())

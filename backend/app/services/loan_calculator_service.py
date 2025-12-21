@@ -125,12 +125,18 @@ class LoanCalculatorService:
 
         Returns:
             APR as a decimal (e.g., 0.049 for 4.9%)
+
+        Note:
+            This method is more forgiving than validate_inputs and defaults to 'good'
+            credit for invalid inputs. This is intentional for use in mock loan offers
+            where we want to provide a reasonable fallback rather than fail.
+            For user-facing calculations, validate_inputs should be called first.
         """
         try:
             score_range = CreditScoreRange(credit_score_range.lower())
             return APR_RATES[score_range]
         except (ValueError, KeyError):
-            # Default to good credit rate if invalid
+            # Default to good credit rate if invalid (for mock offers)
             return APR_RATES[CreditScoreRange.GOOD]
 
     @staticmethod
