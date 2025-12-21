@@ -163,7 +163,7 @@ async def test_financing_assessment_cash_purchase(authenticated_client, mock_dea
 
 
 @pytest.mark.asyncio
-async def test_get_lender_recommendations(authenticated_client, mock_deal, db):
+async def test_get_lender_recommendations(authenticated_client, mock_deal, mock_user, db):
     """Test fetching lender recommendations for a good deal with financing"""
     from app.repositories.evaluation_repository import EvaluationRepository
 
@@ -215,7 +215,7 @@ async def test_get_lender_recommendations(authenticated_client, mock_deal, db):
 
 
 @pytest.mark.asyncio
-async def test_lender_recommendations_not_for_poor_deals(authenticated_client, mock_deal, db):
+async def test_lender_recommendations_not_for_poor_deals(authenticated_client, mock_deal, mock_user, db):
     """Test that lender recommendations are not provided for poor quality deals"""
     from app.repositories.evaluation_repository import EvaluationRepository
 
@@ -267,7 +267,7 @@ async def test_lender_recommendations_not_for_poor_deals(authenticated_client, m
 
 @pytest.mark.asyncio
 async def test_lender_recommendations_requires_completed_financing(
-    authenticated_client, mock_deal, db
+    authenticated_client, mock_deal, mock_user, db
 ):
     """Test that lender recommendations require completed financing step"""
     from app.repositories.evaluation_repository import EvaluationRepository
