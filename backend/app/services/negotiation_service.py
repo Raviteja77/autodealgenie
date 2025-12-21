@@ -12,6 +12,7 @@ from app.llm import generate_text
 from app.models.negotiation import MessageRole, NegotiationSession, NegotiationStatus
 from app.repositories.deal_repository import DealRepository
 from app.repositories.negotiation_repository import NegotiationRepository
+from app.services.loan_calculator_service import LoanCalculatorService
 from app.utils.error_handler import ApiError
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,8 @@ class NegotiationService:
     """Service for managing multi-round negotiations with LLM"""
 
     MAX_CONVERSATION_HISTORY = 4  # Number of recent messages to include in context
+    DEFAULT_DOWN_PAYMENT_PERCENT = 0.10  # 10% down payment
+    DEFAULT_CREDIT_SCORE_RANGE = "good"  # Default credit range for calculations
 
     def __init__(self, db: Session):
         self.db = db
@@ -335,12 +338,28 @@ class NegotiationService:
             price_difference = deal.asking_price - user_target_price
             suggested_price = user_target_price + (price_difference * 0.5)
 
+            # Calculate financing options for the suggested price
+            financing_options = self._calculate_financing_options(suggested_price)
+
+            # Calculate cash savings (cash price vs total financed cost)
+            cash_savings = None
+            if financing_options:
+                # Use 60-month term as baseline for comparison
+                baseline_financing = next(
+                    (opt for opt in financing_options if opt["loan_term_months"] == 60),
+                    financing_options[0] if financing_options else None,
+                )
+                if baseline_financing:
+                    cash_savings = baseline_financing["total_cost"] - suggested_price
+
             return {
                 "content": response_content,
                 "metadata": {
                     "suggested_price": round(suggested_price, 2),
                     "asking_price": deal.asking_price,
                     "user_target_price": user_target_price,
+                    "financing_options": financing_options,
+                    "cash_savings": round(cash_savings, 2) if cash_savings else None,
                     "llm_used": True,
                 },
             }
@@ -359,16 +378,84 @@ class NegotiationService:
             price_difference = deal.asking_price - user_target_price
             suggested_price = user_target_price + (price_difference * 0.5)
 
+            # Calculate financing options even for fallback
+            financing_options = self._calculate_financing_options(suggested_price)
+
+            # Calculate cash savings
+            cash_savings = None
+            if financing_options:
+                baseline_financing = next(
+                    (opt for opt in financing_options if opt["loan_term_months"] == 60),
+                    financing_options[0] if financing_options else None,
+                )
+                if baseline_financing:
+                    cash_savings = baseline_financing["total_cost"] - suggested_price
+
             return {
                 "content": fallback_content,
                 "metadata": {
                     "suggested_price": round(suggested_price, 2),
                     "asking_price": deal.asking_price,
                     "user_target_price": user_target_price,
+                    "financing_options": financing_options,
+                    "cash_savings": round(cash_savings, 2) if cash_savings else None,
                     "llm_used": False,
                     "fallback": True,
                 },
             }
+
+    def _calculate_financing_options(
+        self, vehicle_price: float, credit_score_range: str | None = None
+    ) -> list[dict[str, Any]]:
+        """
+        Calculate multiple financing options for different loan terms
+
+        Args:
+            vehicle_price: Current negotiated vehicle price
+            credit_score_range: Credit score range (defaults to 'good')
+
+        Returns:
+            List of financing option dictionaries
+        """
+        if credit_score_range is None:
+            credit_score_range = self.DEFAULT_CREDIT_SCORE_RANGE
+
+        # Calculate down payment (10% of price)
+        down_payment = vehicle_price * self.DEFAULT_DOWN_PAYMENT_PERCENT
+
+        # Common loan terms to calculate (in months)
+        loan_terms = [36, 48, 60, 72]
+        financing_options = []
+
+        for term_months in loan_terms:
+            try:
+                # Calculate loan details using LoanCalculatorService
+                loan_result = LoanCalculatorService.calculate_loan(
+                    loan_amount=vehicle_price,
+                    down_payment=down_payment,
+                    loan_term_months=term_months,
+                    credit_score_range=credit_score_range,
+                    include_amortization=False,
+                )
+
+                financing_options.append(
+                    {
+                        "loan_amount": loan_result.principal,
+                        "down_payment": loan_result.down_payment,
+                        "monthly_payment_estimate": loan_result.monthly_payment,
+                        "loan_term_months": loan_result.loan_term_months,
+                        "estimated_apr": loan_result.apr,
+                        "total_cost": loan_result.total_amount + loan_result.down_payment,
+                        "total_interest": loan_result.total_interest,
+                    }
+                )
+            except ValueError as e:
+                logger.warning(
+                    f"Failed to calculate financing for {term_months} month term: {str(e)}"
+                )
+                continue
+
+        return financing_options
 
     async def _generate_counter_response(
         self,
@@ -411,12 +498,28 @@ class NegotiationService:
             convergence_rate = 1 - (session.current_round / session.max_rounds)
             new_suggested_price = counter_offer + (price_difference * convergence_rate * 0.6)
 
+            # Calculate financing options for the new suggested price
+            financing_options = self._calculate_financing_options(new_suggested_price)
+
+            # Calculate cash savings (cash price vs total financed cost)
+            cash_savings = None
+            if financing_options:
+                # Use 60-month term as baseline for comparison
+                baseline_financing = next(
+                    (opt for opt in financing_options if opt["loan_term_months"] == 60),
+                    financing_options[0] if financing_options else None,
+                )
+                if baseline_financing:
+                    cash_savings = baseline_financing["total_cost"] - new_suggested_price
+
             return {
                 "content": response_content,
                 "metadata": {
                     "suggested_price": round(new_suggested_price, 2),
                     "user_counter_offer": counter_offer,
                     "asking_price": deal.asking_price,
+                    "financing_options": financing_options,
+                    "cash_savings": round(cash_savings, 2) if cash_savings else None,
                     "llm_used": True,
                 },
             }
@@ -435,12 +538,27 @@ class NegotiationService:
                 f"This takes into account the vehicle's condition and market value."
             )
 
+            # Calculate financing options even for fallback
+            financing_options = self._calculate_financing_options(new_suggested_price)
+
+            # Calculate cash savings
+            cash_savings = None
+            if financing_options:
+                baseline_financing = next(
+                    (opt for opt in financing_options if opt["loan_term_months"] == 60),
+                    financing_options[0] if financing_options else None,
+                )
+                if baseline_financing:
+                    cash_savings = baseline_financing["total_cost"] - new_suggested_price
+
             return {
                 "content": fallback_content,
                 "metadata": {
                     "suggested_price": round(new_suggested_price, 2),
                     "user_counter_offer": counter_offer,
                     "asking_price": deal.asking_price,
+                    "financing_options": financing_options,
+                    "cash_savings": round(cash_savings, 2) if cash_savings else None,
                     "llm_used": False,
                     "fallback": True,
                 },
