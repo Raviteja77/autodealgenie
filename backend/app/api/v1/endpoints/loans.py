@@ -6,11 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.api.dependencies import get_current_user
 from app.models.models import User
 from app.schemas.loan_schemas import (
+    LenderRecommendationRequest,
+    LenderRecommendationResponse,
     LoanCalculationRequest,
     LoanCalculationResponse,
     LoanOffer,
     LoanOffersResponse,
 )
+from app.services.lender_service import LenderService
 from app.services.loan_calculator_service import (
     APR_RATES,
     CreditScoreRange,
@@ -127,3 +130,34 @@ async def get_loan_offers(
         offers=offers,
         comparison_url=None,
     )
+
+
+@router.post("/lenders", response_model=LenderRecommendationResponse)
+async def get_lender_recommendations(
+    request: LenderRecommendationRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get personalized lender recommendations based on loan criteria.
+
+    This endpoint provides:
+    - Curated list of partner lenders that match user criteria
+    - Match scores indicating how well each lender fits user needs
+    - Estimated APR and monthly payments for each lender
+    - Recommendation reasons explaining why each lender is suggested
+    - Affiliate tracking URLs for commission attribution (no PII collected)
+
+    The ranking algorithm considers:
+    - APR competitiveness (40% weight)
+    - Loan amount fit (20% weight)
+    - Credit score fit (20% weight)
+    - Term flexibility (10% weight)
+    - Features and benefits (10% weight)
+
+    Returns up to 5 top recommendations sorted by match score.
+    """
+    try:
+        recommendations = LenderService.get_recommendations(request, max_results=5)
+        return recommendations
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
