@@ -53,13 +53,22 @@ class AmortizationEntry(BaseModel):
 
 
 class LoanCalculationResult(BaseModel):
-    """Complete loan calculation result with amortization schedule"""
+    """
+    Complete loan calculation result with amortization schedule
+
+    Note: Both interest_rate and apr fields are included for API compatibility.
+    In this simplified calculator, they have the same value. In a production
+    system, APR would include additional fees and costs beyond the interest rate.
+    """
 
     monthly_payment: float = Field(..., description="Monthly payment amount")
     total_interest: float = Field(..., description="Total interest over loan term")
     total_amount: float = Field(..., description="Total amount paid over loan term")
-    interest_rate: float = Field(..., description="Annual interest rate (APR)")
-    apr: float = Field(..., description="Annual Percentage Rate")
+    interest_rate: float = Field(..., description="Annual interest rate")
+    apr: float = Field(
+        ...,
+        description="Annual Percentage Rate (same as interest_rate in this simplified calculator)",
+    )
     principal: float = Field(..., description="Loan principal (after down payment)")
     down_payment: float = Field(..., description="Down payment amount")
     loan_term_months: int = Field(..., description="Loan term in months")

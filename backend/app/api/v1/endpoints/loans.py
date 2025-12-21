@@ -19,6 +19,10 @@ from app.services.loan_calculator_service import (
 
 router = APIRouter()
 
+# Mock lender rate adjustments (relative to base APR for credit score)
+BEST_LENDER_DISCOUNT = 0.005  # 0.5% below base rate
+HIGHER_LENDER_PREMIUM = 0.01  # 1.0% above base rate
+
 
 def generate_mock_loan_offers(
     loan_amount: float,
@@ -47,9 +51,9 @@ def generate_mock_loan_offers(
 
     # Generate offers from different lenders with varying rates
     lenders = [
-        ("AutoBank Prime", base_rate - 0.005),  # Best rate (0.5% below base)
-        ("CarFinance Plus", base_rate),  # Base rate
-        ("Neighborhood Credit Union", base_rate + 0.01),  # Higher rate (1% above base)
+        ("AutoBank Prime", base_rate - BEST_LENDER_DISCOUNT),
+        ("CarFinance Plus", base_rate),
+        ("Neighborhood Credit Union", base_rate + HIGHER_LENDER_PREMIUM),
     ]
 
     offers: list[LoanOffer] = []
