@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Box,
@@ -58,7 +58,7 @@ interface SearchFormData {
   tradeInValue?: number;
 }
 
-export default function EnhancedSearchPage() {
+export default function DashboardSearchPage() {
   const { user } = useAuth();
   const router = useRouter();
   const { completeStep, setStepData } = useStepper();
@@ -88,6 +88,11 @@ export default function EnhancedSearchPage() {
     term: number,
     creditScore: string
   ) => {
+    // Validate inputs to prevent division by zero
+    if (term <= 0) {
+      return 0;
+    }
+
     // Interest rates based on credit score
     const interestRates = {
       excellent: 0.039, // 3.9%
@@ -100,15 +105,27 @@ export default function EnhancedSearchPage() {
       interestRates[creditScore as keyof typeof interestRates] || 0.059;
     const principal = price - downPayment;
     const monthlyRate = rate / 12;
+
+    // Handle edge case where monthly rate is 0
+    if (monthlyRate === 0) {
+      return Math.round(principal / term);
+    }
+
+    const denominator = Math.pow(1 + monthlyRate, term) - 1;
+    
+    // Additional safety check for division by zero
+    if (denominator === 0) {
+      return Math.round(principal / term);
+    }
+
     const payment =
-      (principal * monthlyRate * Math.pow(1 + monthlyRate, term)) /
-      (Math.pow(1 + monthlyRate, term) - 1);
+      (principal * monthlyRate * Math.pow(1 + monthlyRate, term)) / denominator;
 
     return Math.round(payment);
   };
 
-  // Update estimated payment when financing params change
-  const updateEstimatedPayment = () => {
+  // Auto-update estimated payment when financing parameters change
+  useEffect(() => {
     if (
       searchParams.paymentMethod === "finance" &&
       searchParams.downPayment !== undefined &&
@@ -124,7 +141,14 @@ export default function EnhancedSearchPage() {
       );
       setEstimatedPayment(payment);
     }
-  };
+  }, [
+    searchParams.paymentMethod,
+    searchParams.downPayment,
+    searchParams.loanTerm,
+    searchParams.creditScore,
+    searchParams.budgetMin,
+    searchParams.budgetMax,
+  ]);
 
   const handleSearch = () => {
     // Convert search params to query string
@@ -162,16 +186,28 @@ export default function EnhancedSearchPage() {
     "Hyundai",
   ];
 
-  const models = {
+  const models: Record<string, string[]> = {
     toyota: ["Corolla", "Camry", "Rav4", "Tacoma", "Prius"],
     honda: ["Civic", "Accord", "CR-V", "Pilot", "Odyssey"],
     ford: ["F-150", "Escape", "Explorer", "Mustang", "Focus"],
+    chevrolet: ["Silverado", "Equinox", "Malibu", "Tahoe", "Camaro"],
+    nissan: ["Altima", "Sentra", "Rogue", "Pathfinder", "Leaf"],
+    bmw: ["3 Series", "5 Series", "X3", "X5", "i3"],
+    mercedes: ["C-Class", "E-Class", "GLC", "GLE", "A-Class"],
+    volkswagen: ["Jetta", "Passat", "Tiguan", "Golf", "Atlas"],
+    audi: ["A3", "A4", "A6", "Q5", "Q7"],
+    hyundai: ["Elantra", "Sonata", "Tucson", "Santa Fe", "Kona"],
   };
 
   const carTypes = [
-    "Used",
-    "New",
-    "Certified",
+    "Sedan",
+    "SUV",
+    "Truck",
+    "Coupe",
+    "Hatchback",
+    "Minivan",
+    "Convertible",
+    "Wagon",
   ];
 
   const fuelTypes = [
@@ -330,7 +366,6 @@ export default function EnhancedSearchPage() {
                                 ...searchParams,
                                 downPayment: parseInt(e.target.value) || 0,
                               });
-                              updateEstimatedPayment();
                             }}
                             placeholder="e.g., 5000"
                           />
@@ -365,7 +400,6 @@ export default function EnhancedSearchPage() {
                                   ...searchParams,
                                   loanTerm: e.target.value as number,
                                 });
-                                updateEstimatedPayment();
                               }}
                             >
                               <MenuItem value={36}>36 months (3 years)</MenuItem>
@@ -392,7 +426,6 @@ export default function EnhancedSearchPage() {
                                     | "fair"
                                     | "poor",
                                 });
-                                updateEstimatedPayment();
                               }}
                             >
                               <MenuItem value="excellent">
@@ -400,7 +433,7 @@ export default function EnhancedSearchPage() {
                               </MenuItem>
                               <MenuItem value="good">Good (700-749)</MenuItem>
                               <MenuItem value="fair">Fair (650-699)</MenuItem>
-                              <MenuItem value="poor">Poor (&lt;650)</MenuItem>
+                              <MenuItem value="poor">{"Poor (< 650)"}</MenuItem>
                             </Select>
                           </FormControl>
                         </Grid>

@@ -12,6 +12,7 @@ from app.api.v1.endpoints import (
     evaluations,
     favorites,
     health,
+    loans,
     negotiation,
     preferences,
     recommendations,
@@ -40,6 +41,7 @@ api_router.include_router(
     saved_searches.router, prefix="/saved-searches", tags=["saved-searches"]
 )
 api_router.include_router(comparisons.router, prefix="/vehicles", tags=["comparisons"])
+api_router.include_router(loans.router, prefix="/loans", tags=["loans"])
 
 if settings.USE_MOCK_SERVICES:
     from app.api.mock import mock_router
