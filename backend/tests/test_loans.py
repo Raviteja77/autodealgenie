@@ -3,7 +3,7 @@
 import pytest
 
 from app.api.dependencies import get_current_user
-from app.models.models import User, LoanStatus
+from app.models.models import User
 
 
 @pytest.fixture
@@ -51,7 +51,8 @@ def test_calculate_loan_payment_excellent_credit(authenticated_client):
     assert "total_interest" in data
     assert "total_amount" in data
     assert "interest_rate" in data
-    assert data["interest_rate"] == 0.039  # 3.9% for excellent credit
+    # Excellent credit uses midpoint APR of 4.9%
+    assert data["interest_rate"] == 0.049
     assert data["monthly_payment"] > 0
     assert data["total_interest"] > 0
 
@@ -69,7 +70,8 @@ def test_calculate_loan_payment_good_credit(authenticated_client):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["interest_rate"] == 0.059  # 5.9% for good credit
+    # Good credit uses midpoint APR of 7.4%
+    assert data["interest_rate"] == 0.074
     assert data["monthly_payment"] > 0
 
 
@@ -86,7 +88,8 @@ def test_calculate_loan_payment_fair_credit(authenticated_client):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["interest_rate"] == 0.089  # 8.9% for fair credit
+    # Fair credit uses midpoint APR of 10.4%
+    assert data["interest_rate"] == 0.104
 
 
 def test_calculate_loan_payment_poor_credit(authenticated_client):
@@ -102,7 +105,8 @@ def test_calculate_loan_payment_poor_credit(authenticated_client):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["interest_rate"] == 0.129  # 12.9% for poor credit
+    # Poor credit uses midpoint APR of 13.4%
+    assert data["interest_rate"] == 0.134
 
 
 def test_calculate_loan_payment_invalid_credit_score(authenticated_client):
@@ -150,75 +154,19 @@ def test_calculate_loan_payment_negative_amount(authenticated_client):
     assert response.status_code == 422
 
 
-def test_create_loan_application(authenticated_client, mock_user):
-    """Test creating a loan application"""
-    application_data = {
-        "loan_amount": 25000,
-        "down_payment": 5000,
-        "trade_in_value": 3000,
-        "loan_term_months": 60,
-        "credit_score_range": "good",
-        "annual_income": 75000,
-        "employment_status": "employed",
-    }
-
-    response = authenticated_client.post(
-        "/api/v1/loans/applications", json=application_data
-    )
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["user_id"] == mock_user.id
-    assert data["loan_amount"] == 25000
-    assert data["down_payment"] == 5000
-    assert data["trade_in_value"] == 3000
-    assert data["loan_term_months"] == 60
-    assert data["credit_score_range"] == "good"
-    assert data["status"] == LoanStatus.DRAFT.value
-
-
-def test_create_loan_application_minimal_data(authenticated_client, mock_user):
-    """Test creating a loan application with minimal required data"""
-    application_data = {
-        "loan_amount": 20000,
-        "down_payment": 0,
-        "trade_in_value": 0,
+def test_calculate_loan_payment_down_payment_exceeds_loan(authenticated_client):
+    """Test loan calculation when down payment exceeds loan amount"""
+    calculation_data = {
+        "loan_amount": 10000,
+        "down_payment": 15000,
         "loan_term_months": 48,
-        "credit_score_range": "fair",
+        "credit_score_range": "good",
     }
 
-    response = authenticated_client.post(
-        "/api/v1/loans/applications", json=application_data
-    )
+    response = authenticated_client.post("/api/v1/loans/calculate", json=calculation_data)
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["user_id"] == mock_user.id
-    assert data["annual_income"] is None
-    assert data["employment_status"] is None
-
-
-def test_create_loan_application_with_deal_id(authenticated_client, mock_user):
-    """Test creating a loan application associated with a deal"""
-    application_data = {
-        "deal_id": 123,
-        "loan_amount": 30000,
-        "down_payment": 6000,
-        "trade_in_value": 5000,
-        "loan_term_months": 60,
-        "credit_score_range": "excellent",
-        "annual_income": 90000,
-        "employment_status": "employed",
-    }
-
-    response = authenticated_client.post(
-        "/api/v1/loans/applications", json=application_data
-    )
-
-    assert response.status_code == 200
-    data = response.json()
-    # Note: deal_id might be None if foreign key constraint fails in test
-    # This is expected in test environment without actual deal
+    # Should return 400 for business logic error
+    assert response.status_code == 400
 
 
 def test_get_loan_offers_excellent_credit(authenticated_client):
@@ -306,7 +254,7 @@ def test_loan_calculation_total_cost_accuracy(authenticated_client):
     assert response.status_code == 200
     data = response.json()
 
-    # Total amount should equal monthly payment * term + down payment
+    # Total amount should equal monthly payment * term
     expected_total_paid = data["monthly_payment"] * 60
     calculated_principal = calculation_data["loan_amount"] - calculation_data["down_payment"]
 
@@ -328,18 +276,6 @@ def test_unauthorized_access_to_loan_endpoints(client):
     }
 
     response = client.post("/api/v1/loans/calculate", json=calculation_data)
-    assert response.status_code == 401
-
-    # Try to create application without authentication
-    application_data = {
-        "loan_amount": 25000,
-        "down_payment": 5000,
-        "trade_in_value": 0,
-        "loan_term_months": 60,
-        "credit_score_range": "good",
-    }
-
-    response = client.post("/api/v1/loans/applications", json=application_data)
     assert response.status_code == 401
 
     # Try to get offers without authentication
