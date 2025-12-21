@@ -9,7 +9,6 @@ Provides anonymous loan calculation functionality including:
 """
 
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -54,7 +53,7 @@ class LoanCalculationResult(BaseModel):
     down_payment: float = Field(..., description="Down payment amount")
     loan_term_months: int = Field(..., description="Loan term in months")
     credit_score_range: str = Field(..., description="Credit score range used")
-    amortization_schedule: Optional[list[AmortizationEntry]] = Field(
+    amortization_schedule: list[AmortizationEntry] | None = Field(
         None, description="Detailed payment schedule"
     )
 
@@ -124,9 +123,7 @@ class LoanCalculatorService:
             return APR_RATES[CreditScoreRange.GOOD]
 
     @staticmethod
-    def calculate_monthly_payment(
-        principal: float, annual_rate: float, term_months: int
-    ) -> float:
+    def calculate_monthly_payment(principal: float, annual_rate: float, term_months: int) -> float:
         """
         Calculate monthly payment using standard amortization formula
 

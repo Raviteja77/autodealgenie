@@ -37,9 +37,9 @@ def generate_mock_loan_offers(
         monthly_rate = annual_rate / 12
         if monthly_rate == 0:
             return principal / term_months
-        return (
-            principal * monthly_rate * (1 + monthly_rate) ** term_months
-        ) / ((1 + monthly_rate) ** term_months - 1)
+        return (principal * monthly_rate * (1 + monthly_rate) ** term_months) / (
+            (1 + monthly_rate) ** term_months - 1
+        )
 
     lenders = [
         ("AutoBank Prime", base_rate),
@@ -63,6 +63,7 @@ def generate_mock_loan_offers(
         )
 
     return offers
+
 
 @router.post("/calculate", response_model=LoanCalculationResponse)
 async def calculate_loan_payment(
@@ -94,7 +95,8 @@ async def calculate_loan_payment(
             apr=result.apr,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
 
 @router.get("/offers", response_model=LoanOffersResponse)
 async def get_loan_offers(
