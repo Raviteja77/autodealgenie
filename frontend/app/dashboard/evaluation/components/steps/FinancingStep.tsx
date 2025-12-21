@@ -65,7 +65,7 @@ export const FinancingStep: React.FC<FinancingStepProps> = ({
   const getRecommendationDisplay = () => {
     if (!recommendation) return null;
     
-    const recommendationMap: Record<string, { color: 'success' | 'info' | 'warning', label: string }> = {
+    const recommendationMap: Record<string, { color: 'success' | 'info' | 'warning' | 'error', label: string }> = {
       cash: { color: 'success', label: 'Cash Recommended' },
       financing: { color: 'info', label: 'Financing Recommended' },
       either: { color: 'warning', label: 'Either Option Works' },
@@ -77,7 +77,7 @@ export const FinancingStep: React.FC<FinancingStepProps> = ({
   const recommendationDisplay = getRecommendationDisplay();
 
   // Determine affordability status
-  const getAffordabilityStatus = () => {
+  const getAffordabilityStatus = (): { color: 'success' | 'info' | 'warning' | 'error', label: string, icon: JSX.Element } | null => {
     if (!affordability_score) return null;
     
     if (affordability_score >= 8) {

@@ -430,6 +430,7 @@ Score should be 1-10 based on the description and mileage."""
             affordability_score = 5.0  # Base score
             
             # Check monthly payment affordability (industry guideline)
+            # Division by monthly_income is safe here due to the > 0 check
             if monthly_income > 0:
                 payment_ratio = (monthly_payment / monthly_income) * 100
                 if payment_ratio <= self.AFFORDABILITY_EXCELLENT:
