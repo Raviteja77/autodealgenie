@@ -1,8 +1,6 @@
 import React from 'react';
 import {
   Box,
-  Card,
-  CardContent,
   Typography,
   Divider,
   Table,
@@ -14,6 +12,12 @@ import {
   Stack,
 } from '@mui/material';
 import { AccountBalance, TrendingUp, TrendingDown, CheckCircle } from '@mui/icons-material';
+import { Card } from '@/components';
+
+// Affordability thresholds (sync with backend)
+const AFFORDABILITY_EXCELLENT = 8;  // >= 8 is excellent
+const AFFORDABILITY_GOOD = 6;  // >= 6 is good
+const AFFORDABILITY_MODERATE = 4;  // >= 4 is moderate
 
 interface FinancingStepProps {
   assessment: {
@@ -80,11 +84,11 @@ export const FinancingStep: React.FC<FinancingStepProps> = ({
   const getAffordabilityStatus = (): { color: 'success' | 'info' | 'warning' | 'error', label: string, icon: JSX.Element } | null => {
     if (!affordability_score) return null;
     
-    if (affordability_score >= 8) {
+    if (affordability_score >= AFFORDABILITY_EXCELLENT) {
       return { color: 'success', label: 'Excellent Affordability', icon: <CheckCircle /> };
-    } else if (affordability_score >= 6) {
+    } else if (affordability_score >= AFFORDABILITY_GOOD) {
       return { color: 'info', label: 'Good Affordability', icon: <TrendingUp /> };
-    } else if (affordability_score >= 4) {
+    } else if (affordability_score >= AFFORDABILITY_MODERATE) {
       return { color: 'warning', label: 'Moderate Affordability', icon: <TrendingDown /> };
     } else {
       return { color: 'error', label: 'Affordability Concern', icon: <TrendingDown /> };
@@ -95,7 +99,7 @@ export const FinancingStep: React.FC<FinancingStepProps> = ({
 
   return (
     <Card>
-      <CardContent>
+      <Card.Body>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
           <AccountBalance color="primary" />
           <Typography variant="h6">Financing Assessment</Typography>
@@ -232,7 +236,7 @@ export const FinancingStep: React.FC<FinancingStepProps> = ({
             )}
           </Box>
         )}
-      </CardContent>
+      </Card.Body>
     </Card>
   );
 };

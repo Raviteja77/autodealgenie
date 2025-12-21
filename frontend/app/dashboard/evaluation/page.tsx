@@ -7,8 +7,6 @@ import {
   Container,
   Typography,
   Alert,
-  Card,
-  CardContent,
   Divider,
   Chip,
   Stack,
@@ -17,7 +15,7 @@ import {
 import { Warning, OpenInNew } from "@mui/icons-material";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
-import { Button } from "@/components";
+import { Button, Card } from "@/components";
 import {
   apiClient,
   PipelineStep,
@@ -481,15 +479,15 @@ function EvaluationContent() {
                 <Box sx={{ mb: 3 }}>
                   {lendersLoading ? (
                     <Card>
-                      <CardContent>
+                      <Card.Body>
                         <Typography variant="body2" color="text.secondary">
                           Loading lender recommendations...
                         </Typography>
-                      </CardContent>
+                      </Card.Body>
                     </Card>
                   ) : lenderRecommendations && lenderRecommendations.recommendations.length > 0 ? (
                     <Card>
-                      <CardContent>
+                      <Card.Body>
                         <Typography variant="h6" gutterBottom>
                           Recommended Lenders
                         </Typography>
@@ -499,8 +497,8 @@ function EvaluationContent() {
                         <Divider sx={{ my: 2 }} />
                         <Stack spacing={2}>
                           {lenderRecommendations.recommendations.map((match) => (
-                            <Card key={match.lender.lender_id} variant="outlined">
-                              <CardContent>
+                            <Card key={match.lender.lender_id} shadow="sm">
+                              <Card.Body>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
                                   <Box>
                                     <Typography variant="h6" component="div">
@@ -565,11 +563,11 @@ function EvaluationContent() {
                                     Apply Now <OpenInNew fontSize="small" />
                                   </MuiLink>
                                 </Box>
-                              </CardContent>
+                              </Card.Body>
                             </Card>
                           ))}
                         </Stack>
-                      </CardContent>
+                      </Card.Body>
                     </Card>
                   ) : lenderRecommendations && lenderRecommendations.total_matches === 0 ? (
                     <Alert severity="info">

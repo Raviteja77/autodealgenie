@@ -27,8 +27,19 @@ class DealEvaluationService:
     AFFORDABILITY_GOOD = 15  # ≤ 15% is good
     AFFORDABILITY_MODERATE = 20  # ≤ 20% is moderate
     
-    # Deal quality threshold for lender recommendations
-    LENDER_RECOMMENDATION_MIN_SCORE = 6.5
+    # Deal quality thresholds for financing recommendations
+    EXCELLENT_DEAL_SCORE = 8.0  # >= 8.0 is excellent deal
+    GOOD_DEAL_SCORE = 6.5  # >= 6.5 is good deal
+    LENDER_RECOMMENDATION_MIN_SCORE = 6.5  # Minimum score for lender recommendations
+    
+    # Interest rate thresholds for financing recommendations
+    LOW_INTEREST_RATE = 4.0  # ≤ 4% is considered low/excellent
+    REASONABLE_INTEREST_RATE = 5.0  # ≤ 5% is considered reasonable/good
+    HIGH_INTEREST_THRESHOLD = 20  # Interest cost > 20% of purchase price is high
+    
+    # Default loan parameters
+    DEFAULT_DOWN_PAYMENT_RATIO = 0.2  # 20% down payment
+    DEFAULT_LOAN_TERM_MONTHS = 60  # 5-year term
 
     async def evaluate_deal(
         self,
@@ -375,7 +386,6 @@ Score should be 1-10 based on the description and mileage."""
         
         # Get price evaluation data for comparison
         price_data = result_json.get("price", {})
-        fair_value = price_data.get("assessment", {}).get("fair_value", deal.asking_price)
         price_score = price_data.get("assessment", {}).get("score", 5.0)
 
         if financing_type == "cash":
@@ -409,12 +419,12 @@ Score should be 1-10 based on the description and mileage."""
         else:
             # Financing assessment
             interest_rate = user_inputs.get("interest_rate", 5.5)
-            down_payment = user_inputs.get("down_payment", deal.asking_price * 0.2)
+            down_payment = user_inputs.get("down_payment", deal.asking_price * self.DEFAULT_DOWN_PAYMENT_RATIO)
             loan_amount = deal.asking_price - down_payment
             
-            # Calculate monthly payment (60-month term)
+            # Calculate monthly payment
             monthly_rate = interest_rate / 100 / 12
-            months = 60
+            months = self.DEFAULT_LOAN_TERM_MONTHS
             if monthly_rate > 0:
                 monthly_payment = (loan_amount * monthly_rate * (1 + monthly_rate) ** months) / (
                     (1 + monthly_rate) ** months - 1
@@ -459,7 +469,7 @@ Score should be 1-10 based on the description and mileage."""
             # Add interest cost note
             if total_interest > 0:
                 interest_percent = (total_interest / deal.asking_price) * 100
-                if interest_percent > 20:
+                if interest_percent > self.HIGH_INTEREST_THRESHOLD:
                     affordability_notes.append(
                         f"High interest cost: ${total_interest:,.0f} ({interest_percent:.1f}% of purchase price)"
                     )
@@ -472,9 +482,9 @@ Score should be 1-10 based on the description and mileage."""
             cash_savings = total_interest  # How much you save by paying cash
             
             # Generate financing recommendation
-            if price_score >= 8.0:
+            if price_score >= self.EXCELLENT_DEAL_SCORE:
                 # Excellent deal
-                if interest_rate <= 4.0:
+                if interest_rate <= self.LOW_INTEREST_RATE:
                     recommendation = "financing"
                     recommendation_reason = (
                         "Excellent deal with low interest rate - financing preserves cash for other investments"
@@ -484,9 +494,9 @@ Score should be 1-10 based on the description and mileage."""
                     recommendation_reason = (
                         "Excellent deal, but moderate interest rate - consider your cash position"
                     )
-            elif price_score >= 6.5:
+            elif price_score >= self.GOOD_DEAL_SCORE:
                 # Good deal
-                if interest_rate <= 5.0:
+                if interest_rate <= self.REASONABLE_INTEREST_RATE:
                     recommendation = "financing"
                     recommendation_reason = (
                         "Good deal with reasonable rate - financing is a viable option"

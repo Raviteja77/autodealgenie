@@ -3,6 +3,7 @@ Pydantic schemas for deal evaluation request/response validation
 """
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -59,7 +60,9 @@ class EvaluationInitiateRequest(BaseModel):
 class FinancingAssessment(BaseModel):
     """Schema for financing analysis within deal evaluation"""
 
-    financing_type: str = Field(..., description="Type of financing: cash, loan, or lease")
+    financing_type: Literal["cash", "loan", "lease"] = Field(
+        ..., description="Type of financing: cash, loan, or lease"
+    )
     monthly_payment: float | None = Field(None, description="Estimated monthly payment")
     total_cost: float = Field(..., description="Total cost including interest/fees")
     total_interest: float | None = Field(None, description="Total interest paid over term")
@@ -69,7 +72,7 @@ class FinancingAssessment(BaseModel):
     affordability_notes: list[str] = Field(
         default_factory=list, description="Notes on payment affordability"
     )
-    recommendation: str = Field(
+    recommendation: Literal["cash", "financing", "either"] = Field(
         ..., description="Financing recommendation: cash, financing, or either"
     )
     recommendation_reason: str = Field(..., description="Explanation for the recommendation")

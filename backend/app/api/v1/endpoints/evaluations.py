@@ -22,6 +22,14 @@ from app.services.lender_service import LenderService
 
 router = APIRouter()
 
+# Interest rate to credit score mapping thresholds
+EXCELLENT_CREDIT_RATE_THRESHOLD = 4.0
+GOOD_CREDIT_RATE_THRESHOLD = 6.0
+FAIR_CREDIT_RATE_THRESHOLD = 10.0
+
+# Default financing parameters
+DEFAULT_DOWN_PAYMENT_RATIO = 0.2  # 20% down payment (80% loan)
+DEFAULT_INTEREST_RATE = 5.5
 
 @router.post(
     "/{deal_id}/evaluation",
@@ -224,6 +232,13 @@ def get_evaluation_lenders(
             detail=f"Evaluation with id {evaluation_id} not found",
         )
 
+    # Verify evaluation belongs to the current user
+    if evaluation.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to access this evaluation",
+        )
+
     # Verify evaluation belongs to the deal
     if evaluation.deal_id != deal_id:
         raise HTTPException(
@@ -288,15 +303,15 @@ def get_evaluation_lenders(
 
     # Extract financing parameters from user inputs
     user_inputs = result_json.get("user_inputs", {})
-    loan_amount = financing_assessment.get("loan_amount", deal.asking_price * 0.8)
-    interest_rate = user_inputs.get("interest_rate", 5.5)
+    loan_amount = financing_assessment.get("loan_amount", deal.asking_price * (1 - DEFAULT_DOWN_PAYMENT_RATIO))
+    interest_rate = user_inputs.get("interest_rate", DEFAULT_INTEREST_RATE)
     
     # Estimate credit score range from interest rate (rough approximation)
-    if interest_rate <= 4.0:
+    if interest_rate <= EXCELLENT_CREDIT_RATE_THRESHOLD:
         credit_score_range = "excellent"
-    elif interest_rate <= 6.0:
+    elif interest_rate <= GOOD_CREDIT_RATE_THRESHOLD:
         credit_score_range = "good"
-    elif interest_rate <= 10.0:
+    elif interest_rate <= FAIR_CREDIT_RATE_THRESHOLD:
         credit_score_range = "fair"
     else:
         credit_score_range = "poor"
@@ -305,7 +320,7 @@ def get_evaluation_lenders(
     lender_request = LenderRecommendationRequest(
         loan_amount=loan_amount,
         credit_score_range=credit_score_range,
-        loan_term_months=60,  # Default 5-year term
+        loan_term_months=deal_evaluation_service.DEFAULT_LOAN_TERM_MONTHS,
     )
 
     # Get lender recommendations
