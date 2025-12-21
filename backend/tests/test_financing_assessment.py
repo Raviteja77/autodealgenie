@@ -170,7 +170,7 @@ async def test_get_lender_recommendations(authenticated_client, mock_deal, db):
     # Create an evaluation with completed financing step
     repo = EvaluationRepository(db)
     evaluation = repo.create(
-        user_id=1,
+        user_id=mock_user.id,
         deal_id=mock_deal.id,
         status=EvaluationStatus.ANALYZING,
         current_step=PipelineStep.FINANCING,
@@ -221,7 +221,7 @@ async def test_lender_recommendations_not_for_poor_deals(authenticated_client, m
 
     repo = EvaluationRepository(db)
     evaluation = repo.create(
-        user_id=1,
+        user_id=mock_user.id,
         deal_id=mock_deal.id,
         status=EvaluationStatus.ANALYZING,
         current_step=PipelineStep.FINANCING,
@@ -274,7 +274,7 @@ async def test_lender_recommendations_requires_completed_financing(
 
     repo = EvaluationRepository(db)
     evaluation = repo.create(
-        user_id=1,
+        user_id=mock_user.id,
         deal_id=mock_deal.id,
         status=EvaluationStatus.ANALYZING,
         current_step=PipelineStep.PRICE,

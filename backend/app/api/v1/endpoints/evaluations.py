@@ -265,14 +265,15 @@ def get_evaluation_lenders(
         price_data = result_json.get("price", {})
         overall_score = price_data.get("assessment", {}).get("score", 0)
     
-    if overall_score < 6.5:
+    min_score = deal_evaluation_service.LENDER_RECOMMENDATION_MIN_SCORE
+    if overall_score < min_score:
         return LenderRecommendationResponse(
             recommendations=[],
             total_matches=0,
             request_summary={
                 "message": "Deal quality is below threshold for lender recommendations",
                 "overall_score": overall_score,
-                "threshold": 6.5,
+                "threshold": min_score,
             },
         )
 

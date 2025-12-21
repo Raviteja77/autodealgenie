@@ -180,7 +180,7 @@ export const FinancingStep: React.FC<FinancingStepProps> = ({
                     </TableCell>
                   </TableRow>
                 )}
-                {total_interest !== undefined && total_interest > 0 && (
+                {total_interest !== undefined && total_interest !== null && (
                   <TableRow>
                     <TableCell>Total Interest</TableCell>
                     <TableCell align="right">

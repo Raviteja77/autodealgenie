@@ -21,6 +21,14 @@ class DealEvaluationService:
     """Service for evaluating car deals and providing negotiation insights"""
 
     MAX_INSIGHTS = 5  # Maximum number of insights/talking points to return
+    
+    # Affordability thresholds (payment-to-income ratio percentages)
+    AFFORDABILITY_EXCELLENT = 10  # ≤ 10% is excellent
+    AFFORDABILITY_GOOD = 15  # ≤ 15% is good
+    AFFORDABILITY_MODERATE = 20  # ≤ 20% is moderate
+    
+    # Deal quality threshold for lender recommendations
+    LENDER_RECOMMENDATION_MIN_SCORE = 6.5
 
     async def evaluate_deal(
         self,
@@ -421,20 +429,20 @@ Score should be 1-10 based on the description and mileage."""
             affordability_notes = []
             affordability_score = 5.0  # Base score
             
-            # Check monthly payment affordability (industry guideline: 10-15% of gross income)
+            # Check monthly payment affordability (industry guideline)
             if monthly_income > 0:
                 payment_ratio = (monthly_payment / monthly_income) * 100
-                if payment_ratio <= 10:
+                if payment_ratio <= self.AFFORDABILITY_EXCELLENT:
                     affordability_notes.append(
                         f"Excellent: Payment is {payment_ratio:.1f}% of monthly income"
                     )
                     affordability_score = 9.0
-                elif payment_ratio <= 15:
+                elif payment_ratio <= self.AFFORDABILITY_GOOD:
                     affordability_notes.append(
                         f"Good: Payment is {payment_ratio:.1f}% of monthly income"
                     )
                     affordability_score = 7.0
-                elif payment_ratio <= 20:
+                elif payment_ratio <= self.AFFORDABILITY_MODERATE:
                     affordability_notes.append(
                         f"Moderate: Payment is {payment_ratio:.1f}% of monthly income"
                     )
