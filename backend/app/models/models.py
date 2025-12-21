@@ -4,7 +4,7 @@ SQLAlchemy models for PostgreSQL
 
 import enum
 
-from sqlalchemy import Column, DateTime, Enum, Float, Integer, String, Text
+from sqlalchemy import Column, DateTime, Enum, Float, Integer, String, Text, ForeignKey, JSON
 from sqlalchemy.sql import func
 
 from app.db.session import Base
@@ -158,3 +158,41 @@ class SavedSearch(Base):
 
     def __repr__(self):
         return f"<SavedSearch {self.id}: {self.user_id} - {self.name}>"
+
+class LoanStatus(str, enum.Enum):
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    PRE_APPROVED = "pre_approved"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    COMPLETED = "completed"
+
+class LoanApplication(Base):
+    """Loan application model"""
+    __tablename__ = "loan_applications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    deal_id = Column(Integer, ForeignKey("deals.id"), nullable=True, index=True)
+    
+    # Loan details
+    loan_amount = Column(Float, nullable=False)
+    down_payment = Column(Float, nullable=False)
+    trade_in_value = Column(Float, default=0)
+    loan_term_months = Column(Integer, nullable=False)  # 36, 48, 60, 72
+    interest_rate = Column(Float, nullable=True)  # Calculated or provided
+    monthly_payment = Column(Float, nullable=True)  # Calculated
+    
+    # Applicant info
+    credit_score_range = Column(String(20), nullable=False)  # excellent, good, fair, poor
+    annual_income = Column(Float, nullable=True)
+    employment_status = Column(String(50), nullable=True)
+    
+    # Loan offers (from lenders)
+    loan_offers = Column(JSON, nullable=True)  # Store multiple offers
+    
+    # Status
+    status = Column(Enum(LoanStatus), default=LoanStatus.DRAFT, nullable=False, index=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)

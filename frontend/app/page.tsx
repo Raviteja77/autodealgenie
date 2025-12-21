@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
@@ -8,6 +8,7 @@ import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
+import Skeleton from "@mui/material/Skeleton";
 import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
@@ -17,19 +18,134 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import HistoryIcon from "@mui/icons-material/History";
 import InventoryIcon from "@mui/icons-material/Inventory";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useAuth } from "@/lib/auth";
 import { Button, Footer, Header } from "@/components";
+import { apiClient } from "@/lib/api";
+
+interface DashboardStats {
+  activeDealCount: number;
+  completedDealCount: number;
+  favoriteCount: number;
+  searchHistoryCount: number;
+}
 
 export default function Home() {
   const { user } = useAuth();
   const theme = useTheme();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const stats = [
-    { label: "Active Deals", value: "0", color: theme.palette.primary.main },
-    { label: "Saved Searches", value: "0", color: theme.palette.success.main },
-    { label: "Favorites", value: "0", color: theme.palette.error.main },
-    { label: "Recent Views", value: "0", color: theme.palette.warning.main },
-  ];
+  // Fetch dashboard stats when user is logged in
+  useEffect(() => {
+    if (!user) {
+      // Reset stats for non-authenticated users
+      setStats(null);
+      return;
+    }
+
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        // Fetch deals and favorites in parallel
+        const [deals, favorites] = await Promise.all([
+          apiClient.getDeals(),
+          apiClient.getFavorites(),
+        ]);
+
+        // Calculate stats
+        const activeDealCount = deals.filter(
+          (d) => d.status === "pending" || d.status === "in_progress"
+        ).length;
+        const completedDealCount = deals.filter(
+          (d) => d.status === "completed"
+        ).length;
+        const favoriteCount = favorites.length;
+
+        // Note: Search history would require a new backend endpoint
+        // For now, we'll show 0 or you can create a backend endpoint
+        const searchHistoryCount = 0;
+
+        setStats({
+          activeDealCount,
+          completedDealCount,
+          favoriteCount,
+          searchHistoryCount,
+        });
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+        // Set to zero on error
+        setStats({
+          activeDealCount: 0,
+          completedDealCount: 0,
+          favoriteCount: 0,
+          searchHistoryCount: 0,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [user]);
+
+  const displayStats = user
+    ? [
+        {
+          label: "Active Deals",
+          value: stats?.activeDealCount.toString() || "0",
+          color: theme.palette.primary.main,
+          icon: <DirectionsCarIcon />,
+        },
+        {
+          label: "Favorites",
+          value: stats?.favoriteCount.toString() || "0",
+          color: theme.palette.error.main,
+          icon: <FavoriteIcon />,
+        },
+        {
+          label: "Completed Deals",
+          value: stats?.completedDealCount.toString() || "0",
+          color: theme.palette.success.main,
+          icon: <CheckCircleIcon />,
+        },
+        {
+          label: "Saved Searches",
+          value: stats?.searchHistoryCount.toString() || "0",
+          color: theme.palette.warning.main,
+          icon: <SearchIcon />,
+        },
+      ]
+    : [
+        {
+          label: "Vehicles Available",
+          value: "10K+",
+          color: theme.palette.primary.main,
+          icon: <DirectionsCarIcon />,
+          trend: "Updated daily",
+        },
+        {
+          label: "AI Recommendations",
+          value: "Smart",
+          color: theme.palette.success.main,
+          icon: <TrendingUpIcon />,
+          trend: "Personalized",
+        },
+        {
+          label: "Deals Closed",
+          value: "500+",
+          color: theme.palette.warning.main,
+          icon: <CheckCircleIcon />,
+          trend: "This month",
+        },
+        {
+          label: "Avg. Savings",
+          value: "$3.5K",
+          color: theme.palette.error.main,
+          icon: <AssessmentIcon />,
+          trend: "Per deal",
+        },
+      ];
 
   const quickActions = [
     {
@@ -83,7 +199,6 @@ export default function Home() {
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "grey.50" }}>
-      {/* Header */}
       <Header />
 
       <Container maxWidth="lg" sx={{ py: { xs: 6, sm: 8, md: 12 } }}>
@@ -105,7 +220,9 @@ export default function Home() {
             color="text.secondary"
             sx={{ mb: 4, maxWidth: 600, mx: "auto", fontWeight: 400 }}
           >
-            Your AI-powered automotive deal management platform
+            {user
+              ? `Welcome back, ${user.username}! Your AI-powered automotive deal management platform`
+              : "Your AI-powered automotive deal management platform"}
           </Typography>
           <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
             <Button
@@ -131,38 +248,69 @@ export default function Home() {
 
         {/* Stats Overview */}
         <Grid container spacing={3} sx={{ mb: 6 }}>
-          {stats.map((stat, index) => (
+          {displayStats.map((stat, index) => (
             <Grid item xs={6} md={3} key={index}>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  borderRadius: 2,
-                  border: 1,
-                  borderColor: "divider",
-                  transition: "all 0.2s",
-                  "&:hover": {
-                    boxShadow: 2,
-                    borderColor: "transparent",
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 4,
-                    height: 48,
-                    bgcolor: stat.color,
-                    borderRadius: 1,
-                    mb: 2,
-                  }}
+              {loading && user ? (
+                <Skeleton
+                  variant="rectangular"
+                  height={140}
+                  sx={{ borderRadius: 2 }}
                 />
-                <Typography variant="h3" fontWeight={700} gutterBottom>
-                  {stat.value}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {stat.label}
-                </Typography>
-              </Paper>
+              ) : (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    border: 1,
+                    borderColor: "divider",
+                    transition: "all 0.2s",
+                    "&:hover": {
+                      boxShadow: 2,
+                      borderColor: "transparent",
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      mb: 2,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        bgcolor: `${stat.color}15`,
+                        borderRadius: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: stat.color,
+                      }}
+                    >
+                      {stat.icon}
+                    </Box>
+                  </Box>
+                  <Typography variant="h3" fontWeight={700} gutterBottom>
+                    {stat.value}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    gutterBottom
+                  >
+                    {stat.label}
+                  </Typography>
+                  {stat.trend && (
+                    <Typography variant="caption" color="text.secondary">
+                      {stat.trend}
+                    </Typography>
+                  )}
+                </Paper>
+              )}
             </Grid>
           ))}
         </Grid>
@@ -284,8 +432,6 @@ export default function Home() {
           </Grid>
         </Box>
       </Container>
-
-      {/* Footer */}
       <Footer />
     </Box>
   );
