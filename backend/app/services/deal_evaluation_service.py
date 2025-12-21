@@ -21,6 +21,25 @@ class DealEvaluationService:
     """Service for evaluating car deals and providing negotiation insights"""
 
     MAX_INSIGHTS = 5  # Maximum number of insights/talking points to return
+    
+    # Affordability thresholds (payment-to-income ratio percentages)
+    AFFORDABILITY_EXCELLENT = 10  # ≤ 10% is excellent
+    AFFORDABILITY_GOOD = 15  # ≤ 15% is good
+    AFFORDABILITY_MODERATE = 20  # ≤ 20% is moderate
+    
+    # Deal quality thresholds for financing recommendations
+    EXCELLENT_DEAL_SCORE = 8.0  # >= 8.0 is excellent deal
+    GOOD_DEAL_SCORE = 6.5  # >= 6.5 is good deal
+    LENDER_RECOMMENDATION_MIN_SCORE = 6.5  # Minimum score for lender recommendations
+    
+    # Interest rate thresholds for financing recommendations
+    LOW_INTEREST_RATE = 4.0  # ≤ 4% is considered low/excellent
+    REASONABLE_INTEREST_RATE = 5.0  # ≤ 5% is considered reasonable/good
+    HIGH_INTEREST_THRESHOLD = 20  # Interest cost > 20% of purchase price is high
+    
+    # Default loan parameters
+    DEFAULT_DOWN_PAYMENT_RATIO = 0.2  # 20% down payment
+    DEFAULT_LOAN_TERM_MONTHS = 60  # 5-year term
 
     async def evaluate_deal(
         self,
@@ -347,7 +366,7 @@ Score should be 1-10 based on the description and mileage."""
         }
 
     async def _evaluate_financing(self, deal: Deal, result_json: dict) -> dict[str, Any]:
-        """Evaluate financing step"""
+        """Evaluate financing step with comprehensive affordability analysis"""
         user_inputs = result_json.get("user_inputs", {})
 
         # Check if financing information is provided
@@ -357,24 +376,55 @@ Score should be 1-10 based on the description and mileage."""
                     "What type of financing are you considering? (cash, loan, lease)",
                     "If financing, what is your estimated interest rate? (optional)",
                     "What is your planned down payment amount? (optional)",
+                    "What is your approximate monthly gross income? (optional, for affordability check)",
                 ],
                 "required_fields": ["financing_type"],
             }
 
         financing_type = user_inputs.get("financing_type", "").lower()
+        monthly_income = user_inputs.get("monthly_income", 0)
+        
+        # Get price evaluation data for comparison
+        price_data = result_json.get("price", {})
+        price_score = price_data.get("assessment", {}).get("score", 5.0)
 
         if financing_type == "cash":
+            # Cash purchase assessment
+            affordability_notes = ["No monthly payments required", "No interest costs"]
+            affordability_score = 10.0  # Best affordability for cash
+            
+            # Determine if cash is better based on deal quality
+            if price_score >= 7.0:
+                recommendation = "cash"
+                recommendation_reason = (
+                    "This is a good deal - paying cash avoids interest and saves money long-term"
+                )
+            else:
+                recommendation = "either"
+                recommendation_reason = (
+                    "Cash eliminates interest costs, but consider financing if you want to preserve liquidity"
+                )
+            
             assessment = {
-                "financing_recommendation": "Cash purchase eliminates interest costs",
-                "estimated_total_cost": deal.asking_price,
+                "financing_type": "cash",
+                "monthly_payment": None,
+                "total_cost": deal.asking_price,
+                "total_interest": None,
+                "affordability_score": affordability_score,
+                "affordability_notes": affordability_notes,
+                "recommendation": recommendation,
+                "recommendation_reason": recommendation_reason,
+                "cash_vs_financing_savings": None,
             }
         else:
+            # Financing assessment
             interest_rate = user_inputs.get("interest_rate", 5.5)
-            down_payment = user_inputs.get("down_payment", deal.asking_price * 0.2)
+            down_payment = user_inputs.get("down_payment", deal.asking_price * self.DEFAULT_DOWN_PAYMENT_RATIO)
             loan_amount = deal.asking_price - down_payment
-            # Simple 60-month loan calculation
+            
+            # Calculate monthly payment
             monthly_rate = interest_rate / 100 / 12
-            months = 60
+            months = self.DEFAULT_LOAN_TERM_MONTHS
             if monthly_rate > 0:
                 monthly_payment = (loan_amount * monthly_rate * (1 + monthly_rate) ** months) / (
                     (1 + monthly_rate) ** months - 1
@@ -383,13 +433,99 @@ Score should be 1-10 based on the description and mileage."""
                 monthly_payment = loan_amount / months
 
             total_cost = down_payment + (monthly_payment * months)
-
+            total_interest = total_cost - deal.asking_price
+            
+            # Calculate affordability metrics
+            affordability_notes = []
+            affordability_score = 5.0  # Base score
+            
+            # Check monthly payment affordability (industry guideline)
+            # Division by monthly_income is safe here due to the > 0 check
+            if monthly_income > 0:
+                payment_ratio = (monthly_payment / monthly_income) * 100
+                if payment_ratio <= self.AFFORDABILITY_EXCELLENT:
+                    affordability_notes.append(
+                        f"Excellent: Payment is {payment_ratio:.1f}% of monthly income"
+                    )
+                    affordability_score = 9.0
+                elif payment_ratio <= self.AFFORDABILITY_GOOD:
+                    affordability_notes.append(
+                        f"Good: Payment is {payment_ratio:.1f}% of monthly income"
+                    )
+                    affordability_score = 7.0
+                elif payment_ratio <= self.AFFORDABILITY_MODERATE:
+                    affordability_notes.append(
+                        f"Moderate: Payment is {payment_ratio:.1f}% of monthly income"
+                    )
+                    affordability_score = 5.0
+                else:
+                    affordability_notes.append(
+                        f"Warning: Payment is {payment_ratio:.1f}% of monthly income (high)"
+                    )
+                    affordability_score = 3.0
+            else:
+                affordability_notes.append("Unable to assess affordability without income data")
+            
+            # Add interest cost note
+            if total_interest > 0:
+                interest_percent = (total_interest / deal.asking_price) * 100
+                if interest_percent > self.HIGH_INTEREST_THRESHOLD:
+                    affordability_notes.append(
+                        f"High interest cost: ${total_interest:,.0f} ({interest_percent:.1f}% of purchase price)"
+                    )
+                else:
+                    affordability_notes.append(
+                        f"Interest cost: ${total_interest:,.0f} over {months} months"
+                    )
+            
+            # Compare cash vs financing
+            cash_savings = total_interest  # How much you save by paying cash
+            
+            # Generate financing recommendation
+            if price_score >= self.EXCELLENT_DEAL_SCORE:
+                # Excellent deal
+                if interest_rate <= self.LOW_INTEREST_RATE:
+                    recommendation = "financing"
+                    recommendation_reason = (
+                        "Excellent deal with low interest rate - financing preserves cash for other investments"
+                    )
+                else:
+                    recommendation = "either"
+                    recommendation_reason = (
+                        "Excellent deal, but moderate interest rate - consider your cash position"
+                    )
+            elif price_score >= self.GOOD_DEAL_SCORE:
+                # Good deal
+                if interest_rate <= self.REASONABLE_INTEREST_RATE:
+                    recommendation = "financing"
+                    recommendation_reason = (
+                        "Good deal with reasonable rate - financing is a viable option"
+                    )
+                else:
+                    recommendation = "cash"
+                    recommendation_reason = (
+                        f"Good deal but interest costs add ${total_interest:,.0f} - cash is better if available"
+                    )
+            else:
+                # Fair or poor deal
+                recommendation = "cash"
+                recommendation_reason = (
+                    "Deal quality is mediocre - avoid paying interest on an overpriced vehicle"
+                )
+                if affordability_score < 5.0:
+                    recommendation_reason += ". Payment may also strain your budget."
+            
             assessment = {
                 "financing_type": financing_type,
                 "loan_amount": round(loan_amount, 2),
-                "estimated_monthly_payment": round(monthly_payment, 2),
-                "estimated_total_cost": round(total_cost, 2),
-                "total_interest": round(total_cost - deal.asking_price, 2),
+                "monthly_payment": round(monthly_payment, 2),
+                "total_cost": round(total_cost, 2),
+                "total_interest": round(total_interest, 2),
+                "affordability_score": round(affordability_score, 1),
+                "affordability_notes": affordability_notes,
+                "recommendation": recommendation,
+                "recommendation_reason": recommendation_reason,
+                "cash_vs_financing_savings": round(cash_savings, 2),
             }
 
         return {"assessment": assessment, "completed": True}
