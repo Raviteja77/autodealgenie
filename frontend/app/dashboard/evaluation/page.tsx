@@ -7,8 +7,14 @@ import {
   Container,
   Typography,
   Alert,
+  Card,
+  CardContent,
+  Divider,
+  Chip,
+  Stack,
+  Link as MuiLink,
 } from "@mui/material";
-import { Warning } from "@mui/icons-material";
+import { Warning, OpenInNew } from "@mui/icons-material";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
 import { Button } from "@/components";
@@ -17,6 +23,7 @@ import {
   PipelineStep,
   EvaluationStepResult,
   EvaluationStatus,
+  LenderRecommendationResponse,
 } from "@/lib/api";
 import {
   ProgressIndicator,
@@ -58,6 +65,8 @@ function EvaluationContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [evaluationState, setEvaluationState] = useState<EvaluationState | null>(null);
+  const [lenderRecommendations, setLenderRecommendations] = useState<LenderRecommendationResponse | null>(null);
+  const [lendersLoading, setLendersLoading] = useState(false);
 
   // Extract and validate vehicle data from URL params
   const vehicleData: VehicleInfo | null = (() => {
@@ -185,6 +194,8 @@ function EvaluationContent() {
       }
       if (response.result_json.financing?.completed) {
         completedSteps.push('financing');
+        // Fetch lender recommendations when financing step completes
+        fetchLenderRecommendations(response.deal_id, response.evaluation_id);
       }
       if (response.result_json.risk?.completed) {
         completedSteps.push('risk');
@@ -203,6 +214,20 @@ function EvaluationContent() {
       resultJson: response.result_json,
       completedSteps,
     });
+  };
+
+  const fetchLenderRecommendations = async (dealId: number, evaluationId: number) => {
+    setLendersLoading(true);
+    try {
+      const recommendations = await apiClient.getEvaluationLenders(dealId, evaluationId);
+      setLenderRecommendations(recommendations);
+    } catch (err: any) {
+      console.error("Error fetching lender recommendations:", err);
+      // Don't set error state - lenders are optional enhancement
+      setLenderRecommendations(null);
+    } finally {
+      setLendersLoading(false);
+    }
   };
 
   const handleFinalize = async () => {
@@ -449,6 +474,118 @@ function EvaluationContent() {
 
               {/* Step Content */}
               <Box sx={{ mb: 3 }}>{renderStepContent()}</Box>
+
+              {/* Lender Recommendations (shown after financing step) */}
+              {evaluationState.currentStep === 'financing' && 
+                evaluationState.completedSteps.includes('financing') && (
+                <Box sx={{ mb: 3 }}>
+                  {lendersLoading ? (
+                    <Card>
+                      <CardContent>
+                        <Typography variant="body2" color="text.secondary">
+                          Loading lender recommendations...
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  ) : lenderRecommendations && lenderRecommendations.recommendations.length > 0 ? (
+                    <Card>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>
+                          Recommended Lenders
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Based on your financing needs, here are our top lender recommendations:
+                        </Typography>
+                        <Divider sx={{ my: 2 }} />
+                        <Stack spacing={2}>
+                          {lenderRecommendations.recommendations.map((match) => (
+                            <Card key={match.lender.lender_id} variant="outlined">
+                              <CardContent>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
+                                  <Box>
+                                    <Typography variant="h6" component="div">
+                                      {match.lender.name}
+                                    </Typography>
+                                    <Chip
+                                      label={`Match Score: ${match.match_score.toFixed(0)}%`}
+                                      size="small"
+                                      color="primary"
+                                      sx={{ mt: 0.5 }}
+                                    />
+                                  </Box>
+                                  <Chip
+                                    label={`Rank #${match.rank}`}
+                                    size="small"
+                                    color="success"
+                                  />
+                                </Box>
+                                <Typography variant="body2" color="text.secondary" gutterBottom>
+                                  {match.lender.description}
+                                </Typography>
+                                <Box sx={{ mt: 2, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                                  <Box>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Est. APR
+                                    </Typography>
+                                    <Typography variant="body1" fontWeight="bold">
+                                      {(match.estimated_apr * 100).toFixed(2)}%
+                                    </Typography>
+                                  </Box>
+                                  <Box>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Est. Monthly Payment
+                                    </Typography>
+                                    <Typography variant="body1" fontWeight="bold">
+                                      ${match.estimated_monthly_payment.toLocaleString()}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                                <Typography variant="body2" sx={{ mt: 2, fontStyle: 'italic' }}>
+                                  {match.recommendation_reason}
+                                </Typography>
+                                {match.lender.features.length > 0 && (
+                                  <Box sx={{ mt: 2 }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Key Features:
+                                    </Typography>
+                                    <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: 'wrap' }}>
+                                      {match.lender.features.slice(0, 3).map((feature, idx) => (
+                                        <Chip key={idx} label={feature} size="small" variant="outlined" />
+                                      ))}
+                                    </Stack>
+                                  </Box>
+                                )}
+                                <Box sx={{ mt: 2 }}>
+                                  <MuiLink
+                                    href={match.lender.affiliate_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                                  >
+                                    Apply Now <OpenInNew fontSize="small" />
+                                  </MuiLink>
+                                </Box>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  ) : lenderRecommendations && lenderRecommendations.total_matches === 0 ? (
+                    <Alert severity="info">
+                      <Typography variant="body2">
+                        {lenderRecommendations.request_summary.message || 
+                          'No lender recommendations available for this deal at this time.'}
+                      </Typography>
+                      {lenderRecommendations.request_summary.reason && (
+                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                          {lenderRecommendations.request_summary.reason}
+                        </Typography>
+                      )}
+                    </Alert>
+                  ) : null}
+                </Box>
+              )}
 
               {/* Insights Panel */}
               {getInsights().length > 0 && (

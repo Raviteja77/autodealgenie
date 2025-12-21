@@ -173,6 +173,40 @@ export interface EvaluationAnswerRequest {
   answers: Record<string, string | number>;
 }
 
+export interface LenderInfo {
+  lender_id: string;
+  name: string;
+  description: string;
+  logo_url?: string;
+  min_credit_score: number;
+  max_credit_score: number;
+  min_loan_amount: number;
+  max_loan_amount: number;
+  min_term_months: number;
+  max_term_months: number;
+  apr_range_min: number;
+  apr_range_max: number;
+  features: string[];
+  benefits: string[];
+  affiliate_url: string;
+  referral_code?: string;
+}
+
+export interface LenderMatch {
+  lender: LenderInfo;
+  match_score: number;
+  estimated_apr: number;
+  estimated_monthly_payment: number;
+  recommendation_reason: string;
+  rank: number;
+}
+
+export interface LenderRecommendationResponse {
+  recommendations: LenderMatch[];
+  total_matches: number;
+  request_summary: Record<string, any>;
+}
+
 export interface NegotiationMessage {
   id: number;
   session_id: number;
@@ -505,6 +539,21 @@ class ApiClient {
       {
         method: "POST",
         body: JSON.stringify(request),
+      }
+    );
+  }
+
+  /**
+   * Get lender recommendations for a deal evaluation
+   */
+  async getEvaluationLenders(
+    dealId: number,
+    evaluationId: number
+  ): Promise<LenderRecommendationResponse> {
+    return this.request<LenderRecommendationResponse>(
+      `/api/v1/deals/${dealId}/evaluation/${evaluationId}/lenders`,
+      {
+        method: "GET",
       }
     );
   }

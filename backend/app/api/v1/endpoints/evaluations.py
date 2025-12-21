@@ -16,7 +16,9 @@ from app.schemas.evaluation_schemas import (
     EvaluationInitiateRequest,
     EvaluationResponse,
 )
+from app.schemas.loan_schemas import LenderRecommendationRequest, LenderRecommendationResponse
 from app.services.deal_evaluation_service import deal_evaluation_service
+from app.services.lender_service import LenderService
 
 router = APIRouter()
 
@@ -188,4 +190,129 @@ async def submit_evaluation_answers(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing answers: {str(e)}",
+        ) from e
+
+
+@router.get(
+    "/{deal_id}/evaluation/{evaluation_id}/lenders",
+    response_model=LenderRecommendationResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_evaluation_lenders(
+    deal_id: int,
+    evaluation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get lender recommendations for a deal evaluation
+    
+    This endpoint analyzes the evaluation's financing assessment and provides
+    personalized lender recommendations if the deal quality warrants financing.
+    
+    Returns lender recommendations only for deals with:
+    - Completed financing evaluation step
+    - Financing recommendation of "financing" or "either"
+    - Overall deal score >= 6.5 (good or excellent deals)
+    """
+    eval_repo = EvaluationRepository(db)
+    evaluation = eval_repo.get(evaluation_id)
+
+    if not evaluation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Evaluation with id {evaluation_id} not found",
+        )
+
+    # Verify evaluation belongs to the deal
+    if evaluation.deal_id != deal_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Evaluation {evaluation_id} does not belong to deal {deal_id}",
+        )
+
+    # Check if financing step is completed
+    result_json = evaluation.result_json or {}
+    financing_data = result_json.get("financing", {})
+    
+    if not financing_data.get("completed"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Financing evaluation step must be completed before fetching lender recommendations",
+        )
+
+    financing_assessment = financing_data.get("assessment", {})
+    
+    # Check if financing is recommended
+    recommendation = financing_assessment.get("recommendation", "")
+    if recommendation not in ["financing", "either"]:
+        # Return empty recommendations with explanation
+        return LenderRecommendationResponse(
+            recommendations=[],
+            total_matches=0,
+            request_summary={
+                "message": f"Financing not recommended for this deal. Recommendation: {recommendation}",
+                "reason": financing_assessment.get("recommendation_reason", ""),
+            },
+        )
+    
+    # Check overall deal quality
+    final_data = result_json.get("final", {})
+    overall_score = final_data.get("assessment", {}).get("overall_score", 0)
+    
+    # If final step not completed, estimate from price score
+    if overall_score == 0:
+        price_data = result_json.get("price", {})
+        overall_score = price_data.get("assessment", {}).get("score", 0)
+    
+    if overall_score < 6.5:
+        return LenderRecommendationResponse(
+            recommendations=[],
+            total_matches=0,
+            request_summary={
+                "message": "Deal quality is below threshold for lender recommendations",
+                "overall_score": overall_score,
+                "threshold": 6.5,
+            },
+        )
+
+    # Get deal information
+    deal_repo = DealRepository(db)
+    deal = deal_repo.get(deal_id)
+    if not deal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Deal with id {deal_id} not found",
+        )
+
+    # Extract financing parameters from user inputs
+    user_inputs = result_json.get("user_inputs", {})
+    loan_amount = financing_assessment.get("loan_amount", deal.asking_price * 0.8)
+    interest_rate = user_inputs.get("interest_rate", 5.5)
+    
+    # Estimate credit score range from interest rate (rough approximation)
+    if interest_rate <= 4.0:
+        credit_score_range = "excellent"
+    elif interest_rate <= 6.0:
+        credit_score_range = "good"
+    elif interest_rate <= 10.0:
+        credit_score_range = "fair"
+    else:
+        credit_score_range = "poor"
+
+    # Build lender recommendation request
+    lender_request = LenderRecommendationRequest(
+        loan_amount=loan_amount,
+        credit_score_range=credit_score_range,
+        loan_term_months=60,  # Default 5-year term
+    )
+
+    # Get lender recommendations
+    try:
+        recommendations = LenderService.get_recommendations(lender_request, max_results=5)
+        return recommendations
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating lender recommendations: {str(e)}",
         ) from e
