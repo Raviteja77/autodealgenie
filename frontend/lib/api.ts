@@ -214,13 +214,66 @@ export interface NextRoundRequest {
   counter_offer?: number | null;
 }
 
+export interface FinancingOption {
+  loan_amount: number;
+  down_payment: number;
+  monthly_payment_estimate: number;
+  loan_term_months: number;
+  estimated_apr: number;
+  total_cost: number;
+  total_interest: number;
+}
+
+export interface NegotiationRoundMetadata {
+  suggested_price: number;
+  asking_price: number;
+  user_action?: string | null;
+  financing_options?: FinancingOption[] | null;
+  cash_savings?: number | null;
+}
+
 export interface NextRoundResponse {
   session_id: number;
   status: NegotiationStatus;
   current_round: number;
   agent_message: string;
-  metadata: Record<string, unknown>;
+  metadata: NegotiationRoundMetadata;
 }
+
+export interface LenderInfo {
+  lender_id: string;
+  name: string;
+  description: string;
+  logo_url?: string | null;
+  min_credit_score: number;
+  max_credit_score: number;
+  min_loan_amount: number;
+  max_loan_amount: number;
+  min_term_months: number;
+  max_term_months: number;
+  apr_range_min: number;
+  apr_range_max: number;
+  features: string[];
+  benefits: string[];
+  affiliate_url: string;
+  referral_code?: string | null;
+}
+
+export interface LenderMatch {
+  lender: LenderInfo;
+  match_score: number;
+  estimated_apr: number;
+  estimated_monthly_payment: number;
+  recommendation_reason: string;
+  rank: number;
+}
+
+export interface LenderRecommendationResponse {
+  recommendations: LenderMatch[];
+  total_matches: number;
+  request_summary: Record<string, unknown>;
+}
+
 export interface SavedSearch {
   id: number;
   user_id: number;
@@ -514,6 +567,19 @@ class ApiClient {
   async getNegotiationSession(sessionId: number): Promise<NegotiationSession> {
     return this.request<NegotiationSession>(
       `/api/v1/negotiations/${sessionId}`
+    );
+  }
+
+  /**
+   * Get lender recommendations for a negotiation session
+   */
+  async getNegotiationLenderRecommendations(
+    sessionId: number,
+    loanTermMonths: number = 60,
+    creditScoreRange: string = "good"
+  ): Promise<LenderRecommendationResponse> {
+    return this.request<LenderRecommendationResponse>(
+      `/api/v1/negotiations/${sessionId}/lender-recommendations?loan_term_months=${loanTermMonths}&credit_score_range=${creditScoreRange}`
     );
   }
 

@@ -98,3 +98,35 @@ class NegotiationSessionSummary(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class FinancingOption(BaseModel):
+    """Financing details for current negotiation price"""
+
+    loan_amount: float = Field(..., description="Loan amount after down payment")
+    down_payment: float = Field(..., description="Down payment amount")
+    monthly_payment_estimate: float = Field(..., description="Estimated monthly payment")
+    loan_term_months: int = Field(..., description="Loan term in months")
+    estimated_apr: float = Field(..., description="Estimated APR as decimal")
+    total_cost: float = Field(..., description="Total cost over loan term")
+    total_interest: float = Field(..., description="Total interest paid")
+
+
+class NegotiationRoundMetadata(BaseModel):
+    """Enhanced metadata with financing options"""
+
+    suggested_price: float
+    asking_price: float
+    user_action: str | None = None
+    financing_options: list[FinancingOption] | None = None
+    cash_savings: float | None = None  # vs financing total cost
+
+
+class NextRoundResponse(BaseModel):
+    """Response schema for next negotiation round with financing"""
+
+    session_id: int
+    status: NegotiationStatus
+    current_round: int
+    agent_message: str
+    metadata: NegotiationRoundMetadata
