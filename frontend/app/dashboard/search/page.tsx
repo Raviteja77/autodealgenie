@@ -124,8 +124,8 @@ export default function DashboardSearchPage() {
     return Math.round(payment);
   };
 
-  // Update estimated payment when financing params change
-  const updateEstimatedPayment = () => {
+  // Auto-update estimated payment when financing parameters change
+  useEffect(() => {
     if (
       searchParams.paymentMethod === "finance" &&
       searchParams.downPayment !== undefined &&
@@ -141,11 +141,6 @@ export default function DashboardSearchPage() {
       );
       setEstimatedPayment(payment);
     }
-  };
-
-  // Auto-update estimated payment when financing parameters change
-  useEffect(() => {
-    updateEstimatedPayment();
   }, [
     searchParams.paymentMethod,
     searchParams.downPayment,
@@ -371,7 +366,6 @@ export default function DashboardSearchPage() {
                                 ...searchParams,
                                 downPayment: parseInt(e.target.value) || 0,
                               });
-                              updateEstimatedPayment();
                             }}
                             placeholder="e.g., 5000"
                           />
@@ -406,7 +400,6 @@ export default function DashboardSearchPage() {
                                   ...searchParams,
                                   loanTerm: e.target.value as number,
                                 });
-                                updateEstimatedPayment();
                               }}
                             >
                               <MenuItem value={36}>36 months (3 years)</MenuItem>
@@ -433,7 +426,6 @@ export default function DashboardSearchPage() {
                                     | "fair"
                                     | "poor",
                                 });
-                                updateEstimatedPayment();
                               }}
                             >
                               <MenuItem value="excellent">

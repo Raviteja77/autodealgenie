@@ -48,9 +48,9 @@ def upgrade():
         sa.Column("loan_offers", JSON, nullable=True),
         # Status
         sa.Column("status", sa.Enum(
-            "DRAFT", "SUBMITTED", "PRE_APPROVED", "APPROVED", "REJECTED", "COMPLETED",
+            "draft", "submitted", "pre_approved", "approved", "rejected", "completed",
             name="loanstatus"
-        ), nullable=False, server_default="DRAFT"),
+        ), nullable=False, server_default="draft"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
