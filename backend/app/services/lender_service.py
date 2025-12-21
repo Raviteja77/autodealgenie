@@ -29,6 +29,21 @@ CREDIT_SCORE_RANGES = {
     "poor": 550,  # 300-579
 }
 
+# Scoring algorithm constants
+MAX_APR_FOR_SCORING = 0.20  # Maximum APR for scoring calculations (20%)
+MIN_APR_FOR_SCORING = 0.03  # Minimum APR for scoring calculations (3%)
+APR_SCORING_RANGE = MAX_APR_FOR_SCORING - MIN_APR_FOR_SCORING  # 0.17
+
+# Scoring weights (must sum to 100)
+WEIGHT_APR_COMPETITIVENESS = 40
+WEIGHT_LOAN_AMOUNT_FIT = 20
+WEIGHT_CREDIT_SCORE_FIT = 20
+WEIGHT_TERM_FLEXIBILITY = 10
+WEIGHT_FEATURES_BENEFITS = 10
+
+# Scoring bonuses
+BONUS_CREDIT_REBUILDING_SPECIALIST = 5  # Bonus for credit rebuilding lenders
+
 
 class LenderService:
     """Service for recommending trusted partner lenders"""
@@ -198,11 +213,18 @@ class LenderService:
         """
         Get the midpoint credit score for a given range
 
+        This method is intentionally lenient and defaults to 'good' credit (690)
+        for invalid inputs. This is useful for mock loan offers where we want
+        to provide a reasonable fallback rather than fail.
+
+        For user-facing calculations where strict validation is needed,
+        use LenderRecommendationRequest schema validation instead.
+
         Args:
             credit_score_range: Credit score range category
 
         Returns:
-            Midpoint credit score value
+            Midpoint credit score value (defaults to 690 for invalid input)
         """
         return CREDIT_SCORE_RANGES.get(credit_score_range.lower(), 690)
 
@@ -287,8 +309,11 @@ class LenderService:
 
             # 1. APR Competitiveness (40% weight) - lower is better
             apr_midpoint = (lender.apr_range_min + lender.apr_range_max) / 2
-            # Best possible score for lowest APR (3%), worst for highest (20%)
-            apr_score = max(0, (0.20 - apr_midpoint) / 0.17) * 40
+            # Best possible score for lowest APR, worst for highest
+            apr_score = (
+                max(0, (MAX_APR_FOR_SCORING - apr_midpoint) / APR_SCORING_RANGE)
+                * WEIGHT_APR_COMPETITIVENESS
+            )
             score += apr_score
 
             if apr_midpoint < 0.06:
@@ -301,14 +326,14 @@ class LenderService:
             if amount_range > 0:
                 # Prefer lenders where the loan is in the middle of their range
                 amount_position = (loan_amount - lender.min_loan_amount) / amount_range
-                amount_score = (1 - abs(0.5 - amount_position)) * 20
+                amount_score = (1 - abs(0.5 - amount_position)) * WEIGHT_LOAN_AMOUNT_FIT
                 score += amount_score
 
             # 3. Credit Score Fit (20% weight) - how well score fits their range
             credit_range = lender.max_credit_score - lender.min_credit_score
             if credit_range > 0:
                 credit_position = (credit_score - lender.min_credit_score) / credit_range
-                credit_score_fit = (1 - abs(0.5 - credit_position)) * 20
+                credit_score_fit = (1 - abs(0.5 - credit_position)) * WEIGHT_CREDIT_SCORE_FIT
                 score += credit_score_fit
 
                 # Bonus for being in the upper half of their range
@@ -318,12 +343,12 @@ class LenderService:
             # 4. Term Flexibility (10% weight)
             term_range = lender.max_term_months - lender.min_term_months
             if term_range > 0:
-                term_flexibility_score = min(term_range / 60, 1.0) * 10
+                term_flexibility_score = min(term_range / 60, 1.0) * WEIGHT_TERM_FLEXIBILITY
                 score += term_flexibility_score
 
             # 5. Features and Benefits (10% weight)
             total_features = len(lender.features) + len(lender.benefits)
-            features_score = min(total_features / 6, 1.0) * 10
+            features_score = min(total_features / 6, 1.0) * WEIGHT_FEATURES_BENEFITS
             score += features_score
 
             if total_features >= 6:
@@ -339,7 +364,7 @@ class LenderService:
                 or "credit rebuilding" in lender.description.lower()
             ):
                 if credit_score_range in ["fair", "poor"]:
-                    score += 5  # Bonus for credit rebuilding specialists
+                    score += BONUS_CREDIT_REBUILDING_SPECIALIST
                     reasons.append("Credit rebuilding expertise")
 
             # Create recommendation reason
