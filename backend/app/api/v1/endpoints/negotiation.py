@@ -204,15 +204,17 @@ def get_lender_recommendations(
     messages = negotiation_service.negotiation_repo.get_messages(session_id)
     negotiated_price = deal.asking_price
 
-    # Try to find the last suggested price in agent messages
-    for msg in reversed(messages):
+    # Try to find the last suggested price in agent messages (check last 10 messages only)
+    for msg in reversed(messages[-10:]):
         if msg.role.value == "agent" and msg.message_metadata:
             if "suggested_price" in msg.message_metadata:
                 negotiated_price = msg.message_metadata["suggested_price"]
                 break
 
-    # Calculate down payment (10%)
-    down_payment = negotiated_price * 0.10
+    # Calculate down payment using shared constant
+    from app.services.negotiation_service import NegotiationService
+
+    down_payment = negotiated_price * NegotiationService.DEFAULT_DOWN_PAYMENT_PERCENT
     loan_amount = negotiated_price - down_payment
 
     # Create lender recommendation request

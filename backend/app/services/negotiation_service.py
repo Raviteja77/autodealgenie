@@ -454,6 +454,12 @@ class NegotiationService:
                     f"Failed to calculate financing for {term_months} month term: {str(e)}"
                 )
                 continue
+            except Exception as e:
+                logger.exception(
+                    f"Unexpected error calculating financing for {term_months} month term: {str(e)}"
+                )
+                # Continue to try other terms rather than failing completely
+                continue
 
         return financing_options
 

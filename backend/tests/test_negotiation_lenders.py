@@ -3,7 +3,7 @@
 import pytest
 
 from app.models.models import Deal, DealStatus, User
-from app.models.negotiation import MessageRole, NegotiationStatus
+from app.models.negotiation import MessageRole
 from app.repositories.negotiation_repository import NegotiationRepository
 
 

@@ -111,6 +111,7 @@ function NegotiationContent() {
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set([1]));
   const [showFinancingPanel, setShowFinancingPanel] = useState(true);
   const [lenderRecommendations, setLenderRecommendations] = useState<LenderMatch[] | null>(null);
+  const [loadingLenders, setLoadingLenders] = useState(false);
   const [notification, setNotification] = useState<{
     type: "success" | "warning" | "info" | "error";
     message: string;
@@ -273,19 +274,6 @@ function NegotiationContent() {
       // Fetch updated session
       const session = await apiClient.getNegotiationSession(state.sessionId);
 
-      // Fetch lender recommendations
-      try {
-        const lenderRecs = await apiClient.getNegotiationLenderRecommendations(
-          state.sessionId,
-          60,
-          "good"
-        );
-        setLenderRecommendations(lenderRecs.recommendations);
-      } catch (lenderErr) {
-        console.warn("Failed to fetch lender recommendations:", lenderErr);
-        // Don't fail the whole flow if lender recs fail
-      }
-
       setState((prev) => ({
         ...prev,
         status: "completed",
@@ -299,6 +287,30 @@ function NegotiationContent() {
         type: "success",
         message: "Congratulations! You've successfully negotiated the deal!",
       });
+
+      // Fetch lender recommendations with loading state
+      setLoadingLenders(true);
+      try {
+        // Use financing options from state if available, otherwise use defaults
+        const preferredTerm = state.financingOptions && state.financingOptions.length > 0
+          ? state.financingOptions.find(opt => opt.loan_term_months === 60)?.loan_term_months || 60
+          : 60;
+        
+        const lenderRecs = await apiClient.getNegotiationLenderRecommendations(
+          state.sessionId,
+          preferredTerm,
+          "good"
+        );
+        setLenderRecommendations(lenderRecs.recommendations);
+      } catch (lenderErr) {
+        console.error("Failed to fetch lender recommendations:", lenderErr);
+        setNotification({
+          type: "warning",
+          message: "Financing options are temporarily unavailable. Your deal is still complete!",
+        });
+      } finally {
+        setLoadingLenders(false);
+      }
     } catch (err) {
       console.error("Failed to accept offer:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to accept offer";
@@ -478,7 +490,18 @@ function NegotiationContent() {
               </Typography>
 
               {/* Lender Recommendations */}
-              {lenderRecommendations && lenderRecommendations.length > 0 && (
+              {loadingLenders && (
+                <>
+                  <Divider sx={{ my: 3 }} />
+                  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
+                    <Spinner size="md" />
+                    <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                      Finding the best financing options for you...
+                    </Typography>
+                  </Box>
+                </>
+              )}
+              {!loadingLenders && lenderRecommendations && lenderRecommendations.length > 0 && (
                 <>
                   <Divider sx={{ my: 3 }} />
                   <Typography variant="h6" gutterBottom sx={{ textAlign: "left" }}>
@@ -1031,14 +1054,20 @@ function NegotiationContent() {
                     )}
                     {state.financingOptions && state.financingOptions.length > 0 && !showFinancingPanel && (
                       <>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                          <Typography variant="subtitle2">
-                            Financing Options
-                          </Typography>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Typography variant="subtitle2">
+                              Financing Options
+                            </Typography>
+                            <Chip label="Available" size="small" color="info" />
+                          </Box>
                           <IconButton size="small" onClick={() => setShowFinancingPanel(true)}>
                             <ExpandMore />
                           </IconButton>
                         </Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+                          Click to view financing details
+                        </Typography>
                         <Divider sx={{ my: 2 }} />
                       </>
                     )}
