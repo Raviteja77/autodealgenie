@@ -96,28 +96,24 @@ export default function Home() {
           value: stats?.activeDealCount.toString() || "0",
           color: theme.palette.primary.main,
           icon: <DirectionsCarIcon />,
-          trend: "+2 this week",
         },
         {
           label: "Favorites",
           value: stats?.favoriteCount.toString() || "0",
           color: theme.palette.error.main,
           icon: <FavoriteIcon />,
-          trend: "3 new today",
         },
         {
           label: "Completed Deals",
           value: stats?.completedDealCount.toString() || "0",
           color: theme.palette.success.main,
           icon: <CheckCircleIcon />,
-          trend: "$45K saved",
         },
         {
           label: "Saved Searches",
           value: stats?.searchHistoryCount.toString() || "0",
           color: theme.palette.warning.main,
           icon: <SearchIcon />,
-          trend: "5 matches",
         },
       ]
     : [
@@ -308,9 +304,11 @@ export default function Home() {
                   >
                     {stat.label}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {stat.trend}
-                  </Typography>
+                  {stat.trend && (
+                    <Typography variant="caption" color="text.secondary">
+                      {stat.trend}
+                    </Typography>
+                  )}
                 </Paper>
               )}
             </Grid>

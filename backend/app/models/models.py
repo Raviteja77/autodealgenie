@@ -6,8 +6,6 @@ import enum
 
 from sqlalchemy import Column, DateTime, Enum, Float, Integer, String, Text, ForeignKey, JSON
 from sqlalchemy.sql import func
-from sqlalchemy.sql import func
-import enum
 
 from app.db.session import Base
 
