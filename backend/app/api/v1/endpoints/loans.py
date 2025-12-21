@@ -24,14 +24,20 @@ def generate_mock_loan_offers(
     """Generate mock loan offers based on credit score and term.
 
     In production this would be replaced with real lender integrations.
+    Uses APR rates consistent with LoanCalculatorService for accuracy.
     """
-    base_rates = {
-        "excellent": 0.035,
-        "good": 0.045,
-        "fair": 0.065,
-        "poor": 0.095,
-    }
-    base_rate = base_rates.get(credit_score.lower(), 0.055)
+    # Use APR rates from LoanCalculatorService for consistency
+    from app.services.loan_calculator_service import (
+        APR_RATES,
+        CreditScoreRange,
+    )
+
+    # Get base rate for credit score
+    try:
+        credit_range = CreditScoreRange(credit_score.lower())
+        base_rate = APR_RATES[credit_range]
+    except (ValueError, KeyError):
+        base_rate = APR_RATES[CreditScoreRange.GOOD]  # Default to good credit
 
     def _monthly_payment(principal: float, annual_rate: float, term_months: int) -> float:
         monthly_rate = annual_rate / 12
@@ -41,10 +47,11 @@ def generate_mock_loan_offers(
             (1 + monthly_rate) ** term_months - 1
         )
 
+    # Generate offers from different lenders with varying rates
     lenders = [
-        ("AutoBank Prime", base_rate),
-        ("CarFinance Plus", base_rate + 0.005),
-        ("Neighborhood Credit Union", base_rate + 0.01),
+        ("AutoBank Prime", base_rate - 0.005),  # Best rate (0.5% below base)
+        ("CarFinance Plus", base_rate),  # Base rate
+        ("Neighborhood Credit Union", base_rate + 0.01),  # Higher rate (1% above base)
     ]
 
     offers: list[LoanOffer] = []

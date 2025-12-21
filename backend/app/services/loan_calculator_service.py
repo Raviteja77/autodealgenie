@@ -14,12 +14,23 @@ from pydantic import BaseModel, Field
 
 
 class CreditScoreRange(str, Enum):
-    """Credit score range categories with corresponding APR ranges"""
+    """
+    Credit score range categories with corresponding APR ranges.
 
-    EXCELLENT = "excellent"  # APR: 3.9% - 5.9% (midpoint: 4.9%)
-    GOOD = "good"  # APR: 5.9% - 8.9% (midpoint: 7.4%)
-    FAIR = "fair"  # APR: 8.9% - 11.9% (midpoint: 10.4%)
-    POOR = "poor"  # APR: 11.9% - 14.9% (midpoint: 13.4%)
+    The ranges below show the typical APR spectrum for each credit tier.
+    For calculations, we use the midpoint of each range to provide consistent,
+    fair estimates. The ranges may overlap at boundaries, but each tier uses
+    its own midpoint for calculations:
+    - EXCELLENT: 3.9% - 5.9% → uses 4.9%
+    - GOOD: 5.9% - 8.9% → uses 7.4%
+    - FAIR: 8.9% - 11.9% → uses 10.4%
+    - POOR: 11.9% - 14.9% → uses 13.4%
+    """
+
+    EXCELLENT = "excellent"
+    GOOD = "good"
+    FAIR = "fair"
+    POOR = "poor"
 
 
 # APR midpoints for each credit score range
