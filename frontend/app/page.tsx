@@ -89,7 +89,13 @@ export default function Home() {
     fetchStats();
   }, [user]);
 
-  const displayStats = user
+  const displayStats: {
+    label: string;
+    value: string;
+    color: string;
+    icon: React.ReactNode;
+    trend?: string;
+  }[] = user
     ? [
         {
           label: "Active Deals",

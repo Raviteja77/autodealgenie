@@ -119,6 +119,15 @@ npm install
 # Run development server
 npm run dev
 
+# local debugging
+# for database
+docker exec -it autodealgenie-postgres psql -U autodealgenie -d autodealgenie
+
+Once inside the autodealgenie=# prompt:
+Type \dt and press Enter. This lists all tables.
+Type \dT and press Enter. This lists all custom types (like your enums).
+Type select * from alembic_version; to see the latest applied migration ID.
+
 
 # 4. Access the applications
 # Frontend:  http://localhost:3000
