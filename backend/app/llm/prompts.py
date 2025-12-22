@@ -24,7 +24,7 @@ from typing import Any
 class PromptTemplate:
     """
     Represents a prompt template with id and template string
-    
+
     Templates support variable substitution using Python's str.format()
     syntax, allowing dynamic content injection from user input or
     previous agent outputs in multi-step workflows.
@@ -55,7 +55,6 @@ PROMPTS: dict[str, PromptTemplate] = {
     # Role: Senior Vehicle Discovery Specialist
     # Goal: Find top 3-5 vehicle listings matching user criteria
     # ============================================================================
-    
     "research_vehicles": PromptTemplate(
         id="research_vehicles",
         template="""ROLE: Senior Vehicle Discovery Specialist
@@ -117,13 +116,11 @@ EXPECTED OUTPUT (JSON):
 
 Rank vehicles by overall score (highest first). Include reliability and review summaries.""",
     ),
-    
     # ============================================================================
     # LOAN ANALYZER AGENT PROMPTS
     # Role: Senior Auto Financial Specialist
     # Goal: Find and compare best financing options for specific loan amount
     # ============================================================================
-    
     "analyze_financing": PromptTemplate(
         id="analyze_financing",
         template="""ROLE: Senior Auto Financial Specialist
@@ -168,13 +165,11 @@ EXPECTED OUTPUT (JSON):
 
 The recommended_option_index should be the zero-based index of the best option.""",
     ),
-    
     # ============================================================================
     # NEGOTIATION AGENT PROMPTS
     # Role: Expert Car Deal Negotiator
     # Goal: Secure best vehicle price and challenge dealer financing
     # ============================================================================
-    
     "negotiate_deal": PromptTemplate(
         id="negotiate_deal",
         template="""ROLE: Expert Car Deal Negotiator
@@ -227,13 +222,11 @@ EXPECTED OUTPUT (JSON):
 
 Document the negotiation process and final terms achieved.""",
     ),
-    
     # ============================================================================
     # DEAL EVALUATOR AGENT PROMPTS
     # Role: Meticulous Deal Evaluator
     # Goal: Comprehensive audit with 'go' or 'no-go' recommendation
     # ============================================================================
-    
     "evaluate_deal": PromptTemplate(
         id="evaluate_deal",
         template="""ROLE: Meticulous Deal Evaluator
@@ -304,13 +297,11 @@ EXPECTED OUTPUT (Markdown Report):
 ## Next Steps
 [Actionable recommendations for the customer]""",
     ),
-    
     # ============================================================================
     # QUALITY ASSURANCE AGENT PROMPTS
     # Role: Deal Quality Assurance Reviewer
     # Goal: Review reports for clarity, consistency, and completeness
     # ============================================================================
-    
     "review_final_report": PromptTemplate(
         id="review_final_report",
         template="""ROLE: Deal Quality Assurance Reviewer
@@ -361,7 +352,6 @@ EXPECTED OUTPUT (JSON):
 - issues: list of specific problems found (empty if none)
 - suggested_revision: fully edited report, or empty if no changes needed""",
     ),
-    
     # ============================================================================
     # EXISTING PROMPTS (PRESERVED FOR COMPATIBILITY)
     # These are the original prompts, kept for backward compatibility

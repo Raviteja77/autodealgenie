@@ -39,6 +39,7 @@ class LLMError(BaseModel):
     message: str = Field(..., description="Human-readable error message")
     details: dict[str, Any] | None = Field(None, description="Additional error details")
 
+
 class CarSelectionItem(BaseModel):
     """Schema for a selected car from a list"""
 
@@ -51,9 +52,7 @@ class CarSelectionItem(BaseModel):
 class CarSelectionResponse(BaseModel):
     """Schema for car selection response"""
 
-    recommendations: list[CarSelectionItem] = Field(
-        ..., description="List of selected vehicles"
-    )
+    recommendations: list[CarSelectionItem] = Field(..., description="List of selected vehicles")
 
 
 class DealEvaluation(BaseModel):

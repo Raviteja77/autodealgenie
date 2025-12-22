@@ -39,7 +39,7 @@ T = TypeVar("T", bound=BaseModel)
 class LLMClient:
     """
     Synchronous client for OpenAI LLM operations with multi-agent intelligence
-    
+
     This client supports modular, step-by-step agent operations that replace
     CrewAI's sequential orchestration with direct API calls. Each agent has
     a well-defined role, backstory, and set of capabilities.
@@ -48,7 +48,7 @@ class LLMClient:
     def __init__(self):
         """
         Initialize the LLM client with OpenAI API key
-        
+
         The client uses synchronous operations for simpler error handling
         and debugging compared to async alternatives.
         """
@@ -62,7 +62,7 @@ class LLMClient:
     def is_available(self) -> bool:
         """
         Check if the LLM client is available and properly configured
-        
+
         Returns:
             bool: True if client is initialized with valid API key
         """
@@ -79,7 +79,7 @@ class LLMClient:
     ) -> T:
         """
         Generate structured JSON output using OpenAI and validate with Pydantic model
-        
+
         This method supports multi-agent workflows by allowing specification of
         agent roles (Research, Loan Analyzer, Negotiation, Evaluator, QA).
         The agent role influences the system prompt and response style.
@@ -97,7 +97,7 @@ class LLMClient:
 
         Raises:
             ApiError: If LLM is not available, prompt not found, or API call fails
-            
+
         Example:
             >>> result = client.generate_structured_json(
             ...     prompt_id="research_vehicles",
@@ -118,10 +118,10 @@ class LLMClient:
             # Get and format the prompt
             prompt_template = get_prompt(prompt_id)
             formatted_prompt = prompt_template.format(**variables)
-            
+
             # Get agent-specific system prompt
             system_prompt = self._get_system_prompt(agent_role, "json")
-            
+
             logger.info(
                 f"Generating structured JSON: prompt_id='{prompt_id}', "
                 f"agent_role='{agent_role or 'default'}', model={settings.OPENAI_MODEL}"
@@ -259,7 +259,7 @@ class LLMClient:
     ) -> str:
         """
         Generate text output using OpenAI
-        
+
         This method supports conversational and advisory responses from
         various agent roles in the multi-agent system.
 
@@ -275,7 +275,7 @@ class LLMClient:
 
         Raises:
             ApiError: If LLM is not available, prompt not found, or API call fails
-            
+
         Example:
             >>> text = client.generate_text(
             ...     prompt_id="negotiation_advice",
@@ -295,10 +295,10 @@ class LLMClient:
             # Get and format the prompt
             prompt_template = get_prompt(prompt_id)
             formatted_prompt = prompt_template.format(**variables)
-            
+
             # Get agent-specific system prompt
             system_prompt = self._get_system_prompt(agent_role, "text")
-            
+
             logger.info(
                 f"Generating text: prompt_id='{prompt_id}', "
                 f"agent_role='{agent_role or 'default'}', model={settings.OPENAI_MODEL}"
@@ -395,14 +395,14 @@ class LLMClient:
     def _get_system_prompt(self, agent_role: str | None, output_type: str) -> str:
         """
         Get agent-specific system prompt with role, backstory, and capabilities
-        
+
         This implements the multi-agent architecture inspired by CrewAI,
         where each agent has a distinct personality and expertise.
-        
+
         Args:
             agent_role: Agent role (research, loan, negotiation, evaluator, qa)
             output_type: Expected output type ('json' or 'text')
-            
+
         Returns:
             System prompt string tailored to the agent role
         """
@@ -417,7 +417,6 @@ Your expertise includes:
 - Data-driven recommendations based on user preferences
 
 Your goal is to find the top 3-5 vehicle listings that match user criteria, considering value, condition, features, and reliability.""",
-            
             "loan": """You are a Senior Auto Financial Specialist, a seasoned financial advisor specializing in auto loans with extensive knowledge of lending practices, credit optimization, and negotiating with financial institutions.
 
 Your expertise includes:
@@ -427,7 +426,6 @@ Your expertise includes:
 - Understanding of dealer financing vs. external lending
 
 Your goal is to find and compare the best financing options for the customer's specific loan amount, presenting a clear comparison that empowers informed decisions.""",
-            
             "negotiation": """You are an Expert Car Deal Negotiator, a master negotiator with a background in automotive sales and purchasing. You've spent years on both sides of the table, learning every trick in the dealer's playbook.
 
 Your expertise includes:
@@ -437,7 +435,6 @@ Your expertise includes:
 - Identification of negotiation leverage points (days on market, inventory, financing)
 
 Your goal is to secure the best vehicle price and challenge dealer financing offers using market data as leverage. You are persuasive, persistent, and unflappable, treating every negotiation as a chess match you are determined to win.""",
-            
             "evaluator": """You are a Meticulous Deal Evaluator, a former financial auditor who has transitioned into consumer advocacy in the automotive space. You have an eagle eye for fine print and a passion for numbers.
 
 Your expertise includes:
@@ -447,7 +444,6 @@ Your expertise includes:
 - Identification of hidden costs and unfavorable terms
 
 Your goal is to perform a final, comprehensive audit of every deal aspect. You believe a good deal is more than just a low price—it's about total value and transparency. Your approval is the final seal of a truly great deal.""",
-            
             "qa": """You are a Deal Quality Assurance Reviewer, the final line of defense before a customer sees a deal recommendation. You have a sharp eye for missing context, contradictory statements, math inconsistencies, and vague language.
 
 Your expertise includes:
@@ -458,13 +454,13 @@ Your expertise includes:
 
 Your goal is to review reports for clarity, factual consistency, internal logical coherence, and usefulness. You never invent new facts or alter numbers—only improve wording, structure, and clarity.""",
         }
-        
+
         # Get agent-specific prompt or use default
         base_prompt = agent_prompts.get(
             agent_role,
-            "You are a helpful automotive assistant with expertise in car buying and deal evaluation."
+            "You are a helpful automotive assistant with expertise in car buying and deal evaluation.",
         )
-        
+
         # Add output format guidance
         if output_type == "json":
             return f"""{base_prompt}
@@ -489,7 +485,7 @@ def generate_structured_json(
 ) -> T:
     """
     Generate structured JSON output using OpenAI and validate with Pydantic model
-    
+
     This is a convenience wrapper around LLMClient.generate_structured_json()
     for direct module-level usage in service layers.
 
@@ -506,11 +502,11 @@ def generate_structured_json(
 
     Raises:
         ApiError: If LLM is not available, prompt not found, or API call fails
-        
+
     Example:
         >>> from app.llm import generate_structured_json
         >>> from app.llm.schemas import VehicleReport
-        >>> 
+        >>>
         >>> report = generate_structured_json(
         ...     prompt_id="research_vehicles",
         ...     variables={"make": "Honda", "budget": 25000},
@@ -537,7 +533,7 @@ def generate_text(
 ) -> str:
     """
     Generate text output using OpenAI
-    
+
     This is a convenience wrapper around LLMClient.generate_text()
     for direct module-level usage in service layers.
 
@@ -553,10 +549,10 @@ def generate_text(
 
     Raises:
         ApiError: If LLM is not available, prompt not found, or API call fails
-        
+
     Example:
         >>> from app.llm import generate_text
-        >>> 
+        >>>
         >>> advice = generate_text(
         ...     prompt_id="negotiation_advice",
         ...     variables={"price": 25000, "target": 23000},
