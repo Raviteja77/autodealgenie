@@ -130,3 +130,51 @@ class NextRoundResponse(BaseModel):
     current_round: int
     agent_message: str
     metadata: NegotiationRoundMetadata
+
+
+class ChatMessageRequest(BaseModel):
+    """Schema for sending a free-form chat message"""
+
+    message: str = Field(
+        ..., min_length=1, max_length=2000, description="Chat message content"
+    )
+    message_type: str = Field(
+        default="general",
+        description="Type of message: general, dealer_info, question, etc.",
+    )
+
+
+class ChatMessageResponse(BaseModel):
+    """Schema for chat message response"""
+
+    session_id: int
+    status: NegotiationStatus
+    user_message: NegotiationMessageResponse
+    agent_message: NegotiationMessageResponse
+
+
+class DealerInfoRequest(BaseModel):
+    """Schema for submitting dealer-provided information"""
+
+    info_type: str = Field(
+        ...,
+        description="Type of dealer info: price_quote, inspection_report, additional_offer, etc.",
+    )
+    content: str = Field(..., min_length=1, max_length=5000, description="Dealer information")
+    price_mentioned: float | None = Field(
+        None, gt=0, description="Price mentioned in dealer info, if any"
+    )
+    metadata: dict[str, Any] | None = Field(
+        None, description="Additional structured data from dealer"
+    )
+
+
+class DealerInfoResponse(BaseModel):
+    """Schema for dealer information analysis response"""
+
+    session_id: int
+    status: NegotiationStatus
+    analysis: str
+    recommended_action: str | None = None
+    user_message: NegotiationMessageResponse
+    agent_message: NegotiationMessageResponse
