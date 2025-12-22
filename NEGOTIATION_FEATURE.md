@@ -46,29 +46,50 @@ The negotiation page is organized into three main panels:
    - Creates a new negotiation session
    - Seeds round 1 with user's initial message
    - Returns AI agent's initial response
+   - Broadcasts initial messages via WebSocket
    - **Authentication Required**: Yes
 
 2. **POST `/api/v1/negotiations/{session_id}/next`**
    - Processes the next negotiation round
    - Handles user actions: `confirm`, `reject`, `counter`
    - Generates AI responses using LLM
+   - Broadcasts messages in real-time via WebSocket
    - **Authentication Required**: Yes
 
 3. **GET `/api/v1/negotiations/{session_id}`**
    - Retrieves full negotiation session with message history
    - **Authentication Required**: Yes
 
-4. **POST `/api/v1/negotiations/{session_id}/chat`** - **NEW**
+4. **POST `/api/v1/negotiations/{session_id}/chat`**
    - Sends free-form chat messages during negotiation
    - Allows users to ask questions without committing to actions
    - Provides strategic advice and guidance
+   - Broadcasts messages via WebSocket for instant delivery
    - **Authentication Required**: Yes
 
-5. **POST `/api/v1/negotiations/{session_id}/dealer-info`** - **NEW**
+5. **POST `/api/v1/negotiations/{session_id}/dealer-info`**
    - Submits dealer-provided information for AI analysis
    - Supports quotes, inspection reports, and additional offers
    - Provides recommendations on how to respond
    - **Authentication Required**: Yes
+
+6. **WebSocket `/api/v1/negotiations/{session_id}/ws`** - **NEW**
+   - Real-time bidirectional communication channel
+   - Instant message delivery (< 100ms)
+   - Typing indicators during AI response generation
+   - Automatic reconnection with exponential backoff
+   - Keep-alive ping/pong mechanism (30s interval)
+   - **Message Types**:
+     - Server → Client:
+       - `new_message`: New negotiation message
+       - `typing_indicator`: AI typing status
+       - `error`: Error notification
+       - `pong`: Keep-alive response
+       - `subscribed`: Subscription confirmation
+     - Client → Server:
+       - `ping`: Keep-alive ping
+       - `subscribe`: Subscribe to updates
+   - **Authentication**: Session-based (session must exist)
 
 ### Database Schema
 
@@ -171,7 +192,7 @@ interface NegotiationState {
 
 **Location**: `frontend/app/context/NegotiationChatProvider.tsx`
 
-The `NegotiationChatProvider` manages the state for free-form chat messages:
+The `NegotiationChatProvider` manages the state for free-form chat messages and WebSocket connection:
 
 ```typescript
 interface ChatContextType {
@@ -180,6 +201,7 @@ interface ChatContextType {
   isSending: boolean;                 // Message sending state
   error: string | null;               // Error message
   sessionId: number | null;           // Associated session
+  wsConnected: boolean;               // WebSocket connection status
   
   // Methods
   setSessionId: (id: number) => void;
@@ -188,6 +210,8 @@ interface ChatContextType {
   sendDealerInfo: (type: string, content: string, price?: number) => Promise<void>;
   clearError: () => void;
   resetChat: () => void;
+  connectWebSocket: () => void;
+  disconnectWebSocket: () => void;
 }
 ```
 
@@ -195,36 +219,133 @@ interface ChatContextType {
 ```typescript
 import { useNegotiationChat } from "@/app/context";
 
-const { sendChatMessage, sendDealerInfo, isTyping, error } = useNegotiationChat();
+const { sendChatMessage, sendDealerInfo, isTyping, error, wsConnected } = useNegotiationChat();
 ```
+
+**WebSocket Features**:
+- **Auto-connect**: Automatically connects when session ID is set
+- **Auto-reconnect**: Exponential backoff (max 5 attempts) on disconnect
+- **Message Deduplication**: Prevents duplicate messages from API + WebSocket
+- **Keep-alive**: Ping/pong every 30 seconds to maintain connection
+- **Real-time Updates**: Messages appear instantly (< 100ms)
+- **Typing Indicators**: Shows when AI is generating response
+- **Connection Status**: Visible indicator in chat header
+
+## Real-Time Communication
+
+### WebSocket Architecture
+
+**Backend Components:**
+- `websocket_manager.py`: Connection manager for WebSocket clients
+  - Maintains pool of active connections per session
+  - Handles broadcasting to all connected clients
+  - Manages cleanup of disconnected clients
+- `negotiation_service.py`: Integrates WebSocket broadcasting
+  - Broadcasts messages after saving to database
+  - Sends typing indicators during AI generation
+  - Handles errors gracefully (WebSocket failures don't break API)
+
+**Frontend Components:**
+- `NegotiationChatProvider.tsx`: WebSocket client implementation
+  - Establishes connection on session creation
+  - Handles incoming messages and updates state
+  - Implements reconnection logic with exponential backoff
+  - Provides connection status to UI
+
+### Message Flow
+
+1. **User Sends Message**:
+   ```
+   User types message → API call to backend → Save to DB
+   → Broadcast via WebSocket → All clients receive instantly
+   → Update UI
+   ```
+
+2. **AI Generates Response**:
+   ```
+   API processes message → Show typing indicator (WebSocket)
+   → AI generates response → Hide typing indicator (WebSocket)
+   → Save response to DB → Broadcast via WebSocket
+   → Update UI
+   ```
+
+3. **Connection Handling**:
+   ```
+   Page loads → Auto-connect WebSocket
+   → Connection drops → Exponential backoff reconnection
+   → Max attempts reached → Show error, suggest refresh
+   ```
+
+### Reliability Features
+
+- **Dual Delivery**: Messages sent via both API and WebSocket
+  - API provides reliability (always works)
+  - WebSocket provides speed (instant delivery)
+  - Deduplication prevents showing same message twice
+- **Automatic Reconnection**: Up to 5 attempts with exponential backoff
+- **Graceful Degradation**: App works without WebSocket (just slower)
+- **Keep-alive**: Prevents proxy/firewall timeouts
+- **Error Handling**: Connection errors shown to user with retry options
 
 ## AI Integration
 
-The negotiation feature uses LangChain with OpenAI for intelligent responses:
+The negotiation feature uses LangChain with OpenAI for intelligent, **user-centric** responses:
 
 **Prompts Used**:
-- `negotiation_initial` - First response to user's interest
-- `negotiation_counter` - Response to user's counter offers
-- `negotiation_chat` - **NEW** - Responses to free-form chat messages
-- `dealer_info_analysis` - **NEW** - Analysis of dealer-provided information
+- `negotiation_initial` - First response to user's interest (favors user, suggests starting low)
+- `negotiation_counter` - Response to user's counter offers (encourages aggressive negotiation)
+- `negotiation_chat` - Responses to free-form chat messages (provides tactical advice)
+- `dealer_info_analysis` - Analysis of dealer-provided information
 
 **Prompt Templates**: `backend/app/llm/prompts.py`
 
-### Price Convergence Algorithm
+**Key AI Principles**:
+1. **User Advocacy**: AI explicitly works for the buyer, not the dealer
+2. **Aggressive Negotiation**: Encourages users to push for lower prices
+3. **Strategic Advice**: Provides specific tactics and talking points
+4. **Market Context**: References vehicle condition, age, mileage in recommendations
 
-The AI uses a convergence strategy to move negotiations toward a middle ground:
+### User-Centric Pricing Strategy
 
+The AI uses a **buyer-focused pricing algorithm** that prioritizes getting the best deal for the user:
+
+**Initial Offer Strategy:**
 ```python
-# Calculate new suggested price
-price_difference = asking_price - counter_offer
-convergence_rate = 1 - (current_round / max_rounds)
-new_suggested_price = counter_offer + (price_difference * convergence_rate * 0.6)
+# Start significantly BELOW user's target price to maximize negotiating room
+suggested_price = user_target_price * 0.87  # 13% below target
 ```
 
+**Counter Offer Strategy (based on current discount):**
+```python
+discount_percent = ((asking_price - counter_offer) / asking_price) * 100
+
+if discount_percent >= 10:
+    # User already getting 10%+ off - hold firm
+    new_suggested_price = counter_offer * 1.01  # Only 1% increase
+elif discount_percent >= 5:
+    # User getting 5-10% off - minimal increase
+    new_suggested_price = counter_offer * 1.02  # 2% increase
+else:
+    # User not getting good deal yet - go LOWER
+    new_suggested_price = counter_offer * 0.98  # 2% DECREASE
+```
+
+**Benefits of This Approach:**
+- **Aggressive Start**: User starts low with room to negotiate up
+- **Reward Good Deals**: When user gets significant discount, AI encourages holding position
+- **Pressure Dealers**: When discount is low, AI suggests going even lower
+- **User Empowerment**: Never suggests meeting in the middle or favoring dealer
+
+**Old vs New Comparison:**
+- **Old**: Initial offer = middle ground (50% between target and asking)
+- **New**: Initial offer = 13% below target price
+- **Old**: Counter = converge toward asking price
+- **New**: Counter = hold firm or go lower based on discount achieved
+
 This ensures:
-- Offers gradually converge toward asking price
-- Faster convergence as rounds progress
-- Realistic negotiation dynamics
+- Users always get strategic advice that benefits them
+- Negotiations favor the buyer, not the seller
+- AI acts as user's advocate throughout the process
 
 ## UI Components
 
