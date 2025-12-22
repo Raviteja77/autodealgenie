@@ -36,6 +36,20 @@ export interface DealCreate {
   notes?: string | null;
 }
 
+export interface DealEvaluationRequest {
+  vehicle_vin: string;
+  asking_price: number;
+  condition: string;
+  mileage: number;
+}
+
+export interface DealEvaluationResponse {
+  fair_value: number;
+  score: number;
+  insights: string[];
+  talking_points: string[];
+}
+
 export interface CarSearchRequest {
   make?: string;
   model?: string;
@@ -506,6 +520,16 @@ class ApiClient {
     return this.request<Deal>("/api/v1/deals", {
       method: "POST",
       body: JSON.stringify(deal),
+    });
+  }
+
+  /**
+   * Evaluate a deal with AI analysis
+   */
+  async evaluateDeal(request: DealEvaluationRequest): Promise<DealEvaluationResponse> {
+    return this.request<DealEvaluationResponse>("/api/v1/deals/evaluate", {
+      method: "POST",
+      body: JSON.stringify(request),
     });
   }
 

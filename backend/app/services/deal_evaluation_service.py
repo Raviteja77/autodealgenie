@@ -4,12 +4,13 @@ Provides fair market value analysis and negotiation insights for vehicle deals
 """
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from app.llm import generate_structured_json, llm_client
-from app.llm.schemas import DealEvaluation
+from app.llm.schemas import DealEvaluation, VehicleConditionAssessment
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import Deal
 from app.repositories.evaluation_repository import EvaluationRepository
@@ -291,39 +292,28 @@ class DealEvaluationService:
             }
 
         # Use LLM to evaluate condition
-        if langchain_service.llm:
-            prompt = f"""Evaluate the vehicle condition for this deal:
-
-Vehicle: {deal.vehicle_year} {deal.vehicle_make} {deal.vehicle_model}
-VIN: {user_inputs.get('vin')}
-Mileage: {deal.vehicle_mileage} miles
-Condition Description: {user_inputs.get('condition_description')}
-
-Provide a JSON response with:
-{{
-  "condition_score": 8.5,
-  "condition_notes": ["Key observation 1", "Key observation 2"],
-  "recommended_inspection": true
-}}
-
-Score should be 1-10 based on the description and mileage."""
-
+        if llm_client.is_available():
             try:
-                messages = [
-                    SystemMessage(content=self.SYSTEM_PROMPT),
-                    HumanMessage(content=prompt),
-                ]
-                response = await langchain_service.llm.ainvoke(messages)
-                llm_output = response.content
-
-                # Parse JSON from response
-                if "```json" in llm_output:
-                    json_start = llm_output.find("```json") + 7
-                    json_end = llm_output.find("```", json_start)
-                    if json_end != -1:
-                        llm_output = llm_output[json_start:json_end].strip()
-
-                assessment = json.loads(llm_output)
+                assessment_result = generate_structured_json(
+                    prompt_id="vehicle_condition",
+                    variables={
+                        "make": deal.vehicle_make or "Unknown",
+                        "model": deal.vehicle_model or "Unknown",
+                        "year": str(deal.vehicle_year) if deal.vehicle_year else "Unknown",
+                        "vin": user_inputs.get('vin', 'Unknown'),
+                        "mileage": f"{deal.vehicle_mileage:,}",
+                        "condition_description": user_inputs.get('condition_description', 'Not provided'),
+                    },
+                    response_model=VehicleConditionAssessment,
+                    temperature=0.7,
+                    agent_role="evaluator",
+                )
+                
+                assessment = {
+                    "condition_score": assessment_result.condition_score,
+                    "condition_notes": assessment_result.condition_notes,
+                    "recommended_inspection": assessment_result.recommended_inspection,
+                }
             except Exception as e:
                 logger.error(f"LLM evaluation error: {e}")
                 assessment = {

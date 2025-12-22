@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.api.dependencies import get_current_user
+from app.llm.schemas import DealEvaluation
 from app.models.models import User
 from app.services.deal_evaluation_service import DealEvaluationService
 
@@ -38,67 +39,65 @@ def authenticated_client(client, mock_user):
 
 
 @pytest.fixture
-def mock_llm():
-    """Mock LangChain LLM for testing"""
-    mock = AsyncMock()
-    mock_response = MagicMock()
-    mock_response.content = """```json
-{
-  "fair_value": 24500.00,
-  "score": 7.5,
-  "insights": [
-    "This vehicle is priced $500 above market value",
-    "The mileage is average for this year",
-    "Condition rating suggests proper maintenance"
-  ],
-  "talking_points": [
-    "Point out comparable vehicles priced at $24,500",
-    "Request maintenance records to justify the condition rating",
-    "Use the mileage as slight negotiation leverage"
-  ]
-}
-```"""
-    mock.ainvoke.return_value = mock_response
-    return mock
+def mock_llm_evaluation():
+    """Mock DealEvaluation response"""
+    return DealEvaluation(
+        fair_value=24500.00,
+        score=7.5,
+        insights=[
+            "This vehicle is priced $500 above market value",
+            "The mileage is average for this year",
+            "Condition rating suggests proper maintenance"
+        ],
+        talking_points=[
+            "Point out comparable vehicles priced at $24,500",
+            "Request maintenance records to justify the condition rating",
+            "Use the mileage as slight negotiation leverage"
+        ]
+    )
 
 
 class TestDealEvaluationService:
     """Test DealEvaluationService class"""
 
     @pytest.mark.asyncio
-    async def test_evaluate_deal_with_llm(self, mock_llm):
+    async def test_evaluate_deal_with_llm(self, mock_llm_evaluation):
         """Test deal evaluation with LLM available"""
         service = DealEvaluationService()
 
-        with patch("app.services.deal_evaluation_service.langchain_service") as mock_langchain:
-            mock_langchain.llm = mock_llm
+        with patch("app.llm.llm_client.llm_client") as mock_client:
+            mock_client.is_available.return_value = True
+            mock_client.generate_structured_json.return_value = mock_llm_evaluation
 
-            result = await service.evaluate_deal(
-                vehicle_vin="1HGBH41JXMN109186",
-                asking_price=25000.00,
-                condition="good",
-                mileage=45000,
-            )
+            with patch("app.services.deal_evaluation_service.generate_structured_json") as mock_gen:
+                mock_gen.return_value = mock_llm_evaluation
 
-            assert "fair_value" in result
-            assert "score" in result
-            assert "insights" in result
-            assert "talking_points" in result
+                result = await service.evaluate_deal(
+                    vehicle_vin="1HGBH41JXMN109186",
+                    asking_price=25000.00,
+                    condition="good",
+                    mileage=45000,
+                )
 
-            assert isinstance(result["fair_value"], float)
-            assert 1.0 <= result["score"] <= 10.0
-            assert isinstance(result["insights"], list)
-            assert isinstance(result["talking_points"], list)
-            assert len(result["insights"]) > 0
-            assert len(result["talking_points"]) > 0
+                assert "fair_value" in result
+                assert "score" in result
+                assert "insights" in result
+                assert "talking_points" in result
+
+                assert isinstance(result["fair_value"], float)
+                assert 1.0 <= result["score"] <= 10.0
+                assert isinstance(result["insights"], list)
+                assert isinstance(result["talking_points"], list)
+                assert len(result["insights"]) > 0
+                assert len(result["talking_points"]) > 0
 
     @pytest.mark.asyncio
     async def test_evaluate_deal_fallback(self):
         """Test deal evaluation fallback when LLM is not available"""
         service = DealEvaluationService()
 
-        with patch("app.services.deal_evaluation_service.langchain_service") as mock_langchain:
-            mock_langchain.llm = None
+        with patch("app.llm.llm_client.llm_client") as mock_client:
+            mock_client.is_available.return_value = False
 
             result = await service.evaluate_deal(
                 vehicle_vin="1HGBH41JXMN109186",
@@ -155,51 +154,52 @@ class TestDealEvaluationService:
         assert len(result["talking_points"]) > 0
 
     @pytest.mark.asyncio
-    async def test_evaluate_deal_with_llm_error(self, mock_llm):
+    async def test_evaluate_deal_with_llm_error(self, mock_llm_evaluation):
         """Test deal evaluation handles LLM errors gracefully"""
         service = DealEvaluationService()
 
-        # Mock LLM to raise an exception
-        mock_llm.ainvoke.side_effect = Exception("LLM API Error")
+        with patch("app.services.deal_evaluation_service.generate_structured_json") as mock_gen:
+            # Mock generate_structured_json to raise an exception
+            mock_gen.side_effect = Exception("LLM API Error")
 
-        with patch("app.services.deal_evaluation_service.langchain_service") as mock_langchain:
-            mock_langchain.llm = mock_llm
+            with patch("app.llm.llm_client.llm_client") as mock_client:
+                mock_client.is_available.return_value = True
 
-            result = await service.evaluate_deal(
-                vehicle_vin="1HGBH41JXMN109186",
-                asking_price=25000.00,
-                condition="good",
-                mileage=50000,
-            )
+                result = await service.evaluate_deal(
+                    vehicle_vin="1HGBH41JXMN109186",
+                    asking_price=25000.00,
+                    condition="good",
+                    mileage=50000,
+                )
 
-            # Should fall back to basic evaluation
-            assert "fair_value" in result
-            assert "score" in result
-            assert 1.0 <= result["score"] <= 10.0
+                # Should fall back to basic evaluation
+                assert "fair_value" in result
+                assert "score" in result
+                assert 1.0 <= result["score"] <= 10.0
 
     @pytest.mark.asyncio
-    async def test_evaluate_deal_with_invalid_json(self, mock_llm):
-        """Test deal evaluation handles invalid JSON from LLM"""
+    async def test_evaluate_deal_with_invalid_json(self):
+        """Test deal evaluation handles invalid responses from LLM"""
         service = DealEvaluationService()
 
-        mock_response = MagicMock()
-        mock_response.content = "This is not valid JSON"
-        mock_llm.ainvoke.return_value = mock_response
+        with patch("app.services.deal_evaluation_service.generate_structured_json") as mock_gen:
+            # Mock invalid response
+            mock_gen.side_effect = ValueError("Invalid JSON")
 
-        with patch("app.services.deal_evaluation_service.langchain_service") as mock_langchain:
-            mock_langchain.llm = mock_llm
+            with patch("app.llm.llm_client.llm_client") as mock_client:
+                mock_client.is_available.return_value = True
 
-            result = await service.evaluate_deal(
-                vehicle_vin="1HGBH41JXMN109186",
-                asking_price=25000.00,
-                condition="good",
-                mileage=50000,
-            )
+                result = await service.evaluate_deal(
+                    vehicle_vin="1HGBH41JXMN109186",
+                    asking_price=25000.00,
+                    condition="good",
+                    mileage=50000,
+                )
 
-            # Should fall back to basic evaluation
-            assert "fair_value" in result
-            assert "score" in result
-            assert 1.0 <= result["score"] <= 10.0
+                # Should fall back to basic evaluation
+                assert "fair_value" in result
+                assert "score" in result
+                assert 1.0 <= result["score"] <= 10.0
 
 
 class TestDealEvaluationEndpoint:
@@ -214,8 +214,8 @@ class TestDealEvaluationEndpoint:
             "mileage": 45000,
         }
 
-        with patch("app.services.deal_evaluation_service.langchain_service") as mock_langchain:
-            mock_langchain.llm = None  # Use fallback for predictable results
+        with patch("app.llm.llm_client.llm_client") as mock_client:
+            mock_client.is_available.return_value = False  # Use fallback for predictable results
 
             response = authenticated_client.post("/api/v1/deals/evaluate", json=evaluation_data)
 
