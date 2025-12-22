@@ -28,6 +28,14 @@ class NegotiationService:
     DEFAULT_DOWN_PAYMENT_PERCENT = 0.10  # 10% down payment
     DEFAULT_CREDIT_SCORE_RANGE = "good"  # Default credit range for calculations
     DEFAULT_TARGET_PRICE_RATIO = 0.9  # Default target price ratio (90% of asking price)
+    INITIAL_OFFER_MULTIPLIER = 0.87  # Start 13% below user target price
+    
+    # Counter offer strategy constants
+    EXCELLENT_DISCOUNT_THRESHOLD = 10.0  # 10% off asking price
+    GOOD_DISCOUNT_THRESHOLD = 5.0  # 5% off asking price
+    HOLD_FIRM_ADJUSTMENT = 1.01  # 1% increase when holding firm
+    SMALL_INCREASE_ADJUSTMENT = 1.02  # 2% increase for moderate discount
+    AGGRESSIVE_DECREASE_ADJUSTMENT = 0.98  # 2% decrease to pressure dealer
 
     def __init__(self, db: Session):
         self.db = db
@@ -414,7 +422,7 @@ class NegotiationService:
 
             # Generate suggested counter offer - start BELOW user's target to leave negotiating room
             # User-centric approach: suggest 10-15% below target price for initial offer
-            suggested_price = user_target_price * 0.87  # 13% below target price
+            suggested_price = user_target_price * self.INITIAL_OFFER_MULTIPLIER
 
             # Calculate financing options for the suggested price
             financing_options = self._calculate_financing_options(suggested_price)
@@ -454,7 +462,7 @@ class NegotiationService:
             )
 
             # Start BELOW user's target price
-            suggested_price = user_target_price * 0.87  # 13% below target price
+            suggested_price = user_target_price * self.INITIAL_OFFER_MULTIPLIER
 
             # Calculate financing options even for fallback
             financing_options = self._calculate_financing_options(suggested_price)
@@ -587,16 +595,16 @@ class NegotiationService:
             # If user is already getting a good deal (>10% off asking), validate and hold firm
             discount_percent = (price_gap / deal.asking_price) * 100
             
-            if discount_percent >= 10:
+            if discount_percent >= self.EXCELLENT_DISCOUNT_THRESHOLD:
                 # User is already getting 10%+ off - suggest holding firm or minimal increase
-                new_suggested_price = counter_offer * 1.01  # Only 1% increase
-            elif discount_percent >= 5:
+                new_suggested_price = counter_offer * self.HOLD_FIRM_ADJUSTMENT
+            elif discount_percent >= self.GOOD_DISCOUNT_THRESHOLD:
                 # User getting 5-10% off - suggest small increase
-                new_suggested_price = counter_offer * 1.02  # 2% increase
+                new_suggested_price = counter_offer * self.SMALL_INCREASE_ADJUSTMENT
             else:
                 # User not getting good deal yet - suggest aggressive stance
                 # Go slightly lower to pressure dealer
-                new_suggested_price = counter_offer * 0.98  # 2% DECREASE
+                new_suggested_price = counter_offer * self.AGGRESSIVE_DECREASE_ADJUSTMENT
 
             # Calculate financing options for the new suggested price
             financing_options = self._calculate_financing_options(new_suggested_price)
@@ -630,22 +638,22 @@ class NegotiationService:
             price_gap = deal.asking_price - counter_offer
             discount_percent = (price_gap / deal.asking_price) * 100
             
-            if discount_percent >= 10:
-                new_suggested_price = counter_offer * 1.01
+            if discount_percent >= self.EXCELLENT_DISCOUNT_THRESHOLD:
+                new_suggested_price = counter_offer * self.HOLD_FIRM_ADJUSTMENT
                 fallback_content = (
                     f"Your offer of ${counter_offer:,.2f} is excellent - you're getting over 10% off! "
                     f"I'd suggest holding firm at this price or going only slightly higher to ${new_suggested_price:,.2f}. "
                     f"You're in a strong negotiating position."
                 )
-            elif discount_percent >= 5:
-                new_suggested_price = counter_offer * 1.02
+            elif discount_percent >= self.GOOD_DISCOUNT_THRESHOLD:
+                new_suggested_price = counter_offer * self.SMALL_INCREASE_ADJUSTMENT
                 fallback_content = (
                     f"Your offer of ${counter_offer:,.2f} is solid. "
                     f"You could go up to ${new_suggested_price:,.2f}, but I'd encourage you to push for "
                     f"a better deal. Consider holding your ground or only increasing minimally."
                 )
             else:
-                new_suggested_price = counter_offer * 0.98
+                new_suggested_price = counter_offer * self.AGGRESSIVE_DECREASE_ADJUSTMENT
                 fallback_content = (
                     f"Your offer of ${counter_offer:,.2f} is reasonable, but you might be able to do better. "
                     f"Consider actually going LOWER to ${new_suggested_price:,.2f} to test the dealer's flexibility. "

@@ -113,7 +113,8 @@ export function NegotiationChatProvider({
     try {
       // Determine WebSocket URL based on environment
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const wsUrl = apiUrl.replace(/^http/, "ws");
+      // Convert http/https to ws/wss
+      const wsUrl = apiUrl.replace(/^https?/, (match) => match === 'https' ? 'wss' : 'ws');
       const wsEndpoint = `${wsUrl}/api/v1/negotiations/${state.sessionId}/ws`;
 
       console.log("Connecting to WebSocket:", wsEndpoint);
