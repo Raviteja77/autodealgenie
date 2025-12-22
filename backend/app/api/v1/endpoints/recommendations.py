@@ -71,6 +71,7 @@ async def get_car_recommendations(
             year_max=user_preferences.year_max,
             mileage_max=user_preferences.mileage_max,
             user_priorities=enhanced_priorities,
+            max_results=user_preferences.max_results,
             user_id=current_user.id,
             db_session=db,
         )

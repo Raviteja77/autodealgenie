@@ -60,6 +60,7 @@ export interface CarSearchRequest {
   year_max?: number;
   mileage_max?: number;
   user_priorities?: string;
+  max_results?: number; // Maximum number of results to analyze (default: 50)
 }
 
 export interface SearchCriteria {
