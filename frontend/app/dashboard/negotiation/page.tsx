@@ -63,7 +63,7 @@ import {
   type FinancingOption,
   type LenderMatch,
 } from "@/lib/api";
-import { formatPrice, formatNumber, formatTimestamp } from "@/lib/utils/formatting";
+import { formatPrice } from "@/lib/utils/formatting";
 
 interface VehicleInfo {
   vin?: string;
@@ -614,7 +614,7 @@ function NegotiationContent() {
                     Original Price
                   </Typography>
                   <Typography variant="h6">
-                    ${state.vehicleData?.price.toLocaleString()}
+                    {formatPrice(state.vehicleData?.price || 0)}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
@@ -622,15 +622,15 @@ function NegotiationContent() {
                     Final Price
                   </Typography>
                   <Typography variant="h6" color="success.main">
-                    ${state.suggestedPrice?.toLocaleString()}
+                    {formatPrice(state.suggestedPrice || 0)}
                   </Typography>
                 </Grid>
               </Grid>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                You saved $
-                {(
+                You saved{" "}
+                {formatPrice(
                   (state.vehicleData?.price || 0) - (state.suggestedPrice || 0)
-                ).toLocaleString()}
+                )}
                 !
               </Typography>
 
@@ -730,8 +730,7 @@ function NegotiationContent() {
                                 Estimated Payment
                               </Typography>
                               <Typography variant="body2" fontWeight="medium">
-                                $
-                                {match.estimated_monthly_payment.toLocaleString()}
+                                {formatPrice(match.estimated_monthly_payment)}
                                 /mo
                               </Typography>
                             </Grid>
@@ -950,7 +949,7 @@ function NegotiationContent() {
                           Asking Price
                         </Typography>
                         <Typography variant="body2" fontWeight="medium">
-                          ${vehicleData.price.toLocaleString()}
+                          {formatPrice(vehicleData.price)}
                         </Typography>
                       </Box>
                       <Box
@@ -964,7 +963,7 @@ function NegotiationContent() {
                           Your Target
                         </Typography>
                         <Typography variant="body2" color="primary.main">
-                          ${state.targetPrice?.toLocaleString()}
+                          {formatPrice(state.targetPrice || 0)}
                         </Typography>
                       </Box>
                       {state.suggestedPrice && (
@@ -983,7 +982,7 @@ function NegotiationContent() {
                             color="success.main"
                             fontWeight="bold"
                           >
-                            ${state.suggestedPrice.toLocaleString()}
+                            {formatPrice(state.suggestedPrice)}
                           </Typography>
                         </Box>
                       )}
@@ -1225,8 +1224,8 @@ function NegotiationContent() {
                                               : "success.main",
                                         }}
                                       >
-                                        Suggested: $
-                                        {message.metadata.suggested_price.toLocaleString()}
+                                        Suggested:{" "}
+                                        {formatPrice(message.metadata.suggested_price)}
                                       </Typography>
                                     )}
                                     {message.metadata?.recommended_action ? (
@@ -1659,8 +1658,7 @@ function NegotiationContent() {
                                       color="primary.main"
                                       fontWeight="bold"
                                     >
-                                      $
-                                      {option.monthly_payment_estimate.toLocaleString()}
+                                      {formatPrice(option.monthly_payment_estimate)}
                                       /mo
                                     </Typography>
                                   </Box>
@@ -1681,8 +1679,7 @@ function NegotiationContent() {
                                       variant="caption"
                                       color="text.secondary"
                                     >
-                                      Total: $
-                                      {option.total_cost.toLocaleString()}
+                                      Total: {formatPrice(option.total_cost)}
                                     </Typography>
                                   </Box>
                                 </Paper>
@@ -1691,7 +1688,7 @@ function NegotiationContent() {
                           {state.cashSavings && state.cashSavings > 0 && (
                             <Alert severity="info" sx={{ py: 0.5 }}>
                               <Typography variant="caption">
-                                Save ${state.cashSavings.toLocaleString()} by
+                                Save {formatPrice(state.cashSavings)} by
                                 paying cash vs 60-mo loan
                               </Typography>
                             </Alert>
