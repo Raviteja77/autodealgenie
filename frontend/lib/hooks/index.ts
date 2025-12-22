@@ -12,3 +12,5 @@ export { useFilters } from './useFilters';
 export { useComparison } from './useComparison';
 export { useViewMode } from './useViewMode';
 export { useSavedSearches } from './useSavedSearches';
+export { useNegotiationState } from './useNegotiationState';
+export type { CurrentOfferStatus, OfferInfo, NegotiationStateData } from './useNegotiationState';
