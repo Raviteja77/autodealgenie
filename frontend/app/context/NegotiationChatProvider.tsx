@@ -151,84 +151,103 @@ export function NegotiationChatProvider({
   }, []);
 
   // Process queued messages
+  // Using ref to avoid stale closures and circular dependencies
+  const processMessageQueueRef = useRef<(() => Promise<void>) | null>(null);
+  
   const processMessageQueue = useCallback(async () => {
-    if (!state.sessionId || state.messageQueue.length === 0 || state.isSending) {
-      return;
-    }
-    
-    const message = state.messageQueue[0];
-    
-    try {
-      console.log("Processing queued message:", message);
-      setState((prev) => ({ ...prev, isSending: true }));
-      
-      const request: ChatMessageRequest = {
-        message: message.message,
-        message_type: message.messageType || "general",
-      };
-      
-      const response = await apiClient.sendChatMessage(state.sessionId, request);
-      
-      // Message sent successfully, remove from queue
-      setState((prev) => {
-        const newQueue = prev.messageQueue.slice(1);
-        const newMessages = [...prev.messages];
-        
-        // Add messages if not already present
-        const userExists = newMessages.some((msg) => msg.id === response.user_message.id);
-        const agentExists = newMessages.some((msg) => msg.id === response.agent_message.id);
-        
-        if (!userExists) newMessages.push(response.user_message);
-        if (!agentExists) newMessages.push(response.agent_message);
-        
-        return {
-          ...prev,
-          messages: newMessages,
-          messageQueue: newQueue,
-          isSending: false,
-        };
-      });
-      
-      // Process next message if any
-      if (state.messageQueue.length > 1) {
-        retryQueueTimeoutRef.current = setTimeout(() => {
-          processMessageQueue();
-        }, 500);
+    setState((currentState) => {
+      // Check if we should process using functional state update
+      if (!currentState.sessionId || currentState.messageQueue.length === 0 || currentState.isSending) {
+        return currentState;
       }
-    } catch (error) {
-      console.error("Failed to send queued message:", error);
       
-      // Increment retry count
-      setState((prev) => {
-        const newQueue = [...prev.messageQueue];
-        const updatedMessage = { ...newQueue[0], retries: newQueue[0].retries + 1 };
-        
-        if (updatedMessage.retries >= 3) {
-          // Remove message after 3 retries
-          console.log("Message failed after 3 retries, removing from queue");
-          newQueue.shift();
-          return {
-            ...prev,
-            messageQueue: newQueue,
-            isSending: false,
-            error: "Failed to send message after 3 attempts",
-          };
-        } else {
-          // Update retry count and try again
-          newQueue[0] = updatedMessage;
-          retryQueueTimeoutRef.current = setTimeout(() => {
-            processMessageQueue();
-          }, MESSAGE_QUEUE_RETRY_DELAY_MS);
+      const message = currentState.messageQueue[0];
+      const sessionId = currentState.sessionId;
+      
+      // Process asynchronously outside of setState
+      (async () => {
+        try {
+          console.log("Processing queued message:", message);
+          setState((prev) => ({ ...prev, isSending: true }));
           
-          return {
-            ...prev,
-            messageQueue: newQueue,
-            isSending: false,
+          const request: ChatMessageRequest = {
+            message: message.message,
+            message_type: message.messageType || "general",
           };
+          
+          const response = await apiClient.sendChatMessage(sessionId, request);
+          
+          // Message sent successfully, remove from queue
+          setState((prev) => {
+            const newQueue = prev.messageQueue.slice(1);
+            const newMessages = [...prev.messages];
+            
+            // Add messages if not already present
+            const userExists = newMessages.some((msg) => msg.id === response.user_message.id);
+            const agentExists = newMessages.some((msg) => msg.id === response.agent_message.id);
+            
+            if (!userExists) newMessages.push(response.user_message);
+            if (!agentExists) newMessages.push(response.agent_message);
+            
+            // Process next message if any remain
+            if (newQueue.length > 0) {
+              retryQueueTimeoutRef.current = setTimeout(() => {
+                processMessageQueueRef.current?.();
+              }, 500);
+            }
+            
+            return {
+              ...prev,
+              messages: newMessages,
+              messageQueue: newQueue,
+              isSending: false,
+            };
+          });
+        } catch (error) {
+          console.error("Failed to send queued message:", error);
+          
+          // Increment retry count
+          setState((prev) => {
+            const newQueue = [...prev.messageQueue];
+            if (newQueue.length === 0) return prev;
+            
+            const updatedMessage = { ...newQueue[0], retries: newQueue[0].retries + 1 };
+            
+            if (updatedMessage.retries >= 3) {
+              // Remove message after 3 retries
+              console.log("Message failed after 3 retries, removing from queue");
+              newQueue.shift();
+              return {
+                ...prev,
+                messageQueue: newQueue,
+                isSending: false,
+                error: "Failed to send message after 3 attempts",
+              };
+            } else {
+              // Update retry count and try again
+              newQueue[0] = updatedMessage;
+              retryQueueTimeoutRef.current = setTimeout(() => {
+                processMessageQueueRef.current?.();
+              }, MESSAGE_QUEUE_RETRY_DELAY_MS);
+              
+              return {
+                ...prev,
+                messageQueue: newQueue,
+                isSending: false,
+              };
+            }
+          });
         }
-      });
-    }
-  }, [state.sessionId, state.messageQueue, state.isSending]);
+      })();
+      
+      return currentState;
+    });
+  }, []);
+  
+  // Update ref whenever function changes
+  useEffect(() => {
+    processMessageQueueRef.current = processMessageQueue;
+  }, [processMessageQueue]);
 
   const resetChat = useCallback(() => {
     setState({
@@ -306,7 +325,7 @@ export function NegotiationChatProvider({
         // Process any queued messages
         if (state.messageQueue.length > 0) {
           console.log(`Processing ${state.messageQueue.length} queued messages`);
-          processMessageQueue();
+          processMessageQueueRef.current?.();
         }
       };
 
@@ -425,7 +444,7 @@ export function NegotiationChatProvider({
         error: "Failed to connect to real-time updates",
       }));
     }
-  }, [state.sessionId, state.messageQueue, syncMissedMessages, processMessageQueue]);
+  }, [state.sessionId, syncMissedMessages]);
 
   const disconnectWebSocket = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -535,7 +554,7 @@ export function NegotiationChatProvider({
         
         // Try to process the queue immediately if using HTTP fallback
         if (state.isUsingHttpFallback && !state.isSending) {
-          processMessageQueue();
+          processMessageQueueRef.current?.();
         }
         
         return;
@@ -586,7 +605,6 @@ export function NegotiationChatProvider({
         }, ERROR_DISPLAY_DURATION_MS);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [state.sessionId, state.wsConnected, state.isUsingHttpFallback, state.messageQueue.length, state.isSending]
   );
 

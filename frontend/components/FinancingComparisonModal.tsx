@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -9,7 +9,6 @@ import {
   Stack,
   Alert,
   Chip,
-  TextField,
   Slider,
   Paper,
   Table,
@@ -32,6 +31,7 @@ import {
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
 import type { FinancingOption } from '@/lib/api';
 
 interface FinancingComparisonModalProps {
@@ -57,6 +57,15 @@ export const FinancingComparisonModal: React.FC<FinancingComparisonModalProps> =
   const [customPrice, setCustomPrice] = useState(purchasePrice.toString());
   const [downPaymentPercent, setDownPaymentPercent] = useState(20);
 
+  // Sync customPrice when purchasePrice or modal open state changes
+  useEffect(() => {
+    if (isOpen) {
+      setCustomPrice(purchasePrice.toString());
+      setDownPaymentPercent(20); // Reset to default
+      setActiveTab(0); // Reset to first tab
+    }
+  }, [isOpen, purchasePrice]);
+
   // Calculate financing options with custom price and down payment
   const calculatedOptions = useMemo(() => {
     const price = parseFloat(customPrice) || purchasePrice;
@@ -67,9 +76,25 @@ export const FinancingComparisonModal: React.FC<FinancingComparisonModalProps> =
       // Recalculate monthly payment based on new loan amount
       const monthlyRate = option.estimated_apr / 12;
       const numPayments = option.loan_term_months;
-      const monthlyPayment =
-        (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) /
-        (Math.pow(1 + monthlyRate, numPayments) - 1);
+      
+      let monthlyPayment: number;
+      if (loanAmount <= 0 || numPayments <= 0) {
+        // Invalid or zero-length loan
+        monthlyPayment = 0;
+      } else if (monthlyRate === 0) {
+        // 0% APR: simple division of principal over term
+        monthlyPayment = loanAmount / numPayments;
+      } else {
+        const pow = Math.pow(1 + monthlyRate, numPayments);
+        const denominator = pow - 1;
+        
+        if (!Number.isFinite(denominator) || denominator === 0) {
+          // Fallback to safe value if denominator is invalid
+          monthlyPayment = 0;
+        } else {
+          monthlyPayment = (loanAmount * monthlyRate * pow) / denominator;
+        }
+      }
 
       const totalCost = monthlyPayment * numPayments + downPayment;
       const totalInterest = totalCost - price;
@@ -161,15 +186,13 @@ export const FinancingComparisonModal: React.FC<FinancingComparisonModalProps> =
 
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
-                <TextField
+                <Input
                   fullWidth
                   label="Purchase Price"
                   type="number"
                   value={customPrice}
                   onChange={handlePriceChange}
-                  InputProps={{
-                    startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
-                  }}
+                  leftIcon={<Typography>$</Typography>}
                   helperText="Adjust to see how different prices affect payments"
                 />
               </Grid>
