@@ -922,7 +922,7 @@ function NegotiationContent() {
                                 >
                                   {message.metadata?.message_type === "dealer_info" && (
                                     <Chip
-                                      label={message.metadata?.info_type || "Dealer Info"}
+                                      label={`${message.metadata?.info_type} || Dealer Info`}
                                       size="small"
                                       color="info"
                                       sx={{ mb: 1 }}
@@ -951,7 +951,7 @@ function NegotiationContent() {
                                       color="success"
                                       sx={{ mt: 1 }}
                                     />
-                                  )}
+                                  ) || ''}
                                   <Typography
                                     variant="caption"
                                     sx={{ display: "block", mt: 0.5, opacity: 0.7 }}
