@@ -413,6 +413,3 @@ async def websocket_endpoint(
     except Exception as e:
         logger.error(f"WebSocket error for session {session_id}: {str(e)}")
         connection_manager.disconnect(websocket, session_id)
-        metadata=request.metadata,
-    )
-    return result

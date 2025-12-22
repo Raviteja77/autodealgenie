@@ -4,7 +4,7 @@ Negotiation service with LLM integration for multi-round negotiations
 
 import logging
 import uuid
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,9 @@ from app.repositories.deal_repository import DealRepository
 from app.repositories.negotiation_repository import NegotiationRepository
 from app.services.loan_calculator_service import LoanCalculatorService
 from app.utils.error_handler import ApiError
+
+if TYPE_CHECKING:
+    from app.services.websocket_manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +33,16 @@ class NegotiationService:
         self.db = db
         self.negotiation_repo = NegotiationRepository(db)
         self.deal_repo = DealRepository(db)
-        # Import here to avoid circular dependency
-        from app.services.websocket_manager import connection_manager
-        self.ws_manager = connection_manager
+        # Lazy import to avoid circular dependency
+        self._ws_manager = None
+
+    @property
+    def ws_manager(self) -> "ConnectionManager":
+        """Lazy load WebSocket manager to avoid circular import"""
+        if self._ws_manager is None:
+            from app.services.websocket_manager import connection_manager
+            self._ws_manager = connection_manager
+        return self._ws_manager
 
     async def _broadcast_message(self, session_id: int, message: Any):
         """

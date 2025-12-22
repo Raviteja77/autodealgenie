@@ -24,6 +24,14 @@ import {
   type DealerInfoRequest,
 } from "@/lib/api";
 
+// WebSocket connection constants
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_BASE_DELAY_MS = 1000; // 1 second
+const RECONNECT_EXPONENTIAL_BASE = 2;
+const RECONNECT_MAX_DELAY_MS = 10000; // 10 seconds
+const WEBSOCKET_PING_INTERVAL_MS = 30000; // 30 seconds
+const ERROR_DISPLAY_DURATION_MS = 5000; // 5 seconds
+
 interface ChatState {
   messages: NegotiationMessage[];
   isTyping: boolean;
@@ -69,7 +77,6 @@ export function NegotiationChatProvider({
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 5;
 
   const setSessionId = useCallback((id: number) => {
     setState((prev) => ({ ...prev, sessionId: id }));
@@ -180,8 +187,11 @@ export function NegotiationChatProvider({
         wsRef.current = null;
 
         // Attempt reconnection with exponential backoff
-        if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000);
+        if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+          const delay = Math.min(
+            RECONNECT_BASE_DELAY_MS * Math.pow(RECONNECT_EXPONENTIAL_BASE, reconnectAttemptsRef.current),
+            RECONNECT_MAX_DELAY_MS
+          );
           console.log(`Reconnecting in ${delay}ms...`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
@@ -203,7 +213,7 @@ export function NegotiationChatProvider({
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ type: "ping" }));
         }
-      }, 30000); // Ping every 30 seconds
+      }, WEBSOCKET_PING_INTERVAL_MS);
 
       // Clean up ping interval on close
       ws.addEventListener("close", () => clearInterval(pingInterval));
@@ -294,7 +304,7 @@ export function NegotiationChatProvider({
         // Clear error after 5 seconds
         setTimeout(() => {
           setState((prev) => ({ ...prev, error: null }));
-        }, 5000);
+        }, ERROR_DISPLAY_DURATION_MS);
       }
     },
     [state.sessionId]
@@ -354,7 +364,7 @@ export function NegotiationChatProvider({
         // Clear error after 5 seconds
         setTimeout(() => {
           setState((prev) => ({ ...prev, error: null }));
-        }, 5000);
+        }, ERROR_DISPLAY_DURATION_MS);
       }
     },
     [state.sessionId]
@@ -365,7 +375,7 @@ export function NegotiationChatProvider({
     if (state.error) {
       const timer = setTimeout(() => {
         setState((prev) => ({ ...prev, error: null }));
-      }, 5000);
+      }, ERROR_DISPLAY_DURATION_MS);
       return () => clearTimeout(timer);
     }
   }, [state.error]);
