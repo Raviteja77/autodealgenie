@@ -30,7 +30,6 @@ def create_deal(
     """Create a new deal (requires authentication)"""
     repository = DealRepository(db)
     deal = repository.create(deal_in)
-    deal.status = deal.status.lower()
     return deal
 
 
@@ -44,8 +43,6 @@ def get_deals(
     """Get all deals with pagination (requires authentication)"""
     repository = DealRepository(db)
     deals = repository.get_all(skip=skip, limit=limit)
-    for deal in deals:
-        deal.status = deal.status.lower()
     return deals
 
 
@@ -58,7 +55,6 @@ def get_deal(
     """Get a specific deal by ID (requires authentication)"""
     repository = DealRepository(db)
     deal = repository.get(deal_id)
-    deal.status = deal.status.lower()
     if not deal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Deal with id {deal_id} not found"
@@ -76,7 +72,6 @@ def update_deal(
     """Update a deal (requires authentication)"""
     repository = DealRepository(db)
     deal = repository.update(deal_id, deal_in)
-    deal.status = deal.status.lower()
     if not deal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Deal with id {deal_id} not found"

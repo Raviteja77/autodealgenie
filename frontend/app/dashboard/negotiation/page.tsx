@@ -210,12 +210,8 @@ function NegotiationContent() {
           strategy: "moderate",
         });
 
-        console.log("Negotiation session created:", response);
-
         // Fetch full session details
         const session = await apiClient.getNegotiationSession(response.session_id);
-
-        console.log("Fetched negotiation session:", session);
 
         setState((prev) => ({
           ...prev,
@@ -406,11 +402,9 @@ function NegotiationContent() {
 
   // Handle counter offer
   const handleCounterOffer = async () => {
-    console.log("Submitting counter offer:", counterOfferValue);
     if (!state.sessionId || !counterOfferValue) return;
 
     const counterPrice = parseFloat(counterOfferValue);
-    console.log("Debug price:", counterOfferValue, counterPrice); // Check what is being parsed
     if (isNaN(counterPrice) || counterPrice <= 0) {
       setNotification({
         type: "error",
