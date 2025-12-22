@@ -218,7 +218,7 @@ export interface NegotiationMessage {
 }
 
 export interface NegotiationSession {
-  id: number;
+  session_id: number;
   user_id: number;
   deal_id: number;
   status: NegotiationStatus;
@@ -278,7 +278,7 @@ export interface LenderInfo {
   lender_id: string;
   name: string;
   description: string;
-  logo_url?: string | null;
+  logo_url?: string | undefined;
   min_credit_score: number;
   max_credit_score: number;
   min_loan_amount: number;
@@ -290,7 +290,7 @@ export interface LenderInfo {
   features: string[];
   benefits: string[];
   affiliate_url: string;
-  referral_code?: string | null;
+  referral_code?: string | undefined;
 }
 
 export interface LenderMatch {
@@ -305,7 +305,7 @@ export interface LenderMatch {
 export interface LenderRecommendationResponse {
   recommendations: LenderMatch[];
   total_matches: number;
-  request_summary: Record<string, unknown>;
+  request_summary: Record<string, any>;
 }
 
 export interface SavedSearch {

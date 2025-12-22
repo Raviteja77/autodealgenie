@@ -204,22 +204,26 @@ function NegotiationContent() {
           strategy: "moderate",
         });
 
+        console.log("Negotiation session created:", response);
+
         // Fetch full session details
         const session = await apiClient.getNegotiationSession(response.session_id);
 
+        console.log("Fetched negotiation session:", session);
+
         setState((prev) => ({
           ...prev,
-          sessionId: session.id,
-          status: "active",
+          sessionId: session.session_id,
+          status: session.status,
           dealId: session.deal_id,
           vehicleData,
           targetPrice,
           currentRound: session.current_round,
           maxRounds: session.max_rounds,
           messages: session.messages,
-          suggestedPrice: response.metadata.suggested_price || null,
-          financingOptions: response.metadata.financing_options || null,
-          cashSavings: response.metadata.cash_savings || null,
+          suggestedPrice: (response.metadata.suggested_price as number) || null,
+          financingOptions: (response.metadata.financing_options as FinancingOption[]) || null,
+          cashSavings: (response.metadata.cash_savings as number) || null,
           confidence: 0.85, // Default confidence
           isLoading: false,
         }));
@@ -365,9 +369,11 @@ function NegotiationContent() {
 
   // Handle counter offer
   const handleCounterOffer = async () => {
+    console.log("Submitting counter offer:", counterOfferValue);
     if (!state.sessionId || !counterOfferValue) return;
 
     const counterPrice = parseFloat(counterOfferValue);
+    console.log("Debug price:", counterOfferValue, counterPrice); // Check what is being parsed
     if (isNaN(counterPrice) || counterPrice <= 0) {
       setNotification({
         type: "error",

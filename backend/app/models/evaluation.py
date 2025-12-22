@@ -1,3 +1,4 @@
+# File 1: backend/app/models/evaluation.py
 """
 SQLAlchemy models for Deal Evaluation
 """
@@ -37,10 +38,15 @@ class DealEvaluation(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     deal_id = Column(Integer, ForeignKey("deals.id"), nullable=False, index=True)
     status = Column(
-        Enum(EvaluationStatus), default=EvaluationStatus.ANALYZING, nullable=False, index=True
+        Enum(EvaluationStatus, values_callable=lambda x: [e.value for e in x]),
+        default=EvaluationStatus.ANALYZING.value,
+        nullable=False,
+        index=True
     )
     current_step = Column(
-        Enum(PipelineStep), default=PipelineStep.VEHICLE_CONDITION, nullable=False
+        Enum(PipelineStep, values_callable=lambda x: [e.value for e in x]),
+        default=PipelineStep.VEHICLE_CONDITION.value,
+        nullable=False
     )
     result_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
