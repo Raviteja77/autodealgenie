@@ -65,8 +65,10 @@ class LLMClient:
             # Initialize with optional base_url for OpenRouter support
             client_kwargs = {"api_key": settings.OPENROUTER_API_KEY}
             # Determine base_url: check settings or default to OpenRouter
-            base_url = getattr(settings, "OPENAI_API_BASE", None) or getattr(settings, "OPENAI_BASE_URL", None)
-            
+            base_url = getattr(settings, "OPENAI_API_BASE", None) or getattr(
+                settings, "OPENAI_BASE_URL", None
+            )
+
             if base_url:
                 client_kwargs["base_url"] = base_url
                 logger.info(f"LLM client initialized with custom endpoint: {base_url}")
@@ -185,13 +187,12 @@ class LLMClient:
                 )
 
             # Parse JSON from response
-            # With response_format=json_object, we get valid JSON directly
-            parsed_data = json.loads(content)
-
-            # If the LLM returns Markdown code block, remove the backticks and language identifier
-            if content.startswith("```json") and content.endswith("```"):
-                content = content[7:-3]
-                parsed_data = json.loads(content)
+            # If the LLM returns a Markdown code block, normalize it before parsing
+            normalized_content = content.strip()
+            if normalized_content.startswith("```json") and normalized_content.endswith("```"):
+                normalized_content = normalized_content[7:-3].strip()
+                # With response_format=json_object, we expect valid JSON directly after normalization
+                parsed_data = json.loads(normalized_content)
 
             # Validate with Pydantic model
             validated_response = response_model.model_validate(parsed_data)

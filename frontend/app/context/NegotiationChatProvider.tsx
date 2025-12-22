@@ -517,7 +517,6 @@ export function NegotiationChatProvider({
 
   const sendChatMessage = useCallback(
     async (message: string, messageType: string = "general") => {
-      console.log("Sending chat message:", message, "Type:", messageType, state);
       if (!state.sessionId) {
         setState((prev) => ({
           ...prev,

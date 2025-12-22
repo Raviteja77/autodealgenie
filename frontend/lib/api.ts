@@ -534,14 +534,36 @@ class ApiClient {
     });
   }
 
+  hasMeaningfulValue(value: unknown): boolean {
+    if (value === null || value === undefined) {
+      return false;
+    }
+    if (typeof value === "string") {
+      return value.trim().length > 0;
+    }
+    if (typeof value === "number") {
+      return value > 0;
+    }
+    if (typeof value === "boolean") {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      return value.some((item) => this.hasMeaningfulValue(item));
+    }
+    if (typeof value === "object") {
+      return Object.values(value as Record<string, unknown>).some(
+        (item) => this.hasMeaningfulValue(item)
+      );
+    }
+    return false;
+  };
+
   /**
    * Search for cars with AI recommendations
    */
   async searchCars(params: CarSearchRequest): Promise<CarSearchResponse> {
     // Check if all fields are null or empty
-    const hasSomeValue = Object.values(params).some(
-      (value) => value !== null && value !== ""
-    );
+    const hasSomeValue = this.hasMeaningfulValue(params);
 
     if (!hasSomeValue) {
       throw new Error("At least one search criteria must be provided.");
