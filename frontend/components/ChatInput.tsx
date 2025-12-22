@@ -63,6 +63,9 @@ export function ChatInput({
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLDivElement>) => {
+    // Prevent submission when disabled or sending
+    if (disabled || isSending) return;
+    
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (showDealerInfo && onSendDealerInfo) {

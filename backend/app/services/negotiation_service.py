@@ -24,11 +24,29 @@ class NegotiationService:
     MAX_CONVERSATION_HISTORY = 4  # Number of recent messages to include in context
     DEFAULT_DOWN_PAYMENT_PERCENT = 0.10  # 10% down payment
     DEFAULT_CREDIT_SCORE_RANGE = "good"  # Default credit range for calculations
+    DEFAULT_TARGET_PRICE_RATIO = 0.9  # Default target price ratio (90% of asking price)
 
     def __init__(self, db: Session):
         self.db = db
         self.negotiation_repo = NegotiationRepository(db)
         self.deal_repo = DealRepository(db)
+
+    def _get_latest_suggested_price(self, session_id: int, default_price: float) -> float:
+        """
+        Get the latest suggested price from message history
+        
+        Args:
+            session_id: ID of the negotiation session
+            default_price: Default price to return if no suggested price found
+            
+        Returns:
+            Latest suggested price or default_price
+        """
+        messages = self.negotiation_repo.get_messages(session_id)
+        for msg in reversed(messages[-10:]):  # Check last 10 messages
+            if msg.metadata and "suggested_price" in msg.metadata:
+                return msg.metadata["suggested_price"]
+        return default_price
 
     async def create_negotiation(
         self,
@@ -723,12 +741,8 @@ class NegotiationService:
             role_label = "User" if msg.role == MessageRole.USER else "AI"
             conversation_history.append(f"{role_label}: {msg.content}")
 
-        # Get latest suggested price
-        suggested_price = deal.asking_price
-        for msg in reversed(messages[-10:]):
-            if msg.metadata and "suggested_price" in msg.metadata:
-                suggested_price = msg.metadata["suggested_price"]
-                break
+        # Get latest suggested price using helper method
+        suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
 
         try:
             # Use centralized LLM client
@@ -905,17 +919,17 @@ class NegotiationService:
         """Generate AI analysis of dealer-provided information"""
         logger.info(f"[{request_id}] Generating dealer info analysis for session {session.id}")
 
-        # Get latest suggested price and user target
+        # Get latest suggested price using helper method
+        suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
+        
+        # Get user target price from messages or use default
         messages = self.negotiation_repo.get_messages(session.id)
-        suggested_price = deal.asking_price
-        user_target = deal.asking_price * 0.9  # Default target
-
+        user_target = deal.asking_price * self.DEFAULT_TARGET_PRICE_RATIO
+        
         for msg in reversed(messages[-10:]):
-            if msg.metadata:
-                if "suggested_price" in msg.metadata:
-                    suggested_price = msg.metadata["suggested_price"]
-                if "target_price" in msg.metadata:
-                    user_target = msg.metadata["target_price"]
+            if msg.metadata and "target_price" in msg.metadata:
+                user_target = msg.metadata["target_price"]
+                break
 
         try:
             # Use centralized LLM client

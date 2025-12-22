@@ -264,13 +264,19 @@ function NegotiationContent() {
   // Sync chat messages with state messages
   useEffect(() => {
     if (chatContext.messages.length > 0) {
-      setState((prev) => ({
-        ...prev,
-        messages: [...prev.messages, ...chatContext.messages].filter(
-          (msg, index, self) => self.findIndex((m) => m.id === msg.id) === index
-        ),
-      }));
+      // Deduplicate messages by ID using a Set for O(n) performance
+      const existingIds = new Set(state.messages.map((msg) => msg.id));
+      const newMessages = chatContext.messages.filter((msg) => !existingIds.has(msg.id));
+      
+      if (newMessages.length > 0) {
+        setState((prev) => ({
+          ...prev,
+          messages: [...prev.messages, ...newMessages],
+        }));
+      }
     }
+    // Only depend on chatContext.messages to avoid re-syncing when state.messages changes
+    // This prevents infinite loops while ensuring new chat messages are added
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatContext.messages]);
 
