@@ -208,6 +208,64 @@ Generate a professional response that:
 
 Keep your response conversational and under 200 words.""",
     ),
+    "negotiation_chat": PromptTemplate(
+        id="negotiation_chat",
+        template="""You are an AI negotiation expert helping a user during their car buying negotiation.
+
+Vehicle Details:
+- Make: {make}
+- Model: {model}
+- Year: {year}
+- Asking Price: ${asking_price}
+
+Current Negotiation Status:
+- Current Round: {current_round}
+- Latest Suggested Price: ${suggested_price}
+- Session Status: {status}
+
+Recent Conversation:
+{conversation_history}
+
+User's Message: "{user_message}"
+
+Provide a helpful, professional response that:
+1. Addresses the user's specific question or concern
+2. Provides relevant advice for the negotiation
+3. Encourages strategic thinking
+4. Maintains a supportive and empathetic tone
+
+Keep your response conversational and under 250 words.""",
+    ),
+    "dealer_info_analysis": PromptTemplate(
+        id="dealer_info_analysis",
+        template="""You are an AI negotiation expert analyzing dealer-provided information during a car purchase negotiation.
+
+Vehicle Details:
+- Make: {make}
+- Model: {model}
+- Year: {year}
+- Original Asking Price: ${asking_price}
+
+Current Negotiation Context:
+- Current Round: {current_round}
+- Latest AI Suggested Price: ${suggested_price}
+- User's Target: ${user_target}
+
+Dealer Information Type: {info_type}
+Dealer Information:
+{dealer_content}
+
+Price Mentioned in Dealer Info: {price_mentioned}
+
+Analyze this dealer information and provide:
+1. A clear assessment of what the dealer is offering/communicating
+2. Whether this is a good deal for the user
+3. Specific recommendations on how to respond
+4. Any red flags or concerns to note
+5. Suggested next steps in the negotiation
+
+Be objective, analytical, and provide actionable advice. Keep your response under 300 words.""",
+    ),
 }
 
 

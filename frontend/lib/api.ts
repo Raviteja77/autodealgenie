@@ -274,6 +274,34 @@ export interface NextRoundResponse {
   metadata: NegotiationRoundMetadata;
 }
 
+export interface ChatMessageRequest {
+  message: string;
+  message_type?: string;
+}
+
+export interface ChatMessageResponse {
+  session_id: number;
+  status: NegotiationStatus;
+  user_message: NegotiationMessage;
+  agent_message: NegotiationMessage;
+}
+
+export interface DealerInfoRequest {
+  info_type: string;
+  content: string;
+  price_mentioned?: number | null;
+  metadata?: Record<string, any> | null;
+}
+
+export interface DealerInfoResponse {
+  session_id: number;
+  status: NegotiationStatus;
+  analysis: string;
+  recommended_action?: string | null;
+  user_message: NegotiationMessage;
+  agent_message: NegotiationMessage;
+}
+
 export interface LenderInfo {
   lender_id: string;
   name: string;
@@ -629,6 +657,38 @@ class ApiClient {
   ): Promise<LenderRecommendationResponse> {
     return this.request<LenderRecommendationResponse>(
       `/api/v1/negotiations/${sessionId}/lender-recommendations?loan_term_months=${loanTermMonths}&credit_score_range=${creditScoreRange}`
+    );
+  }
+
+  /**
+   * Send a free-form chat message during negotiation
+   */
+  async sendChatMessage(
+    sessionId: number,
+    request: ChatMessageRequest
+  ): Promise<ChatMessageResponse> {
+    return this.request<ChatMessageResponse>(
+      `/api/v1/negotiations/${sessionId}/chat`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      }
+    );
+  }
+
+  /**
+   * Submit dealer-provided information for analysis
+   */
+  async submitDealerInfo(
+    sessionId: number,
+    request: DealerInfoRequest
+  ): Promise<DealerInfoResponse> {
+    return this.request<DealerInfoResponse>(
+      `/api/v1/negotiations/${sessionId}/dealer-info`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      }
     );
   }
 

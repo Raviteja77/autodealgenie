@@ -24,11 +24,29 @@ class NegotiationService:
     MAX_CONVERSATION_HISTORY = 4  # Number of recent messages to include in context
     DEFAULT_DOWN_PAYMENT_PERCENT = 0.10  # 10% down payment
     DEFAULT_CREDIT_SCORE_RANGE = "good"  # Default credit range for calculations
+    DEFAULT_TARGET_PRICE_RATIO = 0.9  # Default target price ratio (90% of asking price)
 
     def __init__(self, db: Session):
         self.db = db
         self.negotiation_repo = NegotiationRepository(db)
         self.deal_repo = DealRepository(db)
+
+    def _get_latest_suggested_price(self, session_id: int, default_price: float) -> float:
+        """
+        Get the latest suggested price from message history
+        
+        Args:
+            session_id: ID of the negotiation session
+            default_price: Default price to return if no suggested price found
+            
+        Returns:
+            Latest suggested price or default_price
+        """
+        messages = self.negotiation_repo.get_messages(session_id)
+        for msg in reversed(messages[-10:]):  # Check last 10 messages
+            if msg.metadata and "suggested_price" in msg.metadata:
+                return msg.metadata["suggested_price"]
+        return default_price
 
     async def create_negotiation(
         self,
@@ -608,3 +626,393 @@ class NegotiationService:
                 for msg in messages
             ],
         }
+
+    async def send_chat_message(
+        self,
+        session_id: int,
+        user_message: str,
+        message_type: str = "general",
+    ) -> dict[str, Any]:
+        """
+        Send a free-form chat message and get AI response
+
+        Args:
+            session_id: ID of the negotiation session
+            user_message: User's message content
+            message_type: Type of message (general, question, etc.)
+
+        Returns:
+            Dictionary with user message and agent response
+
+        Raises:
+            ApiError: If session not found or not active
+        """
+        request_id = str(uuid.uuid4())
+        logger.info(f"[{request_id}] Processing chat message for session {session_id}")
+
+        # Get session
+        session = self.negotiation_repo.get_session(session_id)
+        if not session:
+            logger.error(f"[{request_id}] Session {session_id} not found")
+            raise ApiError(status_code=404, message=f"Session {session_id} not found")
+
+        # Allow chat even if session is completed/cancelled for post-negotiation questions
+        # Get deal
+        deal = self.deal_repo.get(session.deal_id)
+        if not deal:
+            logger.error(f"[{request_id}] Deal {session.deal_id} not found")
+            raise ApiError(status_code=404, message="Associated deal not found")
+
+        # Add user message
+        user_msg = self.negotiation_repo.add_message(
+            session_id=session_id,
+            role=MessageRole.USER,
+            content=user_message,
+            round_number=session.current_round,
+            metadata={"message_type": message_type, "chat_message": True},
+        )
+
+        # Generate agent response
+        try:
+            agent_response = await self._generate_chat_response(
+                session=session,
+                deal=deal,
+                user_message=user_message,
+                request_id=request_id,
+            )
+
+            agent_msg = self.negotiation_repo.add_message(
+                session_id=session_id,
+                role=MessageRole.AGENT,
+                content=agent_response["content"],
+                round_number=session.current_round,
+                metadata={**agent_response["metadata"], "chat_message": True},
+            )
+
+            logger.info(f"[{request_id}] Chat message processed successfully")
+
+            return {
+                "session_id": session_id,
+                "status": session.status.value,
+                "user_message": {
+                    "id": user_msg.id,
+                    "session_id": user_msg.session_id,
+                    "role": user_msg.role.value,
+                    "content": user_msg.content,
+                    "round_number": user_msg.round_number,
+                    "metadata": user_msg.message_metadata,
+                    "created_at": user_msg.created_at,
+                },
+                "agent_message": {
+                    "id": agent_msg.id,
+                    "session_id": agent_msg.session_id,
+                    "role": agent_msg.role.value,
+                    "content": agent_msg.content,
+                    "round_number": agent_msg.round_number,
+                    "metadata": agent_msg.message_metadata,
+                    "created_at": agent_msg.created_at,
+                },
+            }
+
+        except Exception as e:
+            logger.error(f"[{request_id}] Error generating chat response: {str(e)}")
+            raise ApiError(
+                status_code=500,
+                message="Failed to generate chat response",
+                details={"error": str(e)},
+            ) from e
+
+    async def _generate_chat_response(
+        self,
+        session: NegotiationSession,
+        deal: Any,
+        user_message: str,
+        request_id: str,
+    ) -> dict[str, Any]:
+        """Generate AI response to free-form chat message"""
+        logger.info(f"[{request_id}] Generating chat response for session {session.id}")
+
+        # Get recent conversation history
+        messages = self.negotiation_repo.get_messages(session.id)
+        recent_messages = messages[-6:]  # Last 6 messages for context
+
+        conversation_history = []
+        for msg in recent_messages:
+            role_label = "User" if msg.role == MessageRole.USER else "AI"
+            conversation_history.append(f"{role_label}: {msg.content}")
+
+        # Get latest suggested price using helper method
+        suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
+
+        try:
+            # Use centralized LLM client
+            response_content = await generate_text(
+                prompt_id="negotiation_chat",
+                variables={
+                    "make": deal.vehicle_make,
+                    "model": deal.vehicle_model,
+                    "year": deal.vehicle_year,
+                    "asking_price": f"{deal.asking_price:,.2f}",
+                    "current_round": session.current_round,
+                    "suggested_price": f"{suggested_price:,.2f}",
+                    "status": session.status.value,
+                    "conversation_history": "\n".join(conversation_history[-4:]),
+                    "user_message": user_message,
+                },
+                temperature=0.8,
+            )
+
+            return {
+                "content": response_content,
+                "metadata": {
+                    "llm_used": True,
+                    "message_type": "chat_response",
+                },
+            }
+
+        except Exception as e:
+            logger.error(f"[{request_id}] LLM call failed for chat: {str(e)}")
+            # Fallback response
+            fallback_content = (
+                "Thank you for your message. I'm here to help you with your negotiation. "
+                "Could you please rephrase your question or provide more specific details?"
+            )
+
+            return {
+                "content": fallback_content,
+                "metadata": {
+                    "llm_used": False,
+                    "fallback": True,
+                    "message_type": "chat_response",
+                },
+            }
+
+    async def analyze_dealer_info(
+        self,
+        session_id: int,
+        info_type: str,
+        content: str,
+        price_mentioned: float | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Analyze dealer-provided information and provide recommendations
+
+        Args:
+            session_id: ID of the negotiation session
+            info_type: Type of dealer info
+            content: Dealer information content
+            price_mentioned: Price mentioned in dealer info
+            metadata: Additional structured data
+
+        Returns:
+            Dictionary with analysis and recommendations
+
+        Raises:
+            ApiError: If session not found or inactive
+        """
+        request_id = str(uuid.uuid4())
+        logger.info(f"[{request_id}] Analyzing dealer info for session {session_id}")
+
+        # Get session
+        session = self.negotiation_repo.get_session(session_id)
+        if not session:
+            logger.error(f"[{request_id}] Session {session_id} not found")
+            raise ApiError(status_code=404, message=f"Session {session_id} not found")
+
+        # Check session is active
+        if session.status != NegotiationStatus.ACTIVE:
+            logger.error(f"[{request_id}] Session {session_id} is not active")
+            raise ApiError(
+                status_code=400,
+                message="Session is not active",
+                details={"status": session.status.value},
+            )
+
+        # Get deal
+        deal = self.deal_repo.get(session.deal_id)
+        if not deal:
+            logger.error(f"[{request_id}] Deal {session.deal_id} not found")
+            raise ApiError(status_code=404, message="Associated deal not found")
+
+        # Add user message with dealer info
+        user_msg_content = f"[Dealer Information - {info_type}]\n{content}"
+        if price_mentioned:
+            user_msg_content += f"\n\nPrice mentioned: ${price_mentioned:,.2f}"
+
+        user_msg = self.negotiation_repo.add_message(
+            session_id=session_id,
+            role=MessageRole.USER,
+            content=user_msg_content,
+            round_number=session.current_round,
+            metadata={
+                "message_type": "dealer_info",
+                "info_type": info_type,
+                "price_mentioned": price_mentioned,
+                "additional_metadata": metadata,
+            },
+        )
+
+        # Generate analysis
+        try:
+            agent_response = await self._generate_dealer_info_analysis(
+                session=session,
+                deal=deal,
+                info_type=info_type,
+                content=content,
+                price_mentioned=price_mentioned,
+                request_id=request_id,
+            )
+
+            agent_msg = self.negotiation_repo.add_message(
+                session_id=session_id,
+                role=MessageRole.AGENT,
+                content=agent_response["content"],
+                round_number=session.current_round,
+                metadata=agent_response["metadata"],
+            )
+
+            logger.info(f"[{request_id}] Dealer info analyzed successfully")
+
+            return {
+                "session_id": session_id,
+                "status": session.status.value,
+                "analysis": agent_response["content"],
+                "recommended_action": agent_response["metadata"].get("recommended_action"),
+                "user_message": {
+                    "id": user_msg.id,
+                    "session_id": user_msg.session_id,
+                    "role": user_msg.role.value,
+                    "content": user_msg.content,
+                    "round_number": user_msg.round_number,
+                    "metadata": user_msg.message_metadata,
+                    "created_at": user_msg.created_at,
+                },
+                "agent_message": {
+                    "id": agent_msg.id,
+                    "session_id": agent_msg.session_id,
+                    "role": agent_msg.role.value,
+                    "content": agent_msg.content,
+                    "round_number": agent_msg.round_number,
+                    "metadata": agent_msg.message_metadata,
+                    "created_at": agent_msg.created_at,
+                },
+            }
+
+        except Exception as e:
+            logger.error(f"[{request_id}] Error analyzing dealer info: {str(e)}")
+            raise ApiError(
+                status_code=500,
+                message="Failed to analyze dealer information",
+                details={"error": str(e)},
+            ) from e
+
+    async def _generate_dealer_info_analysis(
+        self,
+        session: NegotiationSession,
+        deal: Any,
+        info_type: str,
+        content: str,
+        price_mentioned: float | None,
+        request_id: str,
+    ) -> dict[str, Any]:
+        """Generate AI analysis of dealer-provided information"""
+        logger.info(f"[{request_id}] Generating dealer info analysis for session {session.id}")
+
+        # Get latest suggested price using helper method
+        suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
+        
+        # Get user target price from messages or use default
+        messages = self.negotiation_repo.get_messages(session.id)
+        user_target = deal.asking_price * self.DEFAULT_TARGET_PRICE_RATIO
+        
+        for msg in reversed(messages[-10:]):
+            if msg.metadata and "target_price" in msg.metadata:
+                user_target = msg.metadata["target_price"]
+                break
+
+        try:
+            # Use centralized LLM client
+            response_content = await generate_text(
+                prompt_id="dealer_info_analysis",
+                variables={
+                    "make": deal.vehicle_make,
+                    "model": deal.vehicle_model,
+                    "year": deal.vehicle_year,
+                    "asking_price": f"{deal.asking_price:,.2f}",
+                    "current_round": session.current_round,
+                    "suggested_price": f"{suggested_price:,.2f}",
+                    "user_target": f"{user_target:,.2f}",
+                    "info_type": info_type,
+                    "dealer_content": content,
+                    "price_mentioned": f"${price_mentioned:,.2f}" if price_mentioned else "None",
+                },
+                temperature=0.7,
+            )
+
+            # Determine recommended action based on dealer info
+            recommended_action = None
+            if price_mentioned:
+                if price_mentioned <= user_target:
+                    recommended_action = "accept"
+                elif price_mentioned <= suggested_price:
+                    recommended_action = "consider"
+                else:
+                    recommended_action = "counter"
+
+            return {
+                "content": response_content,
+                "metadata": {
+                    "llm_used": True,
+                    "message_type": "dealer_info_analysis",
+                    "info_type": info_type,
+                    "price_mentioned": price_mentioned,
+                    "recommended_action": recommended_action,
+                },
+            }
+
+        except Exception as e:
+            logger.error(f"[{request_id}] LLM call failed for dealer info analysis: {str(e)}")
+            # Fallback response
+            fallback_content = (
+                f"I've received the dealer information ({info_type}). "
+                f"Based on the current negotiation context, "
+            )
+
+            if price_mentioned:
+                if price_mentioned <= user_target:
+                    fallback_content += (
+                        f"the dealer's price of ${price_mentioned:,.2f} is at or below your "
+                        f"target. This appears to be a good deal. Consider accepting it."
+                    )
+                    recommended_action = "accept"
+                elif price_mentioned <= suggested_price:
+                    fallback_content += (
+                        f"the dealer's price of ${price_mentioned:,.2f} is reasonable but "
+                        f"you might be able to negotiate further. Consider countering with "
+                        f"a price closer to your target."
+                    )
+                    recommended_action = "consider"
+                else:
+                    fallback_content += (
+                        f"the dealer's price of ${price_mentioned:,.2f} is still above our "
+                        f"recommended range. I suggest making another counter offer."
+                    )
+                    recommended_action = "counter"
+            else:
+                fallback_content += (
+                    "please review this information carefully. Let me know if you'd like to "
+                    "discuss how to proceed with the negotiation."
+                )
+
+            return {
+                "content": fallback_content,
+                "metadata": {
+                    "llm_used": False,
+                    "fallback": True,
+                    "message_type": "dealer_info_analysis",
+                    "info_type": info_type,
+                    "price_mentioned": price_mentioned,
+                    "recommended_action": recommended_action,
+                },
+            }

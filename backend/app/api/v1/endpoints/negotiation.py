@@ -10,7 +10,11 @@ from app.db.session import get_db
 from app.models.models import User
 from app.schemas.loan_schemas import LenderRecommendationRequest, LenderRecommendationResponse
 from app.schemas.negotiation_schemas import (
+    ChatMessageRequest,
+    ChatMessageResponse,
     CreateNegotiationRequest,
+    DealerInfoRequest,
+    DealerInfoResponse,
     NegotiationSessionResponse,
     NextRoundRequest,
 )
@@ -228,3 +232,103 @@ def get_lender_recommendations(
     recommendations = LenderService.get_recommendations(lender_request, max_results=5)
 
     return recommendations
+
+
+@router.post("/{session_id}/chat", response_model=ChatMessageResponse)
+async def send_chat_message(
+    session_id: int,
+    request: ChatMessageRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Send a free-form chat message during negotiation
+
+    Allows users to ask questions or discuss negotiation strategy
+    without committing to specific actions (accept/reject/counter).
+
+    **Path Parameters:**
+    - `session_id`: ID of the negotiation session
+
+    **Request Body:**
+    - `message`: Chat message content (1-2000 characters)
+    - `message_type`: Type of message (default: "general")
+
+    **Returns:**
+    - User message and AI agent's response
+
+    **Requires authentication**
+
+    **Note:** The session must belong to the authenticated user.
+    """
+    service = NegotiationService(db)
+
+    # Verify session belongs to user
+    session = service.negotiation_repo.get_session(session_id)
+    if not session:
+        raise ApiError(status_code=404, message=f"Session {session_id} not found")
+
+    if session.user_id != current_user.id:
+        raise ApiError(
+            status_code=403,
+            message="You don't have permission to access this session",
+        )
+
+    result = await service.send_chat_message(
+        session_id=session_id,
+        user_message=request.message,
+        message_type=request.message_type,
+    )
+    return result
+
+
+@router.post("/{session_id}/dealer-info", response_model=DealerInfoResponse)
+async def submit_dealer_info(
+    session_id: int,
+    request: DealerInfoRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Submit dealer-provided information for analysis
+
+    Allows users to share information from the dealer (quotes, inspection
+    reports, additional offers) and receive AI analysis and recommendations.
+
+    **Path Parameters:**
+    - `session_id`: ID of the negotiation session
+
+    **Request Body:**
+    - `info_type`: Type of dealer information
+    - `content`: Dealer information content (1-5000 characters)
+    - `price_mentioned`: Optional price from dealer info
+    - `metadata`: Optional additional structured data
+
+    **Returns:**
+    - Analysis of dealer information and recommended actions
+
+    **Requires authentication**
+
+    **Note:** The session must belong to the authenticated user and be active.
+    """
+    service = NegotiationService(db)
+
+    # Verify session belongs to user
+    session = service.negotiation_repo.get_session(session_id)
+    if not session:
+        raise ApiError(status_code=404, message=f"Session {session_id} not found")
+
+    if session.user_id != current_user.id:
+        raise ApiError(
+            status_code=403,
+            message="You don't have permission to access this session",
+        )
+
+    result = await service.analyze_dealer_info(
+        session_id=session_id,
+        info_type=request.info_type,
+        content=request.content,
+        price_mentioned=request.price_mentioned,
+        metadata=request.metadata,
+    )
+    return result

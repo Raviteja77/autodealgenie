@@ -18,6 +18,8 @@ import {
   AlertTitle,
   Collapse,
   IconButton,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import {
   SmartToy,
@@ -33,14 +35,16 @@ import {
   TrendingDown,
   ExpandMore,
   ExpandLess,
+  Chat as ChatIcon,
 } from "@mui/icons-material";
 import Link from "next/link";
-import { useStepper } from "@/app/context";
+import { useStepper, useNegotiationChat, NegotiationChatProvider } from "@/app/context";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
+import { ChatInput } from "@/components/ChatInput";
 import {
   apiClient,
   type NegotiationMessage,
@@ -83,6 +87,7 @@ function NegotiationContent() {
   const { completeStep, canNavigateToStep } = useStepper();
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContext = useNegotiationChat();
   
   // State management
   const [state, setState] = useState<NegotiationState>({
@@ -112,6 +117,7 @@ function NegotiationContent() {
   const [showFinancingPanel, setShowFinancingPanel] = useState(true);
   const [lenderRecommendations, setLenderRecommendations] = useState<LenderMatch[] | null>(null);
   const [loadingLenders, setLoadingLenders] = useState(false);
+  const [chatTabValue, setChatTabValue] = useState(0); // 0 = Negotiation Actions, 1 = Free Chat
   const [notification, setNotification] = useState<{
     type: "success" | "warning" | "info" | "error";
     message: string;
@@ -228,6 +234,10 @@ function NegotiationContent() {
           isLoading: false,
         }));
 
+        // Initialize chat context with session ID and messages
+        chatContext.setSessionId(session.session_id);
+        chatContext.setMessages(session.messages);
+
         setNotification({
           type: "success",
           message: "Negotiation session started! Let's get you the best deal.",
@@ -251,9 +261,36 @@ function NegotiationContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
+  // Sync chat messages with state messages
+  useEffect(() => {
+    if (chatContext.messages.length > 0) {
+      // Deduplicate messages by ID using a Set for O(n) performance
+      const existingIds = new Set(state.messages.map((msg) => msg.id));
+      const newMessages = chatContext.messages.filter((msg) => !existingIds.has(msg.id));
+      
+      if (newMessages.length > 0) {
+        setState((prev) => ({
+          ...prev,
+          messages: [...prev.messages, ...newMessages],
+        }));
+      }
+    }
+    // Only depend on chatContext.messages to avoid re-syncing when state.messages changes
+    // This prevents infinite loops while ensuring new chat messages are added
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatContext.messages]);
+
+  // Update typing indicator from chat context
+  useEffect(() => {
+    setState((prev) => ({
+      ...prev,
+      isTyping: chatContext.isTyping || prev.isTyping,
+    }));
+  }, [chatContext.isTyping]);
+
   useEffect(() => {
     scrollToBottom();
-  }, [state.messages, scrollToBottom]);
+  }, [state.messages, scrollToBottom, chatContext.messages]);
 
   // Clear notifications after 5 seconds
   useEffect(() => {
@@ -437,6 +474,22 @@ function NegotiationContent() {
       return newSet;
     });
   };
+
+  // Handle chat message
+  const handleChatMessage = useCallback(
+    async (message: string, messageType?: string) => {
+      await chatContext.sendChatMessage(message, messageType);
+    },
+    [chatContext]
+  );
+
+  // Handle dealer info
+  const handleDealerInfo = useCallback(
+    async (infoType: string, content: string, priceMentioned?: number) => {
+      await chatContext.sendDealerInfo(infoType, content, priceMentioned);
+    },
+    [chatContext]
+  );
 
   // Group messages by round
   const messagesByRound = useMemo(() => {
@@ -788,12 +841,18 @@ function NegotiationContent() {
               {/* Chat Interface - Center */}
               <Grid item xs={12} md={6}>
                 <Paper elevation={3} sx={{ height: "700px", display: "flex", flexDirection: "column" }}>
-                  {/* Header */}
-                  <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-                    <Typography variant="h6">Negotiation Chat</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Communicate with the AI negotiation assistant
-                    </Typography>
+                  {/* Header with Tabs */}
+                  <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+                    <Box sx={{ px: 2, pt: 2 }}>
+                      <Typography variant="h6">Negotiation Chat</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Communicate with the AI negotiation assistant
+                      </Typography>
+                    </Box>
+                    <Tabs value={chatTabValue} onChange={(_, v) => setChatTabValue(v)}>
+                      <Tab label="Actions" icon={<AttachMoney />} iconPosition="start" />
+                      <Tab label="Chat" icon={<ChatIcon />} iconPosition="start" />
+                    </Tabs>
                   </Box>
 
                   {/* Messages Area */}
@@ -805,6 +864,7 @@ function NegotiationContent() {
                       display: "flex",
                       flexDirection: "column",
                       gap: 2,
+                      bgcolor: "grey.50",
                     }}
                   >
                     {Object.entries(messagesByRound).map(([round, roundMessages]) => (
@@ -832,7 +892,7 @@ function NegotiationContent() {
                         </Box>
 
                         <Collapse in={expandedRounds.has(Number(round))}>
-                          <Stack spacing={1}>
+                          <Stack spacing={1.5}>
                             {roundMessages.map((message) => (
                               <Box
                                 key={message.id}
@@ -843,20 +903,31 @@ function NegotiationContent() {
                                 }}
                               >
                                 {message.role === "agent" && (
-                                  <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32 }}>
+                                  <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36 }}>
                                     <SmartToy fontSize="small" />
                                   </Avatar>
                                 )}
                                 <Paper
-                                  elevation={1}
+                                  elevation={2}
                                   sx={{
                                     p: 1.5,
                                     maxWidth: "75%",
-                                    bgcolor: message.role === "user" ? "primary.main" : "background.paper",
+                                    bgcolor: message.role === "user" ? "primary.main" : "white",
                                     color: message.role === "user" ? "primary.contrastText" : "text.primary",
+                                    borderRadius: 2,
                                   }}
                                 >
-                                  <Typography variant="body2">{message.content}</Typography>
+                                  {message.metadata?.message_type === "dealer_info" && (
+                                    <Chip
+                                      label={message.metadata?.info_type || "Dealer Info"}
+                                      size="small"
+                                      color="info"
+                                      sx={{ mb: 1 }}
+                                    />
+                                  )}
+                                  <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                                    {message.content}
+                                  </Typography>
                                   {typeof message.metadata?.suggested_price === "number" && (
                                     <Typography
                                       variant="caption"
@@ -870,6 +941,14 @@ function NegotiationContent() {
                                       Suggested: ${message.metadata.suggested_price.toLocaleString()}
                                     </Typography>
                                   )}
+                                  {message.metadata?.recommended_action && (
+                                    <Chip
+                                      label={`Recommended: ${message.metadata.recommended_action}`}
+                                      size="small"
+                                      color="success"
+                                      sx={{ mt: 1 }}
+                                    />
+                                  )}
                                   <Typography
                                     variant="caption"
                                     sx={{ display: "block", mt: 0.5, opacity: 0.7 }}
@@ -881,7 +960,7 @@ function NegotiationContent() {
                                   </Typography>
                                 </Paper>
                                 {message.role === "user" && (
-                                  <Avatar sx={{ bgcolor: "secondary.main", width: 32, height: 32 }}>
+                                  <Avatar sx={{ bgcolor: "secondary.main", width: 36, height: 36 }}>
                                     <Person fontSize="small" />
                                   </Avatar>
                                 )}
@@ -893,56 +972,77 @@ function NegotiationContent() {
                     ))}
 
                     {state.isTyping && (
-                      <Box sx={{ display: "flex", gap: 1 }}>
-                        <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32 }}>
+                      <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+                        <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36 }}>
                           <SmartToy fontSize="small" />
                         </Avatar>
-                        <Paper elevation={1} sx={{ p: 1.5 }}>
-                          <Typography variant="body2">Typing...</Typography>
+                        <Paper elevation={2} sx={{ p: 1.5, borderRadius: 2 }}>
+                          <Typography variant="body2">AI is thinking...</Typography>
                         </Paper>
                       </Box>
                     )}
                     <div ref={messagesEndRef} />
                   </Box>
 
-                  {/* Action Buttons */}
-                  <Box sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
-                    <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                      Choose your action:
-                    </Typography>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                      <Button
-                        variant="success"
-                        size="sm"
-                        fullWidth
-                        leftIcon={<CheckCircle />}
-                        onClick={() => setShowAcceptDialog(true)}
-                        disabled={state.isLoading || !state.suggestedPrice}
-                      >
-                        Accept Offer
-                      </Button>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        fullWidth
-                        leftIcon={<AttachMoney />}
-                        onClick={() => setShowCounterOfferModal(true)}
-                        disabled={state.isLoading || state.currentRound >= state.maxRounds}
-                      >
-                        Counter Offer
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        fullWidth
-                        leftIcon={<Cancel />}
-                        onClick={() => setShowRejectDialog(true)}
-                        disabled={state.isLoading}
-                      >
-                        Reject
-                      </Button>
-                    </Stack>
-                  </Box>
+                  {/* Chat Error Display */}
+                  {chatContext.error && (
+                    <Alert severity="error" onClose={chatContext.clearError} sx={{ m: 1 }}>
+                      {chatContext.error}
+                    </Alert>
+                  )}
+
+                  {/* Action Buttons or Chat Input */}
+                  {chatTabValue === 0 && (
+                    <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
+                      <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                        Choose your negotiation action:
+                      </Typography>
+                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                        <Button
+                          variant="success"
+                          size="sm"
+                          fullWidth
+                          leftIcon={<CheckCircle />}
+                          onClick={() => setShowAcceptDialog(true)}
+                          disabled={state.isLoading || !state.suggestedPrice}
+                        >
+                          Accept Offer
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          fullWidth
+                          leftIcon={<AttachMoney />}
+                          onClick={() => setShowCounterOfferModal(true)}
+                          disabled={state.isLoading || state.currentRound >= state.maxRounds}
+                        >
+                          Counter Offer
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          fullWidth
+                          leftIcon={<Cancel />}
+                          onClick={() => setShowRejectDialog(true)}
+                          disabled={state.isLoading}
+                        >
+                          Reject
+                        </Button>
+                      </Stack>
+                    </Box>
+                  )}
+
+                  {chatTabValue === 1 && (
+                    <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
+                      <ChatInput
+                        onSendMessage={handleChatMessage}
+                        onSendDealerInfo={handleDealerInfo}
+                        disabled={state.isLoading || chatContext.isSending}
+                        placeholder="Ask me anything about this negotiation..."
+                        maxLength={2000}
+                      />
+                    </Box>
+                  )}
                 </Paper>
               </Grid>
 
@@ -1226,7 +1326,9 @@ export default function NegotiationPage() {
         </Box>
       }
     >
-      <NegotiationContent />
+      <NegotiationChatProvider>
+        <NegotiationContent />
+      </NegotiationChatProvider>
     </Suspense>
   );
 }
