@@ -193,11 +193,15 @@ export function CurrentOfferStatus({
               <Box sx={{ mt: 1 }}>
                 <LinearProgress
                   variant="determinate"
-                  value={
-                    comparisonToTarget.isAboveTarget
-                      ? 100
-                      : 100 - Math.abs(comparisonToTarget.percentage)
-                  }
+                  value={Math.max(
+                    0,
+                    Math.min(
+                      100,
+                      comparisonToTarget.isAboveTarget
+                        ? 100
+                        : 100 - Math.abs(comparisonToTarget.percentage)
+                    )
+                  )}
                   color={
                     comparisonToTarget.isAboveTarget ? "error" : "success"
                   }
@@ -222,11 +226,8 @@ export function CurrentOfferStatus({
                 Recent Offers
               </Typography>
               <Stack spacing={1} sx={{ mt: 1 }}>
-                {offerHistory
-                  .slice()
-                  .reverse()
-                  .map((offer, index) => (
-                    <Paper
+                {[...offerHistory].reverse().map((offer, index) => (
+                  <Paper
                       key={offer.messageId}
                       elevation={0}
                       sx={{

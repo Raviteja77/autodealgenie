@@ -253,8 +253,19 @@ function NegotiationContent() {
     };
 
     initializeNegotiation();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicleData, targetPrice, negotiationState.sessionId, user]);
+  }, [
+    vehicleData,
+    targetPrice,
+    negotiationState.sessionId,
+    user,
+    setLoading,
+    setError,
+    setSessionId,
+    setStatus,
+    setCurrentRound,
+    setMessages,
+    chatContext,
+  ]);
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
