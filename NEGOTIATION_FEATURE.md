@@ -18,17 +18,23 @@ The negotiation page is organized into three main panels:
    - Visual progress indicators
    - Round progression tracker
 
-2. **Chat Interface (Center)**
+2. **Chat Interface (Center)** - **REDESIGNED**
+   - Tabbed interface with two modes:
+     - **Actions Tab**: Traditional negotiation actions (Accept, Counter, Reject)
+     - **Chat Tab**: Free-form chat with AI expert for questions and advice
    - Message display with role-based styling
    - Collapsible round-based grouping
-   - Typing indicators
-   - Action buttons (Accept, Counter, Reject)
+   - Enhanced typing indicators
+   - Support for dealer-provided information analysis
+   - Real-time message validation
+   - Error boundaries with user-friendly messages
 
 3. **AI Assistant Panel (Right Sidebar)**
    - Confidence score visualization
    - Real-time recommendations
    - Strategy tips
    - Market insights
+   - Financing options display
 
 ### Backend Services
 
@@ -52,11 +58,23 @@ The negotiation page is organized into three main panels:
    - Retrieves full negotiation session with message history
    - **Authentication Required**: Yes
 
+4. **POST `/api/v1/negotiations/{session_id}/chat`** - **NEW**
+   - Sends free-form chat messages during negotiation
+   - Allows users to ask questions without committing to actions
+   - Provides strategic advice and guidance
+   - **Authentication Required**: Yes
+
+5. **POST `/api/v1/negotiations/{session_id}/dealer-info`** - **NEW**
+   - Submits dealer-provided information for AI analysis
+   - Supports quotes, inspection reports, and additional offers
+   - Provides recommendations on how to respond
+   - **Authentication Required**: Yes
+
 ### Database Schema
 
 **Tables**:
 - `negotiation_sessions` - Session metadata (status, rounds, timestamps)
-- `negotiation_messages` - Individual messages with metadata
+- `negotiation_messages` - Individual messages with metadata (including chat messages and dealer info)
 - `deals` - Associated deal information
 
 **See**: `backend/app/models/negotiation.py` for model definitions
@@ -78,11 +96,14 @@ The negotiation page is organized into three main panels:
 
 ### 2. Active Negotiation
 
-Users can take three actions each round:
+Users can interact with the negotiation in multiple ways:
+
+**Traditional Actions (Actions Tab)**
 
 **Accept Current Offer**
 - Marks session as "completed"
 - Shows success screen with deal summary
+- Displays financing options and lender recommendations
 - Allows user to proceed to evaluation
 
 **Make Counter Offer**
@@ -95,6 +116,22 @@ Users can take three actions each round:
 - Marks session as "cancelled"
 - Shows cancellation screen
 - Provides navigation to other pages
+
+**Free-Form Chat (Chat Tab)** - **NEW**
+
+Users can now engage in open conversation with the AI negotiation expert:
+
+**Ask Questions**
+- Get strategic advice about the negotiation
+- Understand market conditions
+- Learn about negotiation tactics
+- Clarify pricing or vehicle details
+
+**Share Dealer Information**
+- Submit price quotes from dealers
+- Share inspection reports
+- Provide additional offers or counteroffers
+- Get AI analysis and recommendations on how to respond
 
 ### 3. Deal Outcomes
 
@@ -130,6 +167,37 @@ interface NegotiationState {
 }
 ```
 
+### Chat Context Provider - **NEW**
+
+**Location**: `frontend/app/context/NegotiationChatProvider.tsx`
+
+The `NegotiationChatProvider` manages the state for free-form chat messages:
+
+```typescript
+interface ChatContextType {
+  messages: NegotiationMessage[];     // Chat messages (separate from negotiation actions)
+  isTyping: boolean;                  // AI typing indicator
+  isSending: boolean;                 // Message sending state
+  error: string | null;               // Error message
+  sessionId: number | null;           // Associated session
+  
+  // Methods
+  setSessionId: (id: number) => void;
+  setMessages: (messages: NegotiationMessage[]) => void;
+  sendChatMessage: (message: string, messageType?: string) => Promise<void>;
+  sendDealerInfo: (type: string, content: string, price?: number) => Promise<void>;
+  clearError: () => void;
+  resetChat: () => void;
+}
+```
+
+**Usage**:
+```typescript
+import { useNegotiationChat } from "@/app/context";
+
+const { sendChatMessage, sendDealerInfo, isTyping, error } = useNegotiationChat();
+```
+
 ## AI Integration
 
 The negotiation feature uses LangChain with OpenAI for intelligent responses:
@@ -137,6 +205,8 @@ The negotiation feature uses LangChain with OpenAI for intelligent responses:
 **Prompts Used**:
 - `negotiation_initial` - First response to user's interest
 - `negotiation_counter` - Response to user's counter offers
+- `negotiation_chat` - **NEW** - Responses to free-form chat messages
+- `dealer_info_analysis` - **NEW** - Analysis of dealer-provided information
 
 **Prompt Templates**: `backend/app/llm/prompts.py`
 
@@ -166,6 +236,32 @@ All UI components follow the project's component library pattern:
 - **Card** (`components/ui/Card.tsx`) - Container with header, body, footer sections
 - **Modal** (`components/ui/Modal.tsx`) - Dialog overlays for confirmations
 - **Spinner** (`components/ui/Spinner.tsx`) - Loading indicators
+- **ChatInput** (`components/ChatInput.tsx`) - **NEW** - Text input with dealer info support
+
+### ChatInput Component - **NEW**
+
+**Location**: `frontend/components/ChatInput.tsx`
+
+A specialized input component for the negotiation chat:
+
+**Features**:
+- Multiline text input with character counter
+- Support for regular messages and dealer information
+- Dealer info mode with type selector and price input
+- Validation (1-2000 characters for messages, 1-5000 for dealer info)
+- Loading states and error handling
+- Keyboard shortcuts (Enter to send, Shift+Enter for newline)
+
+**Props**:
+```typescript
+interface ChatInputProps {
+  onSendMessage: (message: string, type?: string) => Promise<void>;
+  onSendDealerInfo?: (type: string, content: string, price?: number) => Promise<void>;
+  disabled?: boolean;
+  placeholder?: string;
+  maxLength?: number;
+}
+```
 
 ### Material-UI Components
 

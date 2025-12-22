@@ -271,6 +271,7 @@ function NegotiationContent() {
         ),
       }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatContext.messages]);
 
   // Update typing indicator from chat context
