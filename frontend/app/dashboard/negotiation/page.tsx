@@ -87,7 +87,6 @@ function NegotiationContent() {
   const [, setDealId] = useState<number | null>(null);
   const [vehicleData, setVehicleData] = useState<VehicleInfo | null>(null);
   const [targetPrice, setTargetPrice] = useState<number | null>(null);
-  const [confidence] = useState<number>(0.85);
 
   // Use centralized negotiation state hook
   const {
@@ -108,6 +107,34 @@ function NegotiationContent() {
   } = useNegotiationState(targetPrice, {
     maxRounds: 10,
   });
+
+  // Computed confidence score based on negotiation progress
+  const confidence = useMemo(() => {
+    // Base confidence if we don't have enough data yet
+    if (targetPrice == null || latestPrice == null) {
+      return 0.5;
+    }
+
+    // How far along we are in the negotiation (earlier rounds generally lower confidence)
+    const currentRound = negotiationState.currentRound;
+    const maxRounds = negotiationState.maxRounds;
+    const roundProgress = Math.min(Math.max(currentRound - 1, 0), maxRounds);
+    const roundFactor = 1 - roundProgress / maxRounds; // 1.0 at start, decreases over time
+
+    // How close the latest offer is to the user's target price
+    const priceDiffRatio = Math.min(
+      1,
+      Math.abs(targetPrice - latestPrice) / Math.max(targetPrice, 1)
+    );
+    const priceFactor = 1 - priceDiffRatio; // 1.0 when equal, lower as we move away
+
+    // Blend factors into a confidence score between 0 and 1
+    const rawConfidence = 0.3 + 0.7 * (roundFactor * 0.5 + priceFactor * 0.5);
+    const clamped = Math.min(Math.max(rawConfidence, 0), 1);
+
+    // Round to two decimals for stable display
+    return Number(clamped.toFixed(2));
+  }, [targetPrice, latestPrice, negotiationState.currentRound, negotiationState.maxRounds]);
 
   // UI state
   const [showCounterOfferModal, setShowCounterOfferModal] = useState(false);
@@ -272,7 +299,7 @@ function NegotiationContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  // Consolidated effect: Sync chat messages and typing indicator
+  // Effect: Sync chat messages and typing indicator
   useEffect(() => {
     // Sync messages from chat context
     if (chatContext.messages.length > 0) {
@@ -283,10 +310,12 @@ function NegotiationContent() {
     if (chatContext.isTyping) {
       setTyping(true);
     }
+  }, [chatContext.messages, chatContext.isTyping, addMessages, setTyping]);
 
-    // Auto-scroll when messages change
+  // Effect: Auto-scroll when messages change
+  useEffect(() => {
     scrollToBottom();
-  }, [chatContext.messages, chatContext.isTyping, addMessages, setTyping, scrollToBottom]);
+  }, [negotiationState.messages, scrollToBottom]);
 
   // Clear notifications after 5 seconds
   useEffect(() => {
@@ -414,19 +443,19 @@ function NegotiationContent() {
       setShowCounterOfferModal(false);
       setCounterOfferValue("");
 
-      await apiClient.processNextRound(negotiationState.sessionId, {
+      const response = await apiClient.processNextRound(negotiationState.sessionId, {
         user_action: "counter",
         counter_offer: counterPrice,
       });
 
-      // Fetch updated session
+      // Fetch updated session to get the latest messages
       const session = await apiClient.getNegotiationSession(negotiationState.sessionId);
 
-      // Use the updateFromNextRound method to efficiently update state
-      updateFromNextRound({}, session.messages, session.current_round);
+      // Use the updateFromNextRound method with response metadata
+      updateFromNextRound(response.metadata, session.messages, response.current_round);
 
       // Expand the new round
-      setExpandedRounds((prev) => new Set(prev).add(session.current_round));
+      setExpandedRounds((prev) => new Set(prev).add(response.current_round));
 
       setNotification({
         type: "info",

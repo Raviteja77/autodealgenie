@@ -3,10 +3,15 @@
  * 
  * Centralizes negotiation state management with efficient deduplication,
  * computed properties, and optimized updates from WebSocket and API sources.
+ *
+ * Deduplication and optimized updates are applied when using the provided helpers
+ * (`setMessages`, `addMessages`, and `updateFromNextRound`). Consumers should
+ * treat `state.messages` as effectively readonly and must avoid mutating it
+ * directly (e.g., pushing or splicing), as doing so will bypass these guarantees.
  */
 
 import { useState, useCallback, useMemo } from "react";
-import type { NegotiationMessage, FinancingOption } from "@/lib/api";
+import type { NegotiationMessage, FinancingOption, MessageRole } from "@/lib/api";
 
 export interface OfferInfo {
   price: number;
@@ -71,17 +76,33 @@ function parsePriceFromMessage(message: NegotiationMessage): number | null {
 }
 
 /**
+ * Type guard: Validate a single financing option
+ */
+function isFinancingOption(option: unknown): option is FinancingOption {
+  if (typeof option !== "object" || option === null) {
+    return false;
+  }
+  const opt = option as Record<string, unknown>;
+  return (
+    typeof opt.loan_amount === "number" &&
+    typeof opt.monthly_payment_estimate === "number" &&
+    typeof opt.loan_term_months === "number"
+  );
+}
+
+/**
  * Utility: Parse financing options from message metadata
  */
 function parseFinancingOptions(message: NegotiationMessage): FinancingOption[] | null {
   if (!message.metadata || !message.metadata.financing_options) return null;
   
   const options = message.metadata.financing_options;
-  if (Array.isArray(options) && options.length > 0) {
-    return options as FinancingOption[];
+  if (!Array.isArray(options)) {
+    return null;
   }
   
-  return null;
+  const validOptions = options.filter(isFinancingOption);
+  return validOptions.length > 0 ? validOptions : null;
 }
 
 /**
@@ -115,9 +136,21 @@ function extractOfferInfo(messages: NegotiationMessage[]): OfferInfo[] {
   for (const message of messages) {
     const price = parsePriceFromMessage(message);
     if (price !== null) {
+      let source: OfferInfo["source"];
+      if (message.role === "user") {
+        source = "user";
+      } else if (message.role === "dealer_sim") {
+        source = "dealer";
+      } else if (message.role === "agent") {
+        source = "ai";
+      } else {
+        // Fallback for unexpected role values
+        source = "ai";
+      }
+      
       offers.push({
         price,
-        source: message.role === "user" ? "user" : message.role === "dealer_sim" ? "dealer" : "ai",
+        source,
         timestamp: message.created_at,
         roundNumber: message.round_number,
         messageId: message.id,
@@ -200,6 +233,9 @@ export function useNegotiationState(
       status = "completed";
     } else if (state.status === "cancelled") {
       status = "cancelled";
+    } else if (offerHistory.length === 0) {
+      // No offers yet - it's the user's turn to start
+      status = "user_turn";
     } else if (lastOffer?.source === "ai" || lastOffer?.source === "dealer") {
       status = "user_turn";
     } else if (lastOffer?.source === "user") {
