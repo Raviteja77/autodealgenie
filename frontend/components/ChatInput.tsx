@@ -6,7 +6,7 @@
  */
 
 import { useState, KeyboardEvent, ChangeEvent } from "react";
-import { Box, TextField, InputAdornment, IconButton, CircularProgress } from "@mui/material";
+import { Box, TextField, InputAdornment, IconButton, CircularProgress, Typography, FormHelperText } from "@mui/material";
 import { Send, AttachFile } from "@mui/icons-material";
 import { Button } from "@/components/ui/Button";
 
@@ -18,6 +18,58 @@ interface ChatInputProps {
   maxLength?: number;
 }
 
+// Configuration for different dealer info types
+interface InfoTypeConfig {
+  label: string;
+  priceLabel?: string;
+  priceRequired: boolean;
+  showPrice: boolean;
+  contentPlaceholder: string;
+  helperText: string;
+}
+
+const INFO_TYPE_CONFIG: Record<string, InfoTypeConfig> = {
+  counteroffer: {
+    label: "Counter Offer",
+    priceLabel: "Dealer's Counter Offer",
+    priceRequired: true,
+    showPrice: true,
+    contentPlaceholder: "Enter details about the dealer's counter offer...",
+    helperText: "Price is required for counter offers",
+  },
+  quote: {
+    label: "Price Quote",
+    priceLabel: "Quoted Price (if mentioned)",
+    priceRequired: false,
+    showPrice: true,
+    contentPlaceholder: "Enter details about the price quote...",
+    helperText: "Include the quoted price if mentioned",
+  },
+  inspection_report: {
+    label: "Inspection Report",
+    priceRequired: false,
+    showPrice: false,
+    contentPlaceholder: "Enter inspection report details...",
+    helperText: "Provide details from the inspection report",
+  },
+  additional_offer: {
+    label: "Additional Offer",
+    priceLabel: "Offer Amount",
+    priceRequired: false,
+    showPrice: true,
+    contentPlaceholder: "Enter details about the additional offer...",
+    helperText: "Include the offer amount if applicable",
+  },
+  other: {
+    label: "Other Information",
+    priceLabel: "Price (optional)",
+    priceRequired: false,
+    showPrice: true,
+    contentPlaceholder: "Enter other dealer information...",
+    helperText: "Provide any other relevant information",
+  },
+};
+
 export function ChatInput({
   onSendMessage,
   onSendDealerInfo,
@@ -28,8 +80,39 @@ export function ChatInput({
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showDealerInfo, setShowDealerInfo] = useState(false);
-  const [dealerInfoType, setDealerInfoType] = useState("price_quote");
+  const [dealerInfoType, setDealerInfoType] = useState("counteroffer");
   const [dealerPrice, setDealerPrice] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Get current info type configuration
+  const currentConfig = INFO_TYPE_CONFIG[dealerInfoType] || INFO_TYPE_CONFIG.other;
+
+  const validateDealerInfo = (): boolean => {
+    setValidationError(null);
+
+    // Check if message is provided
+    if (!message.trim()) {
+      setValidationError("Please enter information content");
+      return false;
+    }
+
+    // Check if price is required and provided
+    if (currentConfig.priceRequired && !dealerPrice.trim()) {
+      setValidationError(`${currentConfig.priceLabel} is required`);
+      return false;
+    }
+
+    // Validate price format if provided
+    if (dealerPrice.trim()) {
+      const price = parseFloat(dealerPrice);
+      if (isNaN(price) || price <= 0) {
+        setValidationError("Please enter a valid price greater than 0");
+        return false;
+      }
+    }
+
+    return true;
+  };
 
   const handleSendMessage = async () => {
     if (!message.trim() || isSending || disabled) return;
@@ -46,10 +129,16 @@ export function ChatInput({
   };
 
   const handleSendDealerInfo = async () => {
-    if (!message.trim() || isSending || disabled || !onSendDealerInfo) return;
+    if (!onSendDealerInfo || isSending || disabled) return;
+
+    // Validate dealer info before sending
+    if (!validateDealerInfo()) {
+      return;
+    }
 
     try {
       setIsSending(true);
+      setValidationError(null);
       const price = dealerPrice ? parseFloat(dealerPrice) : undefined;
       await onSendDealerInfo(dealerInfoType, message.trim(), price);
       setMessage("");
@@ -57,6 +146,7 @@ export function ChatInput({
       setShowDealerInfo(false);
     } catch (error) {
       console.error("Failed to send dealer info:", error);
+      setValidationError("Failed to send dealer info. Please try again.");
     } finally {
       setIsSending(false);
     }
@@ -86,38 +176,99 @@ export function ChatInput({
   return (
     <Box sx={{ width: "100%" }}>
       {showDealerInfo && onSendDealerInfo && (
-        <Box sx={{ mb: 1, p: 1, bgcolor: "background.paper", borderRadius: 1 }}>
-          <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+        <Box sx={{ mb: 2, p: 2, bgcolor: "background.paper", borderRadius: 1, border: "1px solid", borderColor: "divider" }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Submit Dealer Information
+          </Typography>
+          
+          {/* Info Type Dropdown */}
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Information Type"
+            value={dealerInfoType}
+            onChange={(e) => {
+              setDealerInfoType(e.target.value);
+              setValidationError(null);
+            }}
+            SelectProps={{ native: true }}
+            sx={{ mb: 2 }}
+          >
+            <option value="counteroffer">Counter Offer</option>
+            <option value="quote">Price Quote</option>
+            <option value="inspection_report">Inspection Report</option>
+            <option value="additional_offer">Additional Offer</option>
+            <option value="other">Other</option>
+          </TextField>
+
+          {/* Price Field (conditional) */}
+          {currentConfig.showPrice && (
             <TextField
-              select
-              size="small"
-              value={dealerInfoType}
-              onChange={(e) => setDealerInfoType(e.target.value)}
-              SelectProps={{ native: true }}
-              sx={{ minWidth: 150 }}
-            >
-              <option value="price_quote">Price Quote</option>
-              <option value="inspection_report">Inspection Report</option>
-              <option value="additional_offer">Additional Offer</option>
-              <option value="other">Other</option>
-            </TextField>
-            <TextField
+              fullWidth
               size="small"
               type="number"
-              placeholder="Price (optional)"
+              label={currentConfig.priceLabel}
+              placeholder="Enter price amount"
               value={dealerPrice}
-              onChange={(e) => setDealerPrice(e.target.value)}
-              sx={{ flex: 1 }}
+              onChange={(e) => {
+                setDealerPrice(e.target.value);
+                setValidationError(null);
+              }}
+              required={currentConfig.priceRequired}
+              error={validationError !== null && currentConfig.priceRequired && !dealerPrice.trim()}
+              InputProps={{
+                startAdornment: "$",
+              }}
+              sx={{ mb: 2 }}
             />
+          )}
+
+          {/* Helper Text */}
+          <FormHelperText sx={{ mb: 1 }}>
+            {currentConfig.helperText}
+          </FormHelperText>
+
+          {/* Content Field */}
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            placeholder={currentConfig.contentPlaceholder}
+            value={message}
+            onChange={handleChange}
+            error={validationError !== null && !message.trim()}
+            helperText={`${message.length}/${maxLength}`}
+            sx={{ mb: 1 }}
+          />
+
+          {/* Validation Error */}
+          {validationError && (
+            <Typography variant="caption" color="error" display="block" sx={{ mb: 1 }}>
+              {validationError}
+            </Typography>
+          )}
+
+          {/* Action Buttons */}
+          <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
                 setShowDealerInfo(false);
                 setDealerPrice("");
+                setValidationError(null);
               }}
             >
               Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSendDealerInfo}
+              disabled={isSending || disabled}
+            >
+              {isSending ? "Sending..." : "Submit"}
             </Button>
           </Box>
         </Box>
@@ -130,6 +281,7 @@ export function ChatInput({
             disabled={disabled || isSending}
             color="primary"
             sx={{ mb: 0.5 }}
+            title="Submit dealer information"
           >
             <AttachFile />
           </IconButton>
@@ -143,18 +295,18 @@ export function ChatInput({
           onChange={handleChange}
           onKeyPress={handleKeyPress}
           placeholder={placeholder}
-          disabled={disabled || isSending}
-          helperText={`${message.length}/${maxLength}`}
+          disabled={disabled || isSending || showDealerInfo}
+          helperText={showDealerInfo ? "" : `${message.length}/${maxLength}`}
           sx={{
             "& .MuiOutlinedInput-root": {
               borderRadius: 2,
             },
           }}
           InputProps={{
-            endAdornment: (
+            endAdornment: !showDealerInfo && (
               <InputAdornment position="end">
                 <IconButton
-                  onClick={showDealerInfo && onSendDealerInfo ? handleSendDealerInfo : handleSendMessage}
+                  onClick={handleSendMessage}
                   disabled={!message.trim() || disabled || isSending}
                   color="primary"
                 >
