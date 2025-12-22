@@ -63,6 +63,7 @@ import {
   type FinancingOption,
   type LenderMatch,
 } from "@/lib/api";
+import { formatPrice, formatNumber, formatTimestamp } from "@/lib/utils/formatting";
 
 interface VehicleInfo {
   vin?: string;
@@ -90,6 +91,12 @@ interface NegotiationState {
   isTyping: boolean;
   financingOptions: FinancingOption[] | null;
   cashSavings: number | null;
+  // Enhanced AI metadata
+  recommendedAction: string | null;
+  strategyAdjustments: string | null;
+  dealerConcessionRate: number | null;
+  negotiationVelocity: number | null;
+  marketComparison: string | null;
 }
 
 function NegotiationContent() {
@@ -117,6 +124,11 @@ function NegotiationContent() {
     isTyping: false,
     financingOptions: null,
     cashSavings: null,
+    recommendedAction: null,
+    strategyAdjustments: null,
+    dealerConcessionRate: null,
+    negotiationVelocity: null,
+    marketComparison: null,
   });
 
   // UI state
@@ -230,6 +242,9 @@ function NegotiationContent() {
           response.session_id
         );
 
+        // Extract enhanced metadata from response
+        const metadata = response.metadata || {};
+
         setState((prev) => ({
           ...prev,
           sessionId: session.id,
@@ -240,11 +255,16 @@ function NegotiationContent() {
           currentRound: session.current_round,
           maxRounds: session.max_rounds,
           messages: session.messages,
-          suggestedPrice: (response.metadata.suggested_price as number) || null,
+          suggestedPrice: (metadata.suggested_price as number) || null,
           financingOptions:
-            (response.metadata.financing_options as FinancingOption[]) || null,
-          cashSavings: (response.metadata.cash_savings as number) || null,
-          confidence: 0.85, // Default confidence
+            (metadata.financing_options as FinancingOption[]) || null,
+          cashSavings: (metadata.cash_savings as number) || null,
+          confidence: (metadata.confidence_score as number) || 0.85,
+          recommendedAction: (metadata.recommended_action as string) || null,
+          strategyAdjustments: (metadata.strategy_adjustments as string) || null,
+          dealerConcessionRate: (metadata.dealer_concession_rate as number) || null,
+          negotiationVelocity: (metadata.negotiation_velocity as number) || null,
+          marketComparison: (metadata.market_comparison as string) || null,
           isLoading: false,
         }));
 
@@ -273,12 +293,15 @@ function NegotiationContent() {
     initializeNegotiation();
   }, [vehicleData, state.sessionId, user]);
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom when messages change
+  // Dependencies: only scrollToBottom function (stable via useCallback)
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
   // Sync chat messages with state messages
+  // Dependencies: chatContext.messages only to avoid infinite loops
+  // This effect deduplicates incoming chat messages and merges them with state
   useEffect(() => {
     if (chatContext.messages.length > 0) {
       // Deduplicate messages by ID using a Set for O(n) performance
@@ -300,6 +323,7 @@ function NegotiationContent() {
   }, [chatContext.messages]);
 
   // Update typing indicator from chat context
+  // Dependencies: chatContext.isTyping only
   useEffect(() => {
     setState((prev) => ({
       ...prev,
@@ -307,6 +331,8 @@ function NegotiationContent() {
     }));
   }, [chatContext.isTyping]);
 
+  // Auto-scroll when messages or chat messages update
+  // Dependencies: state.messages, scrollToBottom, chatContext.messages
   useEffect(() => {
     scrollToBottom();
   }, [state.messages, scrollToBottom, chatContext.messages]);
@@ -320,7 +346,9 @@ function NegotiationContent() {
   }, [notification]);
 
   // Handle accept offer
-  const handleAcceptOffer = async () => {
+  // Dependencies: state.sessionId for API call
+  // Memoized to prevent recreation on every render
+  const handleAcceptOffer = useCallback(async () => {
     if (!state.sessionId) return;
 
     try {
@@ -385,10 +413,12 @@ function NegotiationContent() {
         error: errorMessage,
       }));
     }
-  };
+  }, [state.sessionId, state.financingOptions]);
 
   // Handle reject offer
-  const handleRejectOffer = async () => {
+  // Dependencies: state.sessionId for API call
+  // Memoized to prevent recreation on every render
+  const handleRejectOffer = useCallback(async () => {
     if (!state.sessionId) return;
 
     try {
@@ -426,10 +456,12 @@ function NegotiationContent() {
         error: errorMessage,
       }));
     }
-  };
+  }, [state.sessionId]);
 
   // Handle counter offer
-  const handleCounterOffer = async () => {
+  // Dependencies: state.sessionId, counterOfferValue for API call
+  // Memoized to prevent recreation on every render
+  const handleCounterOffer = useCallback(async () => {
     if (!state.sessionId || !counterOfferValue) return;
 
     const counterPrice = parseFloat(counterOfferValue);
@@ -454,15 +486,25 @@ function NegotiationContent() {
       // Fetch updated session
       const session = await apiClient.getNegotiationSession(state.sessionId);
 
+      // Extract enhanced metadata from response
+      const metadata = response.metadata || {};
+      
       setState((prev) => ({
         ...prev,
         currentRound: session.current_round,
         messages: session.messages,
         suggestedPrice:
-          response.metadata.suggested_price || prev.suggestedPrice,
+          metadata.suggested_price || prev.suggestedPrice,
         financingOptions:
-          response.metadata.financing_options || prev.financingOptions,
-        cashSavings: response.metadata.cash_savings || prev.cashSavings,
+          metadata.financing_options || prev.financingOptions,
+        cashSavings: metadata.cash_savings || prev.cashSavings,
+        // Extract enhanced AI metadata
+        confidence: metadata.confidence_score || prev.confidence,
+        recommendedAction: metadata.recommended_action || prev.recommendedAction,
+        strategyAdjustments: metadata.strategy_adjustments || prev.strategyAdjustments,
+        dealerConcessionRate: metadata.dealer_concession_rate || prev.dealerConcessionRate,
+        negotiationVelocity: metadata.negotiation_velocity || prev.negotiationVelocity,
+        marketComparison: metadata.market_comparison || prev.marketComparison,
         isLoading: false,
         isTyping: false,
       }));
@@ -472,7 +514,7 @@ function NegotiationContent() {
 
       setNotification({
         type: "info",
-        message: `Counter offer of $${counterPrice.toLocaleString()} submitted!`,
+        message: `Counter offer of ${formatPrice(counterPrice)} submitted!`,
       });
     } catch (err) {
       console.error("Failed to submit counter offer:", err);
@@ -485,10 +527,12 @@ function NegotiationContent() {
         error: errorMessage,
       }));
     }
-  };
+  }, [state.sessionId, counterOfferValue]);
 
   // Toggle round expansion
-  const toggleRoundExpansion = (round: number) => {
+  // Dependencies: none (setExpandedRounds is stable)
+  // Memoized to prevent recreation on every render
+  const toggleRoundExpansion = useCallback((round: number) => {
     setExpandedRounds((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(round)) {
@@ -498,9 +542,11 @@ function NegotiationContent() {
       }
       return newSet;
     });
-  };
+  }, []);
 
   // Handle chat message
+  // Dependencies: chatContext for sendChatMessage
+  // Memoized to prevent recreation on every render
   const handleChatMessage = useCallback(
     async (message: string, messageType?: string) => {
       await chatContext.sendChatMessage(message, messageType);
@@ -509,6 +555,8 @@ function NegotiationContent() {
   );
 
   // Handle dealer info
+  // Dependencies: chatContext for sendDealerInfo
+  // Memoized to prevent recreation on every render
   const handleDealerInfo = useCallback(
     async (infoType: string, content: string, priceMentioned?: number) => {
       await chatContext.sendDealerInfo(infoType, content, priceMentioned);
@@ -517,6 +565,9 @@ function NegotiationContent() {
   );
 
   // Group messages by round
+  // Dependencies: state.messages only
+  // Memoized to prevent expensive re-computation on every render
+  // This is particularly important as message grouping happens frequently
   const messagesByRound = useMemo(() => {
     const grouped: Record<number, NegotiationMessage[]> = {};
     state.messages.forEach((msg) => {
@@ -1382,6 +1433,31 @@ function NegotiationContent() {
                       Recommendations
                     </Typography>
                     <Stack spacing={1} sx={{ mb: 3 }}>
+                      {/* AI Recommended Action */}
+                      {state.recommendedAction && (
+                        <Alert
+                          severity={
+                            state.recommendedAction === "accept"
+                              ? "success"
+                              : state.recommendedAction === "counter"
+                              ? "info"
+                              : "warning"
+                          }
+                          icon={
+                            state.recommendedAction === "accept" ? (
+                              <CheckCircle />
+                            ) : (
+                              <TrendingDown />
+                            )
+                          }
+                          sx={{ py: 0.5 }}
+                        >
+                          <Typography variant="caption" fontWeight="bold">
+                            AI Suggests: {state.recommendedAction.toUpperCase()}
+                          </Typography>
+                        </Alert>
+                      )}
+                      
                       {state.suggestedPrice &&
                         state.targetPrice &&
                         state.suggestedPrice <= state.targetPrice && (
@@ -1413,14 +1489,123 @@ function NegotiationContent() {
                           sx={{ py: 0.5 }}
                         >
                           <Typography variant="caption">
-                            Current savings: $
-                            {(
-                              vehicleData.price - state.suggestedPrice
-                            ).toLocaleString()}
+                            Current savings:{" "}
+                            {formatPrice(vehicleData.price - state.suggestedPrice)}
                           </Typography>
                         </Alert>
                       )}
                     </Stack>
+
+                    {/* Enhanced Negotiation Analytics */}
+                    {(state.dealerConcessionRate !== null || 
+                      state.negotiationVelocity !== null || 
+                      state.marketComparison) && (
+                      <>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle2" gutterBottom>
+                          Negotiation Analytics
+                        </Typography>
+                        <Stack spacing={1.5} sx={{ mb: 3 }}>
+                          {/* Dealer Concession Rate */}
+                          {state.dealerConcessionRate !== null && (
+                            <Paper
+                              elevation={1}
+                              sx={{ p: 1.5, bgcolor: "background.default" }}
+                            >
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Typography variant="caption" color="text.secondary">
+                                  Dealer Flexibility
+                                </Typography>
+                                <Chip
+                                  label={`${(state.dealerConcessionRate * 100).toFixed(1)}%`}
+                                  size="small"
+                                  color={
+                                    state.dealerConcessionRate > 0.05
+                                      ? "success"
+                                      : state.dealerConcessionRate > 0.02
+                                      ? "warning"
+                                      : "default"
+                                  }
+                                />
+                              </Box>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: "block", mt: 0.5 }}
+                              >
+                                {state.dealerConcessionRate > 0.05
+                                  ? "Dealer is very flexible"
+                                  : state.dealerConcessionRate > 0.02
+                                  ? "Moderate negotiation room"
+                                  : "Dealer holding firm"}
+                              </Typography>
+                            </Paper>
+                          )}
+
+                          {/* Negotiation Velocity */}
+                          {state.negotiationVelocity !== null && (
+                            <Paper
+                              elevation={1}
+                              sx={{ p: 1.5, bgcolor: "background.default" }}
+                            >
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Typography variant="caption" color="text.secondary">
+                                  Price Movement
+                                </Typography>
+                                <Chip
+                                  label={formatPrice(Math.abs(state.negotiationVelocity)) + "/round"}
+                                  size="small"
+                                  color="info"
+                                />
+                              </Box>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: "block", mt: 0.5 }}
+                              >
+                                Average price change per round
+                              </Typography>
+                            </Paper>
+                          )}
+
+                          {/* Market Comparison */}
+                          {state.marketComparison && (
+                            <Alert severity="info" sx={{ py: 0.5 }}>
+                              <Typography variant="caption">
+                                {state.marketComparison}
+                              </Typography>
+                            </Alert>
+                          )}
+                        </Stack>
+                      </>
+                    )}
+
+                    {/* Strategy Adjustments */}
+                    {state.strategyAdjustments && (
+                      <>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle2" gutterBottom>
+                          AI Strategy Tip
+                        </Typography>
+                        <Alert severity="info" icon={<SmartToy />} sx={{ mb: 3 }}>
+                          <Typography variant="caption">
+                            {state.strategyAdjustments}
+                          </Typography>
+                        </Alert>
+                      </>
+                    )}
 
                     <Divider sx={{ my: 2 }} />
 
