@@ -187,6 +187,16 @@ function NegotiationContent() {
     }
   }, [searchParams]);
 
+  // Memoize validation result to avoid unnecessary recalculations
+  const isPriceValid = useMemo(() => {
+    if (!latestPrice || !vehicleData) return false;
+    return validateNegotiatedPrice(
+      latestPrice.price,
+      vehicleData.price,
+      state.targetPrice
+    ).isValid;
+  }, [latestPrice, vehicleData, state.targetPrice]);
+
   // Check if user can access this step
   useEffect(() => {
     if (!canNavigateToStep(2)) {
@@ -1337,16 +1347,7 @@ function NegotiationContent() {
                           fullWidth
                           leftIcon={<CheckCircle />}
                           onClick={() => setShowAcceptDialog(true)}
-                          disabled={
-                            state.isLoading || 
-                            !latestPrice || 
-                            !vehicleData || 
-                            !validateNegotiatedPrice(
-                              latestPrice?.price,
-                              vehicleData.price,
-                              state.targetPrice
-                            ).isValid
-                          }
+                          disabled={state.isLoading || !isPriceValid}
                         >
                           Accept Offer
                         </Button>

@@ -77,15 +77,15 @@ export function ChatInput({
   placeholder = "Type your message...",
   maxLength = 2000,
 }: ChatInputProps) {
+  // Default info type for dealer information
+  const DEFAULT_INFO_TYPE = "counteroffer";
+
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showDealerInfo, setShowDealerInfo] = useState(false);
   const [dealerInfoType, setDealerInfoType] = useState(DEFAULT_INFO_TYPE);
   const [dealerPrice, setDealerPrice] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
-
-  // Default info type for dealer information
-  const DEFAULT_INFO_TYPE = "counteroffer";
 
   // Get current info type configuration
   const currentConfig = INFO_TYPE_CONFIG[dealerInfoType] || INFO_TYPE_CONFIG.other;
