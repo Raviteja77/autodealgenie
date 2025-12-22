@@ -3,7 +3,6 @@ Deal Evaluation Service
 Provides fair market value analysis and negotiation insights for vehicle deals
 """
 
-import json
 import logging
 from datetime import datetime
 from typing import Any

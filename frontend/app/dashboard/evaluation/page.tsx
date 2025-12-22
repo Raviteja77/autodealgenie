@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, useEffect } from "react";
+import { useState, Suspense, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -95,14 +95,7 @@ function EvaluationContent() {
   })();
 
   // Start evaluation on mount
-  useEffect(() => {
-    if (vehicleData && !evaluation && !loading) {
-      evaluateDeal();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicleData]);
-
-  const evaluateDeal = async () => {
+  const evaluateDeal = useCallback(async () => {
     if (!vehicleData) return;
 
     setLoading(true);
@@ -123,7 +116,8 @@ function EvaluationContent() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to evaluate deal");
+        const errorData = await response.json().catch(() => ({ message: "Failed to evaluate deal" }));
+        throw new Error(errorData.message || "Failed to evaluate deal");
       }
 
       const data = await response.json();
@@ -143,7 +137,13 @@ function EvaluationContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [vehicleData, completeStep]);
+
+  useEffect(() => {
+    if (vehicleData && !evaluation && !loading) {
+      evaluateDeal();
+    }
+  }, [vehicleData, evaluation, loading, evaluateDeal]);
 
   const getScoreColor = (score: number) => {
     if (score >= 8) return "success";
@@ -168,8 +168,8 @@ function EvaluationContent() {
 
   const shouldSearchMore = (score: number) => score < 5.0;
 
-  const priceDifference = evaluation 
-    ? vehicleData!.price - evaluation.fair_value
+  const priceDifference = evaluation && vehicleData
+    ? vehicleData.price - evaluation.fair_value
     : 0;
 
   return (
