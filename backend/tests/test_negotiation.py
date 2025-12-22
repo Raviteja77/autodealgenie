@@ -409,3 +409,209 @@ async def test_access_other_user_session(authenticated_client, mock_deal, db):
     # Try to access with authenticated client (different user)
     response = authenticated_client.get(f"/api/v1/negotiations/{session.id}")
     assert response.status_code == 403
+
+
+# Chat Message Tests
+
+
+@pytest.mark.asyncio
+async def test_send_chat_message(authenticated_client, mock_deal, db):
+    """Test sending a free-form chat message"""
+    from app.models.models import User
+    from app.repositories.negotiation_repository import NegotiationRepository
+
+    # Get the mock user
+    user = db.query(User).filter(User.email == "testuser@example.com").first()
+
+    # Create a session
+    repo = NegotiationRepository(db)
+    session = repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+
+    request_data = {
+        "message": "What's the best strategy for negotiating this price?",
+        "message_type": "question",
+    }
+
+    with patch("app.llm.llm_client.async_openai_client.chat.completions.create") as mock_llm:
+        # Mock LLM response
+        mock_response = type(
+            "MockResponse",
+            (),
+            {
+                "choices": [
+                    type("MockChoice", (), {"message": type("MockMessage", (), {"content": "Based on the current market conditions, I recommend starting with a counter offer that's 5-8% below the asking price."})()})()
+                ]
+            },
+        )()
+        mock_llm.return_value = mock_response
+
+        response = authenticated_client.post(
+            f"/api/v1/negotiations/{session.id}/chat", json=request_data
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["session_id"] == session.id
+        assert "user_message" in data
+        assert "agent_message" in data
+        assert data["user_message"]["content"] == request_data["message"]
+        assert data["user_message"]["metadata"]["message_type"] == "question"
+        assert data["agent_message"]["role"] == "agent"
+
+
+@pytest.mark.asyncio
+async def test_send_chat_message_invalid_session(authenticated_client):
+    """Test sending chat message to non-existent session"""
+    request_data = {
+        "message": "Test message",
+        "message_type": "general",
+    }
+
+    response = authenticated_client.post("/api/v1/negotiations/99999/chat", json=request_data)
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_send_chat_message_validation(authenticated_client, mock_deal, db):
+    """Test chat message validation"""
+    from app.models.models import User
+    from app.repositories.negotiation_repository import NegotiationRepository
+
+    # Get the mock user
+    user = db.query(User).filter(User.email == "testuser@example.com").first()
+
+    # Create a session
+    repo = NegotiationRepository(db)
+    session = repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+
+    # Test with empty message
+    request_data = {"message": "", "message_type": "general"}
+    response = authenticated_client.post(
+        f"/api/v1/negotiations/{session.id}/chat", json=request_data
+    )
+    assert response.status_code == 422
+
+    # Test with too long message
+    request_data = {"message": "x" * 2001, "message_type": "general"}
+    response = authenticated_client.post(
+        f"/api/v1/negotiations/{session.id}/chat", json=request_data
+    )
+    assert response.status_code == 422
+
+
+# Dealer Info Analysis Tests
+
+
+@pytest.mark.asyncio
+async def test_submit_dealer_info(authenticated_client, mock_deal, db):
+    """Test submitting dealer-provided information"""
+    from app.models.models import User
+    from app.repositories.negotiation_repository import NegotiationRepository
+
+    # Get the mock user
+    user = db.query(User).filter(User.email == "testuser@example.com").first()
+
+    # Create a session
+    repo = NegotiationRepository(db)
+    session = repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+
+    request_data = {
+        "info_type": "price_quote",
+        "content": "Dealer says they can do $23,500 if I finance through them",
+        "price_mentioned": 23500.00,
+        "metadata": {"financing_required": True},
+    }
+
+    with patch("app.llm.llm_client.async_openai_client.chat.completions.create") as mock_llm:
+        # Mock LLM response
+        mock_response = type(
+            "MockResponse",
+            (),
+            {
+                "choices": [
+                    type(
+                        "MockChoice",
+                        (),
+                        {
+                            "message": type(
+                                "MockMessage",
+                                (),
+                                {
+                                    "content": "This dealer offer of $23,500 with financing is reasonable. However, be aware that dealer financing might have higher interest rates. I recommend comparing it with your bank's rates."
+                                },
+                            )()
+                        },
+                    )()
+                ]
+            },
+        )()
+        mock_llm.return_value = mock_response
+
+        response = authenticated_client.post(
+            f"/api/v1/negotiations/{session.id}/dealer-info", json=request_data
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["session_id"] == session.id
+        assert "analysis" in data
+        assert "recommended_action" in data
+        assert "user_message" in data
+        assert "agent_message" in data
+        assert data["user_message"]["metadata"]["info_type"] == "price_quote"
+        assert data["user_message"]["metadata"]["price_mentioned"] == 23500.00
+
+
+@pytest.mark.asyncio
+async def test_submit_dealer_info_inactive_session(authenticated_client, mock_deal, db):
+    """Test submitting dealer info to inactive session"""
+    from app.models.models import User
+    from app.models.negotiation import NegotiationStatus
+    from app.repositories.negotiation_repository import NegotiationRepository
+
+    # Get the mock user
+    user = db.query(User).filter(User.email == "testuser@example.com").first()
+
+    # Create a completed session
+    repo = NegotiationRepository(db)
+    session = repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+    repo.update_session_status(session.id, NegotiationStatus.COMPLETED)
+
+    request_data = {
+        "info_type": "price_quote",
+        "content": "Test content",
+        "price_mentioned": 23000.00,
+    }
+
+    response = authenticated_client.post(
+        f"/api/v1/negotiations/{session.id}/dealer-info", json=request_data
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_submit_dealer_info_validation(authenticated_client, mock_deal, db):
+    """Test dealer info validation"""
+    from app.models.models import User
+    from app.repositories.negotiation_repository import NegotiationRepository
+
+    # Get the mock user
+    user = db.query(User).filter(User.email == "testuser@example.com").first()
+
+    # Create a session
+    repo = NegotiationRepository(db)
+    session = repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+
+    # Test with empty content
+    request_data = {"info_type": "price_quote", "content": ""}
+    response = authenticated_client.post(
+        f"/api/v1/negotiations/{session.id}/dealer-info", json=request_data
+    )
+    assert response.status_code == 422
+
+    # Test with too long content
+    request_data = {"info_type": "price_quote", "content": "x" * 5001}
+    response = authenticated_client.post(
+        f"/api/v1/negotiations/{session.id}/dealer-info", json=request_data
+    )
+    assert response.status_code == 422
