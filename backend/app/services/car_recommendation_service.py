@@ -247,6 +247,7 @@ class CarRecommendationService:
         year_max: int | None = None,
         mileage_max: int | None = None,
         user_priorities: str | None = None,
+        max_results: int | None = None,
         user_id: int | None = None,
         db_session=None,
     ) -> dict[str, Any]:
@@ -263,12 +264,16 @@ class CarRecommendationService:
             year_max: Maximum year
             mileage_max: Maximum mileage
             user_priorities: User's specific priorities or preferences
+            max_results: Maximum number of results to fetch and analyze (default: from settings)
             user_id: User ID for history tracking (optional)
             db_session: Database session for webhook operations (optional)
 
         Returns:
             Dictionary with search criteria and top vehicle recommendations
         """
+        # Use provided max_results or fall back to settings default
+        rows = max_results if max_results is not None else settings.MAX_SEARCH_RESULTS
+        
         # Generate cache key
         cache_key = self._generate_cache_key(
             make,
@@ -282,25 +287,11 @@ class CarRecommendationService:
             user_priorities,
         )
 
-        # Check file cache first (persistent storage to avoid costs)
-        file_cached_result = self._get_from_file_cache(cache_key)
-        if file_cached_result:
-            # Log to history even for file cached results
-            try:
-                await search_history_repository.create_search_record(
-                    user_id=user_id,
-                    search_criteria=file_cached_result.get("search_criteria", {}),
-                    result_count=file_cached_result.get("total_found", 0),
-                    top_vehicles=file_cached_result.get("top_vehicles", []),
-                )
-            except Exception as e:
-                logger.error(f"Error logging file cached search to history: {e}")
-            return file_cached_result
-
-
-        # Check cache first
+        # Multi-tier cache strategy: Redis (fast) → File (persistent fallback)
+        # Check Redis cache first (fast, in-memory)
         cached_result = await self._get_cached_result(cache_key)
         if cached_result:
+            logger.info("Cache hit from Redis")
             # Still log to search history even for cached results
             try:
                 await search_history_repository.create_search_record(
@@ -314,6 +305,25 @@ class CarRecommendationService:
 
             return cached_result
 
+        # Check file cache as fallback (persistent storage to avoid API costs)
+        file_cached_result = self._get_from_file_cache(cache_key)
+        if file_cached_result:
+            logger.info("Cache hit from file cache, updating Redis for faster subsequent access")
+            # Update Redis cache for faster subsequent access
+            await self._set_cached_result(cache_key, file_cached_result)
+            
+            # Log to history even for file cached results
+            try:
+                await search_history_repository.create_search_record(
+                    user_id=user_id,
+                    search_criteria=file_cached_result.get("search_criteria", {}),
+                    result_count=file_cached_result.get("total_found", 0),
+                    top_vehicles=file_cached_result.get("top_vehicles", []),
+                )
+            except Exception as e:
+                logger.error(f"Error logging file cached search to history: {e}")
+            return file_cached_result
+
         # Search MarketCheck API with retry logic
         try:
             api_response = await self._search_marketcheck_with_retry(
@@ -325,7 +335,7 @@ class CarRecommendationService:
                 min_year=year_min,
                 max_year=year_max,
                 max_mileage=mileage_max,
-                rows=10,  # Get up to 10 results for LLM analysis
+                rows=rows,  # Use configurable limit for LLM analysis
             )
         except Exception as e:
             logger.error(f"MarketCheck API failed after retries: {e}")
