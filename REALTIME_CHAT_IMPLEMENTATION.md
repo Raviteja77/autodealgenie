@@ -103,10 +103,27 @@ else:
 ```python
 @router.websocket("/{session_id}/ws")
 async def websocket_endpoint(websocket: WebSocket, session_id: int, db: Session):
+    # Authenticate user from cookie
+    access_token = websocket.cookies.get("access_token")
+    if not access_token:
+        await websocket.close(code=4001, reason="Not authenticated")
+        return
+    
+    # Verify user and get user_id from token
+    user = authenticate_from_token(access_token, db)
+    if not user:
+        await websocket.close(code=4001, reason="Authentication failed")
+        return
+    
     # Verify session exists
     session = service.negotiation_repo.get_session(session_id)
     if not session:
         await websocket.close(code=4004, reason="Session not found")
+        return
+    
+    # Verify session belongs to the authenticated user
+    if session.user_id != user.id:
+        await websocket.close(code=4003, reason="Not authorized for this session")
         return
     
     # Accept connection and add to pool

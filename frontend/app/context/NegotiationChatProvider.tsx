@@ -77,6 +77,7 @@ export function NegotiationChatProvider({
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
+  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const setSessionId = useCallback((id: number) => {
     setState((prev) => ({ ...prev, sessionId: id }));
@@ -109,6 +110,12 @@ export function NegotiationChatProvider({
 
   const connectWebSocket = useCallback(() => {
     if (!state.sessionId || wsRef.current) return;
+
+    // Clear any existing ping interval before creating a new connection
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
 
     try {
       // Determine WebSocket URL based on environment
@@ -186,6 +193,12 @@ export function NegotiationChatProvider({
         console.log("WebSocket disconnected");
         setState((prev) => ({ ...prev, wsConnected: false }));
         wsRef.current = null;
+        
+        // Clear ping interval when connection closes
+        if (pingIntervalRef.current) {
+          clearInterval(pingIntervalRef.current);
+          pingIntervalRef.current = null;
+        }
 
         // Attempt reconnection with exponential backoff
         if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
@@ -210,14 +223,11 @@ export function NegotiationChatProvider({
       wsRef.current = ws;
 
       // Set up ping interval to keep connection alive
-      const pingInterval = setInterval(() => {
+      pingIntervalRef.current = setInterval(() => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ type: "ping" }));
         }
       }, WEBSOCKET_PING_INTERVAL_MS);
-
-      // Clean up ping interval on close
-      ws.addEventListener("close", () => clearInterval(pingInterval));
 
     } catch (error) {
       console.error("Failed to establish WebSocket connection:", error);
@@ -232,6 +242,11 @@ export function NegotiationChatProvider({
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
+    }
+    
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
     }
     
     if (wsRef.current) {
@@ -251,7 +266,9 @@ export function NegotiationChatProvider({
     return () => {
       disconnectWebSocket();
     };
-  }, [state.sessionId, connectWebSocket, disconnectWebSocket]);
+    // Only depend on state.sessionId to avoid unnecessary reconnections
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.sessionId]);
 
   const sendChatMessage = useCallback(
     async (message: string, messageType: string = "general") => {

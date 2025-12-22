@@ -89,7 +89,7 @@ The negotiation page is organized into three main panels:
      - Client → Server:
        - `ping`: Keep-alive ping
        - `subscribe`: Subscribe to updates
-   - **Authentication**: Session-based (session must exist)
+   - **Authentication**: User-based (JWT) authentication via cookies. The authenticated user must own the session or the connection is rejected.
 
 ### Database Schema
 

@@ -2,7 +2,6 @@
 WebSocket Connection Manager for Real-Time Negotiation Chat
 """
 
-import json
 import logging
 from typing import Dict, List
 

@@ -3,7 +3,7 @@ Unit tests for WebSocket connection manager
 """
 
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock
 
 from app.services.websocket_manager import ConnectionManager
 
