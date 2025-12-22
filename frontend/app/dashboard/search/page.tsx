@@ -200,14 +200,9 @@ export default function DashboardSearchPage() {
   };
 
   const carTypes = [
-    "Sedan",
-    "SUV",
-    "Truck",
-    "Coupe",
-    "Hatchback",
-    "Minivan",
-    "Convertible",
-    "Wagon",
+    "new",
+    "used",
+    "certified pre-owned",
   ];
 
   const fuelTypes = [

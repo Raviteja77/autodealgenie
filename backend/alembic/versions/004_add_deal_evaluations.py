@@ -28,19 +28,12 @@ def upgrade() -> None:
         sa.Column("deal_id", sa.Integer(), nullable=False),
         sa.Column(
             "status",
-            sa.Enum("ANALYZING", "AWAITING_INPUT", "COMPLETED", name="evaluationstatus"),
+            sa.Enum("analyzing", "awaiting_input", "completed", name="evaluationstatus"),
             nullable=False,
         ),
         sa.Column(
             "current_step",
-            sa.Enum(
-                "VEHICLE_CONDITION",
-                "PRICE",
-                "FINANCING",
-                "RISK",
-                "FINAL",
-                name="pipelinestep",
-            ),
+            sa.Enum("vehicle_condition", "price", "financing", "risk", "final", name="pipelinestep"),
             nullable=False,
         ),
         sa.Column("result_json", sa.JSON(), nullable=True),

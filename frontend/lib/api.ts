@@ -232,7 +232,7 @@ export interface NegotiationMessage {
 }
 
 export interface NegotiationSession {
-  session_id: number;
+  id: number;
   user_id: number;
   deal_id: number;
   status: NegotiationStatus;

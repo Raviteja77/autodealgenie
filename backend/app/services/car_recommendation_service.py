@@ -6,6 +6,7 @@ Enhanced with caching, rate limiting, retry logic, search history, and webhooks
 import hashlib
 import json
 import logging
+import os
 from typing import Any
 
 from app.llm import generate_structured_json
@@ -118,6 +119,37 @@ class CarRecommendationService:
             logger.info(f"Cached result with key: {cache_key}, TTL: {CACHE_TTL}s")
         except Exception as e:
             logger.error(f"Error writing to cache: {e}")
+
+    def _get_file_cache_path(self, cache_key: str) -> str:
+        """Get path for file cache"""
+        cache_dir = "market_data_cache"
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        # Sanitize key for filename
+        filename = cache_key.replace(":", "_") + ".json"
+        return os.path.join(cache_dir, filename)
+
+    def _get_from_file_cache(self, cache_key: str) -> dict[str, Any] | None:
+        """Get cached result from file system"""
+        try:
+            file_path = self._get_file_cache_path(cache_key)
+            if os.path.exists(file_path):
+                with open(file_path, "r") as f:
+                    logger.info(f"Loaded data from file cache: {file_path}")
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"Error reading file cache: {e}")
+        return None
+
+    def _save_to_file_cache(self, cache_key: str, data: dict[str, Any]) -> None:
+        """Save result to file system"""
+        try:
+            file_path = self._get_file_cache_path(cache_key)
+            with open(file_path, "w") as f:
+                json.dump(data, f, indent=2)
+            logger.info(f"Saved data to file cache: {file_path}")
+        except Exception as e:
+            logger.error(f"Error writing file cache: {e}")
 
     @retry(
         retry=retry_if_exception_type((ConnectionError, TimeoutError)),
@@ -250,6 +282,22 @@ class CarRecommendationService:
             user_priorities,
         )
 
+        # Check file cache first (persistent storage to avoid costs)
+        file_cached_result = self._get_from_file_cache(cache_key)
+        if file_cached_result:
+            # Log to history even for file cached results
+            try:
+                await search_history_repository.create_search_record(
+                    user_id=user_id,
+                    search_criteria=file_cached_result.get("search_criteria", {}),
+                    result_count=file_cached_result.get("total_found", 0),
+                    top_vehicles=file_cached_result.get("top_vehicles", []),
+                )
+            except Exception as e:
+                logger.error(f"Error logging file cached search to history: {e}")
+            return file_cached_result
+
+
         # Check cache first
         cached_result = await self._get_cached_result(cache_key)
         if cached_result:
@@ -301,6 +349,7 @@ class CarRecommendationService:
 
             # Cache empty result
             await self._set_cached_result(cache_key, result)
+            self._save_to_file_cache(cache_key, result)
 
             # Log to history
             try:
@@ -336,6 +385,7 @@ class CarRecommendationService:
 
         # Cache result
         await self._set_cached_result(cache_key, result)
+        self._save_to_file_cache(cache_key, result)
 
         # Log to search history
         try:

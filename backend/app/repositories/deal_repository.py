@@ -9,9 +9,9 @@ from app.schemas.schemas import DealCreate, DealUpdate
 
 NORMALIZE_STATUS = {
     DealStatus.IN_PROGRESS: "in_progress",
-    "PENDING": DealStatus.PENDING,
-    "COMPLETED": DealStatus.COMPLETED,
-    "CANCELLED": DealStatus.CANCELLED,
+    DealStatus.PENDING: "PENDING",
+    DealStatus.COMPLETED: "COMPLETED",
+    DealStatus.CANCELLED: "CANCELLED",
 }
 
 
