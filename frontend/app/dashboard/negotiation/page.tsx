@@ -56,6 +56,8 @@ import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
 import { ChatInput } from "@/components/ChatInput";
+import { ConnectionStatusIndicator } from "@/components/ConnectionStatusIndicator";
+import { FinancingComparisonModal } from "@/components/FinancingComparisonModal";
 import { CurrentOfferStatus } from "@/components/negotiation/CurrentOfferStatus";
 import { useNegotiationState } from "@/lib/hooks";
 import {
@@ -198,6 +200,7 @@ function NegotiationContent() {
     type: "success" | "warning" | "info" | "error";
     message: string;
   } | null>(null);
+  const [showFinancingComparison, setShowFinancingComparison] = useState(false);
 
   // Extract vehicle data from URL params - effect to set vehicle data state
   useEffect(() => {
@@ -1195,11 +1198,13 @@ function NegotiationContent() {
                         </Typography>
                       </Box>
                       {/* WebSocket Connection Status */}
-                      <Chip
-                        label={chatContext.wsConnected ? "Live" : "Offline"}
-                        color={chatContext.wsConnected ? "success" : "default"}
-                        size="small"
-                        sx={{ ml: 1 }}
+                      <ConnectionStatusIndicator
+                        status={chatContext.connectionStatus}
+                        reconnectAttempts={chatContext.reconnectAttempts}
+                        maxReconnectAttempts={5}
+                        messageQueueSize={chatContext.messageQueue.length}
+                        isUsingHttpFallback={chatContext.isUsingHttpFallback}
+                        onManualReconnect={chatContext.manualReconnect}
                       />
                     </Box>
                     <Tabs
@@ -1793,14 +1798,23 @@ function NegotiationContent() {
                                 </Paper>
                               ))}
                           </Stack>
-                          {cashSavings && cashSavings > 0 && (
-                            <Alert severity="info" sx={{ py: 0.5 }}>
+                          {state.cashSavings && state.cashSavings > 0 && (
+                            <Alert severity="info" sx={{ py: 0.5, mb: 1 }}>
                               <Typography variant="caption">
                                 Save {formatPrice(state.cashSavings)} by
                                 paying cash vs 60-mo loan
                               </Typography>
                             </Alert>
                           )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            fullWidth
+                            onClick={() => setShowFinancingComparison(true)}
+                            sx={{ mt: 1 }}
+                          >
+                            Compare All Options
+                          </Button>
                           <Divider sx={{ my: 2 }} />
                         </>
                       )}
@@ -2058,6 +2072,20 @@ function NegotiationContent() {
           </Stack>
         </Box>
       </Modal>
+
+      {/* Financing Comparison Modal */}
+      {state.financingOptions && state.financingOptions.length > 0 && (
+        <FinancingComparisonModal
+          isOpen={showFinancingComparison}
+          onClose={() => setShowFinancingComparison(false)}
+          financingOptions={state.financingOptions}
+          purchasePrice={state.suggestedPrice || vehicleData?.price || 0}
+          onPriceChange={(newPrice) => {
+            // You could add logic here to update the negotiation with new price
+            console.log("Price changed to:", newPrice);
+          }}
+        />
+      )}
     </Box>
   );
 }
