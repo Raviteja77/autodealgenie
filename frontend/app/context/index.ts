@@ -21,3 +21,5 @@ export type {
 
 export { StepperProvider, useStepper, STEPS } from "./StepperProvider";
 export type { Step, StepperState, StepperContextType } from "./StepperProvider";
+
+export { NegotiationChatProvider, useNegotiationChat } from "./NegotiationChatProvider";
