@@ -2,7 +2,8 @@
  * Negotiation Chat Context Provider
  * 
  * Manages state for the chat interface during negotiation sessions,
- * including messages, typing indicators, and error handling.
+ * including messages, typing indicators, error handling, and real-time
+ * WebSocket communication.
  */
 
 "use client";
@@ -14,6 +15,7 @@ import {
   useCallback,
   ReactNode,
   useEffect,
+  useRef,
 } from "react";
 import {
   apiClient,
@@ -28,6 +30,7 @@ interface ChatState {
   isSending: boolean;
   error: string | null;
   sessionId: number | null;
+  wsConnected: boolean;
 }
 
 interface ChatContextType extends ChatState {
@@ -41,6 +44,8 @@ interface ChatContextType extends ChatState {
   ) => Promise<void>;
   clearError: () => void;
   resetChat: () => void;
+  connectWebSocket: () => void;
+  disconnectWebSocket: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -58,7 +63,13 @@ export function NegotiationChatProvider({
     isSending: false,
     error: null,
     sessionId: null,
+    wsConnected: false,
   });
+
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 5;
 
   const setSessionId = useCallback((id: number) => {
     setState((prev) => ({ ...prev, sessionId: id }));
@@ -79,8 +90,157 @@ export function NegotiationChatProvider({
       isSending: false,
       error: null,
       sessionId: null,
+      wsConnected: false,
     });
+    
+    // Close WebSocket connection
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
   }, []);
+
+  const connectWebSocket = useCallback(() => {
+    if (!state.sessionId || wsRef.current) return;
+
+    try {
+      // Determine WebSocket URL based on environment
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const wsUrl = apiUrl.replace(/^http/, "ws");
+      const wsEndpoint = `${wsUrl}/api/v1/negotiations/${state.sessionId}/ws`;
+
+      console.log("Connecting to WebSocket:", wsEndpoint);
+      const ws = new WebSocket(wsEndpoint);
+
+      ws.onopen = () => {
+        console.log("WebSocket connected");
+        setState((prev) => ({ ...prev, wsConnected: true, error: null }));
+        reconnectAttemptsRef.current = 0;
+        
+        // Send subscribe message
+        ws.send(JSON.stringify({ type: "subscribe" }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log("WebSocket message received:", data);
+
+          switch (data.type) {
+            case "new_message":
+              // Add new message to state
+              setState((prev) => {
+                // Check if message already exists to prevent duplicates
+                const exists = prev.messages.some((msg) => msg.id === data.message.id);
+                if (exists) return prev;
+                
+                return {
+                  ...prev,
+                  messages: [...prev.messages, data.message],
+                };
+              });
+              break;
+
+            case "typing_indicator":
+              setState((prev) => ({ ...prev, isTyping: data.is_typing }));
+              break;
+
+            case "error":
+              setState((prev) => ({ ...prev, error: data.error }));
+              break;
+
+            case "subscribed":
+              console.log("Successfully subscribed to session updates");
+              break;
+
+            case "pong":
+              // Keep-alive response
+              break;
+
+            default:
+              console.log("Unknown message type:", data.type);
+          }
+        } catch (err) {
+          console.error("Failed to parse WebSocket message:", err);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setState((prev) => ({
+          ...prev,
+          wsConnected: false,
+          error: "Connection error. Retrying...",
+        }));
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket disconnected");
+        setState((prev) => ({ ...prev, wsConnected: false }));
+        wsRef.current = null;
+
+        // Attempt reconnection with exponential backoff
+        if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000);
+          console.log(`Reconnecting in ${delay}ms...`);
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            reconnectAttemptsRef.current++;
+            connectWebSocket();
+          }, delay);
+        } else {
+          setState((prev) => ({
+            ...prev,
+            error: "Connection lost. Please refresh the page.",
+          }));
+        }
+      };
+
+      wsRef.current = ws;
+
+      // Set up ping interval to keep connection alive
+      const pingInterval = setInterval(() => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: "ping" }));
+        }
+      }, 30000); // Ping every 30 seconds
+
+      // Clean up ping interval on close
+      ws.addEventListener("close", () => clearInterval(pingInterval));
+
+    } catch (error) {
+      console.error("Failed to establish WebSocket connection:", error);
+      setState((prev) => ({
+        ...prev,
+        error: "Failed to connect to real-time updates",
+      }));
+    }
+  }, [state.sessionId]);
+
+  const disconnectWebSocket = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    
+    setState((prev) => ({ ...prev, wsConnected: false }));
+  }, []);
+
+  // Auto-connect when session ID is set
+  useEffect(() => {
+    if (state.sessionId && !wsRef.current) {
+      connectWebSocket();
+    }
+
+    return () => {
+      disconnectWebSocket();
+    };
+  }, [state.sessionId, connectWebSocket, disconnectWebSocket]);
 
   const sendChatMessage = useCallback(
     async (message: string, messageType: string = "general") => {
@@ -93,22 +253,31 @@ export function NegotiationChatProvider({
       }
 
       try {
-        setState((prev) => ({ ...prev, isSending: true, isTyping: true, error: null }));
+        setState((prev) => ({ ...prev, isSending: true, error: null }));
 
         const request: ChatMessageRequest = {
           message,
           message_type: messageType,
         };
 
+        // API call will trigger WebSocket broadcast
         const response = await apiClient.sendChatMessage(state.sessionId, request);
 
-        // Add both user and agent messages to the chat
-        setState((prev) => ({
-          ...prev,
-          messages: [...prev.messages, response.user_message, response.agent_message],
-          isSending: false,
-          isTyping: false,
-        }));
+        // Messages will come through WebSocket, but add them as fallback
+        setState((prev) => {
+          const userExists = prev.messages.some((msg) => msg.id === response.user_message.id);
+          const agentExists = prev.messages.some((msg) => msg.id === response.agent_message.id);
+          
+          const newMessages = [...prev.messages];
+          if (!userExists) newMessages.push(response.user_message);
+          if (!agentExists) newMessages.push(response.agent_message);
+          
+          return {
+            ...prev,
+            messages: newMessages,
+            isSending: false,
+          };
+        });
       } catch (error) {
         console.error("Failed to send chat message:", error);
         const errorMessage =
@@ -120,7 +289,6 @@ export function NegotiationChatProvider({
           ...prev,
           error: errorMessage,
           isSending: false,
-          isTyping: false,
         }));
 
         // Clear error after 5 seconds
@@ -143,7 +311,7 @@ export function NegotiationChatProvider({
       }
 
       try {
-        setState((prev) => ({ ...prev, isSending: true, isTyping: true, error: null }));
+        setState((prev) => ({ ...prev, isSending: true, error: null }));
 
         const request: DealerInfoRequest = {
           info_type: infoType,
@@ -152,15 +320,24 @@ export function NegotiationChatProvider({
           metadata: null,
         };
 
+        // API call will trigger WebSocket broadcast
         const response = await apiClient.submitDealerInfo(state.sessionId, request);
 
-        // Add both user and agent messages to the chat
-        setState((prev) => ({
-          ...prev,
-          messages: [...prev.messages, response.user_message, response.agent_message],
-          isSending: false,
-          isTyping: false,
-        }));
+        // Messages will come through WebSocket, but add them as fallback
+        setState((prev) => {
+          const userExists = prev.messages.some((msg) => msg.id === response.user_message.id);
+          const agentExists = prev.messages.some((msg) => msg.id === response.agent_message.id);
+          
+          const newMessages = [...prev.messages];
+          if (!userExists) newMessages.push(response.user_message);
+          if (!agentExists) newMessages.push(response.agent_message);
+          
+          return {
+            ...prev,
+            messages: newMessages,
+            isSending: false,
+          };
+        });
       } catch (error) {
         console.error("Failed to send dealer info:", error);
         const errorMessage =
@@ -172,7 +349,6 @@ export function NegotiationChatProvider({
           ...prev,
           error: errorMessage,
           isSending: false,
-          isTyping: false,
         }));
 
         // Clear error after 5 seconds
@@ -202,6 +378,8 @@ export function NegotiationChatProvider({
     sendDealerInfo,
     clearError,
     resetChat,
+    connectWebSocket,
+    disconnectWebSocket,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

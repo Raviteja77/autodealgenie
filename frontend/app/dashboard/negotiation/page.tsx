@@ -843,11 +843,20 @@ function NegotiationContent() {
                 <Paper elevation={3} sx={{ height: "700px", display: "flex", flexDirection: "column" }}>
                   {/* Header with Tabs */}
                   <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-                    <Box sx={{ px: 2, pt: 2 }}>
-                      <Typography variant="h6">Negotiation Chat</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Communicate with the AI negotiation assistant
-                      </Typography>
+                    <Box sx={{ px: 2, pt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <Box>
+                        <Typography variant="h6">Negotiation Chat</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Communicate with the AI negotiation assistant
+                        </Typography>
+                      </Box>
+                      {/* WebSocket Connection Status */}
+                      <Chip
+                        label={chatContext.wsConnected ? "Live" : "Offline"}
+                        color={chatContext.wsConnected ? "success" : "default"}
+                        size="small"
+                        sx={{ ml: 1 }}
+                      />
                     </Box>
                     <Tabs value={chatTabValue} onChange={(_, v) => setChatTabValue(v)}>
                       <Tab label="Actions" icon={<AttachMoney />} iconPosition="start" />
