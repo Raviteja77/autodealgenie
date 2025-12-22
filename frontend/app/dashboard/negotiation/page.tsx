@@ -64,6 +64,12 @@ import {
   type DealCreate,
   type LenderMatch,
 } from "@/lib/api";
+import {
+  getLatestNegotiatedPrice,
+  validateNegotiatedPrice,
+  formatPrice,
+  formatTimestamp,
+} from "@/lib/negotiation-utils";
 
 interface VehicleInfo {
   vin?: string;
@@ -157,6 +163,13 @@ function NegotiationContent() {
 
   // Extract vehicle data from URL params - effect to set vehicle data state
   useEffect(() => {
+  // Get latest negotiated price from messages
+  const latestPrice = useMemo(() => {
+    return getLatestNegotiatedPrice(state.messages);
+  }, [state.messages]);
+
+  // Extract vehicle data from URL params
+  const vehicleData: VehicleInfo | null = useMemo(() => {
     try {
       const vin = searchParams.get("vin") || undefined;
       const make = searchParams.get("make");
@@ -197,6 +210,16 @@ function NegotiationContent() {
       setVehicleData(null);
     }
   }, [searchParams]);
+
+  // Memoize validation result to avoid unnecessary recalculations
+  const isPriceValid = useMemo(() => {
+    if (!latestPrice || !vehicleData) return false;
+    return validateNegotiatedPrice(
+      latestPrice.price,
+      vehicleData.price,
+      state.targetPrice
+    ).isValid;
+  }, [latestPrice, vehicleData, state.targetPrice]);
 
   // Check if user can access this step
   useEffect(() => {
@@ -327,7 +350,34 @@ function NegotiationContent() {
 
   // Handle accept offer
   const handleAcceptOffer = async () => {
-    if (!negotiationState.sessionId) return;
+    if (!state.sessionId || !vehicleData) return;
+
+    // Validate the latest price before accepting
+    const priceToAccept = latestPrice?.price || state.suggestedPrice;
+    const validation = validateNegotiatedPrice(
+      priceToAccept,
+      vehicleData.price,
+      state.targetPrice
+    );
+
+    if (!validation.isValid) {
+      setNotification({
+        type: "error",
+        message: validation.error || "Cannot accept offer with invalid price",
+      });
+      return;
+    }
+
+    // Show warning if price is above target
+    if (validation.error && state.targetPrice) {
+      const shouldContinue = window.confirm(
+        `${validation.error}\n\nDo you want to continue with accepting this offer?`
+      );
+      if (!shouldContinue) {
+        setShowAcceptDialog(false);
+        return;
+      }
+    }
 
     try {
       setLoading(true);
@@ -349,7 +399,7 @@ function NegotiationContent() {
 
       setNotification({
         type: "success",
-        message: "Congratulations! You've successfully negotiated the deal!",
+        message: `Congratulations! You've accepted the offer at ${formatPrice(priceToAccept || 0)}!`,
       });
 
       // Fetch lender recommendations with loading state
@@ -515,9 +565,10 @@ function NegotiationContent() {
   // Calculate progress
   const progress = (negotiationState.currentRound / negotiationState.maxRounds) * 100;
   const priceProgress =
-    vehicleData && latestPrice && targetPrice
-      ? ((vehicleData.price - latestPrice) /
-          (vehicleData.price - targetPrice)) *
+    state.vehicleData && latestPrice?.price
+      ? ((state.vehicleData.price - latestPrice.price) /
+          (state.vehicleData.price -
+            (state.targetPrice || state.vehicleData.price * 0.9))) *
         100
       : 0;
 
@@ -554,14 +605,14 @@ function NegotiationContent() {
                     Final Price
                   </Typography>
                   <Typography variant="h6" color="success.main">
-                    ${latestPrice?.toLocaleString()}
+                    ${(latestPrice?.price || state.suggestedPrice)?.toLocaleString()}
                   </Typography>
                 </Grid>
               </Grid>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 You saved $
                 {(
-                  (vehicleData?.price || 0) - (latestPrice || 0)
+                  (state.vehicleData?.price || 0) - (latestPrice?.price || state.suggestedPrice || 0)
                 ).toLocaleString()}
                 !
               </Typography>
@@ -705,17 +756,16 @@ function NegotiationContent() {
                 <Button
                   variant="primary"
                   onClick={() => {
-                    if (vehicleData) {
+                    if (state.vehicleData) {
+                      const finalPrice = latestPrice?.price || state.suggestedPrice || state.vehicleData.price;
                       const vehicleParams = new URLSearchParams({
-                        vin: vehicleData.vin || "",
-                        make: vehicleData.make,
-                        model: vehicleData.model,
-                        year: vehicleData.year.toString(),
-                        price: (
-                          latestPrice || vehicleData.price
-                        ).toString(),
-                        mileage: vehicleData.mileage.toString(),
-                        fuelType: vehicleData.fuelType || "",
+                        vin: state.vehicleData.vin || "",
+                        make: state.vehicleData.make,
+                        model: state.vehicleData.model,
+                        year: state.vehicleData.year.toString(),
+                        price: finalPrice.toString(),
+                        mileage: state.vehicleData.mileage.toString(),
+                        fuelType: state.vehicleData.fuelType || "",
                       });
                       router.push(
                         `/dashboard/evaluation?${vehicleParams.toString()}`
@@ -915,15 +965,26 @@ function NegotiationContent() {
                             mb: 1,
                           }}
                         >
-                          <Typography variant="caption" color="text.secondary">
-                            Current Offer
-                          </Typography>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Current Offer
+                            </Typography>
+                            {latestPrice.source === "ai" && (
+                              <Chip label="AI" size="small" sx={{ height: 16, fontSize: "0.65rem" }} />
+                            )}
+                            {latestPrice.source === "dealer" && (
+                              <Chip label="Dealer" color="secondary" size="small" sx={{ height: 16, fontSize: "0.65rem" }} />
+                            )}
+                            {latestPrice.source === "counter" && (
+                              <Chip label="You" color="info" size="small" sx={{ height: 16, fontSize: "0.65rem" }} />
+                            )}
+                          </Box>
                           <Typography
                             variant="body2"
                             color="success.main"
                             fontWeight="bold"
                           >
-                            ${latestPrice.toLocaleString()}
+                            ${latestPrice.price.toLocaleString()}
                           </Typography>
                         </Box>
                       )}
@@ -1280,7 +1341,7 @@ function NegotiationContent() {
                           fullWidth
                           leftIcon={<CheckCircle />}
                           onClick={() => setShowAcceptDialog(true)}
-                          disabled={negotiationState.isLoading || !latestPrice}
+                          disabled={state.isLoading || !isPriceValid}
                         >
                           Accept Offer
                         </Button>
@@ -1374,8 +1435,8 @@ function NegotiationContent() {
                     </Typography>
                     <Stack spacing={1} sx={{ mb: 3 }}>
                       {latestPrice &&
-                        targetPrice &&
-                        latestPrice <= targetPrice && (
+                        state.targetPrice &&
+                        latestPrice.price <= state.targetPrice && (
                           <Alert
                             severity="success"
                             icon={<TrendingDown />}
@@ -1406,7 +1467,7 @@ function NegotiationContent() {
                           <Typography variant="caption">
                             Current savings: $
                             {(
-                              vehicleData.price - latestPrice
+                              vehicleData.price - latestPrice.price
                             ).toLocaleString()}
                           </Typography>
                         </Alert>
@@ -1638,12 +1699,73 @@ function NegotiationContent() {
       >
         <Box sx={{ p: 2 }}>
           <Typography variant="body2" paragraph>
-            Are you sure you want to accept the current offer of{" "}
-            <strong>${latestPrice?.toLocaleString()}</strong>?
+            Are you sure you want to accept the current offer?
           </Typography>
+
+          {/* Price Details */}
+          {latestPrice && vehicleData && (
+            <Box
+              sx={{
+                p: 2,
+                mb: 2,
+                bgcolor: "grey.50",
+                borderRadius: 1,
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 1,
+                }}
+              >
+                <Typography variant="h6" color="success.main">
+                  {formatPrice(latestPrice.price)}
+                </Typography>
+                {latestPrice.source === "ai" && (
+                  <Chip label="AI Suggested" color="primary" size="small" />
+                )}
+                {latestPrice.source === "dealer" && (
+                  <Chip label="Dealer Price" color="secondary" size="small" />
+                )}
+                {latestPrice.source === "counter" && (
+                  <Chip label="Your Counter" color="info" size="small" />
+                )}
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                From Round {latestPrice.round} • {formatTimestamp(latestPrice.timestamp)}
+              </Typography>
+              
+              <Divider sx={{ my: 1.5 }} />
+              
+              <Grid container spacing={1}>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Original Price
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatPrice(vehicleData.price)}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    You Save
+                  </Typography>
+                  <Typography variant="body2" color="success.main">
+                    {formatPrice(vehicleData.price - latestPrice.price)}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
           <Typography variant="body2" color="text.secondary" paragraph>
             This will complete the negotiation and move forward with the deal.
           </Typography>
+          
           <Stack direction="row" spacing={2}>
             <Button
               variant="outline"
