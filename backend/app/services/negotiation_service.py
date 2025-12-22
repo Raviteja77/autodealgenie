@@ -393,6 +393,106 @@ class NegotiationService:
                 details={"valid_actions": ["confirm", "reject", "counter"]},
             )
 
+    def _calculate_ai_metrics(
+        self,
+        session_id: int,
+        deal: Any,
+        current_price: float,
+        user_target: float,
+        messages: list[Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Calculate enhanced AI metrics for negotiation intelligence
+        
+        Args:
+            session_id: Session ID for message history
+            deal: Deal object with asking price
+            current_price: Current suggested/negotiated price
+            user_target: User's target price
+            messages: Optional pre-fetched messages to avoid redundant queries
+            
+        Returns:
+            Dictionary with AI metrics including confidence, recommendations, etc.
+        """
+        # Use provided messages or fetch if not provided
+        if messages is None:
+            messages = self.negotiation_repo.get_messages(session_id)
+        
+        # Calculate confidence score based on deal quality
+        # Handle edge case where current_price > asking_price (negative discount)
+        if deal.asking_price > 0:
+            discount_percent = ((deal.asking_price - current_price) / deal.asking_price) * 100
+        else:
+            discount_percent = 0
+        
+        # Confidence based on discount percentage and negotiation progress
+        # Handle negative discounts (price increases) with low confidence
+        if discount_percent < 0:  # Price increase - very poor deal
+            confidence_score = 0.20
+        elif discount_percent >= 15:  # Excellent deal (15%+ off)
+            confidence_score = 0.95
+        elif discount_percent >= 10:  # Very good deal (10-15% off)
+            confidence_score = 0.85
+        elif discount_percent >= 5:  # Good deal (5-10% off)
+            confidence_score = 0.75
+        elif discount_percent >= 2:  # Fair deal (2-5% off)
+            confidence_score = 0.65
+        else:  # Marginal deal (<2% off)
+            confidence_score = 0.50
+            
+        # Calculate dealer concession rate (total price movement / asking price)
+        initial_asking = deal.asking_price
+        dealer_concession_rate = (initial_asking - current_price) / initial_asking if initial_asking > 0 else 0
+        
+        # Calculate negotiation velocity (average price change per round)
+        round_count = max(len(set(msg.round_number for msg in messages)), 1)
+        negotiation_velocity = (initial_asking - current_price) / round_count
+        
+        # Determine recommended action
+        if discount_percent < 0:  # Price increase
+            recommended_action = "reject"
+        elif current_price <= user_target:
+            recommended_action = "accept"
+        elif discount_percent >= 8:  # Getting decent discount
+            recommended_action = "consider"
+        else:
+            recommended_action = "counter"
+            
+        # Generate strategy adjustments based on context
+        if dealer_concession_rate > 0.10:  # Dealer very flexible
+            strategy_adjustments = "Dealer showing strong flexibility. You have significant leverage—push for more!"
+        elif dealer_concession_rate > 0.05:  # Moderate flexibility
+            strategy_adjustments = "Moderate progress. Consider one more counter to maximize your savings."
+        elif round_count > 5:  # Many rounds, little movement
+            strategy_adjustments = "Limited movement detected. Consider accepting current offer or walking away."
+        elif dealer_concession_rate <= 0.02:  # Early stage with low concession
+            strategy_adjustments = (
+                "Early in the negotiation, but the dealer has shown limited flexibility so far. "
+                "Consider refining your counteroffer rationale and be prepared with a walk-away price "
+                "if movement remains minimal."
+            )
+        else:
+            strategy_adjustments = "Early stage. Continue negotiating strategically to secure the best price."
+            
+        # Market comparison insight
+        if discount_percent < 0:  # Price increase
+            market_comparison = f"Warning: Price is {abs(discount_percent):.1f}% above asking. This is unusual and not recommended."
+        elif discount_percent >= 10:
+            market_comparison = f"Excellent! You're {discount_percent:.1f}% below asking—better than typical market deals."
+        elif discount_percent >= 5:
+            market_comparison = f"Solid progress at {discount_percent:.1f}% off. Average market discount is 3-7%."
+        else:
+            market_comparison = f"Currently at {discount_percent:.1f}% off. Most buyers achieve 5-10% discounts."
+            
+        return {
+            "confidence_score": round(confidence_score, 2),
+            "recommended_action": recommended_action,
+            "strategy_adjustments": strategy_adjustments,
+            "dealer_concession_rate": round(dealer_concession_rate, 3),
+            "negotiation_velocity": round(negotiation_velocity, 2),
+            "market_comparison": market_comparison,
+        }
+
     async def _generate_agent_response(
         self,
         session: NegotiationSession,
@@ -438,6 +538,16 @@ class NegotiationService:
                 if baseline_financing:
                     cash_savings = baseline_financing["total_cost"] - suggested_price
 
+            # Calculate enhanced AI metrics
+            # Pass None for messages to fetch them inside the method (first call, no messages yet)
+            ai_metrics = self._calculate_ai_metrics(
+                session_id=session.id,
+                deal=deal,
+                current_price=suggested_price,
+                user_target=user_target_price,
+                messages=None,  # Will fetch messages inside the method
+            )
+
             return {
                 "content": response_content,
                 "metadata": {
@@ -447,6 +557,7 @@ class NegotiationService:
                     "financing_options": financing_options,
                     "cash_savings": round(cash_savings, 2) if cash_savings else None,
                     "llm_used": True,
+                    **ai_metrics,  # Include all AI intelligence metrics
                 },
             }
 
@@ -477,6 +588,16 @@ class NegotiationService:
                 if baseline_financing:
                     cash_savings = baseline_financing["total_cost"] - suggested_price
 
+            # Calculate enhanced AI metrics even for fallback
+            # Pass None for messages to fetch them inside the method (first call, no messages yet)
+            ai_metrics = self._calculate_ai_metrics(
+                session_id=session.id,
+                deal=deal,
+                current_price=suggested_price,
+                user_target=user_target_price,
+                messages=None,  # Will fetch messages inside the method
+            )
+
             return {
                 "content": fallback_content,
                 "metadata": {
@@ -487,6 +608,7 @@ class NegotiationService:
                     "cash_savings": round(cash_savings, 2) if cash_savings else None,
                     "llm_used": False,
                     "fallback": True,
+                    **ai_metrics,  # Include all AI intelligence metrics
                 },
             }
 
@@ -620,6 +742,23 @@ class NegotiationService:
                 if baseline_financing:
                     cash_savings = baseline_financing["total_cost"] - new_suggested_price
 
+            # Get user target price from message history
+            user_target = deal.asking_price * self.DEFAULT_TARGET_PRICE_RATIO
+            for msg in reversed(messages[-10:]):
+                if msg.metadata and "target_price" in msg.metadata:
+                    user_target = msg.metadata["target_price"]
+                    break
+
+            # Calculate enhanced AI metrics for counter offer
+            # Pass the already-fetched messages to avoid redundant query
+            ai_metrics = self._calculate_ai_metrics(
+                session_id=session.id,
+                deal=deal,
+                current_price=new_suggested_price,
+                user_target=user_target,
+                messages=messages,  # Use already-fetched messages
+            )
+
             return {
                 "content": response_content,
                 "metadata": {
@@ -629,6 +768,7 @@ class NegotiationService:
                     "financing_options": financing_options,
                     "cash_savings": round(cash_savings, 2) if cash_savings else None,
                     "llm_used": True,
+                    **ai_metrics,  # Include all AI intelligence metrics
                 },
             }
 
@@ -673,6 +813,24 @@ class NegotiationService:
                 if baseline_financing:
                     cash_savings = baseline_financing["total_cost"] - new_suggested_price
 
+            # Get user target price from previously fetched message history
+            # (messages already fetched at the beginning of _generate_counter_response)
+            user_target = deal.asking_price * self.DEFAULT_TARGET_PRICE_RATIO
+            for msg in reversed(messages[-10:]):
+                if msg.metadata and "target_price" in msg.metadata:
+                    user_target = msg.metadata["target_price"]
+                    break
+
+            # Calculate enhanced AI metrics even for fallback
+            # Pass the already-fetched messages to avoid redundant query
+            ai_metrics = self._calculate_ai_metrics(
+                session_id=session.id,
+                deal=deal,
+                current_price=new_suggested_price,
+                user_target=user_target,
+                messages=messages,  # Use already-fetched messages
+            )
+
             return {
                 "content": fallback_content,
                 "metadata": {
@@ -683,6 +841,7 @@ class NegotiationService:
                     "cash_savings": round(cash_savings, 2) if cash_savings else None,
                     "llm_used": False,
                     "fallback": True,
+                    **ai_metrics,  # Include all AI intelligence metrics
                 },
             }
 
