@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class NegotiationService:
-    """Service for managing multi-round negotiations with LLM"""
+    """Service for managing multi-round negotiations with LLM and WebSocket support"""
 
     MAX_CONVERSATION_HISTORY = 4  # Number of recent messages to include in context
     DEFAULT_DOWN_PAYMENT_PERCENT = 0.10  # 10% down payment
@@ -30,6 +30,32 @@ class NegotiationService:
         self.db = db
         self.negotiation_repo = NegotiationRepository(db)
         self.deal_repo = DealRepository(db)
+        # Import here to avoid circular dependency
+        from app.services.websocket_manager import connection_manager
+        self.ws_manager = connection_manager
+
+    async def _broadcast_message(self, session_id: int, message: Any):
+        """
+        Broadcast a message via WebSocket to all connected clients
+        
+        Args:
+            session_id: Negotiation session ID
+            message: Message object to broadcast
+        """
+        try:
+            message_data = {
+                "id": message.id,
+                "session_id": message.session_id,
+                "role": message.role.value,
+                "content": message.content,
+                "round_number": message.round_number,
+                "metadata": message.message_metadata,
+                "created_at": message.created_at.isoformat() if message.created_at else None,
+            }
+            await self.ws_manager.broadcast_message(session_id, message_data)
+        except Exception as e:
+            logger.error(f"Failed to broadcast message via WebSocket: {str(e)}")
+            # Don't fail the main operation if WebSocket broadcast fails
 
     def _get_latest_suggested_price(self, session_id: int, default_price: float) -> float:
         """
@@ -94,16 +120,22 @@ class NegotiationService:
         if strategy:
             user_message += f" My negotiation approach is {strategy}."
 
-        self.negotiation_repo.add_message(
+        user_msg = self.negotiation_repo.add_message(
             session_id=session.id,
             role=MessageRole.USER,
             content=user_message,
             round_number=1,
             metadata={"target_price": user_target_price, "strategy": strategy},
         )
+        
+        # Broadcast user message via WebSocket
+        await self._broadcast_message(session.id, user_msg)
 
         # Generate agent's initial response using LLM
         try:
+            # Show typing indicator
+            await self.ws_manager.broadcast_typing_indicator(session.id, True)
+            
             agent_response = await self._generate_agent_response(
                 session=session,
                 deal=deal,
@@ -112,13 +144,19 @@ class NegotiationService:
                 request_id=request_id,
             )
 
-            self.negotiation_repo.add_message(
+            # Hide typing indicator
+            await self.ws_manager.broadcast_typing_indicator(session.id, False)
+            
+            agent_msg = self.negotiation_repo.add_message(
                 session_id=session.id,
                 role=MessageRole.AGENT,
                 content=agent_response["content"],
                 round_number=1,
                 metadata=agent_response["metadata"],
             )
+            
+            # Broadcast agent message via WebSocket
+            await self._broadcast_message(session.id, agent_msg)
 
             logger.info(f"[{request_id}] Session {session.id} initialized successfully")
 
@@ -273,16 +311,22 @@ class NegotiationService:
 
             # Add user counter message
             message_content = f"I'd like to counter with an offer of ${counter_offer:,.2f}."
-            self.negotiation_repo.add_message(
+            user_msg = self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.USER,
                 content=message_content,
                 round_number=session.current_round,
                 metadata={"action": "counter", "counter_offer": counter_offer},
             )
+            
+            # Broadcast user message via WebSocket
+            await self._broadcast_message(session_id, user_msg)
 
             # Generate agent's counter response using LLM
             try:
+                # Show typing indicator
+                await self.ws_manager.broadcast_typing_indicator(session_id, True)
+                
                 agent_response = await self._generate_counter_response(
                     session=session,
                     deal=deal,
@@ -290,13 +334,19 @@ class NegotiationService:
                     request_id=request_id,
                 )
 
-                self.negotiation_repo.add_message(
+                # Hide typing indicator
+                await self.ws_manager.broadcast_typing_indicator(session_id, False)
+                
+                agent_msg = self.negotiation_repo.add_message(
                     session_id=session_id,
                     role=MessageRole.AGENT,
                     content=agent_response["content"],
                     round_number=session.current_round,
                     metadata=agent_response["metadata"],
                 )
+                
+                # Broadcast agent message via WebSocket
+                await self._broadcast_message(session_id, agent_msg)
 
                 logger.info(
                     f"[{request_id}] Session {session_id} advanced to round {session.current_round}"
@@ -352,9 +402,9 @@ class NegotiationService:
                 temperature=0.7,
             )
 
-            # Generate suggested counter offer (simple logic for now)
-            price_difference = deal.asking_price - user_target_price
-            suggested_price = user_target_price + (price_difference * 0.5)
+            # Generate suggested counter offer - start BELOW user's target to leave negotiating room
+            # User-centric approach: suggest 10-15% below target price for initial offer
+            suggested_price = user_target_price * 0.87  # 13% below target price
 
             # Calculate financing options for the suggested price
             financing_options = self._calculate_financing_options(suggested_price)
@@ -388,13 +438,13 @@ class NegotiationService:
             fallback_content = (
                 f"Thank you for your interest in the {deal.vehicle_year} "
                 f"{deal.vehicle_make} {deal.vehicle_model}. "
-                f"I see you're looking for ${user_target_price:,.2f}, "
-                f"while the asking price is ${deal.asking_price:,.2f}. "
-                f"Let me work on finding a middle ground that works for both parties."
+                f"Your target of ${user_target_price:,.2f} is realistic given the asking price of ${deal.asking_price:,.2f}. "
+                f"I recommend starting with a lower initial offer to give you negotiating room. "
+                f"This is a smart strategy that maximizes your chances of getting the best deal."
             )
 
-            price_difference = deal.asking_price - user_target_price
-            suggested_price = user_target_price + (price_difference * 0.5)
+            # Start BELOW user's target price
+            suggested_price = user_target_price * 0.87  # 13% below target price
 
             # Calculate financing options even for fallback
             financing_options = self._calculate_financing_options(suggested_price)
@@ -517,10 +567,26 @@ class NegotiationService:
                 temperature=0.7,
             )
 
-            # Generate new suggested price (converge toward asking price)
-            price_difference = deal.asking_price - counter_offer
-            convergence_rate = 1 - (session.current_round / session.max_rounds)
-            new_suggested_price = counter_offer + (price_difference * convergence_rate * 0.6)
+            # Generate new suggested price - favor the USER, not dealer
+            # Instead of converging to asking price, suggest user holds firm or goes slightly lower
+            # This encourages aggressive negotiation that benefits the user
+            
+            # Calculate how much room there is between counter offer and asking price
+            price_gap = deal.asking_price - counter_offer
+            
+            # If user is already getting a good deal (>10% off asking), validate and hold firm
+            discount_percent = (price_gap / deal.asking_price) * 100
+            
+            if discount_percent >= 10:
+                # User is already getting 10%+ off - suggest holding firm or minimal increase
+                new_suggested_price = counter_offer * 1.01  # Only 1% increase
+            elif discount_percent >= 5:
+                # User getting 5-10% off - suggest small increase
+                new_suggested_price = counter_offer * 1.02  # 2% increase
+            else:
+                # User not getting good deal yet - suggest aggressive stance
+                # Go slightly lower to pressure dealer
+                new_suggested_price = counter_offer * 0.98  # 2% DECREASE
 
             # Calculate financing options for the new suggested price
             financing_options = self._calculate_financing_options(new_suggested_price)
@@ -550,17 +616,31 @@ class NegotiationService:
 
         except Exception as e:
             logger.error(f"[{request_id}] LLM call failed: {str(e)}")
-            # Fallback response
-            price_difference = deal.asking_price - counter_offer
-            convergence_rate = 1 - (session.current_round / session.max_rounds)
-            new_suggested_price = counter_offer + (price_difference * convergence_rate * 0.6)
-
-            fallback_content = (
-                f"I appreciate your offer of ${counter_offer:,.2f}. "
-                f"While I understand your position, the asking price is ${deal.asking_price:,.2f}. "
-                f"How about we meet closer to ${new_suggested_price:,.2f}? "
-                f"This takes into account the vehicle's condition and market value."
-            )
+            # Fallback response - user-centric approach
+            price_gap = deal.asking_price - counter_offer
+            discount_percent = (price_gap / deal.asking_price) * 100
+            
+            if discount_percent >= 10:
+                new_suggested_price = counter_offer * 1.01
+                fallback_content = (
+                    f"Your offer of ${counter_offer:,.2f} is excellent - you're getting over 10% off! "
+                    f"I'd suggest holding firm at this price or going only slightly higher to ${new_suggested_price:,.2f}. "
+                    f"You're in a strong negotiating position."
+                )
+            elif discount_percent >= 5:
+                new_suggested_price = counter_offer * 1.02
+                fallback_content = (
+                    f"Your offer of ${counter_offer:,.2f} is solid. "
+                    f"You could go up to ${new_suggested_price:,.2f}, but I'd encourage you to push for "
+                    f"a better deal. Consider holding your ground or only increasing minimally."
+                )
+            else:
+                new_suggested_price = counter_offer * 0.98
+                fallback_content = (
+                    f"Your offer of ${counter_offer:,.2f} is reasonable, but you might be able to do better. "
+                    f"Consider actually going LOWER to ${new_suggested_price:,.2f} to test the dealer's flexibility. "
+                    f"Remember, you have leverage - you can always walk away."
+                )
 
             # Calculate financing options even for fallback
             financing_options = self._calculate_financing_options(new_suggested_price)
@@ -671,9 +751,15 @@ class NegotiationService:
             round_number=session.current_round,
             metadata={"message_type": message_type, "chat_message": True},
         )
+        
+        # Broadcast user message via WebSocket
+        await self._broadcast_message(session_id, user_msg)
 
         # Generate agent response
         try:
+            # Show typing indicator
+            await self.ws_manager.broadcast_typing_indicator(session_id, True)
+            
             agent_response = await self._generate_chat_response(
                 session=session,
                 deal=deal,
@@ -681,6 +767,9 @@ class NegotiationService:
                 request_id=request_id,
             )
 
+            # Hide typing indicator
+            await self.ws_manager.broadcast_typing_indicator(session_id, False)
+            
             agent_msg = self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.AGENT,
@@ -688,6 +777,9 @@ class NegotiationService:
                 round_number=session.current_round,
                 metadata={**agent_response["metadata"], "chat_message": True},
             )
+            
+            # Broadcast agent message via WebSocket
+            await self._broadcast_message(session_id, agent_msg)
 
             logger.info(f"[{request_id}] Chat message processed successfully")
 

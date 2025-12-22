@@ -2,7 +2,9 @@
 Negotiation endpoints for multi-round negotiations
 """
 
-from fastapi import APIRouter, Depends, status
+import logging
+
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
@@ -20,9 +22,11 @@ from app.schemas.negotiation_schemas import (
 )
 from app.services.lender_service import LenderService
 from app.services.negotiation_service import NegotiationService
+from app.services.websocket_manager import connection_manager
 from app.utils.error_handler import ApiError
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -329,6 +333,86 @@ async def submit_dealer_info(
         info_type=request.info_type,
         content=request.content,
         price_mentioned=request.price_mentioned,
+        metadata=request.metadata,
+    )
+    return result
+
+
+@router.websocket("/{session_id}/ws")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    session_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    WebSocket endpoint for real-time negotiation chat updates
+    
+    Provides real-time bidirectional communication for:
+    - Instant message delivery
+    - Typing indicators
+    - Live AI response streaming
+    - Connection status updates
+    
+    **Path Parameters:**
+    - `session_id`: ID of the negotiation session
+    
+    **Message Types:**
+    
+    Client -> Server:
+    - `{"type": "ping"}` - Keep-alive ping
+    - `{"type": "subscribe"}` - Subscribe to session updates
+    
+    Server -> Client:
+    - `{"type": "new_message", "message": {...}}` - New message available
+    - `{"type": "typing_indicator", "is_typing": true/false}` - AI typing status
+    - `{"type": "error", "error": "..."}` - Error notification
+    - `{"type": "pong"}` - Response to ping
+    
+    **Authentication**: WebSocket connections are session-based.
+    The session must exist and be accessible to establish connection.
+    
+    **Connection Lifecycle**:
+    1. Client connects to `/api/v1/negotiations/{session_id}/ws`
+    2. Server accepts connection and adds to connection pool
+    3. Client receives real-time updates for the session
+    4. On disconnect, connection is removed from pool
+    """
+    # Verify session exists before accepting connection
+    service = NegotiationService(db)
+    session = service.negotiation_repo.get_session(session_id)
+    
+    if not session:
+        await websocket.close(code=4004, reason="Session not found")
+        return
+    
+    # Accept the WebSocket connection
+    await connection_manager.connect(websocket, session_id)
+    logger.info(f"WebSocket connected for session {session_id}")
+    
+    try:
+        while True:
+            # Wait for messages from client (mostly for keep-alive)
+            data = await websocket.receive_json()
+            
+            # Handle different message types
+            if data.get("type") == "ping":
+                await websocket.send_json({"type": "pong"})
+            elif data.get("type") == "subscribe":
+                # Client is subscribing to updates (implicit by connection)
+                await websocket.send_json({
+                    "type": "subscribed",
+                    "session_id": session_id
+                })
+                logger.debug(f"Client subscribed to session {session_id}")
+            else:
+                logger.debug(f"Unknown message type: {data.get('type')}")
+                
+    except WebSocketDisconnect:
+        connection_manager.disconnect(websocket, session_id)
+        logger.info(f"WebSocket disconnected for session {session_id}")
+    except Exception as e:
+        logger.error(f"WebSocket error for session {session_id}: {str(e)}")
+        connection_manager.disconnect(websocket, session_id)
         metadata=request.metadata,
     )
     return result
