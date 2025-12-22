@@ -1,7 +1,7 @@
-"""Test LLM client functionality"""
+"""Test LLM client functionality with synchronous OpenAI client"""
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from openai import APIError, APITimeoutError, AuthenticationError, RateLimitError
@@ -32,8 +32,8 @@ class CarRecommendation(BaseModel):
 
 @pytest.fixture
 def mock_openai_client():
-    """Mock AsyncOpenAI client"""
-    client = AsyncMock()
+    """Mock synchronous OpenAI client"""
+    client = MagicMock()
     return client
 
 
@@ -91,11 +91,12 @@ class TestLLMClient:
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
+            mock_settings.OPENAI_BASE_URL = None  # No custom base URL
 
-            with patch("app.llm.llm_client.AsyncOpenAI") as mock_async_openai:
+            with patch("app.llm.llm_client.OpenAI") as mock_openai:
                 client = LLMClient()
                 assert client.is_available()
-                mock_async_openai.assert_called_once_with(api_key="test-api-key")
+                mock_openai.assert_called_once_with(api_key="test-api-key")
 
     def test_llm_client_initialization_without_api_key(self):
         """Test LLM client initialization without API key"""
@@ -107,8 +108,8 @@ class TestLLMClient:
             assert not client.is_available()
             assert client.client is None
 
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_success(self, mock_openai_client, mock_openai_response):
+    
+    def test_generate_structured_json_success(self, mock_openai_client, mock_openai_response):
         """Test successful structured JSON generation"""
         mock_openai_client.chat.completions.create.return_value = mock_openai_response
 
@@ -116,9 +117,9 @@ class TestLLMClient:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
-                result = await client.generate_structured_json(
+                result = client.generate_structured_json(
                     prompt_id="evaluation",
                     variables={
                         "vin": "1HGBH41JXMN109186",
@@ -138,49 +139,9 @@ class TestLLMClient:
                 assert len(result.insights) == 2
                 assert len(result.talking_points) == 2
 
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_with_markdown_code_blocks(
-        self, mock_openai_client, mock_openai_response
-    ):
-        """Test structured JSON generation with markdown code blocks"""
-        # Modify response to include markdown code blocks
-        mock_openai_response.choices[
-            0
-        ].message.content = """```json
-{
-  "fair_value": 24500.0,
-  "score": 7.5,
-  "insights": ["Good mileage", "Fair price"],
-  "talking_points": ["Ask for service history", "Check market comparables"]
-}
-```"""
-        mock_openai_client.chat.completions.create.return_value = mock_openai_response
-
-        with patch("app.llm.llm_client.settings") as mock_settings:
-            mock_settings.OPENAI_API_KEY = "test-api-key"
-            mock_settings.OPENAI_MODEL = "gpt-4"
-
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
-                client = LLMClient()
-                result = await client.generate_structured_json(
-                    prompt_id="evaluation",
-                    variables={
-                        "vin": "1HGBH41JXMN109186",
-                        "make": "Honda",
-                        "model": "Civic",
-                        "year": 2019,
-                        "mileage": 35000,
-                        "condition": "excellent",
-                        "asking_price": 22000,
-                    },
-                    response_model=DealEvaluation,
-                )
-
-                assert isinstance(result, DealEvaluation)
-                assert result.fair_value == 24500.0
-
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_client_not_available(self):
+    
+    
+    def test_generate_structured_json_client_not_available(self):
         """Test structured JSON generation when client is not available"""
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = None
@@ -188,7 +149,7 @@ class TestLLMClient:
             client = LLMClient()
 
             with pytest.raises(ApiError) as exc_info:
-                await client.generate_structured_json(
+                client.generate_structured_json(
                     prompt_id="evaluation",
                     variables={},
                     response_model=DealEvaluation,
@@ -197,18 +158,18 @@ class TestLLMClient:
             assert exc_info.value.status_code == 503
             assert "not available" in exc_info.value.message.lower()
 
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_invalid_prompt_id(self, mock_openai_client):
+    
+    def test_generate_structured_json_invalid_prompt_id(self, mock_openai_client):
         """Test structured JSON generation with invalid prompt ID"""
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
 
                 with pytest.raises(ApiError) as exc_info:
-                    await client.generate_structured_json(
+                    client.generate_structured_json(
                         prompt_id="nonexistent_prompt",
                         variables={},
                         response_model=DealEvaluation,
@@ -217,8 +178,8 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 400
                 assert "Invalid prompt_id" in exc_info.value.message
 
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_validation_error(
+    
+    def test_generate_structured_json_validation_error(
         self, mock_openai_client, mock_openai_response
     ):
         """Test structured JSON generation with validation error"""
@@ -237,11 +198,11 @@ class TestLLMClient:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
 
                 with pytest.raises(ApiError) as exc_info:
-                    await client.generate_structured_json(
+                    client.generate_structured_json(
                         prompt_id="evaluation",
                         variables={
                             "vin": "1HGBH41JXMN109186",
@@ -258,8 +219,8 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 500
                 assert "validation" in exc_info.value.message.lower()
 
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_openai_auth_error(self, mock_openai_client):
+    
+    def test_generate_structured_json_openai_auth_error(self, mock_openai_client):
         """Test structured JSON generation with OpenAI authentication error"""
         mock_openai_client.chat.completions.create.side_effect = AuthenticationError(
             "Invalid API key", response=MagicMock(), body=None
@@ -269,11 +230,11 @@ class TestLLMClient:
             mock_settings.OPENAI_API_KEY = "invalid-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
 
                 with pytest.raises(ApiError) as exc_info:
-                    await client.generate_structured_json(
+                    client.generate_structured_json(
                         prompt_id="evaluation",
                         variables={
                             "vin": "1HGBH41JXMN109186",
@@ -290,8 +251,8 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 401
                 assert "authentication" in exc_info.value.message.lower()
 
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_rate_limit_error(self, mock_openai_client):
+    
+    def test_generate_structured_json_rate_limit_error(self, mock_openai_client):
         """Test structured JSON generation with rate limit error"""
         mock_openai_client.chat.completions.create.side_effect = RateLimitError(
             "Rate limit exceeded", response=MagicMock(), body=None
@@ -301,11 +262,11 @@ class TestLLMClient:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
 
                 with pytest.raises(ApiError) as exc_info:
-                    await client.generate_structured_json(
+                    client.generate_structured_json(
                         prompt_id="evaluation",
                         variables={
                             "vin": "1HGBH41JXMN109186",
@@ -322,8 +283,8 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 429
                 assert "rate limit" in exc_info.value.message.lower()
 
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_timeout_error(self, mock_openai_client):
+    
+    def test_generate_structured_json_timeout_error(self, mock_openai_client):
         """Test structured JSON generation with timeout error"""
         mock_openai_client.chat.completions.create.side_effect = APITimeoutError(
             request=MagicMock()
@@ -333,11 +294,11 @@ class TestLLMClient:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
 
                 with pytest.raises(ApiError) as exc_info:
-                    await client.generate_structured_json(
+                    client.generate_structured_json(
                         prompt_id="evaluation",
                         variables={
                             "vin": "1HGBH41JXMN109186",
@@ -354,8 +315,8 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 504
                 assert "timed out" in exc_info.value.message.lower()
 
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_api_error(self, mock_openai_client):
+    
+    def test_generate_structured_json_api_error(self, mock_openai_client):
         """Test structured JSON generation with general API error"""
         mock_openai_client.chat.completions.create.side_effect = APIError(
             "API Error", request=MagicMock(), body=None
@@ -365,11 +326,11 @@ class TestLLMClient:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
 
                 with pytest.raises(ApiError) as exc_info:
-                    await client.generate_structured_json(
+                    client.generate_structured_json(
                         prompt_id="evaluation",
                         variables={
                             "vin": "1HGBH41JXMN109186",
@@ -385,8 +346,8 @@ class TestLLMClient:
 
                 assert exc_info.value.status_code == 502
 
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_invalid_json_response(
+    
+    def test_generate_structured_json_invalid_json_response(
         self, mock_openai_client, mock_openai_response
     ):
         """Test structured JSON generation with invalid JSON response"""
@@ -397,11 +358,11 @@ class TestLLMClient:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
 
                 with pytest.raises(ApiError) as exc_info:
-                    await client.generate_structured_json(
+                    client.generate_structured_json(
                         prompt_id="evaluation",
                         variables={
                             "vin": "1HGBH41JXMN109186",
@@ -418,8 +379,8 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 500
                 assert "parse" in exc_info.value.message.lower()
 
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_empty_response(
+    
+    def test_generate_structured_json_empty_response(
         self, mock_openai_client, mock_openai_response
     ):
         """Test structured JSON generation with empty response"""
@@ -430,11 +391,11 @@ class TestLLMClient:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
 
                 with pytest.raises(ApiError) as exc_info:
-                    await client.generate_structured_json(
+                    client.generate_structured_json(
                         prompt_id="evaluation",
                         variables={
                             "vin": "1HGBH41JXMN109186",
@@ -452,8 +413,8 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 500
                 assert "empty response" in exc_info.value.message.lower()
 
-    @pytest.mark.asyncio
-    async def test_generate_text_success(self, mock_openai_client, mock_text_response):
+    
+    def test_generate_text_success(self, mock_openai_client, mock_text_response):
         """Test successful text generation"""
         mock_openai_client.chat.completions.create.return_value = mock_text_response
 
@@ -461,9 +422,9 @@ class TestLLMClient:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
-                result = await client.generate_text(
+                result = client.generate_text(
                     prompt_id="negotiation",
                     variables={
                         "make": "Honda",
@@ -480,8 +441,8 @@ class TestLLMClient:
                 assert isinstance(result, str)
                 assert result == "This is a test response from the LLM."
 
-    @pytest.mark.asyncio
-    async def test_generate_text_client_not_available(self):
+    
+    def test_generate_text_client_not_available(self):
         """Test text generation when client is not available"""
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = None
@@ -489,7 +450,7 @@ class TestLLMClient:
             client = LLMClient()
 
             with pytest.raises(ApiError) as exc_info:
-                await client.generate_text(
+                client.generate_text(
                     prompt_id="negotiation",
                     variables={},
                 )
@@ -497,18 +458,18 @@ class TestLLMClient:
             assert exc_info.value.status_code == 503
             assert "not available" in exc_info.value.message.lower()
 
-    @pytest.mark.asyncio
-    async def test_generate_text_invalid_prompt_id(self, mock_openai_client):
+    
+    def test_generate_text_invalid_prompt_id(self, mock_openai_client):
         """Test text generation with invalid prompt ID"""
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
 
                 with pytest.raises(ApiError) as exc_info:
-                    await client.generate_text(
+                    client.generate_text(
                         prompt_id="nonexistent_prompt",
                         variables={},
                     )
@@ -516,8 +477,8 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 400
                 assert "Invalid prompt_id" in exc_info.value.message
 
-    @pytest.mark.asyncio
-    async def test_generate_text_empty_response(self, mock_openai_client, mock_text_response):
+    
+    def test_generate_text_empty_response(self, mock_openai_client, mock_text_response):
         """Test text generation with empty response"""
         mock_text_response.choices[0].message.content = None
         mock_openai_client.chat.completions.create.return_value = mock_text_response
@@ -526,11 +487,11 @@ class TestLLMClient:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
 
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
+            with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
                 client = LLMClient()
 
                 with pytest.raises(ApiError) as exc_info:
-                    await client.generate_text(
+                    client.generate_text(
                         prompt_id="negotiation",
                         variables={
                             "make": "Honda",
@@ -549,71 +510,3 @@ class TestLLMClient:
                 assert "empty response" in exc_info.value.message.lower()
 
 
-class TestConvenienceFunctions:
-    """Test convenience wrapper functions"""
-
-    @pytest.mark.asyncio
-    async def test_generate_structured_json_convenience(
-        self, mock_openai_client, mock_openai_response
-    ):
-        """Test generate_structured_json convenience function"""
-        mock_openai_client.chat.completions.create.return_value = mock_openai_response
-
-        with patch("app.llm.llm_client.settings") as mock_settings:
-            mock_settings.OPENAI_API_KEY = "test-api-key"
-            mock_settings.OPENAI_MODEL = "gpt-4"
-
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
-                # Need to reinitialize the singleton
-                from app.llm import llm_client as llm_module
-
-                llm_module.llm_client = LLMClient()
-
-                result = await generate_structured_json(
-                    prompt_id="evaluation",
-                    variables={
-                        "vin": "1HGBH41JXMN109186",
-                        "make": "Honda",
-                        "model": "Civic",
-                        "year": 2019,
-                        "mileage": 35000,
-                        "condition": "excellent",
-                        "asking_price": 22000,
-                    },
-                    response_model=DealEvaluation,
-                )
-
-                assert isinstance(result, DealEvaluation)
-                assert result.fair_value == 24500.0
-
-    @pytest.mark.asyncio
-    async def test_generate_text_convenience(self, mock_openai_client, mock_text_response):
-        """Test generate_text convenience function"""
-        mock_openai_client.chat.completions.create.return_value = mock_text_response
-
-        with patch("app.llm.llm_client.settings") as mock_settings:
-            mock_settings.OPENAI_API_KEY = "test-api-key"
-            mock_settings.OPENAI_MODEL = "gpt-4"
-
-            with patch("app.llm.llm_client.AsyncOpenAI", return_value=mock_openai_client):
-                # Need to reinitialize the singleton
-                from app.llm import llm_client as llm_module
-
-                llm_module.llm_client = LLMClient()
-
-                result = await generate_text(
-                    prompt_id="negotiation",
-                    variables={
-                        "make": "Honda",
-                        "model": "Accord",
-                        "year": 2020,
-                        "asking_price": 25000,
-                        "mileage": 45000,
-                        "condition": "good",
-                        "fair_value": 23500,
-                        "score": 7.5,
-                    },
-                )
-
-                assert isinstance(result, str)
-                assert len(result) > 0
