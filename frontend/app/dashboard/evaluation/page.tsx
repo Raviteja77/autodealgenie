@@ -26,6 +26,7 @@ import {
 import Link from "next/link";
 import { useStepper } from "@/app/context";
 import { Button, Card, Spinner } from "@/components";
+import { apiClient } from "@/lib/api";
 
 interface VehicleInfo {
   vin?: string;
@@ -102,25 +103,13 @@ function EvaluationContent() {
     setError(null);
 
     try {
-      const response = await fetch("/api/v1/deals/evaluate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          vehicle_vin: vehicleData.vin || "UNKNOWN",
-          asking_price: vehicleData.price,
-          condition: vehicleData.condition || "good",
-          mileage: vehicleData.mileage,
-        }),
+      const data = await apiClient.evaluateDeal({
+        vehicle_vin: vehicleData.vin || "UNKNOWN",
+        asking_price: vehicleData.price,
+        condition: vehicleData.condition || "good",
+        mileage: vehicleData.mileage,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Failed to evaluate deal" }));
-        throw new Error(errorData.message || "Failed to evaluate deal");
-      }
-
-      const data = await response.json();
       setEvaluation(data);
       
       // Complete the evaluation step
