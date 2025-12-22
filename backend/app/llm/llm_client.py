@@ -21,19 +21,23 @@ Agent Architecture:
 
 import json
 import logging
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
 import openai
 from openai import OpenAI
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import settings
+from app.llm.agent_system_prompts import get_agent_system_prompt
 from app.llm.prompts import get_prompt
 from app.utils.error_handler import ApiError
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
+
+# Valid agent roles
+AgentRole = Literal["research", "loan", "negotiation", "evaluator", "qa"]
 
 
 class LLMClient:
@@ -51,12 +55,22 @@ class LLMClient:
 
         The client uses synchronous operations for simpler error handling
         and debugging compared to async alternatives.
+
+        Supports custom base URLs for OpenRouter and other OpenAI-compatible endpoints.
         """
         if not settings.OPENAI_API_KEY:
             logger.warning("OPENAI_API_KEY not set. LLM features will be disabled.")
             self.client = None
         else:
-            self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            # Initialize with optional base_url for OpenRouter support
+            client_kwargs = {"api_key": settings.OPENAI_API_KEY}
+            if settings.OPENAI_BASE_URL:
+                client_kwargs["base_url"] = settings.OPENAI_BASE_URL
+                logger.info(
+                    f"LLM client initialized with custom endpoint: {settings.OPENAI_BASE_URL}"
+                )
+
+            self.client = OpenAI(**client_kwargs)
             logger.info(f"LLM client initialized with model: {settings.OPENAI_MODEL}")
 
     def is_available(self) -> bool:
@@ -75,7 +89,7 @@ class LLMClient:
         response_model: type[T],
         temperature: float = 0.7,
         max_tokens: int | None = None,
-        agent_role: str | None = None,
+        agent_role: AgentRole | None = None,
     ) -> T:
         """
         Generate structured JSON output using OpenAI and validate with Pydantic model
@@ -120,7 +134,7 @@ class LLMClient:
             formatted_prompt = prompt_template.format(**variables)
 
             # Get agent-specific system prompt
-            system_prompt = self._get_system_prompt(agent_role, "json")
+            system_prompt = get_agent_system_prompt(agent_role, "json")
 
             logger.info(
                 f"Generating structured JSON: prompt_id='{prompt_id}', "
@@ -255,7 +269,7 @@ class LLMClient:
         variables: dict[str, Any],
         temperature: float = 0.7,
         max_tokens: int | None = None,
-        agent_role: str | None = None,
+        agent_role: AgentRole | None = None,
     ) -> str:
         """
         Generate text output using OpenAI
@@ -297,7 +311,7 @@ class LLMClient:
             formatted_prompt = prompt_template.format(**variables)
 
             # Get agent-specific system prompt
-            system_prompt = self._get_system_prompt(agent_role, "text")
+            system_prompt = get_agent_system_prompt(agent_role, "text")
 
             logger.info(
                 f"Generating text: prompt_id='{prompt_id}', "
@@ -392,83 +406,6 @@ class LLMClient:
                 details={"error": str(e), "agent_role": agent_role},
             ) from e
 
-    def _get_system_prompt(self, agent_role: str | None, output_type: str) -> str:
-        """
-        Get agent-specific system prompt with role, backstory, and capabilities
-
-        This implements the multi-agent architecture inspired by CrewAI,
-        where each agent has a distinct personality and expertise.
-
-        Args:
-            agent_role: Agent role (research, loan, negotiation, evaluator, qa)
-            output_type: Expected output type ('json' or 'text')
-
-        Returns:
-            System prompt string tailored to the agent role
-        """
-        # Base system prompts for each agent role
-        agent_prompts = {
-            "research": """You are a Senior Vehicle Discovery Specialist with deep knowledge of vehicle markets, pricing trends, and availability. You excel at finding hidden gems and identifying the best deals in the market.
-
-Your expertise includes:
-- Comprehensive market analysis across multiple sources
-- Identification of undervalued vehicles and hidden opportunities
-- Expert knowledge of reliability ratings and vehicle history
-- Data-driven recommendations based on user preferences
-
-Your goal is to find the top 3-5 vehicle listings that match user criteria, considering value, condition, features, and reliability.""",
-            "loan": """You are a Senior Auto Financial Specialist, a seasoned financial advisor specializing in auto loans with extensive knowledge of lending practices, credit optimization, and negotiating with financial institutions.
-
-Your expertise includes:
-- Comprehensive analysis of financing options across multiple lenders
-- APR comparison and total cost of ownership calculations
-- Credit optimization strategies and loan term recommendations
-- Understanding of dealer financing vs. external lending
-
-Your goal is to find and compare the best financing options for the customer's specific loan amount, presenting a clear comparison that empowers informed decisions.""",
-            "negotiation": """You are an Expert Car Deal Negotiator, a master negotiator with a background in automotive sales and purchasing. You've spent years on both sides of the table, learning every trick in the dealer's playbook.
-
-Your expertise includes:
-- Strategic pricing and counter-offer tactics
-- Understanding of dealer incentives and profit margins
-- Effective communication and persuasion techniques
-- Identification of negotiation leverage points (days on market, inventory, financing)
-
-Your goal is to secure the best vehicle price and challenge dealer financing offers using market data as leverage. You are persuasive, persistent, and unflappable, treating every negotiation as a chess match you are determined to win.""",
-            "evaluator": """You are a Meticulous Deal Evaluator, a former financial auditor who has transitioned into consumer advocacy in the automotive space. You have an eagle eye for fine print and a passion for numbers.
-
-Your expertise includes:
-- Comprehensive financial analysis and total cost calculations
-- Vehicle history verification and risk assessment
-- Market value comparison and deal quality scoring
-- Identification of hidden costs and unfavorable terms
-
-Your goal is to perform a final, comprehensive audit of every deal aspect. You believe a good deal is more than just a low price—it's about total value and transparency. Your approval is the final seal of a truly great deal.""",
-            "qa": """You are a Deal Quality Assurance Reviewer, the final line of defense before a customer sees a deal recommendation. You have a sharp eye for missing context, contradictory statements, math inconsistencies, and vague language.
-
-Your expertise includes:
-- Cross-checking narrative against structured data
-- Identifying logical inconsistencies and contradictions
-- Ensuring clarity and completeness for non-expert buyers
-- Validating that recommendations follow from evidence
-
-Your goal is to review reports for clarity, factual consistency, internal logical coherence, and usefulness. You never invent new facts or alter numbers—only improve wording, structure, and clarity.""",
-        }
-
-        # Get agent-specific prompt or use default
-        base_prompt = agent_prompts.get(
-            agent_role,
-            "You are a helpful automotive assistant with expertise in car buying and deal evaluation.",
-        )
-
-        # Add output format guidance
-        if output_type == "json":
-            return f"""{base_prompt}
-
-IMPORTANT: You must provide your response in valid JSON format. Structure your response according to the schema specified in the user prompt. Do not include any explanatory text outside the JSON object."""
-        else:
-            return base_prompt
-
 
 # Singleton instance
 llm_client = LLMClient()
@@ -481,7 +418,7 @@ def generate_structured_json(
     response_model: type[T],
     temperature: float = 0.7,
     max_tokens: int | None = None,
-    agent_role: str | None = None,
+    agent_role: AgentRole | None = None,
 ) -> T:
     """
     Generate structured JSON output using OpenAI and validate with Pydantic model
@@ -529,7 +466,7 @@ def generate_text(
     variables: dict[str, Any],
     temperature: float = 0.7,
     max_tokens: int | None = None,
-    agent_role: str | None = None,
+    agent_role: AgentRole | None = None,
 ) -> str:
     """
     Generate text output using OpenAI

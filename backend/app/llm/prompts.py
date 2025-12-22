@@ -128,7 +128,12 @@ GOAL: Analyze financing options for the selected vehicle
 
 TASK DESCRIPTION:
 Parse the vehicle report to identify the top recommended vehicle.
-Calculate the required loan amount and find the best financing options.
+Calculate the required loan amount and provide guidance on typical financing options.
+
+IMPORTANT: You are providing educational guidance on typical market rates and loan structures.
+You should describe what typical financing options look like in the current market, not claim
+to have access to real-time lender quotes. Frame recommendations as "typical market rates are..."
+or "buyers in this situation often see..." rather than claiming specific lender offers.
 
 VEHICLE INFORMATION (from previous task):
 {vehicle_report_json}
@@ -141,9 +146,9 @@ CUSTOMER FINANCIAL PREFERENCES:
 ANALYSIS STEPS:
 1. Extract top vehicle price from vehicle_report_json
 2. Calculate loan amount: vehicle_price - down_payment
-3. Find and compare loan offers from multiple lenders
+3. Provide guidance on typical financing options based on current market conditions
 4. Consider APR, term length, monthly payment, total interest
-5. Recommend the best option for customer's situation
+5. Recommend typical financing structures for customer's situation
 
 EXPECTED OUTPUT (JSON):
 {{
@@ -152,7 +157,7 @@ EXPECTED OUTPUT (JSON):
   "down_payment": number,
   "options": [
     {{
-      "lender_name": string,
+      "lender_name": string,  # Use "Typical Bank/Credit Union" or similar generic names
       "apr": number,
       "term_months": number,
       "monthly_payment": number,
@@ -163,33 +168,43 @@ EXPECTED OUTPUT (JSON):
   "recommended_option_index": number
 }}
 
-The recommended_option_index should be the zero-based index of the best option.""",
+The recommended_option_index should be the zero-based index of the best typical option.""",
     ),
     # ============================================================================
     # NEGOTIATION AGENT PROMPTS
     # Role: Expert Car Deal Negotiator
-    # Goal: Secure best vehicle price and challenge dealer financing
+    # Goal: Provide strategic negotiation guidance to help users get better deals
     # ============================================================================
     "negotiate_deal": PromptTemplate(
         id="negotiate_deal",
-        template="""ROLE: Expert Car Deal Negotiator
-GOAL: Leverage financing analysis to negotiate the best deal with dealerships
+        template="""ROLE: Expert Car Deal Negotiation Advisor
+GOAL: Provide strategic guidance to help the user negotiate effectively with dealers
+
+IMPORTANT: You are an advisor providing negotiation strategies, talking points, and guidance
+to the USER. You do NOT negotiate directly with dealers. Your role is to educate and empower
+the user with dealer-level intelligence and tactics so they can negotiate confidently and avoid
+common dealer traps.
 
 TASK DESCRIPTION:
-Use vehicle and financing reports to conduct strategic negotiations.
-Focus on securing a lower purchase price and favorable terms.
+Based on vehicle and financing analysis, provide comprehensive negotiation guidance including:
+- Strategic approach and talking points
+- Counter-offer recommendations
+- Red flags and dealer tactics to watch for
+- When to walk away
+- How to leverage market data and financing benchmarks
 
 CONTEXT FROM PREVIOUS TASKS:
 Vehicle Report: {vehicle_report_json}
 Financing Report: {financing_report_json}
 
-NEGOTIATION STRATEGY:
-1. **Parse Context**: Extract VIN, price from vehicle report. Get best APR from financing report.
-2. **Analyze Market Demand**: Consider days on market (DOM) and sales stats. High DOM = more leverage.
-3. **Set Target Price**: Use fair market price prediction as primary target.
-4. **Negotiate Price First**: Lead with price discussion, hold financing for later.
-5. **Leverage Financing**: Use benchmark APR to create competition: "I have pre-approval at X%. Can you beat that?"
-6. **Stay Persistent**: Counter-offer strategically, use market data as justification.
+NEGOTIATION GUIDANCE FRAMEWORK:
+1. **Opening Strategy**: Recommend starting price based on fair market value and leverage points
+2. **Dealer Psychology**: Explain typical dealer tactics (4-square, financing markup, add-ons)
+3. **Counter-Offers**: Provide specific dollar amounts for counter-offers with justification
+4. **Leverage Points**: Identify negotiation leverage (days on market, inventory, financing competition)
+5. **Walk-Away Threshold**: Define when the deal isn't worth pursuing
+6. **Financing Defense**: How to use external financing approval to negotiate better dealer rates
+7. **Add-On Defense**: How to decline or negotiate down unnecessary add-ons
 
 MARKET ANALYSIS (if available):
 - Days on Market: {days_on_market}
@@ -199,28 +214,29 @@ MARKET ANALYSIS (if available):
 EXPECTED OUTPUT (JSON):
 {{
   "vehicle_vin": string,
-  "final_price": number,
-  "add_ons": [
+  "final_price": number,  # Your recommended target price
+  "add_ons": [  # Common add-ons to watch for
     {{
       "name": string,
       "price": number
     }}
   ],
-  "fees": [
+  "fees": [  # Typical fees to expect and negotiate
     {{
       "name": string,
       "price": number
     }}
   ],
-  "dealer_financing_offer": {{
+  "dealer_financing_offer": {{  # What dealer might offer
     "apr": number,
     "term_months": number,
     "monthly_payment": number
   }} | null,
-  "negotiation_summary": string
+  "negotiation_summary": string  # Detailed guidance with specific talking points, tactics, and strategy
 }}
 
-Document the negotiation process and final terms achieved.""",
+The negotiation_summary should be a comprehensive guide (300-500 words) that empowers the user
+with specific phrases to use, tactics to deploy, traps to avoid, and a clear negotiation roadmap.""",
     ),
     # ============================================================================
     # DEAL EVALUATOR AGENT PROMPTS
@@ -244,17 +260,29 @@ FINANCING OPTIONS (for comparison):
 
 AUDIT CHECKLIST:
 1. **Price Verification**: Compare final_price against fair market value
-2. **Vehicle History**: Check for accidents, title issues, open recalls
-3. **Market Context**: Analyze days on market and sales trends
-4. **Financing Comparison**: Compare dealer offer vs pre-approved options
-5. **Total Cost Calculation**: Include all fees, add-ons, interest in TCO
-6. **Risk Assessment**: Identify red flags or unfavorable terms
+2. **Vehicle History**: Review provided vehicle_history_summary. If "Unknown", "Not available", 
+   or empty, clearly state that vehicle history could not be independently verified. DO NOT 
+   assume or invent accident or title information.
+3. **Safety Recalls**: Use safety_recalls_summary. If "Unknown", "Not available", or empty, 
+   clearly state that recall status could not be verified. DO NOT fabricate recall information.
+4. **Market Context**: Analyze days on market and sales trends. If missing or "Unknown", 
+   explicitly note the absence rather than guessing.
+5. **Financing Comparison**: Compare dealer offer vs pre-approved options
+6. **Total Cost Calculation**: Include all fees, add-ons, interest in TCO
+7. **Risk Assessment**: Identify red flags or unfavorable terms
+
+DATA SOURCE NOTES:
+- vehicle_history_summary: Derived from external providers (Carfax, AutoCheck) when available. 
+  May be "Unknown" or "Not available" if no report obtained. Do NOT infer missing details.
+- safety_recalls_summary: Derived from official recall sources (NHTSA) when available. May be 
+  "Unknown" or "Not available".
+- days_on_market: From external market data. May be "Unknown" or missing.
 
 ANALYSIS FACTORS:
 - Fair Market Value: ${fair_market_value}
-- Vehicle History: {vehicle_history_summary}
-- Safety Recalls: {safety_recalls_summary}
-- Days on Market: {days_on_market}
+- Vehicle History (may be "Unknown"): {vehicle_history_summary}
+- Safety Recalls (may be "Unknown"): {safety_recalls_summary}
+- Days on Market (may be "Unknown"): {days_on_market}
 
 EXPECTED OUTPUT (Markdown Report):
 # Deal Evaluation Report
@@ -280,7 +308,7 @@ EXPECTED OUTPUT (Markdown Report):
 - Savings/Premium: $[amount] ([X]%)
 
 ## Vehicle History Summary
-[Summary of history report findings]
+[Summary of history report findings, or "Vehicle history report not available" if unknown]
 
 ## Financing Analysis
 [Comparison of dealer vs pre-approved financing]

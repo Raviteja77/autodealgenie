@@ -52,9 +52,10 @@ class Settings(BaseSettings):
     KAFKA_TOPIC_DEALS: str = "deals"
     KAFKA_TOPIC_NOTIFICATIONS: str = "notifications"
 
-    # OpenAI
+    # OpenAI / OpenRouter
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4"
+    OPENAI_BASE_URL: str | None = None  # Optional: Use for OpenRouter or custom endpoints
 
     # MarketCheck API
     MARKET_CHECK_API_KEY: str | None = None

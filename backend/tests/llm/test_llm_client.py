@@ -91,6 +91,7 @@ class TestLLMClient:
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
             mock_settings.OPENAI_MODEL = "gpt-4"
+            mock_settings.OPENAI_BASE_URL = None  # No custom base URL
 
             with patch("app.llm.llm_client.OpenAI") as mock_openai:
                 client = LLMClient()
