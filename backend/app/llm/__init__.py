@@ -19,6 +19,7 @@ from app.llm.schemas import (
     NegotiatedDeal,
     QAReport,
     SearchCriteria,
+    VehicleConditionAssessment,
     VehicleInfo,
     VehicleReport,
 )
@@ -36,6 +37,7 @@ __all__ = [
     "CarSelectionItem",
     "CarSelectionResponse",
     "DealEvaluation",
+    "VehicleConditionAssessment",
     "VehicleReport",
     "VehicleInfo",
     "SearchCriteria",

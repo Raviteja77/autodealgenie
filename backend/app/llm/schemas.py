@@ -64,6 +64,14 @@ class DealEvaluation(BaseModel):
     talking_points: list[str] = Field(..., description="3-5 specific negotiation strategies")
 
 
+class VehicleConditionAssessment(BaseModel):
+    """Schema for vehicle condition assessment in multi-step pipeline"""
+
+    condition_score: float = Field(..., ge=1.0, le=10.0, description="Condition score from 1-10")
+    condition_notes: list[str] = Field(..., description="Key observations about vehicle condition")
+    recommended_inspection: bool = Field(..., description="Whether pre-purchase inspection is recommended")
+
+
 # ============================================================================
 # Multi-Agent System Schemas
 # These schemas support the new multi-agent prompts migrated from CrewAI

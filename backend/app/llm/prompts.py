@@ -460,6 +460,33 @@ Base your analysis on:
 
 Be objective and data-driven in your assessment.""",
     ),
+    "vehicle_condition": PromptTemplate(
+        id="vehicle_condition",
+        template="""You are an expert automotive condition evaluator.
+
+Vehicle Details:
+- Make: {make}
+- Model: {model}
+- Year: {year}
+- VIN: {vin}
+- Mileage: {mileage} miles
+- Condition Description: {condition_description}
+
+Evaluate the vehicle condition and provide a JSON response with:
+{{
+  "condition_score": <score from 1-10>,
+  "condition_notes": [<2-4 key observations>],
+  "recommended_inspection": <true/false>
+}}
+
+Base your assessment on:
+- The mileage relative to vehicle age
+- The condition description provided
+- Typical wear patterns for this mileage
+- Whether a pre-purchase inspection would be beneficial
+
+Be objective and thorough in your assessment.""",
+    ),
     "deal_summary": PromptTemplate(
         id="deal_summary",
         template="""Generate a concise deal summary for this automotive transaction:
