@@ -8,32 +8,24 @@ import {
   Typography,
   Alert,
   Divider,
-  Chip,
+  Grid,
+  LinearProgress,
   Stack,
-  Link as MuiLink,
+  Chip,
 } from "@mui/material";
-import { Warning, OpenInNew } from "@mui/icons-material";
+import { 
+  CheckCircle, 
+  Warning, 
+  Cancel, 
+  TrendingUp,
+  TrendingDown,
+  AttachMoney,
+  Speed,
+  Security
+} from "@mui/icons-material";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
-import { Button, Card } from "@/components";
-import {
-  apiClient,
-  PipelineStep,
-  EvaluationStepResult,
-  EvaluationStatus,
-  LenderRecommendationResponse,
-} from "@/lib/api";
-import {
-  ProgressIndicator,
-  ScoreCard,
-  InsightsPanel,
-  QuestionForm,
-  ConditionStep,
-  PriceStep,
-  FinancingStep,
-  RiskStep,
-  FinalStep,
-} from "./components";
+import { Button, Card, Spinner } from "@/components";
 
 interface VehicleInfo {
   vin?: string;
@@ -43,30 +35,26 @@ interface VehicleInfo {
   price: number;
   mileage: number;
   fuelType: string;
+  condition?: string;
 }
 
-interface EvaluationState {
-  evaluationId: number | null;
-  dealId: number;
-  status: EvaluationStatus;
-  currentStep: PipelineStep;
-  stepResult: any;
-  resultJson: Record<string, any> | null;
-  completedSteps: PipelineStep[];
+interface DealEvaluationResult {
+  fair_value: number;
+  score: number;
+  insights: string[];
+  talking_points: string[];
 }
 
 function EvaluationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { canNavigateToStep, completeStep, isStepCompleted } = useStepper();
+  const { completeStep } = useStepper();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [evaluationState, setEvaluationState] = useState<EvaluationState | null>(null);
-  const [lenderRecommendations, setLenderRecommendations] = useState<LenderRecommendationResponse | null>(null);
-  const [lendersLoading, setLendersLoading] = useState(false);
+  const [evaluation, setEvaluation] = useState<DealEvaluationResult | null>(null);
 
-  // Extract and validate vehicle data from URL params
+  // Extract vehicle data from URL params
   const vehicleData: VehicleInfo | null = (() => {
     try {
       const vin = searchParams.get("vin") || undefined;
@@ -76,8 +64,8 @@ function EvaluationContent() {
       const priceStr = searchParams.get("price");
       const mileageStr = searchParams.get("mileage");
       const fuelType = searchParams.get("fuelType");
+      const condition = searchParams.get("condition");
 
-      // Validate required fields
       if (!make || !model || !yearStr || !priceStr || !mileageStr) {
         return null;
       }
@@ -86,7 +74,6 @@ function EvaluationContent() {
       const price = parseFloat(priceStr);
       const mileage = parseInt(mileageStr);
 
-      // Validate parsed values
       if (isNaN(year) || isNaN(price) || isNaN(mileage)) {
         return null;
       }
@@ -99,6 +86,7 @@ function EvaluationContent() {
         price,
         mileage,
         fuelType: fuelType || "Unknown",
+        condition: condition || "good",
       };
     } catch (err) {
       console.error("Error parsing vehicle data:", err);
@@ -106,334 +94,108 @@ function EvaluationContent() {
     }
   })();
 
-  // Mock deal ID - in production, this would come from backend
-  const dealId = 1;
-
-  // Check if user can access this step
-  useEffect(() => {
-    if (!canNavigateToStep(3)) {
-      router.push("/dashboard/search");
-    } else if (!isStepCompleted(3)) {
-      completeStep(3, {
-        status: 'in-progress',
-        vehicleData: vehicleData,
-        timestamp: new Date().toISOString(),
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canNavigateToStep, router, vehicleData]);
-
   // Start evaluation on mount
   useEffect(() => {
-    if (vehicleData && !evaluationState) {
-      startEvaluation();
+    if (vehicleData && !evaluation && !loading) {
+      evaluateDeal();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicleData]);
 
-  const startEvaluation = async () => {
+  const evaluateDeal = async () => {
     if (!vehicleData) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      // Initial answers with VIN if available
-      const initialAnswers: Record<string, string | number> = {};
-      if (vehicleData.vin) {
-        initialAnswers.vin = vehicleData.vin;
-      }
-
-      const response = await apiClient.startEvaluation(dealId, {
-        answers: Object.keys(initialAnswers).length > 0 ? initialAnswers : null,
+      const response = await fetch("/api/v1/deals/evaluate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          vehicle_vin: vehicleData.vin || "UNKNOWN",
+          asking_price: vehicleData.price,
+          condition: vehicleData.condition || "good",
+          mileage: vehicleData.mileage,
+        }),
       });
 
-      updateEvaluationState(response);
-    } catch (err: any) {
-      console.error("Error starting evaluation:", err);
-      setError(err.message || "Failed to start evaluation");
+      if (!response.ok) {
+        throw new Error("Failed to evaluate deal");
+      }
+
+      const data = await response.json();
+      setEvaluation(data);
+      
+      // Complete the evaluation step
+      completeStep(3, {
+        status: 'completed',
+        vehicleData: vehicleData,
+        evaluation: data,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err: unknown) {
+      console.error("Error evaluating deal:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to evaluate deal";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const submitAnswers = async (answers: Record<string, string | number>) => {
-    if (!evaluationState) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await apiClient.submitEvaluationAnswers(
-        evaluationState.dealId,
-        evaluationState.evaluationId!,
-        { answers }
-      );
-
-      updateEvaluationState(response);
-    } catch (err: any) {
-      console.error("Error submitting answers:", err);
-      setError(err.message || "Failed to submit answers");
-    } finally {
-      setLoading(false);
-    }
+  const getScoreColor = (score: number) => {
+    if (score >= 8) return "success";
+    if (score >= 6.5) return "info";
+    if (score >= 5) return "warning";
+    return "error";
   };
 
-  const updateEvaluationState = (response: EvaluationStepResult) => {
-    const completedSteps: PipelineStep[] = [];
-    
-    // Add completed steps based on result_json
-    if (response.result_json) {
-      if (response.result_json.vehicle_condition?.completed) {
-        completedSteps.push('vehicle_condition');
-      }
-      if (response.result_json.price?.completed) {
-        completedSteps.push('price');
-      }
-      if (response.result_json.financing?.completed) {
-        completedSteps.push('financing');
-        // Fetch lender recommendations when financing step completes
-        fetchLenderRecommendations(response.deal_id, response.evaluation_id);
-      }
-      if (response.result_json.risk?.completed) {
-        completedSteps.push('risk');
-      }
-      if (response.status === 'completed') {
-        completedSteps.push('final');
-      }
-    }
-
-    setEvaluationState({
-      evaluationId: response.evaluation_id,
-      dealId: response.deal_id,
-      status: response.status,
-      currentStep: response.current_step,
-      stepResult: response.step_result,
-      resultJson: response.result_json,
-      completedSteps,
-    });
+  const getScoreIcon = (score: number) => {
+    if (score >= 8) return <CheckCircle color="success" />;
+    if (score >= 6.5) return <TrendingUp color="info" />;
+    if (score >= 5) return <Warning color="warning" />;
+    return <Cancel color="error" />;
   };
 
-  const fetchLenderRecommendations = async (dealId: number, evaluationId: number) => {
-    setLendersLoading(true);
-    try {
-      const recommendations = await apiClient.getEvaluationLenders(dealId, evaluationId);
-      setLenderRecommendations(recommendations);
-    } catch (err: any) {
-      console.error("Error fetching lender recommendations:", err);
-      // Don't set error state - lenders are optional enhancement
-      setLenderRecommendations(null);
-    } finally {
-      setLendersLoading(false);
-    }
+  const getRecommendation = (score: number) => {
+    if (score >= 8) return "Excellent Deal - Highly Recommended";
+    if (score >= 6.5) return "Good Deal - Recommended with Minor Considerations";
+    if (score >= 5) return "Fair Deal - Proceed with Caution";
+    return "Poor Deal - Consider Other Options";
   };
 
-  const handleFinalize = async () => {
-    completeStep(3, {
-      vehicleData: vehicleData,
-      evaluationState: evaluationState,
-      timestamp: new Date().toISOString(),
-    });
-    router.push("/deals");
-  };
+  const shouldSearchMore = (score: number) => score < 5.0;
 
-  // Calculate scores from results
-  const getScores = () => {
-    if (!evaluationState?.resultJson) {
-      return { overall: 0 };
-    }
-
-    const conditionScore =
-      evaluationState.resultJson.vehicle_condition?.assessment?.condition_score || 0;
-    const priceScore = evaluationState.resultJson.price?.assessment?.score || 0;
-    const riskScore = evaluationState.resultJson.risk?.assessment?.risk_score || 0;
-    
-    // Calculate overall score from final if available, otherwise calculate
-    let overall = 0;
-    if (evaluationState.resultJson.final?.assessment?.overall_score) {
-      overall = evaluationState.resultJson.final.assessment.overall_score;
-    } else if (conditionScore || priceScore || riskScore) {
-      // Weighted average: condition 20%, price 50%, risk 30% (inverted)
-      overall = (conditionScore * 0.2) + (priceScore * 0.5) + ((10 - riskScore) * 0.3);
-    }
-
-    return {
-      overall,
-      condition: conditionScore,
-      price: priceScore,
-      risk: riskScore,
-    };
-  };
-
-  const scores = getScores();
-
-  // Generate insights based on current step
-  const getInsights = () => {
-    const insights: Array<{ type: 'success' | 'warning' | 'info'; message: string }> = [];
-
-    if (!evaluationState?.stepResult) return insights;
-
-    const { assessment } = evaluationState.stepResult;
-
-    if (assessment?.insights) {
-      assessment.insights.forEach((insight: string) => {
-        insights.push({ type: 'info', message: insight });
-      });
-    }
-
-    if (assessment?.condition_notes) {
-      assessment.condition_notes.forEach((note: string) => {
-        insights.push({ type: 'success', message: note });
-      });
-    }
-
-    if (assessment?.recommended_inspection) {
-      insights.push({
-        type: 'warning',
-        message: 'Professional inspection recommended before purchase',
-      });
-    }
-
-    return insights.slice(0, 5); // Limit to 5 insights
-  };
-
-  const renderStepContent = () => {
-    if (!evaluationState) return null;
-
-    const { currentStep, stepResult, resultJson, status } = evaluationState;
-
-    // If awaiting input, show question form
-    if (status === 'awaiting_input' && stepResult?.questions) {
-      const questions = stepResult.questions.map((q: string, index: number) => {
-        const fieldId = stepResult.required_fields?.[index] || `field_${index}`;
-        
-        // Determine question type based on content
-        let type: 'text' | 'radio' | 'number' = 'text';
-        let options: string[] | undefined;
-
-        if (q.toLowerCase().includes('vin')) {
-          type = 'text';
-        } else if (
-          q.toLowerCase().includes('condition') &&
-          !q.toLowerCase().includes('description')
-        ) {
-          type = 'radio';
-          options = ['Excellent', 'Good', 'Fair', 'Poor'];
-        } else if (q.toLowerCase().includes('financing')) {
-          type = 'radio';
-          options = ['cash', 'loan', 'lease'];
-        } else if (
-          q.toLowerCase().includes('rate') ||
-          q.toLowerCase().includes('payment')
-        ) {
-          type = 'number';
-        }
-
-        return {
-          id: fieldId,
-          label: q,
-          type,
-          options,
-          required: true,
-        };
-      });
-
-      return (
-        <QuestionForm
-          questions={questions}
-          onSubmit={submitAnswers}
-          loading={loading}
-          error={error}
-        />
-      );
-    }
-
-    // Show step results
-    if (stepResult?.assessment) {
-      const { assessment } = stepResult;
-
-      switch (currentStep) {
-        case 'vehicle_condition':
-          return <ConditionStep assessment={assessment} />;
-        case 'price':
-          return (
-            <PriceStep
-              assessment={assessment}
-              askingPrice={vehicleData?.price || 0}
-            />
-          );
-        case 'financing':
-          return (
-            <FinancingStep
-              assessment={assessment}
-              purchasePrice={vehicleData?.price || 0}
-            />
-          );
-        case 'risk':
-          return <RiskStep assessment={assessment} />;
-        case 'final':
-          return (
-            <FinalStep
-              assessment={assessment}
-              vehicleInfo={{
-                make: vehicleData?.make || '',
-                model: vehicleData?.model || '',
-                year: vehicleData?.year || 0,
-              }}
-            />
-          );
-        default:
-          return null;
-      }
-    }
-
-    return null;
-  };
-
-  const handleContinue = async () => {
-    if (!evaluationState) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Continue with empty answers to advance to next step
-      const response = await apiClient.startEvaluation(evaluationState.dealId, {
-        answers: null,
-      });
-
-      updateEvaluationState(response);
-    } catch (err: any) {
-      console.error("Error continuing evaluation:", err);
-      setError(err.message || "Failed to continue evaluation");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const priceDifference = evaluation 
+    ? vehicleData!.price - evaluation.fair_value
+    : 0;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <Box sx={{ bgcolor: "background.default", flexGrow: 1, py: 4 }}>
         <Container maxWidth="lg">
           <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
-            Deal Evaluation
+            Deal Evaluation Report
           </Typography>
 
           {/* Error Alert */}
           {error && (
             <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
               <Typography variant="h6" gutterBottom>
-                Error
+                Evaluation Error
               </Typography>
               <Typography variant="body2" sx={{ mb: 2 }}>
                 {error}
               </Typography>
-              <Button variant="primary" size="sm" onClick={startEvaluation}>
-                Retry
+              <Button variant="primary" size="sm" onClick={evaluateDeal}>
+                Retry Evaluation
               </Button>
             </Alert>
           )}
 
+          {/* Invalid Vehicle Data */}
           {!vehicleData && (
             <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
               <Typography variant="h6" gutterBottom>
@@ -450,146 +212,173 @@ function EvaluationContent() {
             </Alert>
           )}
 
-          {vehicleData && evaluationState && (
+          {/* Loading State */}
+          {loading && vehicleData && (
+            <Card>
+              <Card.Body>
+                <Box sx={{ textAlign: "center", py: 4 }}>
+                  <Spinner size="lg" />
+                  <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                    Evaluating Deal...
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Analyzing pricing, market value, and vehicle condition
+                  </Typography>
+                  <Box sx={{ mt: 3, maxWidth: 400, mx: "auto" }}>
+                    <LinearProgress />
+                  </Box>
+                </Box>
+              </Card.Body>
+            </Card>
+          )}
+
+          {/* Evaluation Results */}
+          {evaluation && vehicleData && !loading && (
             <Box>
-              {/* Progress Indicator */}
-              <ProgressIndicator
-                currentStep={evaluationState.currentStep}
-                completedSteps={evaluationState.completedSteps}
-              />
+              {/* Vehicle Summary */}
+              <Card shadow="md" sx={{ mb: 3 }}>
+                <Card.Body>
+                  <Typography variant="h5" gutterBottom>
+                    {vehicleData.year} {vehicleData.make} {vehicleData.model}
+                  </Typography>
+                  <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                    <Chip icon={<Speed />} label={`${vehicleData.mileage.toLocaleString()} miles`} />
+                    <Chip icon={<AttachMoney />} label={`$${vehicleData.price.toLocaleString()}`} />
+                  </Stack>
+                  {vehicleData.vin && (
+                    <Typography variant="caption" color="text.secondary">
+                      VIN: {vehicleData.vin}
+                    </Typography>
+                  )}
+                </Card.Body>
+              </Card>
 
-              {/* Score Card */}
-              {scores.overall > 0 && (
-                <Box sx={{ mb: 3 }}>
-                  <ScoreCard
-                    overallScore={scores.overall}
-                    conditionScore={scores.condition}
-                    priceScore={scores.price}
-                    riskScore={scores.risk}
-                  />
-                </Box>
-              )}
-
-              {/* Step Content */}
-              <Box sx={{ mb: 3 }}>{renderStepContent()}</Box>
-
-              {/* Lender Recommendations (shown after financing step) */}
-              {evaluationState.currentStep === 'financing' && 
-                evaluationState.completedSteps.includes('financing') && (
-                <Box sx={{ mb: 3 }}>
-                  {lendersLoading ? (
-                    <Card>
-                      <Card.Body>
-                        <Typography variant="body2" color="text.secondary">
-                          Loading lender recommendations...
-                        </Typography>
-                      </Card.Body>
-                    </Card>
-                  ) : lenderRecommendations && lenderRecommendations.recommendations.length > 0 ? (
-                    <Card>
-                      <Card.Body>
-                        <Typography variant="h6" gutterBottom>
-                          Recommended Lenders
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          Based on your financing needs, here are our top lender recommendations:
-                        </Typography>
-                        <Divider sx={{ my: 2 }} />
-                        <Stack spacing={2}>
-                          {lenderRecommendations.recommendations.map((match) => (
-                            <Card key={match.lender.lender_id} shadow="sm">
-                              <Card.Body>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 1 }}>
-                                  <Box>
-                                    <Typography variant="h6" component="div">
-                                      {match.lender.name}
-                                    </Typography>
-                                    <Chip
-                                      label={`Match Score: ${match.match_score.toFixed(0)}%`}
-                                      size="small"
-                                      color="primary"
-                                      sx={{ mt: 0.5 }}
-                                    />
-                                  </Box>
-                                  <Chip
-                                    label={`Rank #${match.rank}`}
-                                    size="small"
-                                    color="success"
-                                  />
-                                </Box>
-                                <Typography variant="body2" color="text.secondary" gutterBottom>
-                                  {match.lender.description}
-                                </Typography>
-                                <Box sx={{ mt: 2, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                                  <Box>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Est. APR
-                                    </Typography>
-                                    <Typography variant="body1" fontWeight="bold">
-                                      {(match.estimated_apr * 100).toFixed(2)}%
-                                    </Typography>
-                                  </Box>
-                                  <Box>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Est. Monthly Payment
-                                    </Typography>
-                                    <Typography variant="body1" fontWeight="bold">
-                                      ${match.estimated_monthly_payment.toLocaleString()}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                                <Typography variant="body2" sx={{ mt: 2, fontStyle: 'italic' }}>
-                                  {match.recommendation_reason}
-                                </Typography>
-                                {match.lender.features.length > 0 && (
-                                  <Box sx={{ mt: 2 }}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Key Features:
-                                    </Typography>
-                                    <Stack direction="row" spacing={1} sx={{ mt: 0.5, flexWrap: 'wrap' }}>
-                                      {match.lender.features.slice(0, 3).map((feature, idx) => (
-                                        <Chip key={idx} label={feature} size="small" variant="outlined" />
-                                      ))}
-                                    </Stack>
-                                  </Box>
-                                )}
-                                <Box sx={{ mt: 2 }}>
-                                  <MuiLink
-                                    href={match.lender.affiliate_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
-                                  >
-                                    Apply Now <OpenInNew fontSize="small" />
-                                  </MuiLink>
-                                </Box>
-                              </Card.Body>
-                            </Card>
-                          ))}
-                        </Stack>
-                      </Card.Body>
-                    </Card>
-                  ) : lenderRecommendations && lenderRecommendations.total_matches === 0 ? (
-                    <Alert severity="info">
-                      <Typography variant="body2">
-                        {lenderRecommendations.request_summary.message || 
-                          'No lender recommendations available for this deal at this time.'}
+              {/* Overall Score */}
+              <Card shadow="lg" sx={{ mb: 3 }}>
+                <Card.Body>
+                  <Box sx={{ textAlign: "center", py: 2 }}>
+                    <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+                      {getScoreIcon(evaluation.score)}
+                    </Box>
+                    <Typography variant="h2" component="div" gutterBottom>
+                      {evaluation.score.toFixed(1)}
+                      <Typography variant="h5" component="span" color="text.secondary">
+                        /10
                       </Typography>
-                      {lenderRecommendations.request_summary.reason && (
-                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                          {lenderRecommendations.request_summary.reason}
-                        </Typography>
+                    </Typography>
+                    <Chip 
+                      label={getRecommendation(evaluation.score)}
+                      color={getScoreColor(evaluation.score)}
+                      sx={{ mt: 1, fontSize: "1rem", py: 2 }}
+                    />
+                  </Box>
+                </Card.Body>
+              </Card>
+
+              {/* Price Analysis */}
+              <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid item xs={12} md={6}>
+                  <Card>
+                    <Card.Body>
+                      <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center" }}>
+                        <AttachMoney sx={{ mr: 1 }} />
+                        Asking Price
+                      </Typography>
+                      <Typography variant="h4">
+                        ${vehicleData.price.toLocaleString()}
+                      </Typography>
+                    </Card.Body>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Card>
+                    <Card.Body>
+                      <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center" }}>
+                        <Security sx={{ mr: 1 }} />
+                        Fair Market Value
+                      </Typography>
+                      <Typography variant="h4">
+                        ${evaluation.fair_value.toLocaleString()}
+                      </Typography>
+                      {priceDifference !== 0 && (
+                        <Box sx={{ mt: 1, display: "flex", alignItems: "center" }}>
+                          {priceDifference > 0 ? (
+                            <>
+                              <TrendingUp color="error" sx={{ mr: 0.5 }} />
+                              <Typography variant="body2" color="error">
+                                ${Math.abs(priceDifference).toLocaleString()} above market
+                              </Typography>
+                            </>
+                          ) : (
+                            <>
+                              <TrendingDown color="success" sx={{ mr: 0.5 }} />
+                              <Typography variant="body2" color="success">
+                                ${Math.abs(priceDifference).toLocaleString()} below market
+                              </Typography>
+                            </>
+                          )}
+                        </Box>
                       )}
-                    </Alert>
-                  ) : null}
-                </Box>
+                    </Card.Body>
+                  </Card>
+                </Grid>
+              </Grid>
+
+              {/* Key Insights */}
+              {evaluation.insights.length > 0 && (
+                <Card sx={{ mb: 3 }}>
+                  <Card.Body>
+                    <Typography variant="h6" gutterBottom>
+                      Key Insights
+                    </Typography>
+                    <Divider sx={{ mb: 2 }} />
+                    <Stack spacing={1.5}>
+                      {evaluation.insights.map((insight, index) => (
+                        <Box key={index} sx={{ display: "flex", alignItems: "start" }}>
+                          <CheckCircle color="primary" sx={{ mr: 1.5, mt: 0.2, fontSize: 20 }} />
+                          <Typography variant="body1">{insight}</Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Card.Body>
+                </Card>
               )}
 
-              {/* Insights Panel */}
-              {getInsights().length > 0 && (
-                <Box sx={{ mb: 3 }}>
-                  <InsightsPanel insights={getInsights()} />
-                </Box>
+              {/* Negotiation Strategy */}
+              {evaluation.talking_points.length > 0 && (
+                <Card sx={{ mb: 3 }}>
+                  <Card.Body>
+                    <Typography variant="h6" gutterBottom>
+                      Negotiation Strategy
+                    </Typography>
+                    <Divider sx={{ mb: 2 }} />
+                    <Stack spacing={1.5}>
+                      {evaluation.talking_points.map((point, index) => (
+                        <Box key={index} sx={{ display: "flex", alignItems: "start" }}>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              minWidth: 24, 
+                              height: 24,
+                              borderRadius: "50%",
+                              bgcolor: "primary.main",
+                              color: "white",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              mr: 1.5,
+                              mt: 0.2,
+                              fontWeight: "bold"
+                            }}
+                          >
+                            {index + 1}
+                          </Typography>
+                          <Typography variant="body1">{point}</Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Card.Body>
+                </Card>
               )}
 
               {/* Action Buttons */}
@@ -609,52 +398,43 @@ function EvaluationContent() {
                   Go Back
                 </Button>
                 <Box sx={{ display: "flex", gap: 2 }}>
-                  {evaluationState.status === 'completed' ? (
+                  {shouldSearchMore(evaluation.score) ? (
                     <>
                       <Button
                         variant="danger"
                         size="lg"
+                        onClick={() => router.push("/deals")}
+                      >
+                        Skip This Deal
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="lg"
                         onClick={() => router.push("/dashboard/results")}
                       >
-                        Reject Deal
+                        Search More Vehicles
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={() => router.push("/dashboard/results")}
+                      >
+                        View More Options
                       </Button>
                       <Button
                         variant="success"
                         size="lg"
-                        disabled={loading}
-                        onClick={handleFinalize}
+                        onClick={() => router.push("/deals")}
                       >
-                        {loading ? "Finalizing..." : "Accept & Finalize Deal"}
+                        Proceed with This Deal
                       </Button>
                     </>
-                  ) : (
-                    evaluationState.status === 'analyzing' &&
-                    evaluationState.stepResult?.assessment && (
-                      <Button
-                        variant="primary"
-                        size="lg"
-                        disabled={loading}
-                        isLoading={loading}
-                        onClick={handleContinue}
-                      >
-                        Continue to Next Step
-                      </Button>
-                    )
                   )}
                 </Box>
               </Box>
-            </Box>
-          )}
-
-          {/* Loading State */}
-          {!evaluationState && vehicleData && !error && (
-            <Box sx={{ textAlign: "center", py: 8 }}>
-              <Typography variant="h6" gutterBottom>
-                Starting Evaluation...
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Analyzing vehicle data and generating insights
-              </Typography>
             </Box>
           )}
         </Container>
@@ -662,15 +442,16 @@ function EvaluationContent() {
     </Box>
   );
 }
+
 export default function EvaluationPage() {
   return (
     <Suspense fallback={
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
-        <Typography>Loading evaluation...</Typography>
+        <Spinner size="lg" />
+        <Typography sx={{ ml: 2 }}>Loading evaluation...</Typography>
       </Box>
     }>
       <EvaluationContent />
     </Suspense>
   );
 }
-
