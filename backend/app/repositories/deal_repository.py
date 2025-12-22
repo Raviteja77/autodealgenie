@@ -27,7 +27,6 @@ class DealRepository:
         deal = Deal(**deal_in.model_dump(mode='json'))
         if isinstance(deal_in.status, str):
             deal_in.status = NORMALIZE_STATUS.get(deal_in.status, DealStatus.IN_PROGRESS)
-        print("test testing: ", deal_in.status)
         self.db.add(deal)
         self.db.commit()
         self.db.refresh(deal)
