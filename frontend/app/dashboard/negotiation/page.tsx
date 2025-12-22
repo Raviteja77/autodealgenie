@@ -569,7 +569,7 @@ function NegotiationContent() {
   // Calculate progress
   const progress = (state.currentRound / state.maxRounds) * 100;
   const priceProgress =
-    state.vehicleData && latestPrice
+    state.vehicleData && latestPrice?.price
       ? ((state.vehicleData.price - latestPrice.price) /
           (state.vehicleData.price -
             (state.targetPrice || state.vehicleData.price * 0.9))) *
