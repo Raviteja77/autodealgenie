@@ -537,6 +537,14 @@ class ApiClient {
    * Search for cars with AI recommendations
    */
   async searchCars(params: CarSearchRequest): Promise<CarSearchResponse> {
+    // Check if all fields are null or empty
+    const hasSomeValue = Object.values(params).some(
+      (value) => value !== null && value !== ""
+    );
+
+    if (!hasSomeValue) {
+      throw new Error("At least one search criteria must be provided.");
+    }
     return this.request<CarSearchResponse>(`/api/v1/cars/search`, {
       method: "POST",
       body: JSON.stringify(params),

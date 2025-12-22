@@ -188,6 +188,11 @@ class LLMClient:
             # With response_format=json_object, we get valid JSON directly
             parsed_data = json.loads(content)
 
+            # If the LLM returns Markdown code block, remove the backticks and language identifier
+            if content.startswith("```json") and content.endswith("```"):
+                content = content[7:-3]
+                parsed_data = json.loads(content)
+
             # Validate with Pydantic model
             validated_response = response_model.model_validate(parsed_data)
             logger.info(

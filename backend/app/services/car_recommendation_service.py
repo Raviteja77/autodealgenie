@@ -167,7 +167,7 @@ class CarRecommendationService:
         min_year: int | None = None,
         max_year: int | None = None,
         max_mileage: int | None = None,
-        rows: int = 50,
+        rows: int = 10,
     ) -> dict[str, Any]:
         """
         Search MarketCheck API with retry logic for transient errors
@@ -325,7 +325,7 @@ class CarRecommendationService:
                 min_year=year_min,
                 max_year=year_max,
                 max_mileage=mileage_max,
-                rows=50,  # Get up to 50 results for LLM analysis
+                rows=10,  # Get up to 10 results for LLM analysis
             )
         except Exception as e:
             logger.error(f"MarketCheck API failed after retries: {e}")
