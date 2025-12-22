@@ -4,8 +4,15 @@ Repository pattern for Deal operations
 
 from sqlalchemy.orm import Session
 
-from app.models.models import Deal
+from app.models.models import Deal, DealStatus
 from app.schemas.schemas import DealCreate, DealUpdate
+
+NORMALIZE_STATUS = {
+    DealStatus.IN_PROGRESS: "in_progress",
+    "PENDING": DealStatus.PENDING,
+    "COMPLETED": DealStatus.COMPLETED,
+    "CANCELLED": DealStatus.CANCELLED,
+}
 
 
 class DealRepository:
@@ -16,7 +23,11 @@ class DealRepository:
 
     def create(self, deal_in: DealCreate) -> Deal:
         """Create a new deal"""
-        deal = Deal(**deal_in.model_dump())
+        # Use mode='json' to properly serialize enums to their string values
+        deal = Deal(**deal_in.model_dump(mode='json'))
+        if isinstance(deal_in.status, str):
+            deal_in.status = NORMALIZE_STATUS.get(deal_in.status, DealStatus.IN_PROGRESS)
+        print("test testing: ", deal_in.status)
         self.db.add(deal)
         self.db.commit()
         self.db.refresh(deal)
@@ -44,7 +55,8 @@ class DealRepository:
         if not deal:
             return None
 
-        update_data = deal_in.model_dump(exclude_unset=True)
+        # Use mode='json' to properly serialize enums
+        update_data = deal_in.model_dump(exclude_unset=True, mode='json')
         for field, value in update_data.items():
             setattr(deal, field, value)
 

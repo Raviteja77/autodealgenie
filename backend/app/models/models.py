@@ -41,7 +41,13 @@ class Deal(Base):
     vehicle_mileage = Column(Integer, default=0)
     asking_price = Column(Float, nullable=False)
     offer_price = Column(Float, nullable=True)
-    status = Column(Enum(DealStatus), default=DealStatus.PENDING, nullable=False, index=True)
+    # Use values_callable to ensure SQLAlchemy uses enum values not names
+    status = Column(
+        Enum(DealStatus, values_callable=lambda x: [e.value for e in x]),
+        default=DealStatus.PENDING.value,  # Use .value for default
+        nullable=False,
+        index=True
+    )
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
@@ -79,7 +85,11 @@ class WebhookSubscription(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False, index=True)
     webhook_url = Column(String(512), nullable=False)
-    status = Column(Enum(WebhookStatus), default=WebhookStatus.ACTIVE, nullable=False)
+    status = Column(
+        Enum(WebhookStatus, values_callable=lambda x: [e.value for e in x]),
+        default=WebhookStatus.ACTIVE.value,
+        nullable=False
+    )
 
     # Search criteria filters
     make = Column(String(100), nullable=True)

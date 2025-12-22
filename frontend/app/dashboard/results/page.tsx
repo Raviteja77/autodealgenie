@@ -463,11 +463,11 @@ function ResultsContent() {
         </Box> */}
 
           {/* AI Message */}
-          {searchMessage && (
+          {/* {searchMessage && (
             <Alert severity="info" sx={{ mb: 3 }}>
               {searchMessage}
             </Alert>
-          )}
+          )} */}
 
           {/* Toolbar with controls */}
           <Card shadow="sm" sx={{ mb: 3 }}>
