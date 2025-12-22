@@ -23,6 +23,9 @@ class UserPreferenceInput(BaseModel):
     user_priorities: str | None = Field(
         None, description="User's specific priorities or preferences"
     )
+    max_results: int | None = Field(
+        None, description="Maximum number of results to analyze", ge=1, le=100
+    )
 
     @model_validator(mode="after")
     def validate_ranges(self) -> "UserPreferenceInput":

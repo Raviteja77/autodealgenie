@@ -6,6 +6,7 @@ Enhanced with caching, rate limiting, retry logic, search history, and webhooks
 import hashlib
 import json
 import logging
+import os
 from typing import Any
 
 from app.llm import generate_structured_json
@@ -119,6 +120,37 @@ class CarRecommendationService:
         except Exception as e:
             logger.error(f"Error writing to cache: {e}")
 
+    def _get_file_cache_path(self, cache_key: str) -> str:
+        """Get path for file cache"""
+        cache_dir = "market_data_cache"
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+        # Sanitize key for filename
+        filename = cache_key.replace(":", "_") + ".json"
+        return os.path.join(cache_dir, filename)
+
+    def _get_from_file_cache(self, cache_key: str) -> dict[str, Any] | None:
+        """Get cached result from file system"""
+        try:
+            file_path = self._get_file_cache_path(cache_key)
+            if os.path.exists(file_path):
+                with open(file_path, "r") as f:
+                    logger.info(f"Loaded data from file cache: {file_path}")
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"Error reading file cache: {e}")
+        return None
+
+    def _save_to_file_cache(self, cache_key: str, data: dict[str, Any]) -> None:
+        """Save result to file system"""
+        try:
+            file_path = self._get_file_cache_path(cache_key)
+            with open(file_path, "w") as f:
+                json.dump(data, f, indent=2)
+            logger.info(f"Saved data to file cache: {file_path}")
+        except Exception as e:
+            logger.error(f"Error writing file cache: {e}")
+
     @retry(
         retry=retry_if_exception_type((ConnectionError, TimeoutError)),
         stop=stop_after_attempt(3),
@@ -135,7 +167,7 @@ class CarRecommendationService:
         min_year: int | None = None,
         max_year: int | None = None,
         max_mileage: int | None = None,
-        rows: int = 50,
+        rows: int = 10,
     ) -> dict[str, Any]:
         """
         Search MarketCheck API with retry logic for transient errors
@@ -215,6 +247,7 @@ class CarRecommendationService:
         year_max: int | None = None,
         mileage_max: int | None = None,
         user_priorities: str | None = None,
+        max_results: int | None = None,
         user_id: int | None = None,
         db_session=None,
     ) -> dict[str, Any]:
@@ -231,12 +264,16 @@ class CarRecommendationService:
             year_max: Maximum year
             mileage_max: Maximum mileage
             user_priorities: User's specific priorities or preferences
+            max_results: Maximum number of results to fetch and analyze (default: from settings)
             user_id: User ID for history tracking (optional)
             db_session: Database session for webhook operations (optional)
 
         Returns:
             Dictionary with search criteria and top vehicle recommendations
         """
+        # Use provided max_results or fall back to settings default
+        rows = max_results if max_results is not None else settings.MAX_SEARCH_RESULTS
+        
         # Generate cache key
         cache_key = self._generate_cache_key(
             make,
@@ -250,9 +287,11 @@ class CarRecommendationService:
             user_priorities,
         )
 
-        # Check cache first
+        # Multi-tier cache strategy: Redis (fast) → File (persistent fallback)
+        # Check Redis cache first (fast, in-memory)
         cached_result = await self._get_cached_result(cache_key)
         if cached_result:
+            logger.info("Cache hit from Redis")
             # Still log to search history even for cached results
             try:
                 await search_history_repository.create_search_record(
@@ -266,6 +305,25 @@ class CarRecommendationService:
 
             return cached_result
 
+        # Check file cache as fallback (persistent storage to avoid API costs)
+        file_cached_result = self._get_from_file_cache(cache_key)
+        if file_cached_result:
+            logger.info("Cache hit from file cache, updating Redis for faster subsequent access")
+            # Update Redis cache for faster subsequent access
+            await self._set_cached_result(cache_key, file_cached_result)
+            
+            # Log to history even for file cached results
+            try:
+                await search_history_repository.create_search_record(
+                    user_id=user_id,
+                    search_criteria=file_cached_result.get("search_criteria", {}),
+                    result_count=file_cached_result.get("total_found", 0),
+                    top_vehicles=file_cached_result.get("top_vehicles", []),
+                )
+            except Exception as e:
+                logger.error(f"Error logging file cached search to history: {e}")
+            return file_cached_result
+
         # Search MarketCheck API with retry logic
         try:
             api_response = await self._search_marketcheck_with_retry(
@@ -277,7 +335,7 @@ class CarRecommendationService:
                 min_year=year_min,
                 max_year=year_max,
                 max_mileage=mileage_max,
-                rows=50,  # Get up to 50 results for LLM analysis
+                rows=rows,  # Use configurable limit for LLM analysis
             )
         except Exception as e:
             logger.error(f"MarketCheck API failed after retries: {e}")
@@ -301,6 +359,7 @@ class CarRecommendationService:
 
             # Cache empty result
             await self._set_cached_result(cache_key, result)
+            self._save_to_file_cache(cache_key, result)
 
             # Log to history
             try:
@@ -336,6 +395,7 @@ class CarRecommendationService:
 
         # Cache result
         await self._set_cached_result(cache_key, result)
+        self._save_to_file_cache(cache_key, result)
 
         # Log to search history
         try:

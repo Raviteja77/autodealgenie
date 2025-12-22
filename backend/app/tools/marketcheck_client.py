@@ -29,7 +29,7 @@ class MarketCheckAPIClient:
         min_year: int | None = None,
         max_year: int | None = None,
         max_mileage: int | None = None,
-        rows: int = 50,
+        rows: int = 10,
     ) -> dict[str, Any]:
         """
         Search for cars using MarketCheck API

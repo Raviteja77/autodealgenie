@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useMemo, useState, useEffect, useRef, useCallback } from "react";
+import {
+  Suspense,
+  useMemo,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Box,
@@ -38,7 +45,11 @@ import {
   Chat as ChatIcon,
 } from "@mui/icons-material";
 import Link from "next/link";
-import { useStepper, useNegotiationChat, NegotiationChatProvider } from "@/app/context";
+import {
+  useStepper,
+  useNegotiationChat,
+  NegotiationChatProvider,
+} from "@/app/context";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -88,7 +99,7 @@ function NegotiationContent() {
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContext = useNegotiationChat();
-  
+
   // State management
   const [state, setState] = useState<NegotiationState>({
     sessionId: null,
@@ -113,9 +124,13 @@ function NegotiationContent() {
   const [counterOfferValue, setCounterOfferValue] = useState("");
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set([1]));
+  const [expandedRounds, setExpandedRounds] = useState<Set<number>>(
+    new Set([1])
+  );
   const [showFinancingPanel, setShowFinancingPanel] = useState(true);
-  const [lenderRecommendations, setLenderRecommendations] = useState<LenderMatch[] | null>(null);
+  const [lenderRecommendations, setLenderRecommendations] = useState<
+    LenderMatch[] | null
+  >(null);
   const [loadingLenders, setLoadingLenders] = useState(false);
   const [chatTabValue, setChatTabValue] = useState(0); // 0 = Negotiation Actions, 1 = Free Chat
   const [notification, setNotification] = useState<{
@@ -210,16 +225,14 @@ function NegotiationContent() {
           strategy: "moderate",
         });
 
-        console.log("Negotiation session created:", response);
-
         // Fetch full session details
-        const session = await apiClient.getNegotiationSession(response.session_id);
-
-        console.log("Fetched negotiation session:", session);
+        const session = await apiClient.getNegotiationSession(
+          response.session_id
+        );
 
         setState((prev) => ({
           ...prev,
-          sessionId: session.session_id,
+          sessionId: session.id,
           status: session.status,
           dealId: session.deal_id,
           vehicleData,
@@ -228,14 +241,15 @@ function NegotiationContent() {
           maxRounds: session.max_rounds,
           messages: session.messages,
           suggestedPrice: (response.metadata.suggested_price as number) || null,
-          financingOptions: (response.metadata.financing_options as FinancingOption[]) || null,
+          financingOptions:
+            (response.metadata.financing_options as FinancingOption[]) || null,
           cashSavings: (response.metadata.cash_savings as number) || null,
           confidence: 0.85, // Default confidence
           isLoading: false,
         }));
 
         // Initialize chat context with session ID and messages
-        chatContext.setSessionId(session.session_id);
+        chatContext.setSessionId(session.id);
         chatContext.setMessages(session.messages);
 
         setNotification({
@@ -244,7 +258,10 @@ function NegotiationContent() {
         });
       } catch (err) {
         console.error("Failed to initialize negotiation:", err);
-        const errorMessage = err instanceof Error ? err.message : "Failed to initialize negotiation session";
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Failed to initialize negotiation session";
         setState((prev) => ({
           ...prev,
           isLoading: false,
@@ -266,8 +283,10 @@ function NegotiationContent() {
     if (chatContext.messages.length > 0) {
       // Deduplicate messages by ID using a Set for O(n) performance
       const existingIds = new Set(state.messages.map((msg) => msg.id));
-      const newMessages = chatContext.messages.filter((msg) => !existingIds.has(msg.id));
-      
+      const newMessages = chatContext.messages.filter(
+        (msg) => !existingIds.has(msg.id)
+      );
+
       if (newMessages.length > 0) {
         setState((prev) => ({
           ...prev,
@@ -333,10 +352,12 @@ function NegotiationContent() {
       setLoadingLenders(true);
       try {
         // Use financing options from state if available, otherwise use defaults
-        const preferredTerm = state.financingOptions && state.financingOptions.length > 0
-          ? state.financingOptions.find(opt => opt.loan_term_months === 60)?.loan_term_months || 60
-          : 60;
-        
+        const preferredTerm =
+          state.financingOptions && state.financingOptions.length > 0
+            ? state.financingOptions.find((opt) => opt.loan_term_months === 60)
+                ?.loan_term_months || 60
+            : 60;
+
         const lenderRecs = await apiClient.getNegotiationLenderRecommendations(
           state.sessionId,
           preferredTerm,
@@ -347,14 +368,16 @@ function NegotiationContent() {
         console.error("Failed to fetch lender recommendations:", lenderErr);
         setNotification({
           type: "warning",
-          message: "Financing options are temporarily unavailable. Your deal is still complete!",
+          message:
+            "Financing options are temporarily unavailable. Your deal is still complete!",
         });
       } finally {
         setLoadingLenders(false);
       }
     } catch (err) {
       console.error("Failed to accept offer:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to accept offer";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to accept offer";
       setState((prev) => ({
         ...prev,
         isLoading: false,
@@ -394,7 +417,8 @@ function NegotiationContent() {
       });
     } catch (err) {
       console.error("Failed to reject offer:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to reject offer";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to reject offer";
       setState((prev) => ({
         ...prev,
         isLoading: false,
@@ -406,11 +430,9 @@ function NegotiationContent() {
 
   // Handle counter offer
   const handleCounterOffer = async () => {
-    console.log("Submitting counter offer:", counterOfferValue);
     if (!state.sessionId || !counterOfferValue) return;
 
     const counterPrice = parseFloat(counterOfferValue);
-    console.log("Debug price:", counterOfferValue, counterPrice); // Check what is being parsed
     if (isNaN(counterPrice) || counterPrice <= 0) {
       setNotification({
         type: "error",
@@ -436,8 +458,10 @@ function NegotiationContent() {
         ...prev,
         currentRound: session.current_round,
         messages: session.messages,
-        suggestedPrice: response.metadata.suggested_price || prev.suggestedPrice,
-        financingOptions: response.metadata.financing_options || prev.financingOptions,
+        suggestedPrice:
+          response.metadata.suggested_price || prev.suggestedPrice,
+        financingOptions:
+          response.metadata.financing_options || prev.financingOptions,
         cashSavings: response.metadata.cash_savings || prev.cashSavings,
         isLoading: false,
         isTyping: false,
@@ -452,7 +476,8 @@ function NegotiationContent() {
       });
     } catch (err) {
       console.error("Failed to submit counter offer:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to submit counter offer";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to submit counter offer";
       setState((prev) => ({
         ...prev,
         isLoading: false,
@@ -505,9 +530,13 @@ function NegotiationContent() {
 
   // Calculate progress
   const progress = (state.currentRound / state.maxRounds) * 100;
-  const priceProgress = state.vehicleData && state.suggestedPrice
-    ? ((state.vehicleData.price - state.suggestedPrice) / (state.vehicleData.price - (state.targetPrice || state.vehicleData.price * 0.9))) * 100
-    : 0;
+  const priceProgress =
+    state.vehicleData && state.suggestedPrice
+      ? ((state.vehicleData.price - state.suggestedPrice) /
+          (state.vehicleData.price -
+            (state.targetPrice || state.vehicleData.price * 0.9))) *
+        100
+      : 0;
 
   // Render deal outcome screens
   if (state.status === "completed") {
@@ -516,7 +545,9 @@ function NegotiationContent() {
         <Card shadow="lg">
           <Card.Body>
             <Box sx={{ textAlign: "center", py: 4 }}>
-              <CheckCircle sx={{ fontSize: 80, color: "success.main", mb: 2 }} />
+              <CheckCircle
+                sx={{ fontSize: 80, color: "success.main", mb: 2 }}
+              />
               <Typography variant="h4" gutterBottom>
                 Congratulations!
               </Typography>
@@ -545,92 +576,149 @@ function NegotiationContent() {
                 </Grid>
               </Grid>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                You saved ${((state.vehicleData?.price || 0) - (state.suggestedPrice || 0)).toLocaleString()}!
+                You saved $
+                {(
+                  (state.vehicleData?.price || 0) - (state.suggestedPrice || 0)
+                ).toLocaleString()}
+                !
               </Typography>
 
               {/* Lender Recommendations */}
               {loadingLenders && (
                 <>
                   <Divider sx={{ my: 3 }} />
-                  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      py: 4,
+                    }}
+                  >
                     <Spinner size="md" />
-                    <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ ml: 2 }}
+                    >
                       Finding the best financing options for you...
                     </Typography>
                   </Box>
                 </>
               )}
-              {!loadingLenders && lenderRecommendations && lenderRecommendations.length > 0 && (
-                <>
-                  <Divider sx={{ my: 3 }} />
-                  <Typography variant="h6" gutterBottom sx={{ textAlign: "left" }}>
-                    Financing Options
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" paragraph sx={{ textAlign: "left" }}>
-                    Top lenders matched to your profile
-                  </Typography>
-                  <Stack spacing={2} sx={{ mb: 3 }}>
-                    {lenderRecommendations.slice(0, 3).map((match) => (
-                      <Paper
-                        key={match.lender.lender_id}
-                        elevation={2}
-                        sx={{
-                          p: 2,
-                          border: match.rank === 1 ? 2 : 1,
-                          borderColor: match.rank === 1 ? "primary.main" : "divider",
-                        }}
-                      >
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "start", mb: 1 }}>
-                          <Box>
-                            {match.rank === 1 && (
-                              <Chip label="Best Match" color="primary" size="small" sx={{ mb: 1 }} />
-                            )}
-                            <Typography variant="subtitle1" fontWeight="bold">
-                              {match.lender.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {match.recommendation_reason}
+              {!loadingLenders &&
+                lenderRecommendations &&
+                lenderRecommendations.length > 0 && (
+                  <>
+                    <Divider sx={{ my: 3 }} />
+                    <Typography
+                      variant="h6"
+                      gutterBottom
+                      sx={{ textAlign: "left" }}
+                    >
+                      Financing Options
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      paragraph
+                      sx={{ textAlign: "left" }}
+                    >
+                      Top lenders matched to your profile
+                    </Typography>
+                    <Stack spacing={2} sx={{ mb: 3 }}>
+                      {lenderRecommendations.slice(0, 3).map((match) => (
+                        <Paper
+                          key={match.lender.lender_id}
+                          elevation={2}
+                          sx={{
+                            p: 2,
+                            border: match.rank === 1 ? 2 : 1,
+                            borderColor:
+                              match.rank === 1 ? "primary.main" : "divider",
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "start",
+                              mb: 1,
+                            }}
+                          >
+                            <Box>
+                              {match.rank === 1 && (
+                                <Chip
+                                  label="Best Match"
+                                  color="primary"
+                                  size="small"
+                                  sx={{ mb: 1 }}
+                                />
+                              )}
+                              <Typography variant="subtitle1" fontWeight="bold">
+                                {match.lender.name}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                {match.recommendation_reason}
+                              </Typography>
+                            </Box>
+                            <Typography variant="h6" color="primary.main">
+                              {(match.estimated_apr * 100).toFixed(2)}% APR
                             </Typography>
                           </Box>
-                          <Typography variant="h6" color="primary.main">
-                            {(match.estimated_apr * 100).toFixed(2)}% APR
-                          </Typography>
-                        </Box>
-                        <Divider sx={{ my: 1 }} />
-                        <Grid container spacing={2}>
-                          <Grid item xs={6}>
-                            <Typography variant="caption" color="text.secondary">
-                              Estimated Payment
-                            </Typography>
-                            <Typography variant="body2" fontWeight="medium">
-                              ${match.estimated_monthly_payment.toLocaleString()}/mo
-                            </Typography>
+                          <Divider sx={{ my: 1 }} />
+                          <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Estimated Payment
+                              </Typography>
+                              <Typography variant="body2" fontWeight="medium">
+                                $
+                                {match.estimated_monthly_payment.toLocaleString()}
+                                /mo
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Match Score
+                              </Typography>
+                              <Typography variant="body2" fontWeight="medium">
+                                {match.match_score.toFixed(0)}/100
+                              </Typography>
+                            </Grid>
                           </Grid>
-                          <Grid item xs={6}>
-                            <Typography variant="caption" color="text.secondary">
-                              Match Score
-                            </Typography>
-                            <Typography variant="body2" fontWeight="medium">
-                              {match.match_score.toFixed(0)}/100
-                            </Typography>
-                          </Grid>
-                        </Grid>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          fullWidth
-                          sx={{ mt: 2 }}
-                          onClick={() => window.open(match.lender.affiliate_url, "_blank")}
-                        >
-                          Apply Now
-                        </Button>
-                      </Paper>
-                    ))}
-                  </Stack>
-                </>
-              )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            fullWidth
+                            sx={{ mt: 2 }}
+                            onClick={() =>
+                              window.open(match.lender.affiliate_url, "_blank")
+                            }
+                          >
+                            Apply Now
+                          </Button>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </>
+                )}
 
-              <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 3 }}>
+              <Stack
+                direction="row"
+                spacing={2}
+                justifyContent="center"
+                sx={{ mt: 3 }}
+              >
                 <Button
                   variant="primary"
                   onClick={() => {
@@ -640,17 +728,24 @@ function NegotiationContent() {
                         make: state.vehicleData.make,
                         model: state.vehicleData.model,
                         year: state.vehicleData.year.toString(),
-                        price: (state.suggestedPrice || state.vehicleData.price).toString(),
+                        price: (
+                          state.suggestedPrice || state.vehicleData.price
+                        ).toString(),
                         mileage: state.vehicleData.mileage.toString(),
                         fuelType: state.vehicleData.fuelType || "",
                       });
-                      router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
+                      router.push(
+                        `/dashboard/evaluation?${vehicleParams.toString()}`
+                      );
                     }
                   }}
                 >
                   Evaluate Deal
                 </Button>
-                <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
+                <Link
+                  href="/dashboard/search"
+                  style={{ textDecoration: "none" }}
+                >
                   <Button variant="outline">Search More Vehicles</Button>
                 </Link>
               </Stack>
@@ -672,14 +767,26 @@ function NegotiationContent() {
                 Negotiation Cancelled
               </Typography>
               <Typography variant="body1" color="text.secondary" paragraph>
-                You&apos;ve cancelled the negotiation for this vehicle. Don&apos;t worry, there
-                are plenty of other great deals waiting for you!
+                You&apos;ve cancelled the negotiation for this vehicle.
+                Don&apos;t worry, there are plenty of other great deals waiting
+                for you!
               </Typography>
-              <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 3 }}>
-                <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
+              <Stack
+                direction="row"
+                spacing={2}
+                justifyContent="center"
+                sx={{ mt: 3 }}
+              >
+                <Link
+                  href="/dashboard/search"
+                  style={{ textDecoration: "none" }}
+                >
                   <Button variant="primary">Search More Vehicles</Button>
                 </Link>
-                <Link href="/dashboard/results" style={{ textDecoration: "none" }}>
+                <Link
+                  href="/dashboard/results"
+                  style={{ textDecoration: "none" }}
+                >
                   <Button variant="outline">Back to Results</Button>
                 </Link>
               </Stack>
@@ -713,7 +820,10 @@ function NegotiationContent() {
               <Typography variant="body2" sx={{ mb: 2 }}>
                 {state.error}
               </Typography>
-              <Link href="/dashboard/results" style={{ textDecoration: "none" }}>
+              <Link
+                href="/dashboard/results"
+                style={{ textDecoration: "none" }}
+              >
                 <Button variant="primary" size="sm">
                   Back to Results
                 </Button>
@@ -723,7 +833,14 @@ function NegotiationContent() {
 
           {/* Loading State */}
           {state.isLoading && state.messages.length === 0 && (
-            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 8 }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                py: 8,
+              }}
+            >
               <Spinner size="lg" />
               <Typography variant="h6" sx={{ ml: 2 }}>
                 Starting your negotiation...
@@ -742,14 +859,24 @@ function NegotiationContent() {
                       Vehicle Details
                     </Typography>
                     <Box sx={{ mb: 2 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-                        <DirectionsCar sx={{ mr: 1, color: "primary.main", fontSize: 20 }} />
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", mb: 1 }}
+                      >
+                        <DirectionsCar
+                          sx={{ mr: 1, color: "primary.main", fontSize: 20 }}
+                        />
                         <Typography variant="body2" fontWeight="medium">
-                          {vehicleData.year} {vehicleData.make} {vehicleData.model}
+                          {vehicleData.year} {vehicleData.make}{" "}
+                          {vehicleData.model}
                         </Typography>
                       </Box>
                       {vehicleData.vin && (
-                        <Typography variant="caption" color="text.secondary" display="block" sx={{ ml: 3 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          display="block"
+                          sx={{ ml: 3 }}
+                        >
                           VIN: {vehicleData.vin}
                         </Typography>
                       )}
@@ -761,7 +888,13 @@ function NegotiationContent() {
                       Price Tracking
                     </Typography>
                     <Box sx={{ mb: 2 }}>
-                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 1,
+                        }}
+                      >
                         <Typography variant="caption" color="text.secondary">
                           Asking Price
                         </Typography>
@@ -769,7 +902,13 @@ function NegotiationContent() {
                           ${vehicleData.price.toLocaleString()}
                         </Typography>
                       </Box>
-                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 1,
+                        }}
+                      >
                         <Typography variant="caption" color="text.secondary">
                           Your Target
                         </Typography>
@@ -778,11 +917,21 @@ function NegotiationContent() {
                         </Typography>
                       </Box>
                       {state.suggestedPrice && (
-                        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            mb: 1,
+                          }}
+                        >
                           <Typography variant="caption" color="text.secondary">
                             Current Offer
                           </Typography>
-                          <Typography variant="body2" color="success.main" fontWeight="bold">
+                          <Typography
+                            variant="body2"
+                            color="success.main"
+                            fontWeight="bold"
+                          >
                             ${state.suggestedPrice.toLocaleString()}
                           </Typography>
                         </Box>
@@ -791,9 +940,17 @@ function NegotiationContent() {
 
                     {/* Price Progress */}
                     <Box sx={{ mb: 2 }}>
-                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 0.5,
+                        }}
+                      >
                         <Typography variant="caption">Progress</Typography>
-                        <Typography variant="caption">{Math.round(priceProgress)}%</Typography>
+                        <Typography variant="caption">
+                          {Math.round(priceProgress)}%
+                        </Typography>
                       </Box>
                       <LinearProgress
                         variant="determinate"
@@ -808,11 +965,19 @@ function NegotiationContent() {
                       Negotiation Progress
                     </Typography>
                     <Box sx={{ mb: 2 }}>
-                      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mb: 0.5,
+                        }}
+                      >
                         <Typography variant="caption">
                           Round {state.currentRound} of {state.maxRounds}
                         </Typography>
-                        <Typography variant="caption">{Math.round(progress)}%</Typography>
+                        <Typography variant="caption">
+                          {Math.round(progress)}%
+                        </Typography>
                       </Box>
                       <LinearProgress
                         variant="determinate"
@@ -825,14 +990,20 @@ function NegotiationContent() {
                     <Divider sx={{ my: 2 }} />
 
                     <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-                      <Speed sx={{ mr: 1, color: "text.secondary", fontSize: 18 }} />
+                      <Speed
+                        sx={{ mr: 1, color: "text.secondary", fontSize: 18 }}
+                      />
                       <Typography variant="caption">
                         {vehicleData.mileage.toLocaleString()} miles
                       </Typography>
                     </Box>
                     <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <LocalGasStation sx={{ mr: 1, color: "text.secondary", fontSize: 18 }} />
-                      <Typography variant="caption">{vehicleData.fuelType}</Typography>
+                      <LocalGasStation
+                        sx={{ mr: 1, color: "text.secondary", fontSize: 18 }}
+                      />
+                      <Typography variant="caption">
+                        {vehicleData.fuelType}
+                      </Typography>
                     </Box>
                   </Card.Body>
                 </Card>
@@ -840,10 +1011,25 @@ function NegotiationContent() {
 
               {/* Chat Interface - Center */}
               <Grid item xs={12} md={6}>
-                <Paper elevation={3} sx={{ height: "700px", display: "flex", flexDirection: "column" }}>
+                <Paper
+                  elevation={3}
+                  sx={{
+                    height: "700px",
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
                   {/* Header with Tabs */}
                   <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-                    <Box sx={{ px: 2, pt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Box
+                      sx={{
+                        px: 2,
+                        pt: 2,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
                       <Box>
                         <Typography variant="h6">Negotiation Chat</Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -858,9 +1044,20 @@ function NegotiationContent() {
                         sx={{ ml: 1 }}
                       />
                     </Box>
-                    <Tabs value={chatTabValue} onChange={(_, v) => setChatTabValue(v)}>
-                      <Tab label="Actions" icon={<AttachMoney />} iconPosition="start" />
-                      <Tab label="Chat" icon={<ChatIcon />} iconPosition="start" />
+                    <Tabs
+                      value={chatTabValue}
+                      onChange={(_, v) => setChatTabValue(v)}
+                    >
+                      <Tab
+                        label="Actions"
+                        icon={<AttachMoney />}
+                        iconPosition="start"
+                      />
+                      <Tab
+                        label="Chat"
+                        icon={<ChatIcon />}
+                        iconPosition="start"
+                      />
                     </Tabs>
                   </Box>
 
@@ -876,117 +1073,177 @@ function NegotiationContent() {
                       bgcolor: "grey.50",
                     }}
                   >
-                    {Object.entries(messagesByRound).map(([round, roundMessages]) => (
-                      <Box key={round}>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            mb: 1,
-                          }}
-                        >
-                          <Chip
-                            label={`Round ${round}`}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                          <IconButton
-                            size="small"
-                            onClick={() => toggleRoundExpansion(Number(round))}
+                    {Object.entries(messagesByRound).map(
+                      ([round, roundMessages]) => (
+                        <Box key={round}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              mb: 1,
+                            }}
                           >
-                            {expandedRounds.has(Number(round)) ? <ExpandLess /> : <ExpandMore />}
-                          </IconButton>
-                        </Box>
+                            <Chip
+                              label={`Round ${round}`}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
+                            <IconButton
+                              size="small"
+                              onClick={() =>
+                                toggleRoundExpansion(Number(round))
+                              }
+                            >
+                              {expandedRounds.has(Number(round)) ? (
+                                <ExpandLess />
+                              ) : (
+                                <ExpandMore />
+                              )}
+                            </IconButton>
+                          </Box>
 
-                        <Collapse in={expandedRounds.has(Number(round))}>
-                          <Stack spacing={1.5}>
-                            {roundMessages.map((message) => (
-                              <Box
-                                key={message.id}
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: message.role === "user" ? "flex-end" : "flex-start",
-                                  gap: 1,
-                                }}
-                              >
-                                {message.role === "agent" && (
-                                  <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36 }}>
-                                    <SmartToy fontSize="small" />
-                                  </Avatar>
-                                )}
-                                <Paper
-                                  elevation={2}
+                          <Collapse in={expandedRounds.has(Number(round))}>
+                            <Stack spacing={1.5}>
+                              {roundMessages.map((message) => (
+                                <Box
+                                  key={message.id}
                                   sx={{
-                                    p: 1.5,
-                                    maxWidth: "75%",
-                                    bgcolor: message.role === "user" ? "primary.main" : "white",
-                                    color: message.role === "user" ? "primary.contrastText" : "text.primary",
-                                    borderRadius: 2,
+                                    display: "flex",
+                                    justifyContent:
+                                      message.role === "user"
+                                        ? "flex-end"
+                                        : "flex-start",
+                                    gap: 1,
                                   }}
                                 >
-                                  {message.metadata?.message_type === "dealer_info" && (
-                                    <Chip
-                                      label={message.metadata?.info_type || "Dealer Info"}
-                                      size="small"
-                                      color="info"
-                                      sx={{ mb: 1 }}
-                                    />
+                                  {message.role === "agent" && (
+                                    <Avatar
+                                      sx={{
+                                        bgcolor: "primary.main",
+                                        width: 36,
+                                        height: 36,
+                                      }}
+                                    >
+                                      <SmartToy fontSize="small" />
+                                    </Avatar>
                                   )}
-                                  <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-                                    {message.content}
-                                  </Typography>
-                                  {typeof message.metadata?.suggested_price === "number" && (
+                                  <Paper
+                                    elevation={2}
+                                    sx={{
+                                      p: 1.5,
+                                      maxWidth: "75%",
+                                      bgcolor:
+                                        message.role === "user"
+                                          ? "primary.main"
+                                          : "white",
+                                      color:
+                                        message.role === "user"
+                                          ? "primary.contrastText"
+                                          : "text.primary",
+                                      borderRadius: 2,
+                                    }}
+                                  >
+                                    {message.metadata?.message_type ===
+                                      "dealer_info" && (
+                                      <Chip
+                                        label={`${message.metadata?.info_type} || Dealer Info`}
+                                        size="small"
+                                        color="info"
+                                        sx={{ mb: 1 }}
+                                      />
+                                    )}
+                                    <Typography
+                                      variant="body2"
+                                      sx={{ whiteSpace: "pre-wrap" }}
+                                    >
+                                      {message.content}
+                                    </Typography>
+                                    {typeof message.metadata
+                                      ?.suggested_price === "number" && (
+                                      <Typography
+                                        variant="caption"
+                                        sx={{
+                                          display: "block",
+                                          mt: 0.5,
+                                          fontWeight: "bold",
+                                          color:
+                                            message.role === "user"
+                                              ? "inherit"
+                                              : "success.main",
+                                        }}
+                                      >
+                                        Suggested: $
+                                        {message.metadata.suggested_price.toLocaleString()}
+                                      </Typography>
+                                    )}
+                                    {message.metadata?.recommended_action ? (
+                                      <Chip
+                                        label={`Recommended: ${message.metadata.recommended_action}`}
+                                        size="small"
+                                        color="success"
+                                        sx={{ mt: 1 }}
+                                      />
+                                    ) : (
+                                      ""
+                                    )}
                                     <Typography
                                       variant="caption"
                                       sx={{
                                         display: "block",
                                         mt: 0.5,
-                                        fontWeight: "bold",
-                                        color: message.role === "user" ? "inherit" : "success.main",
+                                        opacity: 0.7,
                                       }}
                                     >
-                                      Suggested: ${message.metadata.suggested_price.toLocaleString()}
+                                      {new Date(
+                                        message.created_at
+                                      ).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
                                     </Typography>
+                                  </Paper>
+                                  {message.role === "user" && (
+                                    <Avatar
+                                      sx={{
+                                        bgcolor: "secondary.main",
+                                        width: 36,
+                                        height: 36,
+                                      }}
+                                    >
+                                      <Person fontSize="small" />
+                                    </Avatar>
                                   )}
-                                  {message.metadata?.recommended_action && (
-                                    <Chip
-                                      label={`Recommended: ${message.metadata.recommended_action}`}
-                                      size="small"
-                                      color="success"
-                                      sx={{ mt: 1 }}
-                                    />
-                                  )}
-                                  <Typography
-                                    variant="caption"
-                                    sx={{ display: "block", mt: 0.5, opacity: 0.7 }}
-                                  >
-                                    {new Date(message.created_at).toLocaleTimeString([], {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </Typography>
-                                </Paper>
-                                {message.role === "user" && (
-                                  <Avatar sx={{ bgcolor: "secondary.main", width: 36, height: 36 }}>
-                                    <Person fontSize="small" />
-                                  </Avatar>
-                                )}
-                              </Box>
-                            ))}
-                          </Stack>
-                        </Collapse>
-                      </Box>
-                    ))}
+                                </Box>
+                              ))}
+                            </Stack>
+                          </Collapse>
+                        </Box>
+                      )
+                    )}
 
                     {state.isTyping && (
-                      <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-                        <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 1,
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <Avatar
+                          sx={{
+                            bgcolor: "primary.main",
+                            width: 36,
+                            height: 36,
+                          }}
+                        >
                           <SmartToy fontSize="small" />
                         </Avatar>
                         <Paper elevation={2} sx={{ p: 1.5, borderRadius: 2 }}>
-                          <Typography variant="body2">AI is thinking...</Typography>
+                          <Typography variant="body2">
+                            AI is thinking...
+                          </Typography>
                         </Paper>
                       </Box>
                     )}
@@ -995,18 +1252,37 @@ function NegotiationContent() {
 
                   {/* Chat Error Display */}
                   {chatContext.error && (
-                    <Alert severity="error" onClose={chatContext.clearError} sx={{ m: 1 }}>
+                    <Alert
+                      severity="error"
+                      onClose={chatContext.clearError}
+                      sx={{ m: 1 }}
+                    >
                       {chatContext.error}
                     </Alert>
                   )}
 
                   {/* Action Buttons or Chat Input */}
                   {chatTabValue === 0 && (
-                    <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
-                      <Typography variant="caption" color="text.secondary" gutterBottom display="block">
+                    <Box
+                      sx={{
+                        p: 2,
+                        borderTop: 1,
+                        borderColor: "divider",
+                        bgcolor: "background.paper",
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        gutterBottom
+                        display="block"
+                      >
                         Choose your negotiation action:
                       </Typography>
-                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={1}
+                      >
                         <Button
                           variant="success"
                           size="sm"
@@ -1023,7 +1299,10 @@ function NegotiationContent() {
                           fullWidth
                           leftIcon={<AttachMoney />}
                           onClick={() => setShowCounterOfferModal(true)}
-                          disabled={state.isLoading || state.currentRound >= state.maxRounds}
+                          disabled={
+                            state.isLoading ||
+                            state.currentRound >= state.maxRounds
+                          }
                         >
                           Counter Offer
                         </Button>
@@ -1042,7 +1321,14 @@ function NegotiationContent() {
                   )}
 
                   {chatTabValue === 1 && (
-                    <Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "background.paper" }}>
+                    <Box
+                      sx={{
+                        p: 2,
+                        borderTop: 1,
+                        borderColor: "divider",
+                        bgcolor: "background.paper",
+                      }}
+                    >
                       <ChatInput
                         onSendMessage={handleChatMessage}
                         onSendDealerInfo={handleDealerInfo}
@@ -1068,7 +1354,9 @@ function NegotiationContent() {
                       <Typography variant="subtitle2" gutterBottom>
                         Deal Confidence
                       </Typography>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
                         <LinearProgress
                           variant="determinate"
                           value={(state.confidence || 0) * 100}
@@ -1094,25 +1382,41 @@ function NegotiationContent() {
                       Recommendations
                     </Typography>
                     <Stack spacing={1} sx={{ mb: 3 }}>
-                      {state.suggestedPrice && state.targetPrice && state.suggestedPrice <= state.targetPrice && (
-                        <Alert severity="success" icon={<TrendingDown />} sx={{ py: 0.5 }}>
-                          <Typography variant="caption">
-                            You&apos;re below your target! Consider accepting.
-                          </Typography>
-                        </Alert>
-                      )}
+                      {state.suggestedPrice &&
+                        state.targetPrice &&
+                        state.suggestedPrice <= state.targetPrice && (
+                          <Alert
+                            severity="success"
+                            icon={<TrendingDown />}
+                            sx={{ py: 0.5 }}
+                          >
+                            <Typography variant="caption">
+                              You&apos;re below your target! Consider accepting.
+                            </Typography>
+                          </Alert>
+                        )}
                       {state.currentRound > state.maxRounds * 0.7 && (
-                        <Alert severity="warning" icon={<Warning />} sx={{ py: 0.5 }}>
+                        <Alert
+                          severity="warning"
+                          icon={<Warning />}
+                          sx={{ py: 0.5 }}
+                        >
                           <Typography variant="caption">
                             Approaching max rounds. Consider finalizing soon.
                           </Typography>
                         </Alert>
                       )}
                       {state.suggestedPrice && vehicleData.price && (
-                        <Alert severity="info" icon={<TrendingUp />} sx={{ py: 0.5 }}>
+                        <Alert
+                          severity="info"
+                          icon={<TrendingUp />}
+                          sx={{ py: 0.5 }}
+                        >
                           <Typography variant="caption">
                             Current savings: $
-                            {(vehicleData.price - state.suggestedPrice).toLocaleString()}
+                            {(
+                              vehicleData.price - state.suggestedPrice
+                            ).toLocaleString()}
                           </Typography>
                         </Alert>
                       )}
@@ -1121,71 +1425,140 @@ function NegotiationContent() {
                     <Divider sx={{ my: 2 }} />
 
                     {/* Financing Options */}
-                    {state.financingOptions && state.financingOptions.length > 0 && showFinancingPanel && (
-                      <>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                          <Typography variant="subtitle2">
-                            Financing Options
-                          </Typography>
-                          <IconButton size="small" onClick={() => setShowFinancingPanel(false)}>
-                            <ExpandLess />
-                          </IconButton>
-                        </Box>
-                        <Stack spacing={1} sx={{ mb: 2 }}>
-                          {state.financingOptions.slice(0, 2).map((option) => (
-                            <Paper
-                              key={option.loan_term_months}
-                              elevation={1}
-                              sx={{ p: 1.5, bgcolor: "background.default" }}
-                            >
-                              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
-                                <Typography variant="caption" fontWeight="bold">
-                                  {option.loan_term_months} months
-                                </Typography>
-                                <Typography variant="caption" color="primary.main" fontWeight="bold">
-                                  ${option.monthly_payment_estimate.toLocaleString()}/mo
-                                </Typography>
-                              </Box>
-                              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                                <Typography variant="caption" color="text.secondary">
-                                  {(option.estimated_apr * 100).toFixed(2)}% APR
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  Total: ${option.total_cost.toLocaleString()}
-                                </Typography>
-                              </Box>
-                            </Paper>
-                          ))}
-                        </Stack>
-                        {state.cashSavings && state.cashSavings > 0 && (
-                          <Alert severity="info" sx={{ py: 0.5 }}>
-                            <Typography variant="caption">
-                              Save ${state.cashSavings.toLocaleString()} by paying cash vs 60-mo loan
-                            </Typography>
-                          </Alert>
-                        )}
-                        <Divider sx={{ my: 2 }} />
-                      </>
-                    )}
-                    {state.financingOptions && state.financingOptions.length > 0 && !showFinancingPanel && (
-                      <>
-                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {state.financingOptions &&
+                      state.financingOptions.length > 0 &&
+                      showFinancingPanel && (
+                        <>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              mb: 1,
+                            }}
+                          >
                             <Typography variant="subtitle2">
                               Financing Options
                             </Typography>
-                            <Chip label="Available" size="small" color="info" />
+                            <IconButton
+                              size="small"
+                              onClick={() => setShowFinancingPanel(false)}
+                            >
+                              <ExpandLess />
+                            </IconButton>
                           </Box>
-                          <IconButton size="small" onClick={() => setShowFinancingPanel(true)}>
-                            <ExpandMore />
-                          </IconButton>
-                        </Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
-                          Click to view financing details
-                        </Typography>
-                        <Divider sx={{ my: 2 }} />
-                      </>
-                    )}
+                          <Stack spacing={1} sx={{ mb: 2 }}>
+                            {state.financingOptions
+                              .slice(0, 2)
+                              .map((option) => (
+                                <Paper
+                                  key={option.loan_term_months}
+                                  elevation={1}
+                                  sx={{ p: 1.5, bgcolor: "background.default" }}
+                                >
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      mb: 0.5,
+                                    }}
+                                  >
+                                    <Typography
+                                      variant="caption"
+                                      fontWeight="bold"
+                                    >
+                                      {option.loan_term_months} months
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      color="primary.main"
+                                      fontWeight="bold"
+                                    >
+                                      $
+                                      {option.monthly_payment_estimate.toLocaleString()}
+                                      /mo
+                                    </Typography>
+                                  </Box>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                    }}
+                                  >
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      {(option.estimated_apr * 100).toFixed(2)}%
+                                      APR
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      Total: $
+                                      {option.total_cost.toLocaleString()}
+                                    </Typography>
+                                  </Box>
+                                </Paper>
+                              ))}
+                          </Stack>
+                          {state.cashSavings && state.cashSavings > 0 && (
+                            <Alert severity="info" sx={{ py: 0.5 }}>
+                              <Typography variant="caption">
+                                Save ${state.cashSavings.toLocaleString()} by
+                                paying cash vs 60-mo loan
+                              </Typography>
+                            </Alert>
+                          )}
+                          <Divider sx={{ my: 2 }} />
+                        </>
+                      )}
+                    {state.financingOptions &&
+                      state.financingOptions.length > 0 &&
+                      !showFinancingPanel && (
+                        <>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              mb: 1,
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                              }}
+                            >
+                              <Typography variant="subtitle2">
+                                Financing Options
+                              </Typography>
+                              <Chip
+                                label="Available"
+                                size="small"
+                                color="info"
+                              />
+                            </Box>
+                            <IconButton
+                              size="small"
+                              onClick={() => setShowFinancingPanel(true)}
+                            >
+                              <ExpandMore />
+                            </IconButton>
+                          </Box>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: "block", mb: 2 }}
+                          >
+                            Click to view financing details
+                          </Typography>
+                          <Divider sx={{ my: 2 }} />
+                        </>
+                      )}
 
                     {/* Strategy Tips */}
                     <Typography variant="subtitle2" gutterBottom>
@@ -1225,8 +1598,8 @@ function NegotiationContent() {
       >
         <Box sx={{ p: 2 }}>
           <Typography variant="body2" color="text.secondary" paragraph>
-            Enter your counter offer price. Be realistic and strategic to keep the negotiation
-            moving forward.
+            Enter your counter offer price. Be realistic and strategic to keep
+            the negotiation moving forward.
           </Typography>
           <TextField
             fullWidth
@@ -1246,7 +1619,11 @@ function NegotiationContent() {
             </Typography>
           )}
           <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
-            <Button variant="outline" fullWidth onClick={() => setShowCounterOfferModal(false)}>
+            <Button
+              variant="outline"
+              fullWidth
+              onClick={() => setShowCounterOfferModal(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -1277,7 +1654,11 @@ function NegotiationContent() {
             This will complete the negotiation and move forward with the deal.
           </Typography>
           <Stack direction="row" spacing={2}>
-            <Button variant="outline" fullWidth onClick={() => setShowAcceptDialog(false)}>
+            <Button
+              variant="outline"
+              fullWidth
+              onClick={() => setShowAcceptDialog(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -1304,10 +1685,15 @@ function NegotiationContent() {
             Are you sure you want to cancel this negotiation?
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
-            This will end the current negotiation session. You can always start a new one later.
+            This will end the current negotiation session. You can always start
+            a new one later.
           </Typography>
           <Stack direction="row" spacing={2}>
-            <Button variant="outline" fullWidth onClick={() => setShowRejectDialog(false)}>
+            <Button
+              variant="outline"
+              fullWidth
+              onClick={() => setShowRejectDialog(false)}
+            >
               Go Back
             </Button>
             <Button
@@ -1329,7 +1715,14 @@ export default function NegotiationPage() {
   return (
     <Suspense
       fallback={
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "100vh",
+          }}
+        >
           <Spinner size="lg" />
           <Typography sx={{ ml: 2 }}>Loading negotiation...</Typography>
         </Box>

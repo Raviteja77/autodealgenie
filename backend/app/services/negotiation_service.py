@@ -406,7 +406,7 @@ class NegotiationService:
 
         try:
             # Use centralized LLM client
-            response_content = await generate_text(
+            response_content = generate_text(
                 prompt_id="negotiation_initial",
                 variables={
                     "make": deal.vehicle_make,
@@ -570,7 +570,7 @@ class NegotiationService:
 
         try:
             # Use centralized LLM client
-            response_content = await generate_text(
+            response_content = generate_text(
                 prompt_id="negotiation_counter",
                 variables={
                     "make": deal.vehicle_make,
@@ -856,7 +856,7 @@ class NegotiationService:
 
         try:
             # Use centralized LLM client
-            response_content = await generate_text(
+            response_content = generate_text(
                 prompt_id="negotiation_chat",
                 variables={
                     "make": deal.vehicle_make,
@@ -885,7 +885,7 @@ class NegotiationService:
             # Fallback response
             fallback_content = (
                 "Thank you for your message. I'm here to help you with your negotiation. "
-                "Could you please rephrase your question or provide more specific details?"
+                "LLM service is currently unavailable, but I recommend staying focused on your target price."
             )
 
             return {
@@ -1043,7 +1043,7 @@ class NegotiationService:
 
         try:
             # Use centralized LLM client
-            response_content = await generate_text(
+            response_content = generate_text(
                 prompt_id="dealer_info_analysis",
                 variables={
                     "make": deal.vehicle_make,

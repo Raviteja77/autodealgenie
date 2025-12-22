@@ -68,7 +68,6 @@ function Header({ noButton = false }: HeaderProps) {
     router.push("/auth/login");
   };
 
-  console.log("button: ", noButton);
   return (
     <AppBar
       position="fixed"

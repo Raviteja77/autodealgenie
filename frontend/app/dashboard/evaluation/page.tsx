@@ -193,9 +193,9 @@ function EvaluationContent() {
               <Typography variant="body2" sx={{ mb: 2 }}>
                 Invalid vehicle data. Please select a vehicle from the search results.
               </Typography>
-              <Link href="/dashboard/results" style={{ textDecoration: "none" }}>
+              <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
                 <Button variant="success" size="sm">
-                  Back to Results
+                  Back to Search
                 </Button>
               </Link>
             </Alert>
@@ -399,7 +399,7 @@ function EvaluationContent() {
                       <Button
                         variant="primary"
                         size="lg"
-                        onClick={() => router.push("/dashboard/results")}
+                        onClick={() => router.push("/dashboard/search")}
                       >
                         Search More Vehicles
                       </Button>
@@ -409,7 +409,7 @@ function EvaluationContent() {
                       <Button
                         variant="outline"
                         size="lg"
-                        onClick={() => router.push("/dashboard/results")}
+                        onClick={() => router.push("/dashboard/search")}
                       >
                         View More Options
                       </Button>
