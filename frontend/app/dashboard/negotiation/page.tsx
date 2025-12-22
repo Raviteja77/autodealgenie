@@ -56,11 +56,12 @@ import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
 import { ChatInput } from "@/components/ChatInput";
+import { CurrentOfferStatus } from "@/components/negotiation/CurrentOfferStatus";
+import { useNegotiationState } from "@/lib/hooks";
 import {
   apiClient,
   type NegotiationMessage,
   type DealCreate,
-  type FinancingOption,
   type LenderMatch,
 } from "@/lib/api";
 import {
@@ -80,24 +81,6 @@ interface VehicleInfo {
   fuelType: string;
 }
 
-interface NegotiationState {
-  sessionId: number | null;
-  status: "idle" | "active" | "completed" | "cancelled";
-  dealId: number | null;
-  vehicleData: VehicleInfo | null;
-  targetPrice: number | null;
-  currentRound: number;
-  maxRounds: number;
-  messages: NegotiationMessage[];
-  suggestedPrice: number | null;
-  confidence: number | null;
-  isLoading: boolean;
-  error: string | null;
-  isTyping: boolean;
-  financingOptions: FinancingOption[] | null;
-  cashSavings: number | null;
-}
-
 function NegotiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -106,24 +89,58 @@ function NegotiationContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContext = useNegotiationChat();
 
-  // State management
-  const [state, setState] = useState<NegotiationState>({
-    sessionId: null,
-    status: "idle",
-    dealId: null,
-    vehicleData: null,
-    targetPrice: null,
-    currentRound: 1,
+  // Additional state (not managed by useNegotiationState)
+  const [, setDealId] = useState<number | null>(null);
+  const [vehicleData, setVehicleData] = useState<VehicleInfo | null>(null);
+  const [targetPrice, setTargetPrice] = useState<number | null>(null);
+
+  // Use centralized negotiation state hook
+  const {
+    state: negotiationState,
+    latestPrice,
+    financingOptions,
+    cashSavings,
+    currentOfferStatus,
+    setSessionId,
+    setStatus,
+    setMessages,
+    addMessages,
+    setLoading,
+    setError,
+    setTyping,
+    setCurrentRound,
+    updateFromNextRound,
+  } = useNegotiationState(targetPrice, {
     maxRounds: 10,
-    messages: [],
-    suggestedPrice: null,
-    confidence: null,
-    isLoading: false,
-    error: null,
-    isTyping: false,
-    financingOptions: null,
-    cashSavings: null,
   });
+
+  // Computed confidence score based on negotiation progress
+  const confidence = useMemo(() => {
+    // Base confidence if we don't have enough data yet
+    if (targetPrice == null || latestPrice == null) {
+      return 0.5;
+    }
+
+    // How far along we are in the negotiation (earlier rounds generally lower confidence)
+    const currentRound = negotiationState.currentRound;
+    const maxRounds = negotiationState.maxRounds;
+    const roundProgress = Math.min(Math.max(currentRound - 1, 0), maxRounds);
+    const roundFactor = 1 - roundProgress / maxRounds; // 1.0 at start, decreases over time
+
+    // How close the latest offer is to the user's target price
+    const priceDiffRatio = Math.min(
+      1,
+      Math.abs(targetPrice - latestPrice) / Math.max(targetPrice, 1)
+    );
+    const priceFactor = 1 - priceDiffRatio; // 1.0 when equal, lower as we move away
+
+    // Blend factors into a confidence score between 0 and 1
+    const rawConfidence = 0.3 + 0.7 * (roundFactor * 0.5 + priceFactor * 0.5);
+    const clamped = Math.min(Math.max(rawConfidence, 0), 1);
+
+    // Round to two decimals for stable display
+    return Number(clamped.toFixed(2));
+  }, [targetPrice, latestPrice, negotiationState.currentRound, negotiationState.maxRounds]);
 
   // UI state
   const [showCounterOfferModal, setShowCounterOfferModal] = useState(false);
@@ -144,6 +161,8 @@ function NegotiationContent() {
     message: string;
   } | null>(null);
 
+  // Extract vehicle data from URL params - effect to set vehicle data state
+  useEffect(() => {
   // Get latest negotiated price from messages
   const latestPrice = useMemo(() => {
     return getLatestNegotiatedPrice(state.messages);
@@ -161,7 +180,8 @@ function NegotiationContent() {
       const fuelType = searchParams.get("fuelType");
 
       if (!make || !model || !yearStr || !priceStr || !mileageStr) {
-        return null;
+        setVehicleData(null);
+        return;
       }
 
       const year = parseInt(yearStr);
@@ -169,10 +189,11 @@ function NegotiationContent() {
       const mileage = parseInt(mileageStr);
 
       if (isNaN(year) || isNaN(price) || isNaN(mileage)) {
-        return null;
+        setVehicleData(null);
+        return;
       }
 
-      return {
+      const parsedVehicleData = {
         vin,
         make,
         model,
@@ -181,9 +202,12 @@ function NegotiationContent() {
         mileage,
         fuelType: fuelType || "Unknown",
       };
+      
+      setVehicleData(parsedVehicleData);
+      setTargetPrice(price * 0.9); // Set target price to 10% below asking
     } catch (err) {
       console.error("Error parsing vehicle data:", err);
-      return null;
+      setVehicleData(null);
     }
   }, [searchParams]);
 
@@ -219,10 +243,11 @@ function NegotiationContent() {
   // Initialize negotiation session
   useEffect(() => {
     const initializeNegotiation = async () => {
-      if (!vehicleData || state.sessionId !== null) return;
+      if (!vehicleData || !targetPrice || negotiationState.sessionId !== null) return;
 
       try {
-        setState((prev) => ({ ...prev, isLoading: true, error: null }));
+        setLoading(true);
+        setError(null);
 
         // Create a deal for this vehicle first
         const dealData: DealCreate = {
@@ -238,7 +263,7 @@ function NegotiationContent() {
         };
 
         const deal = await apiClient.createDeal(dealData);
-        const targetPrice = vehicleData.price * 0.9; // 10% below asking price
+        setDealId(deal.id);
 
         const response = await apiClient.createNegotiation({
           deal_id: deal.id,
@@ -251,23 +276,12 @@ function NegotiationContent() {
           response.session_id
         );
 
-        setState((prev) => ({
-          ...prev,
-          sessionId: session.id,
-          status: session.status,
-          dealId: session.deal_id,
-          vehicleData,
-          targetPrice,
-          currentRound: session.current_round,
-          maxRounds: session.max_rounds,
-          messages: session.messages,
-          suggestedPrice: (response.metadata.suggested_price as number) || null,
-          financingOptions:
-            (response.metadata.financing_options as FinancingOption[]) || null,
-          cashSavings: (response.metadata.cash_savings as number) || null,
-          confidence: 0.85, // Default confidence
-          isLoading: false,
-        }));
+        // Update negotiation state using the hook
+        setSessionId(session.id);
+        setStatus(session.status);
+        setCurrentRound(session.current_round);
+        setMessages(session.messages);
+        setLoading(false);
 
         // Initialize chat context with session ID and messages
         chatContext.setSessionId(session.id);
@@ -283,54 +297,48 @@ function NegotiationContent() {
           err instanceof Error
             ? err.message
             : "Failed to initialize negotiation session";
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          error: errorMessage,
-        }));
+        setError(errorMessage);
+        setLoading(false);
       }
     };
 
     initializeNegotiation();
-  }, [vehicleData, state.sessionId, user]);
+  }, [
+    vehicleData,
+    targetPrice,
+    negotiationState.sessionId,
+    user,
+    setLoading,
+    setError,
+    setSessionId,
+    setStatus,
+    setCurrentRound,
+    setMessages,
+    chatContext,
+  ]);
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  // Sync chat messages with state messages
+  // Effect: Sync chat messages and typing indicator
   useEffect(() => {
+    // Sync messages from chat context
     if (chatContext.messages.length > 0) {
-      // Deduplicate messages by ID using a Set for O(n) performance
-      const existingIds = new Set(state.messages.map((msg) => msg.id));
-      const newMessages = chatContext.messages.filter(
-        (msg) => !existingIds.has(msg.id)
-      );
-
-      if (newMessages.length > 0) {
-        setState((prev) => ({
-          ...prev,
-          messages: [...prev.messages, ...newMessages],
-        }));
-      }
+      addMessages(chatContext.messages);
     }
-    // Only depend on chatContext.messages to avoid re-syncing when state.messages changes
-    // This prevents infinite loops while ensuring new chat messages are added
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatContext.messages]);
 
-  // Update typing indicator from chat context
-  useEffect(() => {
-    setState((prev) => ({
-      ...prev,
-      isTyping: chatContext.isTyping || prev.isTyping,
-    }));
-  }, [chatContext.isTyping]);
+    // Sync typing indicator
+    if (chatContext.isTyping) {
+      setTyping(true);
+    }
+  }, [chatContext.messages, chatContext.isTyping, addMessages, setTyping]);
 
+  // Effect: Auto-scroll when messages change
   useEffect(() => {
     scrollToBottom();
-  }, [state.messages, scrollToBottom, chatContext.messages]);
+  }, [negotiationState.messages, scrollToBottom]);
 
   // Clear notifications after 5 seconds
   useEffect(() => {
@@ -372,24 +380,22 @@ function NegotiationContent() {
     }
 
     try {
-      setState((prev) => ({ ...prev, isLoading: true, isTyping: true }));
+      setLoading(true);
+      setTyping(true);
       setShowAcceptDialog(false);
 
-      await apiClient.processNextRound(state.sessionId, {
+      await apiClient.processNextRound(negotiationState.sessionId, {
         user_action: "confirm",
       });
 
       // Fetch updated session
-      const session = await apiClient.getNegotiationSession(state.sessionId);
+      const session = await apiClient.getNegotiationSession(negotiationState.sessionId);
 
-      setState((prev) => ({
-        ...prev,
-        status: "completed",
-        currentRound: session.current_round,
-        messages: session.messages,
-        isLoading: false,
-        isTyping: false,
-      }));
+      setStatus("completed");
+      setCurrentRound(session.current_round);
+      setMessages(session.messages);
+      setLoading(false);
+      setTyping(false);
 
       setNotification({
         type: "success",
@@ -401,13 +407,13 @@ function NegotiationContent() {
       try {
         // Use financing options from state if available, otherwise use defaults
         const preferredTerm =
-          state.financingOptions && state.financingOptions.length > 0
-            ? state.financingOptions.find((opt) => opt.loan_term_months === 60)
+          financingOptions && financingOptions.length > 0
+            ? financingOptions.find((opt) => opt.loan_term_months === 60)
                 ?.loan_term_months || 60
             : 60;
 
         const lenderRecs = await apiClient.getNegotiationLenderRecommendations(
-          state.sessionId,
+          negotiationState.sessionId,
           preferredTerm,
           "good"
         );
@@ -426,38 +432,33 @@ function NegotiationContent() {
       console.error("Failed to accept offer:", err);
       const errorMessage =
         err instanceof Error ? err.message : "Failed to accept offer";
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        isTyping: false,
-        error: errorMessage,
-      }));
+      setError(errorMessage);
+      setLoading(false);
+      setTyping(false);
     }
   };
 
   // Handle reject offer
   const handleRejectOffer = async () => {
-    if (!state.sessionId) return;
+    if (!negotiationState.sessionId) return;
 
     try {
-      setState((prev) => ({ ...prev, isLoading: true, isTyping: true }));
+      setLoading(true);
+      setTyping(true);
       setShowRejectDialog(false);
 
-      await apiClient.processNextRound(state.sessionId, {
+      await apiClient.processNextRound(negotiationState.sessionId, {
         user_action: "reject",
       });
 
       // Fetch updated session
-      const session = await apiClient.getNegotiationSession(state.sessionId);
+      const session = await apiClient.getNegotiationSession(negotiationState.sessionId);
 
-      setState((prev) => ({
-        ...prev,
-        status: "cancelled",
-        currentRound: session.current_round,
-        messages: session.messages,
-        isLoading: false,
-        isTyping: false,
-      }));
+      setStatus("cancelled");
+      setCurrentRound(session.current_round);
+      setMessages(session.messages);
+      setLoading(false);
+      setTyping(false);
 
       setNotification({
         type: "info",
@@ -467,18 +468,15 @@ function NegotiationContent() {
       console.error("Failed to reject offer:", err);
       const errorMessage =
         err instanceof Error ? err.message : "Failed to reject offer";
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        isTyping: false,
-        error: errorMessage,
-      }));
+      setError(errorMessage);
+      setLoading(false);
+      setTyping(false);
     }
   };
 
   // Handle counter offer
   const handleCounterOffer = async () => {
-    if (!state.sessionId || !counterOfferValue) return;
+    if (!negotiationState.sessionId || !counterOfferValue) return;
 
     const counterPrice = parseFloat(counterOfferValue);
     if (isNaN(counterPrice) || counterPrice <= 0) {
@@ -490,33 +488,24 @@ function NegotiationContent() {
     }
 
     try {
-      setState((prev) => ({ ...prev, isLoading: true, isTyping: true }));
+      setLoading(true);
+      setTyping(true);
       setShowCounterOfferModal(false);
       setCounterOfferValue("");
 
-      const response = await apiClient.processNextRound(state.sessionId, {
+      const response = await apiClient.processNextRound(negotiationState.sessionId, {
         user_action: "counter",
         counter_offer: counterPrice,
       });
 
-      // Fetch updated session
-      const session = await apiClient.getNegotiationSession(state.sessionId);
+      // Fetch updated session to get the latest messages
+      const session = await apiClient.getNegotiationSession(negotiationState.sessionId);
 
-      setState((prev) => ({
-        ...prev,
-        currentRound: session.current_round,
-        messages: session.messages,
-        suggestedPrice:
-          response.metadata.suggested_price || prev.suggestedPrice,
-        financingOptions:
-          response.metadata.financing_options || prev.financingOptions,
-        cashSavings: response.metadata.cash_savings || prev.cashSavings,
-        isLoading: false,
-        isTyping: false,
-      }));
+      // Use the updateFromNextRound method with response metadata
+      updateFromNextRound(response.metadata, session.messages, response.current_round);
 
       // Expand the new round
-      setExpandedRounds((prev) => new Set(prev).add(session.current_round));
+      setExpandedRounds((prev) => new Set(prev).add(response.current_round));
 
       setNotification({
         type: "info",
@@ -526,12 +515,9 @@ function NegotiationContent() {
       console.error("Failed to submit counter offer:", err);
       const errorMessage =
         err instanceof Error ? err.message : "Failed to submit counter offer";
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        isTyping: false,
-        error: errorMessage,
-      }));
+      setError(errorMessage);
+      setLoading(false);
+      setTyping(false);
     }
   };
 
@@ -567,17 +553,17 @@ function NegotiationContent() {
   // Group messages by round
   const messagesByRound = useMemo(() => {
     const grouped: Record<number, NegotiationMessage[]> = {};
-    state.messages.forEach((msg) => {
+    negotiationState.messages.forEach((msg) => {
       if (!grouped[msg.round_number]) {
         grouped[msg.round_number] = [];
       }
       grouped[msg.round_number].push(msg);
     });
     return grouped;
-  }, [state.messages]);
+  }, [negotiationState.messages]);
 
   // Calculate progress
-  const progress = (state.currentRound / state.maxRounds) * 100;
+  const progress = (negotiationState.currentRound / negotiationState.maxRounds) * 100;
   const priceProgress =
     state.vehicleData && latestPrice?.price
       ? ((state.vehicleData.price - latestPrice.price) /
@@ -587,7 +573,7 @@ function NegotiationContent() {
       : 0;
 
   // Render deal outcome screens
-  if (state.status === "completed") {
+  if (negotiationState.status === "completed") {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Card shadow="lg">
@@ -601,8 +587,8 @@ function NegotiationContent() {
               </Typography>
               <Typography variant="body1" color="text.secondary" paragraph>
                 You&apos;ve successfully negotiated the deal for your{" "}
-                {state.vehicleData?.year} {state.vehicleData?.make}{" "}
-                {state.vehicleData?.model}!
+                {vehicleData?.year} {vehicleData?.make}{" "}
+                {vehicleData?.model}!
               </Typography>
               <Divider sx={{ my: 3 }} />
               <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -611,7 +597,7 @@ function NegotiationContent() {
                     Original Price
                   </Typography>
                   <Typography variant="h6">
-                    ${state.vehicleData?.price.toLocaleString()}
+                    ${vehicleData?.price.toLocaleString()}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
@@ -803,7 +789,7 @@ function NegotiationContent() {
     );
   }
 
-  if (state.status === "cancelled") {
+  if (negotiationState.status === "cancelled") {
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Card shadow="lg">
@@ -861,11 +847,11 @@ function NegotiationContent() {
           </Collapse>
 
           {/* Error Alert */}
-          {state.error && (
+          {negotiationState.error && (
             <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
               <AlertTitle>Unable to Load Negotiation</AlertTitle>
               <Typography variant="body2" sx={{ mb: 2 }}>
-                {state.error}
+                {negotiationState.error}
               </Typography>
               <Link
                 href="/dashboard/results"
@@ -879,7 +865,7 @@ function NegotiationContent() {
           )}
 
           {/* Loading State */}
-          {state.isLoading && state.messages.length === 0 && (
+          {negotiationState.isLoading && negotiationState.messages.length === 0 && (
             <Box
               sx={{
                 display: "flex",
@@ -896,8 +882,16 @@ function NegotiationContent() {
           )}
 
           {/* Main Content */}
-          {vehicleData && state.messages.length > 0 && (
+          {vehicleData && negotiationState.messages.length > 0 && (
             <Grid container spacing={3}>
+              {/* Current Offer Status - Top Banner */}
+              <Grid item xs={12}>
+                <CurrentOfferStatus
+                  offerStatus={currentOfferStatus}
+                  vehiclePrice={vehicleData.price}
+                />
+              </Grid>
+
               {/* Price Tracking Panel - Left Sidebar */}
               <Grid item xs={12} md={3}>
                 <Card shadow="md" sx={{ position: "sticky", top: 16 }}>
@@ -960,7 +954,7 @@ function NegotiationContent() {
                           Your Target
                         </Typography>
                         <Typography variant="body2" color="primary.main">
-                          ${state.targetPrice?.toLocaleString()}
+                          ${targetPrice?.toLocaleString()}
                         </Typography>
                       </Box>
                       {latestPrice && (
@@ -1031,7 +1025,7 @@ function NegotiationContent() {
                         }}
                       >
                         <Typography variant="caption">
-                          Round {state.currentRound} of {state.maxRounds}
+                          Round {negotiationState.currentRound} of {negotiationState.maxRounds}
                         </Typography>
                         <Typography variant="caption">
                           {Math.round(progress)}%
@@ -1281,7 +1275,7 @@ function NegotiationContent() {
                       )
                     )}
 
-                    {state.isTyping && (
+                    {negotiationState.isTyping && (
                       <Box
                         sx={{
                           display: "flex",
@@ -1358,8 +1352,8 @@ function NegotiationContent() {
                           leftIcon={<AttachMoney />}
                           onClick={() => setShowCounterOfferModal(true)}
                           disabled={
-                            state.isLoading ||
-                            state.currentRound >= state.maxRounds
+                            negotiationState.isLoading ||
+                            negotiationState.currentRound >= negotiationState.maxRounds
                           }
                         >
                           Counter Offer
@@ -1370,7 +1364,7 @@ function NegotiationContent() {
                           fullWidth
                           leftIcon={<Cancel />}
                           onClick={() => setShowRejectDialog(true)}
-                          disabled={state.isLoading}
+                          disabled={negotiationState.isLoading}
                         >
                           Reject
                         </Button>
@@ -1390,7 +1384,7 @@ function NegotiationContent() {
                       <ChatInput
                         onSendMessage={handleChatMessage}
                         onSendDealerInfo={handleDealerInfo}
-                        disabled={state.isLoading || chatContext.isSending}
+                        disabled={negotiationState.isLoading || chatContext.isSending}
                         placeholder="Ask me anything about this negotiation..."
                         maxLength={2000}
                       />
@@ -1417,18 +1411,18 @@ function NegotiationContent() {
                       >
                         <LinearProgress
                           variant="determinate"
-                          value={(state.confidence || 0) * 100}
+                          value={(confidence || 0) * 100}
                           sx={{ flexGrow: 1, height: 8, borderRadius: 1 }}
                           color={
-                            (state.confidence || 0) > 0.7
+                            (confidence || 0) > 0.7
                               ? "success"
-                              : (state.confidence || 0) > 0.5
+                              : (confidence || 0) > 0.5
                               ? "warning"
                               : "error"
                           }
                         />
                         <Typography variant="caption" fontWeight="bold">
-                          {Math.round((state.confidence || 0) * 100)}%
+                          {Math.round((confidence || 0) * 100)}%
                         </Typography>
                       </Box>
                     </Box>
@@ -1453,7 +1447,7 @@ function NegotiationContent() {
                             </Typography>
                           </Alert>
                         )}
-                      {state.currentRound > state.maxRounds * 0.7 && (
+                      {negotiationState.currentRound > negotiationState.maxRounds * 0.7 && (
                         <Alert
                           severity="warning"
                           icon={<Warning />}
@@ -1483,8 +1477,8 @@ function NegotiationContent() {
                     <Divider sx={{ my: 2 }} />
 
                     {/* Financing Options */}
-                    {state.financingOptions &&
-                      state.financingOptions.length > 0 &&
+                    {financingOptions &&
+                      financingOptions.length > 0 &&
                       showFinancingPanel && (
                         <>
                           <Box
@@ -1506,7 +1500,7 @@ function NegotiationContent() {
                             </IconButton>
                           </Box>
                           <Stack spacing={1} sx={{ mb: 2 }}>
-                            {state.financingOptions
+                            {financingOptions
                               .slice(0, 2)
                               .map((option) => (
                                 <Paper
@@ -1561,10 +1555,10 @@ function NegotiationContent() {
                                 </Paper>
                               ))}
                           </Stack>
-                          {state.cashSavings && state.cashSavings > 0 && (
+                          {cashSavings && cashSavings > 0 && (
                             <Alert severity="info" sx={{ py: 0.5 }}>
                               <Typography variant="caption">
-                                Save ${state.cashSavings.toLocaleString()} by
+                                Save ${cashSavings.toLocaleString()} by
                                 paying cash vs 60-mo loan
                               </Typography>
                             </Alert>
@@ -1572,8 +1566,8 @@ function NegotiationContent() {
                           <Divider sx={{ my: 2 }} />
                         </>
                       )}
-                    {state.financingOptions &&
-                      state.financingOptions.length > 0 &&
+                    {financingOptions &&
+                      financingOptions.length > 0 &&
                       !showFinancingPanel && (
                         <>
                           <Box
@@ -1671,9 +1665,9 @@ function NegotiationContent() {
             }}
             sx={{ mb: 2 }}
           />
-          {state.suggestedPrice && (
+          {latestPrice && (
             <Typography variant="caption" color="text.secondary">
-              Current offer: ${state.suggestedPrice.toLocaleString()}
+              Current offer: ${latestPrice.toLocaleString()}
             </Typography>
           )}
           <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
@@ -1688,7 +1682,7 @@ function NegotiationContent() {
               variant="primary"
               fullWidth
               onClick={handleCounterOffer}
-              disabled={!counterOfferValue || state.isLoading}
+              disabled={!counterOfferValue || negotiationState.isLoading}
             >
               Submit Offer
             </Button>
@@ -1784,7 +1778,7 @@ function NegotiationContent() {
               variant="success"
               fullWidth
               onClick={handleAcceptOffer}
-              disabled={state.isLoading}
+              disabled={negotiationState.isLoading}
             >
               Yes, Accept
             </Button>
@@ -1819,7 +1813,7 @@ function NegotiationContent() {
               variant="danger"
               fullWidth
               onClick={handleRejectOffer}
-              disabled={state.isLoading}
+              disabled={negotiationState.isLoading}
             >
               Yes, Cancel
             </Button>
