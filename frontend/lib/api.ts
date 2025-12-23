@@ -15,6 +15,7 @@ export interface Deal {
   vehicle_model: string;
   vehicle_year: number;
   vehicle_mileage: number;
+  vehicle_vin: string;
   asking_price: number;
   offer_price?: number | null;
   status: "pending" | "in_progress" | "completed" | "cancelled";
@@ -30,6 +31,7 @@ export interface DealCreate {
   vehicle_model: string;
   vehicle_year: number;
   vehicle_mileage: number;
+  vehicle_vin: string;
   asking_price: number;
   offer_price?: number | null;
   status?: "pending" | "in_progress" | "completed" | "cancelled";
@@ -534,14 +536,36 @@ class ApiClient {
     });
   }
 
+  hasMeaningfulValue(value: unknown): boolean {
+    if (value === null || value === undefined) {
+      return false;
+    }
+    if (typeof value === "string") {
+      return value.trim().length > 0;
+    }
+    if (typeof value === "number") {
+      return !Number.isNaN(value);
+    }
+    if (typeof value === "boolean") {
+      return true;
+    }
+    if (Array.isArray(value)) {
+      return value.some((item) => this.hasMeaningfulValue(item));
+    }
+    if (typeof value === "object") {
+      return Object.values(value as Record<string, unknown>).some(
+        (item) => this.hasMeaningfulValue(item)
+      );
+    }
+    return false;
+  };
+
   /**
    * Search for cars with AI recommendations
    */
   async searchCars(params: CarSearchRequest): Promise<CarSearchResponse> {
     // Check if all fields are null or empty
-    const hasSomeValue = Object.values(params).some(
-      (value) => value !== null && value !== ""
-    );
+    const hasSomeValue = this.hasMeaningfulValue(params);
 
     if (!hasSomeValue) {
       throw new Error("At least one search criteria must be provided.");

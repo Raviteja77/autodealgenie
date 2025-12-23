@@ -80,7 +80,7 @@ function DashboardSearchPageContent() {
     drivetrain: "",
     mustHaveFeatures: [],
     userPriorities: "",
-    paymentMethod: "both",
+    paymentMethod: "cash",
     budgetMin: 10000,
     budgetMax: 50000,
   });
@@ -103,6 +103,7 @@ function DashboardSearchPageContent() {
   // Validate on debounced value changes
   useEffect(() => {
     const result = validateSearchField("budgetMax", debouncedBudget.max, {
+      ...searchParams,
       budgetMin: debouncedBudget.min,
       budgetMax: debouncedBudget.max,
       paymentMethod: searchParams.paymentMethod,
@@ -112,7 +113,6 @@ function DashboardSearchPageContent() {
       setValidationErrors((prev) => ({ ...prev, budgetMax: result.error! }));
     } else {
       setValidationErrors((prev) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { budgetMax, ...rest } = prev;
         return rest;
       });
@@ -121,6 +121,7 @@ function DashboardSearchPageContent() {
 
   useEffect(() => {
     const result = validateSearchField("yearMax", debouncedYear.max, {
+      ...searchParams, // Include all existing search params
       yearMin: debouncedYear.min,
       yearMax: debouncedYear.max,
     });
@@ -128,7 +129,6 @@ function DashboardSearchPageContent() {
       setValidationErrors((prev) => ({ ...prev, yearMax: result.error! }));
     } else {
       setValidationErrors((prev) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { yearMax, ...rest } = prev;
         return rest;
       });
@@ -330,7 +330,8 @@ function DashboardSearchPageContent() {
   ];
 
   // Conditional filter logic: hide year and mileage for new cars
-  const isNewCar = searchParams.carType.toLowerCase() === "new";
+  const normalizedCarType = (searchParams.carType || "").trim().toLowerCase();
+  const isNewCar = normalizedCarType === "new";
   const showYearFilter = !isNewCar;
   const showMileageFilter = !isNewCar;
 
@@ -617,7 +618,7 @@ function DashboardSearchPageContent() {
                           drivetrain: "",
                           mustHaveFeatures: [],
                           userPriorities: "",
-                          paymentMethod: "both",
+                          paymentMethod: "cash",
                           budgetMin: 10000,
                           budgetMax: 50000,
                         })

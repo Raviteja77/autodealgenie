@@ -88,7 +88,7 @@ export function validateSearchField(
 ): { success: boolean; error?: string } {
   try {
     // For cross-field validations, we need to validate the entire object
-    if (field === "budgetMax" || field === "budgetMin" || field === "yearMax" || field === "yearMin" || field === "downPayment") {
+    if (["budgetMax", "budgetMin", "yearMax", "yearMin"].includes(field)) {
       SearchFormSchema.parse({ ...allData, [field]: value });
     } else {
       // For simple fields, validate just the field
@@ -99,6 +99,10 @@ export function validateSearchField(
     }
     return { success: true };
   } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.error(`Validation failed for ${field}:`, error);
+    }
+
     if (error instanceof z.ZodError) {
       const fieldError = error.issues.find((issue) =>
         issue.path.includes(field)

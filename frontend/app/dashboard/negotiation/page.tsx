@@ -73,6 +73,9 @@ import {
   validateNegotiatedPrice,
 } from "@/lib/utils/negotiation";
 
+// Fallback VIN when actual VIN is not available
+const DEFAULT_VIN = "UNKNOWN00000000000";
+
 interface VehicleInfo {
   vin?: string;
   make: string;
@@ -282,6 +285,7 @@ function NegotiationContent() {
           vehicle_model: vehicleData.model,
           vehicle_year: vehicleData.year,
           vehicle_mileage: vehicleData.mileage,
+          vehicle_vin: vehicleData.vin || DEFAULT_VIN, // Use VIN if available, otherwise placeholder
           asking_price: vehicleData.price,
           status: "in_progress",
           notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
