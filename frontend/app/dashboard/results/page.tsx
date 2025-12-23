@@ -596,12 +596,11 @@ function ResultsContent() {
                 creditScore={creditScore}
                 loanTermMonths={loanTerm}
                 onLenderSelect={(lender) => {
-                  // Store selected lender in state for later use in deal evaluation
-                  // This could be extended to save to context or local storage
-                  setStepData(1, {
-                    ...getStepData(1),
+                  // Store selected lender in stepper context for later use in deal evaluation
+                  setStepData(1, (prevStepData: any) => ({
+                    ...prevStepData,
                     selectedLender: lender,
-                  });
+                  }));
                 }}
                 showApplyButton={true}
               />

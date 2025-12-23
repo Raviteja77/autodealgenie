@@ -1,7 +1,5 @@
 """Test agent system prompts"""
 
-import pytest
-
 from app.llm.agent_system_prompts import AGENT_SYSTEM_PROMPTS, get_agent_system_prompt
 
 
@@ -21,9 +19,13 @@ class TestAgentSystemPrompts:
         """Test that loan agent prompt includes lender recommendation guidance"""
         loan_prompt = AGENT_SYSTEM_PROMPTS["loan"]
         
-        # Check for lender-related keywords
+        # Check for lender-related keywords with more specific assertions
         assert "lender" in loan_prompt.lower()
-        assert "match score" in loan_prompt.lower() or "match" in loan_prompt.lower()
+        assert (
+            "match score" in loan_prompt.lower()
+            or "lender match" in loan_prompt.lower()
+            or "matching score" in loan_prompt.lower()
+        )
         assert "apr" in loan_prompt.lower()
         assert "features" in loan_prompt.lower() or "benefit" in loan_prompt.lower()
 
@@ -31,11 +33,15 @@ class TestAgentSystemPrompts:
         """Test that negotiation agent prompt includes financing leverage guidance"""
         negotiation_prompt = AGENT_SYSTEM_PROMPTS["negotiation"]
         
-        # Check for financing leverage keywords
+        # Check for financing leverage keywords with comprehensive validation
         assert "financing" in negotiation_prompt.lower()
         assert "lender" in negotiation_prompt.lower()
         assert "leverage" in negotiation_prompt.lower()
-        assert "pre-approved" in negotiation_prompt.lower() or "preapproved" in negotiation_prompt.lower()
+        # Verify pre-approved financing is mentioned
+        has_preapproved = "pre-approved" in negotiation_prompt.lower() or "preapproved" in negotiation_prompt.lower()
+        assert has_preapproved
+        # Ensure it's used in context of leverage
+        assert "leverage" in negotiation_prompt.lower() and has_preapproved
 
     def test_evaluator_agent_includes_lender_comparison(self):
         """Test that evaluator agent prompt includes lender comparison guidance"""

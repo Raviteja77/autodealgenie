@@ -97,15 +97,29 @@ export function LenderRecommendations({
         console.error("Error fetching lenders:", err);
         
         // Provide specific error messages based on error type
-        if (err instanceof TypeError && err.message.includes('fetch')) {
-          setError("Network error: Unable to connect to lender service. Please check your connection.");
-        } else if (err instanceof Error && err.message.includes('401')) {
+        if (err instanceof TypeError && err.message.includes("fetch")) {
+          setError(
+            "Network error: Unable to connect to lender service. Please check your connection."
+          );
+        } else if (
+          err &&
+          typeof err === "object" &&
+          "status" in err &&
+          (err as { status?: number }).status === 401
+        ) {
           setError("Authentication error: Please log in to view lender recommendations.");
-        } else if (err instanceof Error && err.message.includes('400')) {
+        } else if (
+          err &&
+          typeof err === "object" &&
+          "status" in err &&
+          (err as { status?: number }).status === 400
+        ) {
           setError("Invalid loan criteria. Please adjust your search parameters.");
         } else {
           setError(
-            err instanceof Error ? err.message : "Failed to load lender recommendations. Please try again."
+            err instanceof Error
+              ? err.message
+              : "Failed to load lender recommendations. Please try again."
           );
         }
       } finally {
@@ -114,7 +128,7 @@ export function LenderRecommendations({
     };
 
     fetchLenders();
-  }, [loanAmount, creditScore, selectedTerm, compact]);
+  }, [loanAmount, creditScore, selectedTerm]);
 
   const handleSortChange = (event: SelectChangeEvent<SortOption>) => {
     setSortBy(event.target.value as SortOption);
@@ -268,6 +282,8 @@ export function LenderRecommendations({
           const isExpanded = expandedLenders.has(match.lender.lender_id);
           const isTopMatch = match.rank === 1;
 
+          // Using Paper directly instead of custom Card component to support
+          // dynamic elevation and border styling based on match rank
           return (
             <Paper
               key={match.lender.lender_id}
@@ -358,17 +374,25 @@ export function LenderRecommendations({
                     alignItems: "center",
                   }}
                 >
-                  <Typography
-                    variant="subtitle2"
-                    sx={{ cursor: "pointer" }}
-                    onClick={() => toggleLenderExpansion(match.lender.lender_id)}
-                  >
-                    View Details
-                  </Typography>
                   <IconButton
                     size="small"
                     onClick={() => toggleLenderExpansion(match.lender.lender_id)}
+                    aria-label={isExpanded ? "Collapse lender details" : "Expand lender details"}
+                    aria-expanded={isExpanded}
+                    sx={{ 
+                      display: "flex", 
+                      alignItems: "center",
+                      gap: 0.5,
+                      textTransform: "none",
+                      color: "text.primary",
+                      "&:hover": {
+                        backgroundColor: "action.hover"
+                      }
+                    }}
                   >
+                    <Typography variant="subtitle2">
+                      View Details
+                    </Typography>
                     {isExpanded ? <ExpandLess /> : <ExpandMore />}
                   </IconButton>
                 </Box>
@@ -486,14 +510,33 @@ export function LenderRecommendations({
                     size="sm"
                     fullWidth
                     onClick={() => {
-                      // Validate URL before opening
+                      // Validate URL with strict checks
                       const url = match.lender.affiliate_url;
-                      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                      try {
+                        if (!url) {
+                          throw new Error("Missing affiliate URL");
+                        }
+                        
+                        // Use URL constructor to validate structure
+                        const urlObj = new URL(url);
+                        
+                        // Verify it's http or https
+                        if (!["http:", "https:"].includes(urlObj.protocol)) {
+                          throw new Error("Invalid URL protocol");
+                        }
+                        
+                        // Optional: Validate against trusted domains (can be expanded)
+                        // For now, just ensure it's a valid URL with proper protocol
                         window.open(url, "_blank", "noopener,noreferrer");
-                      } else {
-                        console.error("Invalid affiliate URL:", url);
+                      } catch (error) {
+                        console.error("Invalid affiliate URL:", url, error);
+                        alert(
+                          "We're sorry, but this lender link is currently unavailable. " +
+                            "Please try another lender or contact support."
+                        );
                       }
                     }}
+                    aria-label="Apply now, opens in new tab"
                   >
                     Apply Now
                   </Button>
