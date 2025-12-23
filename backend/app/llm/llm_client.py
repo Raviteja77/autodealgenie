@@ -58,12 +58,12 @@ class LLMClient:
 
         Supports custom base URLs for OpenRouter and other OpenAI-compatible endpoints.
         """
-        if not settings.OPENROUTER_API_KEY:
-            logger.warning("OPENROUTER_API_KEY not set. LLM features will be disabled.")
+        if not settings.OPENAI_API_KEY:
+            logger.warning("OPENAI_API_KEY not set. LLM features will be disabled.")
             self.client = None
         else:
             # Initialize with optional base_url for OpenRouter support
-            client_kwargs = {"api_key": settings.OPENROUTER_API_KEY}
+            client_kwargs = {"api_key": settings.OPENAI_API_KEY}
             # Determine base_url: check settings or default to OpenRouter
             base_url = getattr(settings, "OPENAI_API_BASE", None) or getattr(
                 settings, "OPENAI_BASE_URL", None
@@ -76,7 +76,7 @@ class LLMClient:
                 client_kwargs["base_url"] = "https://openrouter.ai/api/v1"
 
             self.client = OpenAI(**client_kwargs)
-            logger.info(f"LLM client initialized with model: {settings.OPENAI_MODEL_NAME}")
+            logger.info(f"LLM client initialized with model: {settings.OPENAI_MODEL}")
 
     def is_available(self) -> bool:
         """
@@ -143,7 +143,7 @@ class LLMClient:
 
             logger.info(
                 f"Generating structured JSON: prompt_id='{prompt_id}', "
-                f"agent_role='{agent_role or 'default'}', model={settings.OPENAI_MODEL_NAME}"
+                f"agent_role='{agent_role or 'default'}', model={settings.OPENAI_MODEL}"
             )
 
         except KeyError as e:
@@ -158,7 +158,7 @@ class LLMClient:
             # Call OpenAI API with JSON mode
             # Using response_format to ensure valid JSON output
             response = self.client.chat.completions.create(
-                model=settings.OPENAI_MODEL_NAME,
+                model=settings.OPENAI_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": formatted_prompt},
@@ -187,13 +187,30 @@ class LLMClient:
                 )
 
             # Parse JSON from response
-            # With response_format=json_object, we get valid JSON directly
-            parsed_data = json.loads(content)
+            # First, check if the LLM returns Markdown code block and clean it
+            if content.strip().startswith("```json") and content.strip().endswith("```"):
+                logger.debug("Detected markdown code block in LLM response, cleaning it")
+                content = content.strip()[7:-3].strip()
+            elif content.strip().startswith("```") and content.strip().endswith("```"):
+                logger.debug("Detected generic markdown code block in LLM response, cleaning it")
+                # Handle ```\n{json}\n``` format
+                content = content.strip()[3:-3].strip()
 
-            # If the LLM returns Markdown code block, remove the backticks and language identifier
-            if content.startswith("```json") and content.endswith("```"):
-                content = content[7:-3]
+            # With response_format=json_object, we should get valid JSON directly
+            # But we need to handle edge cases where the LLM may not comply perfectly
+            try:
                 parsed_data = json.loads(content)
+            except json.JSONDecodeError as json_err:
+                # Log the full raw content for debugging
+                logger.error(
+                    f"Initial JSON parsing failed. Error: {json_err}. "
+                    f"Content length: {len(content)} characters"
+                )
+                logger.error(f"Raw content (first 1500 chars): {content[:1500]}")
+                if len(content) > 1500:
+                    logger.error(f"Raw content (last 500 chars): {content[-500:]}")
+                # Re-raise to be caught by outer exception handler
+                raise
 
             # Validate with Pydantic model
             validated_response = response_model.model_validate(parsed_data)
@@ -208,28 +225,47 @@ class LLMClient:
             raise
 
         except ValidationError as e:
-            logger.error(f"Response validation failed for {response_model.__name__}: {e}")
-            logger.debug(f"Raw content: {content[:1000]}")
+            logger.error(
+                f"Response validation failed for {response_model.__name__}: {e}. "
+                f"Content length: {len(content)} characters"
+            )
+            logger.error(f"Raw content (first 1500 chars): {content[:1500]}")
+            if len(content) > 1500:
+                logger.error(f"Raw content (last 500 chars): {content[-500:]}")
+            logger.error(f"Validation errors: {e.errors()}")
             raise ApiError(
                 status_code=500,
                 message="LLM response validation failed",
                 details={
                     "validation_errors": e.errors(),
-                    "raw_content": content[:500],
+                    "raw_content_preview": content[:500],
+                    "content_length": len(content),
                     "agent_role": agent_role,
+                    "prompt_id": prompt_id,
                 },
             ) from e
 
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON from LLM response: {e}")
-            logger.debug(f"Raw content: {content[:1000]}")
+            logger.error(
+                f"Failed to parse JSON from LLM response: {e}. "
+                f"Line: {e.lineno}, Column: {e.colno}, Position: {e.pos}. "
+                f"Content length: {len(content)} characters"
+            )
+            logger.error(f"Raw content (first 1500 chars): {content[:1500]}")
+            if len(content) > 1500:
+                logger.error(f"Raw content (last 500 chars): {content[-500:]}")
             raise ApiError(
                 status_code=500,
                 message="Failed to parse LLM response as JSON",
                 details={
                     "error": str(e),
-                    "raw_content": content[:500],
+                    "line": e.lineno,
+                    "column": e.colno,
+                    "position": e.pos,
+                    "raw_content_preview": content[:500],
+                    "content_length": len(content),
                     "agent_role": agent_role,
+                    "prompt_id": prompt_id,
                 },
             ) from e
 
@@ -325,7 +361,7 @@ class LLMClient:
 
             logger.info(
                 f"Generating text: prompt_id='{prompt_id}', "
-                f"agent_role='{agent_role or 'default'}', model={settings.OPENAI_MODEL_NAME}"
+                f"agent_role='{agent_role or 'default'}', model={settings.OPENAI_MODEL}"
             )
 
         except KeyError as e:
@@ -339,7 +375,7 @@ class LLMClient:
         try:
             # Call OpenAI API
             response = self.client.chat.completions.create(
-                model=settings.OPENAI_MODEL_NAME,
+                model=settings.OPENAI_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": formatted_prompt},

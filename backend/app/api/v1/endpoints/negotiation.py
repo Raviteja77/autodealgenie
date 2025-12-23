@@ -220,8 +220,6 @@ def get_lender_recommendations(
                 break
 
     # Calculate down payment using shared constant
-    from app.services.negotiation_service import NegotiationService
-
     down_payment = negotiated_price * NegotiationService.DEFAULT_DOWN_PAYMENT_PERCENT
     loan_amount = negotiated_price - down_payment
 
@@ -346,31 +344,31 @@ async def websocket_endpoint(
 ):
     """
     WebSocket endpoint for real-time negotiation chat updates
-    
+
     Provides real-time bidirectional communication for:
     - Instant message delivery
     - Typing indicators
     - Live AI response streaming
     - Connection status updates
-    
+
     **Path Parameters:**
     - `session_id`: ID of the negotiation session
-    
+
     **Message Types:**
-    
+
     Client -> Server:
     - `{"type": "ping"}` - Keep-alive ping
     - `{"type": "subscribe"}` - Subscribe to session updates
-    
+
     Server -> Client:
     - `{"type": "new_message", "message": {...}}` - New message available
     - `{"type": "typing_indicator", "is_typing": true/false}` - AI typing status
     - `{"type": "error", "error": "..."}` - Error notification
     - `{"type": "pong"}` - Response to ping
-    
+
     **Authentication**: User-based (JWT) authentication via cookies.
     The authenticated user must own the session or connection is rejected.
-    
+
     **Connection Lifecycle**:
     1. Client connects to `/api/v1/negotiations/{session_id}/ws`
     2. Server verifies authentication and session ownership
@@ -383,16 +381,18 @@ async def websocket_endpoint(
     if not access_token:
         await websocket.close(code=4001, reason="Not authenticated")
         return
-    
+
     try:
         from app.core.security import decode_token
+
         payload = decode_token(access_token)
         if not payload or payload.get("type") != "access":
             await websocket.close(code=4001, reason="Invalid token")
             return
-        
+
         user_id = int(payload.get("sub"))
         from app.repositories.user_repository import UserRepository
+
         user_repo = UserRepository(db)
         user = user_repo.get_by_id(user_id)
         if not user or not user.is_active:
@@ -402,15 +402,15 @@ async def websocket_endpoint(
         logger.error(f"WebSocket authentication failed: {str(e)}")
         await websocket.close(code=4001, reason="Authentication failed")
         return
-    
+
     # Verify session exists before accepting connection
     service = NegotiationService(db)
     session = service.negotiation_repo.get_session(session_id)
-    
+
     if not session:
         await websocket.close(code=4004, reason="Session not found")
         return
-    
+
     # Verify session belongs to the authenticated user
     if session.user_id != user.id:
         await websocket.close(
@@ -418,29 +418,26 @@ async def websocket_endpoint(
             reason="You don't have permission to access this session",
         )
         return
-    
+
     # Accept the WebSocket connection
     await connection_manager.connect(websocket, session_id)
     logger.info(f"WebSocket connected for session {session_id} by user {user.id}")
-    
+
     try:
         while True:
             # Wait for messages from client (mostly for keep-alive)
             data = await websocket.receive_json()
-            
+
             # Handle different message types
             if data.get("type") == "ping":
                 await websocket.send_json({"type": "pong"})
             elif data.get("type") == "subscribe":
                 # Client is subscribing to updates (implicit by connection)
-                await websocket.send_json({
-                    "type": "subscribed",
-                    "session_id": session_id
-                })
+                await websocket.send_json({"type": "subscribed", "session_id": session_id})
                 logger.debug(f"Client subscribed to session {session_id}")
             else:
                 logger.debug(f"Unknown message type: {data.get('type')}")
-                
+
     except WebSocketDisconnect:
         connection_manager.disconnect(websocket, session_id)
         logger.info(f"WebSocket disconnected for session {session_id}")
