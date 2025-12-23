@@ -544,10 +544,10 @@ class ApiClient {
       return value.trim().length > 0;
     }
     if (typeof value === "number") {
-      return value > 0;
+      return !Number.isNaN(value);
     }
     if (typeof value === "boolean") {
-      return value;
+      return true;
     }
     if (Array.isArray(value)) {
       return value.some((item) => this.hasMeaningfulValue(item));

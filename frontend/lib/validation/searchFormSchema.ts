@@ -99,7 +99,9 @@ export function validateSearchField(
     }
     return { success: true };
   } catch (error) {
-    console.error(`Validation failed for ${field}:`, error);
+    if (process.env.NODE_ENV === "development") {
+      console.error(`Validation failed for ${field}:`, error);
+    }
 
     if (error instanceof z.ZodError) {
       const fieldError = error.issues.find((issue) =>

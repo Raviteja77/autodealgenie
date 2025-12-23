@@ -193,6 +193,9 @@ class LLMClient:
                 normalized_content = normalized_content[7:-3].strip()
                 # With response_format=json_object, we expect valid JSON directly after normalization
                 parsed_data = json.loads(normalized_content)
+            else:
+                # Handle plain JSON responses without Markdown code fences
+                parsed_data = json.loads(normalized_content)
 
             # Validate with Pydantic model
             validated_response = response_model.model_validate(parsed_data)
