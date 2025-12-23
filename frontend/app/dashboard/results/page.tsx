@@ -39,6 +39,7 @@ import { ComparisonBar } from "@/components/ComparisonBar";
 import { ComparisonModal } from "@/components/ComparisonModal";
 import { SaveSearchModal } from "@/components/SaveSearchModal";
 import { SavedSearchesDropdown } from "@/components/SavedSearchesDropdown";
+import { LenderRecommendations } from "@/components/LenderRecommendations";
 import { useComparison, ComparisonVehicle } from "@/lib/hooks/useComparison";
 import { useViewMode } from "@/lib/hooks/useViewMode";
 import { useSavedSearches } from "@/lib/hooks/useSavedSearches";
@@ -82,6 +83,7 @@ function ResultsContent() {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('score_high');
   const [isSaveSearchModalOpen, setIsSaveSearchModalOpen] = useState(false);
+  const [showLenderSection, setShowLenderSection] = useState(false);
   
   // Custom hooks
   const comparison = useComparison();
@@ -93,6 +95,36 @@ function ResultsContent() {
     () => searchParams.toString(),
     [searchParams]
   );
+
+  // Extract financing data from search params
+  const loanAmount = useMemo(() => {
+    const budgetMax = searchParams.get("budgetMax");
+    const downPayment = searchParams.get("downPayment");
+    if (budgetMax) {
+      const budget = parseFloat(budgetMax);
+      const down = downPayment ? parseFloat(downPayment) : 0;
+      return budget - down;
+    }
+    return 0;
+  }, [searchParams]);
+
+  const creditScore = useMemo(() => {
+    return (searchParams.get("creditScore") || "good") as "excellent" | "good" | "fair" | "poor";
+  }, [searchParams]);
+
+  const loanTerm = useMemo(() => {
+    const term = searchParams.get("loanTerm");
+    return term ? parseInt(term) : 60;
+  }, [searchParams]);
+
+  const paymentMethod = useMemo(() => {
+    return searchParams.get("paymentMethod") || "cash";
+  }, [searchParams]);
+
+  // Show lender section if user is financing
+  useEffect(() => {
+    setShowLenderSection(paymentMethod === "finance" && loanAmount > 0);
+  }, [paymentMethod, loanAmount]);
 
   /**
    * Check if we should use cached data instead of making a new API call
@@ -554,6 +586,25 @@ function ResultsContent() {
                 </Box>
               </Card.Body>
             </Card>
+          )}
+
+          {/* Lender Recommendations Section */}
+          {showLenderSection && (
+            <Box sx={{ mb: 3 }}>
+              <LenderRecommendations
+                loanAmount={loanAmount}
+                creditScore={creditScore}
+                loanTermMonths={loanTerm}
+                onLenderSelect={(lender) => {
+                  // Store selected lender in stepper context for later use in deal evaluation
+                  setStepData(1, (prevStepData: any) => ({
+                    ...prevStepData,
+                    selectedLender: lender,
+                  }));
+                }}
+                showApplyButton={true}
+              />
+            </Box>
           )}
 
           {/* Results Grid */}
