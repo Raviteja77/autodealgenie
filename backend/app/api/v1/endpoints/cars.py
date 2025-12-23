@@ -43,8 +43,7 @@ async def search_cars(
         )
 
     try:
-        result = {}
-        await car_recommendation_service.search_and_recommend(
+        result = await car_recommendation_service.search_and_recommend(
             make=search_request.make,
             model=search_request.model,
             budget_min=search_request.budget_min,

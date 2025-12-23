@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useEffect,
   ReactNode,
+  useMemo,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -24,10 +25,30 @@ export interface Step {
  * Default steps configuration matching the application flow
  */
 export const STEPS: Step[] = [
-  { id: 0, label: "Search", path: "/dashboard/search", requiresPrevious: false },
-  { id: 1, label: "Results", path: "/dashboard/results", requiresPrevious: true },
-  { id: 2, label: "Negotiate", path: "/dashboard/negotiation", requiresPrevious: true },
-  { id: 3, label: "Evaluate", path: "/dashboard/evaluation", requiresPrevious: true },
+  {
+    id: 0,
+    label: "Search",
+    path: "/dashboard/search",
+    requiresPrevious: false,
+  },
+  {
+    id: 1,
+    label: "Results",
+    path: "/dashboard/results",
+    requiresPrevious: true,
+  },
+  {
+    id: 2,
+    label: "Negotiate",
+    path: "/dashboard/negotiation",
+    requiresPrevious: true,
+  },
+  {
+    id: 3,
+    label: "Evaluate",
+    path: "/dashboard/evaluation",
+    requiresPrevious: true,
+  },
   { id: 4, label: "Finalize", path: "/deals", requiresPrevious: true },
 ];
 
@@ -104,10 +125,12 @@ function getStepIdFromPath(pathname: string): number {
  */
 function shouldShowStepperForPath(pathname: string): boolean {
   // Check if path is in the hidden paths list
-  if (STEPPER_HIDDEN_PATHS.some(hiddenPath => pathname.startsWith(hiddenPath))) {
+  if (
+    STEPPER_HIDDEN_PATHS.some((hiddenPath) => pathname.startsWith(hiddenPath))
+  ) {
     return false;
   }
-  
+
   // Check if path is one of the stepper steps
   return STEPS.some((step) => pathname.startsWith(step.path));
 }
@@ -160,7 +183,7 @@ function persistState(state: StepperState): void {
 export function StepperProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  
+
   // Initialize state with persisted data
   const [state, setState] = useState<StepperState>(() => {
     const persistedState = loadPersistedState();
@@ -233,9 +256,7 @@ export function StepperProvider({ children }: { children: ReactNode }) {
       return {
         ...prev,
         completedSteps: newCompletedSteps,
-        stepData: data
-          ? { ...prev.stepData, [stepId]: data }
-          : prev.stepData,
+        stepData: data ? { ...prev.stepData, [stepId]: data } : prev.stepData,
       };
     });
   }, []);
@@ -268,7 +289,7 @@ export function StepperProvider({ children }: { children: ReactNode }) {
    * Get data stored for a specific step
    */
   const getStepData = useCallback(
-    <T = unknown>(stepId: number): T | undefined => {
+    <T = unknown,>(stepId: number): T | undefined => {
       return state.stepData[stepId] as T | undefined;
     },
     [state.stepData]
@@ -330,7 +351,8 @@ export function StepperProvider({ children }: { children: ReactNode }) {
     return STEPS.some((step) => path.startsWith(step.path));
   }, []);
 
-  const contextValue: StepperContextType = {
+  // {
+    /* const contextValue: StepperContextType = {
     state,
     steps: STEPS,
     currentStep: state.currentStep,
@@ -346,7 +368,44 @@ export function StepperProvider({ children }: { children: ReactNode }) {
     goToPreviousStep,
     shouldShowStepper,
     isStepperPath,
-  };
+  }; */
+  // }
+  const contextValue: StepperContextType = useMemo(
+    () => ({
+      state,
+      steps: STEPS,
+      currentStep: state.currentStep,
+      completedSteps: state.completedSteps,
+      isStepCompleted,
+      canNavigateToStep,
+      completeStep,
+      navigateToStep,
+      getStepData,
+      setStepData,
+      resetStepper,
+      goToNextStep,
+      goToPreviousStep,
+      shouldShowStepper,
+      isStepperPath,
+    }),
+    [
+      state,
+      STEPS,
+      state.currentStep,
+      state.completedSteps,
+      isStepCompleted,
+      canNavigateToStep,
+      completeStep,
+      navigateToStep,
+      getStepData,
+      setStepData,
+      resetStepper,
+      goToNextStep,
+      goToPreviousStep,
+      shouldShowStepper,
+      isStepperPath,
+    ]
+  );
 
   return (
     <StepperContext.Provider value={contextValue}>

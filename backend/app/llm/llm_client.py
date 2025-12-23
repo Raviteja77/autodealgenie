@@ -187,15 +187,13 @@ class LLMClient:
                 )
 
             # Parse JSON from response
-            # If the LLM returns a Markdown code block, normalize it before parsing
-            normalized_content = content.strip()
-            if normalized_content.startswith("```json") and normalized_content.endswith("```"):
-                normalized_content = normalized_content[7:-3].strip()
-                # With response_format=json_object, we expect valid JSON directly after normalization
-                parsed_data = json.loads(normalized_content)
-            else:
-                # Handle plain JSON responses without Markdown code fences
-                parsed_data = json.loads(normalized_content)
+            # With response_format=json_object, we get valid JSON directly
+            parsed_data = json.loads(content)
+
+            # If the LLM returns Markdown code block, remove the backticks and language identifier
+            if content.startswith("```json") and content.endswith("```"):
+                content = content[7:-3]
+                parsed_data = json.loads(content)
 
             # Validate with Pydantic model
             validated_response = response_model.model_validate(parsed_data)
