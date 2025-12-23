@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, useEffect, useCallback } from "react";
+import { useState, Suspense, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -51,12 +51,14 @@ function EvaluationContent() {
   const searchParams = useSearchParams();
   const { completeStep } = useStepper();
   
+  const hasEvaluatedRef = useRef(false);
+  const evaluationInProgressRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<DealEvaluationResult | null>(null);
 
   // Extract vehicle data from URL params
-  const vehicleData: VehicleInfo | null = (() => {
+  const vehicleData: VehicleInfo | null = useMemo(() => {
     try {
       const vin = searchParams.get("vin") || undefined;
       const make = searchParams.get("make");
@@ -93,16 +95,18 @@ function EvaluationContent() {
       console.error("Error parsing vehicle data:", err);
       return null;
     }
-  })();
+  }, [searchParams]);
 
-  // Start evaluation on mount
-  const evaluateDeal = useCallback(async () => {
-    if (!vehicleData) return;
-
+  const evaluateDeal = async (vehicleData: VehicleInfo | null) => {
+    // Mark as in progress
+    evaluationInProgressRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
+      if (!vehicleData) {
+        throw new Error("Invalid vehicle data for evaluation");
+      }
       const data = await apiClient.evaluateDeal({
         vehicle_vin: vehicleData.vin || "UNKNOWN",
         asking_price: vehicleData.price,
@@ -111,6 +115,9 @@ function EvaluationContent() {
       });
 
       setEvaluation(data);
+      
+      // Mark as evaluated
+      hasEvaluatedRef.current = true;
       
       // Complete the evaluation step
       completeStep(3, {
@@ -123,16 +130,34 @@ function EvaluationContent() {
       console.error("Error evaluating deal:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to evaluate deal";
       setError(errorMessage);
+      
+      // Reset in progress flag on error so user can retry
+      evaluationInProgressRef.current = false;
     } finally {
       setLoading(false);
     }
-  }, [vehicleData, completeStep]);
+  };
 
   useEffect(() => {
-    if (vehicleData && !evaluation && !loading) {
-      evaluateDeal();
+    // Guard: Don't run if already evaluated or in progress
+    if (hasEvaluatedRef.current || evaluationInProgressRef.current) {
+      return;
     }
-  }, [vehicleData, evaluation, loading, evaluateDeal]);
+
+    // Guard: Need vehicle data
+    if (!vehicleData) {
+      return;
+    }
+
+    // Guard: Already have evaluation
+    if (evaluation) {
+      return;
+    }
+
+    evaluateDeal(vehicleData);
+
+    // No cleanup needed as we use refs
+  }, [vehicleData, evaluation]);
 
   const getScoreColor = (score: number) => {
     if (score >= 8) return "success";
@@ -178,7 +203,7 @@ function EvaluationContent() {
               <Typography variant="body2" sx={{ mb: 2 }}>
                 {error}
               </Typography>
-              <Button variant="primary" size="sm" onClick={evaluateDeal}>
+              <Button variant="primary" size="sm" onClick={() => evaluateDeal(vehicleData)}>
                 Retry Evaluation
               </Button>
             </Alert>

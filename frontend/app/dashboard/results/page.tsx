@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo, useCallback } from "react";
+import { useState, useEffect, Suspense, useMemo, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
@@ -73,6 +73,9 @@ function ResultsContent() {
     canNavigateToStep,
     isStepCompleted,
   } = useStepper();
+
+  const hasFetchedRef = useRef(false);
+  const currentQueryRef = useRef<string>("");
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -143,137 +146,185 @@ function ResultsContent() {
   }, [getStepData, currentQueryString, isStepCompleted]);
 
   useEffect(() => {
+    // Prevent duplicate calls for the same query
+    if (hasFetchedRef.current && currentQueryRef.current === currentQueryString) {
+      return;
+    }
+
     // Check if user can access this step
     if (!canNavigateToStep(1)) {
       router.push("/dashboard/search");
       return;
     }
 
-    const fetchVehicles = async () => {
-      // Check if we have cached results for this exact query
-      if (shouldUseCachedData()) {
-        const cachedData = getStepData<{
-          queryString: string;
-          vehicles: Vehicle[];
-          message: string | null;
-        }>(1);
-        if (cachedData) {
-          // Use cached data to avoid redundant API call
-          setVehicles(cachedData.vehicles);
-          setSearchMessage(cachedData.message);
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      setIsLoading(true);
-      setError(null);
+    const fetchData = async () => {
+      // Mark as fetching to prevent duplicate calls
+      hasFetchedRef.current = true;
+      currentQueryRef.current = currentQueryString;
 
       try {
-        // Build search request from URL params
-        const searchRequest: CarSearchRequest = {};
-
-        if (searchParams.get("make")) {
-          searchRequest.make = searchParams.get("make")!;
-        }
-        if (searchParams.get("model")) {
-          searchRequest.model = searchParams.get("model")!;
-        }
-        if (searchParams.get("budgetMin")) {
-          searchRequest.budget_min = parseInt(searchParams.get("budgetMin")!);
-        }
-        if (searchParams.get("budgetMax")) {
-          searchRequest.budget_max = parseInt(searchParams.get("budgetMax")!);
-        }
-        if (searchParams.get("carType")) {
-          searchRequest.car_type = searchParams.get("carType")!;
-        }
-        if (searchParams.get("yearMin")) {
-          searchRequest.year_min = parseInt(searchParams.get("yearMin")!);
-        }
-        if (searchParams.get("yearMax")) {
-          searchRequest.year_max = parseInt(searchParams.get("yearMax")!);
-        }
-        if (searchParams.get("mileageMax")) {
-          searchRequest.mileage_max = parseInt(searchParams.get("mileageMax")!);
-        }
-        if (searchParams.get("userPriorities")) {
-          searchRequest.user_priorities = searchParams.get("userPriorities")!;
+        // Check cache first
+        if(shouldUseCachedData()) {
+          const cachedData = getStepData<{
+            queryString: string;
+            vehicles: Vehicle[];
+            message: string | null;
+          }>(1);
+  
+          if (
+            cachedData &&
+            cachedData.queryString === currentQueryString &&
+            isStepCompleted(1)
+          ) {
+            // Use cached data
+            setVehicles(cachedData.vehicles);
+            setSearchMessage(cachedData.message);
+            setIsLoading(false);
+            
+            // Fetch favorites in background (non-blocking)
+            fetchFavorites();
+            return;
+          }
         }
 
-        // Call the backend API
-        const response = await apiClient.searchCars(searchRequest);
+        setIsLoading(true);
+        setError(null);
 
-        // Transform API response to Vehicle interface
-        const transformedVehicles: Vehicle[] = response.top_vehicles.map(
-          (v: VehicleRecommendation) => ({
-            vin: v.vin || undefined,
-            make: v.make || "Unknown",
-            model: v.model || "Unknown",
-            year: v.year || new Date().getFullYear(),
-            price: v.price || 0,
-            mileage: v.mileage || 0,
-            fuelType: v.fuel_type || "Unknown",
-            location: v.location || "Unknown",
-            color: v.exterior_color || "Unknown",
-            condition: v.inventory_type || "Used",
-            image:
-              v.photo_links && v.photo_links.length > 0
-                ? v.photo_links[0]
-                : `/api/placeholder/400/300?text=${encodeURIComponent(
-                    (v.make || "") + " " + (v.model || "")
-                  )}`,
-            highlights: v.highlights || [],
-            recommendation_score: v.recommendation_score,
-            recommendation_summary: v.recommendation_summary,
-            dealer_name: v.dealer_name,
-            vdp_url: v.vdp_url,
-          })
-        );
+        // Parallel API calls with Promise.allSettled (won't fail if one fails)
+        const [vehiclesResult, favoritesResult] = await Promise.allSettled([
+          fetchVehiclesData(),
+          fetchFavorites(),
+        ]);
 
-        setVehicles(transformedVehicles);
-        setSearchMessage(response.message || null);
+        // Handle vehicles result
+        if (vehiclesResult.status === "fulfilled") {
+          const { vehicles: fetchedVehicles, message } = vehiclesResult.value;
+          setVehicles(fetchedVehicles);
+          setSearchMessage(message);
 
-        // Mark results step as completed and cache the results
-        completeStep(1, {
-          queryString: currentQueryString,
-          vehicles: transformedVehicles,
-          message: response.message || null,
-        });
-      } catch (err: unknown) {
-        console.error("Error fetching vehicles:", err);
+          // Cache the results
+          completeStep(1, {
+            queryString: currentQueryString,
+            vehicles: fetchedVehicles,
+            message: message || null,
+          });
+        } else {
+          const errorMessage =
+            vehiclesResult.reason instanceof Error
+              ? vehiclesResult.reason.message
+              : "Failed to load vehicles. Please try again.";
+          setError(errorMessage);
+        }
+
+        // Handle favorites result (non-critical, don't show error)
+        if (favoritesResult.status === "fulfilled") {
+          setFavorites(favoritesResult.value);
+        }
+      } catch (err) {
+        console.error("Error fetching data:", err);
         const errorMessage =
           err instanceof Error
             ? err.message
-            : "Failed to load vehicles. Please try again.";
+            : "Failed to load data. Please try again.";
         setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
     };
 
-    const fetchFavorites = async () => {
-      try {
-        const favoritesData = await apiClient.getFavorites();
-        const favoriteVins = new Set(favoritesData.map((fav) => fav.vin));
-        setFavorites(favoriteVins);
-      } catch (err: unknown) {
-        console.error("Error fetching favorites:", err);
-        // Non-critical error, don't show to user
-      }
-    };
+    fetchData();
 
-    fetchVehicles();
-    fetchFavorites();
-  }, [
-    searchParams,
-    currentQueryString,
-    canNavigateToStep,
-    router,
-    completeStep,
-    shouldUseCachedData,
-    getStepData,
-  ]);
+    // ✅ Cleanup function to reset ref if component unmounts
+    return () => {
+      // Don't reset refs on unmount to preserve state
+      // Only reset if query changes
+    };
+  }, [currentQueryString]);
+
+  const fetchVehiclesData = async (): Promise<{
+    vehicles: Vehicle[];
+    message: string | null;
+  }> => {
+    console.log("Fetching vehicles from API with params:", searchParams.toString());
+    const searchRequest: CarSearchRequest = {};
+
+    // Build search request from URL params
+    if (searchParams.get("make")) {
+      searchRequest.make = searchParams.get("make")!;
+    }
+    if (searchParams.get("model")) {
+      searchRequest.model = searchParams.get("model")!;
+    }
+    if (searchParams.get("budgetMin")) {
+      searchRequest.budget_min = parseInt(searchParams.get("budgetMin")!);
+    }
+    if (searchParams.get("budgetMax")) {
+      searchRequest.budget_max = parseInt(searchParams.get("budgetMax")!);
+    }
+    if (searchParams.get("carType")) {
+      searchRequest.car_type = searchParams.get("carType")!;
+    }
+    if (searchParams.get("yearMin")) {
+      searchRequest.year_min = parseInt(searchParams.get("yearMin")!);
+    }
+    if (searchParams.get("yearMax")) {
+      searchRequest.year_max = parseInt(searchParams.get("yearMax")!);
+    }
+    if (searchParams.get("mileageMax")) {
+      searchRequest.mileage_max = parseInt(searchParams.get("mileageMax")!);
+    }
+    if (searchParams.get("userPriorities")) {
+      searchRequest.user_priorities = searchParams.get("userPriorities")!;
+    }
+
+    const response = await apiClient.searchCars(searchRequest);
+
+    const transformedVehicles: Vehicle[] = response.top_vehicles.map(
+      (v: VehicleRecommendation) => ({
+        vin: v.vin || undefined,
+        make: v.make || "Unknown",
+        model: v.model || "Unknown",
+        year: v.year || new Date().getFullYear(),
+        price: v.price || 0,
+        mileage: v.mileage || 0,
+        fuelType: v.fuel_type || "Unknown",
+        location: v.location || "Unknown",
+        color: v.exterior_color || "Unknown",
+        condition: v.inventory_type || "Used",
+        image:
+          v.photo_links && v.photo_links.length > 0
+            ? v.photo_links[0]
+            : `/api/placeholder/400/300?text=${encodeURIComponent(
+                (v.make || "") + " " + (v.model || "")
+              )}`,
+        highlights: v.highlights || [],
+        recommendation_score: v.recommendation_score,
+        recommendation_summary: v.recommendation_summary,
+        dealer_name: v.dealer_name,
+        vdp_url: v.vdp_url,
+      })
+    );
+
+    return {
+      vehicles: transformedVehicles,
+      message: response.message || null,
+    };
+  };
+
+  const fetchFavorites = async (): Promise<Set<string>> => {
+    console.log("Fetching favorites from API");
+    try {
+      const favoritesData = await apiClient.getFavorites();
+      const favoriteVins = new Set(favoritesData.map((fav) => fav.vin));
+      setFavorites(favoriteVins);
+      return favoriteVins;
+    } catch (err) {
+      console.error("Error fetching favorites:", err);
+      // Non-critical error, return empty set
+      return new Set();
+    }
+  };
+
 
   const handleVehicleSelection = (vehicle: Vehicle, targetPath: string) => {
     // Store the selected vehicle data for use in subsequent steps

@@ -19,6 +19,7 @@ class CarSearchRequest(BaseModel):
     user_priorities: str | None = Field(
         None, description="User's specific priorities or preferences"
     )
+    max_results: int = Field(50, description="Maximum number of results to return", ge=1, le=100)
 
 
 class SearchCriteria(BaseModel):

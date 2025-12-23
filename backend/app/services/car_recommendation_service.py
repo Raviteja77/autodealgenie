@@ -50,6 +50,7 @@ class CarRecommendationService:
         year_max: int | None = None,
         mileage_max: int | None = None,
         user_priorities: str | None = None,
+        max_results: int | None = None,
     ) -> str:
         """
         Generate a cache key for search parameters
@@ -71,6 +72,7 @@ class CarRecommendationService:
             "year_max": year_max,
             "mileage_max": mileage_max,
             "user_priorities": user_priorities,
+            "max_results": max_results,
         }
         # Sort keys for consistency
         params_str = json.dumps(params, sort_keys=True)
@@ -285,6 +287,7 @@ class CarRecommendationService:
             year_max,
             mileage_max,
             user_priorities,
+            max_results,
         )
 
         # Multi-tier cache strategy: Redis (fast) → File (persistent fallback)
@@ -467,7 +470,25 @@ class CarRecommendationService:
                 temperature=0.3,  # Lower temperature for more consistent recommendations
             )
 
-            recommendations = response.recommendations
+            # Check if the response has the expected structure
+            if hasattr(response, 'recommendations') and response.recommendations is not None:
+                recommendations = response.recommendations
+            elif hasattr(response, 'top_vehicles') and response.top_vehicles is not None:
+                 # Adapt to the new response structure if 'recommendations' is missing
+                 # Build final output with full vehicle data
+                top_vehicles = []
+                for vehicle in response.top_vehicles:
+                  vehicle_data = next((item for item in listings if item.get("vin") == vehicle.vin), None)
+                  if vehicle_data:
+                    vehicle_data["recommendation_score"] = vehicle.score
+                    vehicle_data["highlights"] = vehicle.highlights
+                    vehicle_data["recommendation_summary"] = vehicle.summary
+                    top_vehicles.append(vehicle_data)
+                return top_vehicles
+            else:
+                logger.warning("LLM response missing 'recommendations' or valid 'top_vehicles'. Using fallback recommendations.")
+                return self._fallback_recommendations(listings)
+
 
 
             # Build final output with full vehicle data

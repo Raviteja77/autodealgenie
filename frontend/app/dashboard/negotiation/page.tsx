@@ -93,6 +93,8 @@ function NegotiationContent() {
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContext = useNegotiationChat();
+  const hasInitializedRef = useRef(false);
+  const initializationInProgressRef = useRef(false);
 
   // Local state for vehicle data and target price (derived from URL)
   const [vehicleData, setVehicleData] = useState<VehicleInfo | null>(null);
@@ -232,7 +234,7 @@ function NegotiationContent() {
       };
       
       setVehicleData(parsedVehicleData);
-      setTargetPrice(price * 0.9); // Set target price to 10% below asking
+      setTargetPrice(price * 0.9);
     } catch (err) {
       console.error("Error parsing vehicle data:", err);
       setVehicleData(null);
@@ -254,9 +256,9 @@ function NegotiationContent() {
     if (!canNavigateToStep(2)) {
       router.push("/dashboard/search");
     }
-  }, [canNavigateToStep, router]);
+  }, []); // Run once
 
-  // Mark step as in-progress
+  // Mark step as in-progress (separate effect)
   useEffect(() => {
     if (vehicleData) {
       completeStep(2, {
@@ -265,19 +267,28 @@ function NegotiationContent() {
         timestamp: new Date().toISOString(),
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completeStep, vehicleData]);
+  }, [vehicleData]);
 
   // Initialize negotiation session
   useEffect(() => {
+    // Guard clauses to prevent duplicate calls
+    if (hasInitializedRef.current || initializationInProgressRef.current) {
+      return;
+    }
+
+    if (!vehicleData || !targetPrice || negotiationState.sessionId !== null) {
+      return;
+    }
+
     const initializeNegotiation = async () => {
-      if (!vehicleData || !targetPrice || negotiationState.sessionId !== null) return;
+      initializationInProgressRef.current = true;
 
       try {
         setLoading(true);
         setError(null);
 
-        // Create a deal for this vehicle first
+        // Sequential API calls (create deal, then negotiation)
+        // These MUST be sequential, not parallel
         const dealData: DealCreate = {
           customer_name: user?.full_name || user?.username || "Guest User",
           customer_email: user?.email || "guest@autodealgenie.com",
@@ -285,7 +296,7 @@ function NegotiationContent() {
           vehicle_model: vehicleData.model,
           vehicle_year: vehicleData.year,
           vehicle_mileage: vehicleData.mileage,
-          vehicle_vin: vehicleData.vin || DEFAULT_VIN, // Use VIN if available, otherwise placeholder
+          vehicle_vin: vehicleData.vin || DEFAULT_VIN,
           asking_price: vehicleData.price,
           status: "in_progress",
           notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
@@ -299,21 +310,23 @@ function NegotiationContent() {
           strategy: "moderate",
         });
 
-        // Fetch full session details
         const session = await apiClient.getNegotiationSession(
           response.session_id
         );
 
-        // Update negotiation state using the hook
+        // Update negotiation state
         setSessionId(session.id);
         setStatus(session.status);
         setCurrentRound(session.current_round);
         setMessages(session.messages);
         setLoading(false);
 
-        // Initialize chat context with session ID and messages
+        // Initialize chat context
         chatContext.setSessionId(session.id);
         chatContext.setMessages(session.messages);
+
+        // Mark as initialized
+        hasInitializedRef.current = true;
 
         setNotification({
           type: "success",
@@ -327,23 +340,14 @@ function NegotiationContent() {
             : "Failed to initialize negotiation session";
         setError(errorMessage);
         setLoading(false);
+        
+        // Reset in progress flag on error so user can retry
+        initializationInProgressRef.current = false;
       }
     };
 
     initializeNegotiation();
-  }, [
-    vehicleData,
-    targetPrice,
-    negotiationState.sessionId,
-    user,
-    setLoading,
-    setError,
-    setSessionId,
-    setStatus,
-    setCurrentRound,
-    setMessages,
-    chatContext,
-  ]);
+  }, [vehicleData, targetPrice]);
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = useCallback(() => {

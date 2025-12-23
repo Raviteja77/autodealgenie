@@ -7,6 +7,7 @@ import {
   Typography,
 } from "@mui/material";
 import { DirectionsCar as DirectionsCarIcon } from "@mui/icons-material";
+import { Input } from "@/components";
 
 interface BasicVehicleFiltersProps {
   make: string;
@@ -17,10 +18,12 @@ interface BasicVehicleFiltersProps {
   onModelChange: (value: string) => void;
   onCarTypeChange: (value: string) => void;
   onBodyTypeChange: (value: string) => void;
+  onMaxResultsChange: (value: number) => void;
   makes: string[];
   models: Record<string, string[]>;
   carTypes: string[];
   bodyTypes: string[];
+  maxResults: number;
 }
 
 export function BasicVehicleFilters({
@@ -32,10 +35,12 @@ export function BasicVehicleFilters({
   onModelChange,
   onCarTypeChange,
   onBodyTypeChange,
+  onMaxResultsChange,
   makes,
   models,
   carTypes,
   bodyTypes,
+  maxResults,
 }: BasicVehicleFiltersProps) {
   return (
     <>
@@ -112,7 +117,7 @@ export function BasicVehicleFilters({
         </FormControl>
       </Grid>
 
-      <Grid item xs={12} md={6}>
+      {/* <Grid item xs={12} md={6}>
         <FormControl fullWidth>
           <InputLabel id="body-type-label">Body Type</InputLabel>
           <Select
@@ -129,6 +134,18 @@ export function BasicVehicleFilters({
               </MenuItem>
             ))}
           </Select>
+        </FormControl>
+      </Grid> */}
+
+      <Grid item xs={12} md={6}>
+        <FormControl fullWidth>
+          <Input
+            type="number"
+            value={maxResults}
+            label="Max Results"
+            onChange={(e) => onMaxResultsChange(parseInt(e.target.value))}
+            aria-label="Max Results to fetch from API for AI to analyze"
+          />
         </FormControl>
       </Grid>
     </>

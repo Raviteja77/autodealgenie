@@ -50,6 +50,7 @@ interface SearchFormData {
   drivetrain: string;
   mustHaveFeatures: string[];
   userPriorities: string;
+  maxResults: number;
 
   // Financing criteria
   paymentMethod: "cash" | "finance" | "both";
@@ -83,6 +84,7 @@ function DashboardSearchPageContent() {
     paymentMethod: "cash",
     budgetMin: 10000,
     budgetMax: 50000,
+    maxResults: 50,
   });
 
   const [showFinancingOptions, setShowFinancingOptions] = useState(false);
@@ -465,6 +467,10 @@ function DashboardSearchPageContent() {
                   model={searchParams.model}
                   carType={searchParams.carType}
                   bodyType={searchParams.bodyType}
+                  maxResults={searchParams.maxResults}
+                  onMaxResultsChange={(value) =>
+                    setSearchParams((prev) => ({ ...prev, maxResults: value }))
+                  }
                   onMakeChange={(value) =>
                     setSearchParams((prev) => ({
                       ...prev,
@@ -621,6 +627,7 @@ function DashboardSearchPageContent() {
                           paymentMethod: "cash",
                           budgetMin: 10000,
                           budgetMax: 50000,
+                          maxResults: 50,
                         })
                       }
                     >
