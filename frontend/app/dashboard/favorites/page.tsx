@@ -188,7 +188,7 @@ export default function FavoritesPage() {
                     href="/dashboard/search"
                     style={{ textDecoration: "none" }}
                   >
-                    <Button variant="primary">Browse Cars</Button>
+                    <Button variant="success">Browse Cars</Button>
                   </Link>
                 </Box>
               </Card.Body>

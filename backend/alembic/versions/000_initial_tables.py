@@ -54,6 +54,7 @@ def upgrade() -> None:
         sa.Column("vehicle_model", sa.String(length=100), nullable=False),
         sa.Column("vehicle_year", sa.Integer(), nullable=False),
         sa.Column("vehicle_mileage", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("vehicle_vin", sa.String(length=17), nullable=False),
         sa.Column("asking_price", sa.Float(), nullable=False),
         sa.Column("offer_price", sa.Float(), nullable=True),
         sa.Column(

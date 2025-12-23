@@ -285,6 +285,7 @@ class CarRecommendationService:
             year_max,
             mileage_max,
             user_priorities,
+            max_results,
         )
 
         # Multi-tier cache strategy: Redis (fast) → File (persistent fallback)

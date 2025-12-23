@@ -200,6 +200,9 @@ function ResultsContent() {
         if (searchParams.get("userPriorities")) {
           searchRequest.user_priorities = searchParams.get("userPriorities")!;
         }
+        if (searchParams.get("maxResults")) {
+          searchRequest.max_results = parseInt(searchParams.get("maxResults")!);
+        }
 
         // Call the backend API
         const response = await apiClient.searchCars(searchRequest);

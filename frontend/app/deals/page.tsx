@@ -178,11 +178,7 @@ export default function DealsPage() {
             <Card.Body>
               <Box sx={{ textAlign: "center", py: 4 }}>
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-                  No deals found. The backend is connected but no deals have been created yet.
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  You can create deals using the API at{" "}
-                  {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/docs
+                  No deals found.
                 </Typography>
               </Box>
             </Card.Body>

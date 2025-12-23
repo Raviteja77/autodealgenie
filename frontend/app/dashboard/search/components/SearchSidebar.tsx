@@ -21,6 +21,15 @@ export function SearchSidebar() {
         </Typography>
       </Paper>
 
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          🤖 AI Analysis
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          <strong>Max Results</strong> is used to fetch data from the Market Check API. The AI then analyzes this data to recommend the <strong>top 5</strong> vehicles for you.
+        </Typography>
+      </Paper>
+
       <Alert severity="info">
         <Typography variant="body2">
           <strong>Pro Tip:</strong> Knowing your financing options before
