@@ -14,6 +14,10 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import Grid from "@mui/material/Grid";
 import { useRouter } from "next/navigation";
 
+// Constants for fallback values when data is unavailable
+const DEFAULT_FUEL_TYPE = "Unknown";
+const DEFAULT_CONDITION = "good";
+
 export default function DealsPage() {
   const router = useRouter();
   const { data: deals, isLoading, error, execute } = useApi<Deal[]>();
@@ -37,6 +41,17 @@ export default function DealsPage() {
     }
   };
 
+  const getNavigationHint = (status: string): string | null => {
+    switch (status) {
+      case "in_progress":
+        return "Click to continue negotiation";
+      case "completed":
+        return "Click to view deal evaluation";
+      default:
+        return null;
+    }
+  };
+
   const handleDealClick = (deal: Deal) => {
     const vehicleParams = new URLSearchParams({
       make: deal.vehicle_make,
@@ -45,9 +60,22 @@ export default function DealsPage() {
       price: deal.asking_price.toString(),
       mileage: deal.vehicle_mileage.toString(),
     });
+    
+    // Add VIN if available
+    if (deal.vehicle_vin) {
+      vehicleParams.set("vin", deal.vehicle_vin);
+    }
+    
+    // Add fuelType with fallback
+    vehicleParams.set("fuelType", DEFAULT_FUEL_TYPE);
+    
+    // Navigate based on deal status
     if (deal.status === "in_progress") {
+      // In progress deals go to negotiation page
       router.push(`/dashboard/negotiation?${vehicleParams.toString()}`);
     } else if (deal.status === "completed") {
+      // Completed deals go to evaluation page
+      vehicleParams.set("condition", DEFAULT_CONDITION); // Add default condition for evaluation
       router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
     }
   };
@@ -161,9 +189,16 @@ export default function DealsPage() {
           </Card>
         ) : (
           <Grid container spacing={3}>
-            {deals.map((deal) => (
-              <Grid item xs={12} key={deal.id}>
-                <Card hover shadow="md" sx={{ cursor: "pointer" }} onClick={() => handleDealClick(deal)}>
+            {deals.map((deal) => {
+              const isClickable = deal.status === "in_progress" || deal.status === "completed";
+              return (
+                <Grid item xs={12} key={deal.id}>
+                  <Card 
+                    hover={isClickable} 
+                    shadow="md" 
+                    sx={{ cursor: isClickable ? "pointer" : "default" }} 
+                    onClick={isClickable ? () => handleDealClick(deal) : undefined}
+                  >
                   <Card.Body>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
                       <Box>
@@ -215,13 +250,21 @@ export default function DealsPage() {
                         </Typography>
                       </Box>
                     )}
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
-                      Created: {new Date(deal.created_at).toLocaleString()}
-                    </Typography>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Created: {new Date(deal.created_at).toLocaleString()}
+                      </Typography>
+                      {getNavigationHint(deal.status) && (
+                        <Typography variant="caption" color="primary" fontWeight={600}>
+                          {getNavigationHint(deal.status)} →
+                        </Typography>
+                      )}
+                    </Box>
                   </Card.Body>
                 </Card>
               </Grid>
-            ))}
+            );
+            })}
           </Grid>
         )}
       </Container>
