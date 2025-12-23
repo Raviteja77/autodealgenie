@@ -5,42 +5,36 @@ import { useRouter } from "next/navigation";
 import {
   Box,
   Container,
-  Typography,
   Grid,
   Paper,
-  Slider,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  ToggleButtonGroup,
-  ToggleButton,
   Divider,
   Collapse,
   Alert,
-  Tooltip,
-  IconButton,
   AlertTitle,
+  IconButton,
+  Typography,
 } from "@mui/material";
 import {
   Search as SearchIcon,
-  DirectionsCar as DirectionsCarIcon,
-  AttachMoney as AttachMoneyIcon,
-  CalendarToday as CalendarTodayIcon,
-  Speed as SpeedIcon,
-  AccountBalance as AccountBalanceIcon,
-  Info as InfoIcon,
-  TrendingUp as TrendingUpIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  Speed as SpeedIcon,
 } from "@mui/icons-material";
-import { Input, Button } from "@/components";
+import { Button } from "@/components";
 import { useAuth } from "@/lib/auth";
 import { useStepper } from "@/app/context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SearchFormSchema, validateSearchField } from "@/lib/validation/searchFormSchema";
 import { useDebounce } from "@/lib/hooks";
 import { z } from "zod";
+import {
+  PaymentMethodSelector,
+  BudgetRangeSlider,
+  FinancingOptionsForm,
+  BasicVehicleFilters,
+  AdvancedFilters,
+  SearchSidebar,
+} from "./components";
 
 interface SearchFormData {
   // Vehicle criteria
@@ -50,8 +44,11 @@ interface SearchFormData {
   yearMax: number;
   mileageMax: number;
   carType: string;
+  bodyType: string;
   fuelType: string;
   transmission: string;
+  drivetrain: string;
+  mustHaveFeatures: string[];
   userPriorities: string;
 
   // Financing criteria
@@ -59,7 +56,7 @@ interface SearchFormData {
   budgetMin: number;
   budgetMax: number;
   downPayment?: number;
-  loanTerm?: number; // months
+  loanTerm?: number;
   creditScore?: "excellent" | "good" | "fair" | "poor";
   monthlyPaymentMax?: number;
   tradeInValue?: number;
@@ -77,8 +74,11 @@ function DashboardSearchPageContent() {
     yearMax: 2025,
     mileageMax: 100000,
     carType: "",
+    bodyType: "",
     fuelType: "",
     transmission: "",
+    drivetrain: "",
+    mustHaveFeatures: [],
     userPriorities: "",
     paymentMethod: "both",
     budgetMin: 10000,
@@ -153,41 +153,6 @@ function DashboardSearchPageContent() {
       }
     }
   }, [searchParams.budgetMax, searchParams.downPayment]);
-
-  // Memoize handlers to prevent unnecessary re-renders
-  const handleBudgetChange = useCallback(
-    (newValue: number | number[]) => {
-      const [min, max] = newValue as number[];
-      setSearchParams((prev) => ({
-        ...prev,
-        budgetMin: min,
-        budgetMax: max,
-      }));
-    },
-    []
-  );
-
-  const handleYearChange = useCallback(
-    (newValue: number | number[]) => {
-      const [min, max] = newValue as number[];
-      setSearchParams((prev) => ({
-        ...prev,
-        yearMin: min,
-        yearMax: max,
-      }));
-    },
-    []
-  );
-
-  const handleMileageChange = useCallback(
-    (newValue: number | number[]) => {
-      setSearchParams((prev) => ({
-        ...prev,
-        mileageMax: newValue as number,
-      }));
-    },
-    []
-  );
 
   // Calculate estimated monthly payment
   const calculateMonthlyPayment = (
@@ -297,6 +262,7 @@ function DashboardSearchPageContent() {
     }
   }, [searchParams, completeStep, setStepData, router, user]);
 
+  // Data for dropdowns
   const makes = [
     "Toyota",
     "Honda",
@@ -323,11 +289,50 @@ function DashboardSearchPageContent() {
     hyundai: ["Elantra", "Sonata", "Tucson", "Santa Fe", "Kona"],
   };
 
-  const carTypes = [
-    "new",
-    "used",
-    "certified pre-owned",
+  const carTypes = ["New", "Used", "Certified Pre-Owned"];
+
+  const bodyTypes = [
+    "Sedan",
+    "SUV",
+    "Truck",
+    "Coupe",
+    "Wagon",
+    "Van",
+    "Convertible",
+    "Hatchback",
   ];
+
+  const fuelTypes = [
+    "Gasoline",
+    "Diesel",
+    "Electric",
+    "Hybrid",
+    "Plug-in Hybrid",
+  ];
+
+  const transmissions = ["Automatic", "Manual", "CVT"];
+
+  const drivetrains = ["FWD", "RWD", "AWD", "4WD"];
+
+  const featureOptions = [
+    "Backup Camera",
+    "Bluetooth",
+    "Navigation",
+    "Sunroof",
+    "Leather Seats",
+    "Heated Seats",
+    "Apple CarPlay",
+    "Android Auto",
+    "Adaptive Cruise Control",
+    "Lane Keep Assist",
+    "Blind Spot Monitor",
+    "Parking Sensors",
+  ];
+
+  // Conditional filter logic: hide year and mileage for new cars
+  const isNewCar = searchParams.carType.toLowerCase() === "new";
+  const showYearFilter = !isNewCar;
+  const showMileageFilter = !isNewCar;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -353,57 +358,16 @@ function DashboardSearchPageContent() {
               <Grid container spacing={3}>
                 {/* Payment Method Selection */}
                 <Grid item xs={12}>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                  >
-                    <AccountBalanceIcon color="primary" />
-                    How Will You Pay?
-                  </Typography>
-                  <ToggleButtonGroup
+                  <PaymentMethodSelector
                     value={searchParams.paymentMethod}
-                    exclusive
-                    onChange={(_, value) => {
-                      if (value !== null) {
-                        setSearchParams({
-                          ...searchParams,
-                          paymentMethod: value,
-                        });
-                        setShowFinancingOptions(value !== "cash");
-                      }
+                    onChange={(value) => {
+                      setSearchParams({
+                        ...searchParams,
+                        paymentMethod: value,
+                      });
+                      setShowFinancingOptions(value !== "cash");
                     }}
-                    fullWidth
-                    sx={{ mt: 2 }}
-                  >
-                    <ToggleButton value="cash">
-                      <Box sx={{ textAlign: "center", py: 1 }}>
-                        <AttachMoneyIcon sx={{ fontSize: 32, mb: 1 }} />
-                        <Typography variant="body2">Pay Cash</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Full payment upfront
-                        </Typography>
-                      </Box>
-                    </ToggleButton>
-                    <ToggleButton value="finance">
-                      <Box sx={{ textAlign: "center", py: 1 }}>
-                        <AccountBalanceIcon sx={{ fontSize: 32, mb: 1 }} />
-                        <Typography variant="body2">Finance</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Monthly payments
-                        </Typography>
-                      </Box>
-                    </ToggleButton>
-                    <ToggleButton value="both">
-                      <Box sx={{ textAlign: "center", py: 1 }}>
-                        <TrendingUpIcon sx={{ fontSize: 32, mb: 1 }} />
-                        <Typography variant="body2">Show Both</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Compare options
-                        </Typography>
-                      </Box>
-                    </ToggleButton>
-                  </ToggleButtonGroup>
+                  />
                 </Grid>
 
                 <Grid item xs={12}>
@@ -412,221 +376,81 @@ function DashboardSearchPageContent() {
 
                 {/* Budget Section */}
                 <Grid item xs={12}>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                  >
-                    <AttachMoneyIcon color="primary" />
-                    {searchParams.paymentMethod === "cash"
-                      ? "Budget"
-                      : searchParams.paymentMethod === "finance"
-                      ? "Vehicle Price Range"
-                      : "Price Range"}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Box sx={{ px: 2 }}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      gutterBottom
-                      id="budget-slider-label"
-                    >
-                      ${searchParams.budgetMin.toLocaleString()} - $
-                      {searchParams.budgetMax.toLocaleString()}
-                    </Typography>
-                    <Slider
-                      value={[searchParams.budgetMin, searchParams.budgetMax]}
-                      onChange={(_, newValue) => handleBudgetChange(newValue)}
-                      valueLabelDisplay="auto"
-                      min={5000}
-                      max={100000}
-                      step={1000}
-                      valueLabelFormat={(value) => `$${value.toLocaleString()}`}
-                      marks={[
-                        { value: 5000, label: "$5K" },
-                        { value: 100000, label: "$100K" },
-                      ]}
-                      sx={{ color: "success.light" }}
-                      aria-labelledby="budget-slider-label"
-                      aria-label="Budget range slider"
-                    />
-                    {validationErrors.budgetMax && (
-                      <Typography variant="caption" color="error" sx={{ mt: 1 }}>
-                        {validationErrors.budgetMax}
-                      </Typography>
-                    )}
-                  </Box>
+                  <BudgetRangeSlider
+                    min={searchParams.budgetMin}
+                    max={searchParams.budgetMax}
+                    onChange={(min, max) => {
+                      setSearchParams((prev) => ({
+                        ...prev,
+                        budgetMin: min,
+                        budgetMax: max,
+                      }));
+                    }}
+                    paymentMethod={searchParams.paymentMethod}
+                    error={validationErrors.budgetMax}
+                  />
                 </Grid>
 
                 {/* Financing Options */}
                 <Grid item xs={12}>
                   <Collapse in={showFinancingOptions}>
-                    <Paper
-                      variant="outlined"
-                      sx={{ p: 3, bgcolor: "primary.50", borderRadius: 2 }}
-                    >
-                      <Typography variant="h6" gutterBottom>
-                        Financing Details
-                        <Tooltip title="Provide financing details to see accurate monthly payment estimates">
-                          <IconButton size="small" sx={{ ml: 1 }}>
-                            <InfoIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Typography>
-
-                      <Grid container spacing={2} sx={{ mt: 1 }}>
-                        {/* Down Payment */}
-                        <Grid item xs={12} md={6}>
-                          <Input
-                            fullWidth
-                            label="Down Payment"
-                            type="number"
-                            value={searchParams.downPayment || ""}
-                            onChange={(e) => {
-                              const value = parseInt(e.target.value) || 0;
-                              setSearchParams({
-                                ...searchParams,
-                                downPayment: value,
-                              });
-                              // Validate down payment
-                              const result = validateSearchField(
-                                "downPayment",
-                                value,
-                                { ...searchParams, downPayment: value }
-                              );
-                              if (!result.success && result.error) {
-                                setValidationErrors((prev) => ({
-                                  ...prev,
-                                  downPayment: result.error!,
-                                }));
-                              } else {
-                                setValidationErrors((prev) => {
-                                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                                  const { downPayment: _, ...rest } = prev;
-                                  return rest;
-                                });
-                              }
-                            }}
-                            placeholder="e.g., 5000"
-                            error={validationErrors.downPayment}
-                            aria-label="Down payment amount"
-                          />
-                        </Grid>
-
-                        {/* Trade-In Value */}
-                        <Grid item xs={12} md={6}>
-                          <Input
-                            fullWidth
-                            label="Trade-In Value (Optional)"
-                            type="number"
-                            value={searchParams.tradeInValue || ""}
-                            onChange={(e) =>
-                              setSearchParams({
-                                ...searchParams,
-                                tradeInValue: parseInt(e.target.value) || 0,
-                              })
-                            }
-                            placeholder="e.g., 8000"
-                          />
-                        </Grid>
-
-                        {/* Loan Term */}
-                        <Grid item xs={12} md={6}>
-                          <FormControl fullWidth>
-                            <InputLabel id="loan-term-label">Loan Term</InputLabel>
-                            <Select
-                              labelId="loan-term-label"
-                              value={searchParams.loanTerm || ""}
-                              label="Loan Term"
-                              onChange={(e) => {
-                                setSearchParams({
-                                  ...searchParams,
-                                  loanTerm: e.target.value as number,
-                                });
-                              }}
-                              aria-label="Loan term selection"
-                            >
-                              <MenuItem value={36}>36 months (3 years)</MenuItem>
-                              <MenuItem value={48}>48 months (4 years)</MenuItem>
-                              <MenuItem value={60}>60 months (5 years)</MenuItem>
-                              <MenuItem value={72}>72 months (6 years)</MenuItem>
-                            </Select>
-                          </FormControl>
-                        </Grid>
-
-                        {/* Credit Score */}
-                        <Grid item xs={12} md={6}>
-                          <FormControl fullWidth>
-                            <InputLabel id="credit-score-label">Credit Score Range</InputLabel>
-                            <Select
-                              labelId="credit-score-label"
-                              value={searchParams.creditScore || ""}
-                              label="Credit Score Range"
-                              onChange={(e) => {
-                                setSearchParams({
-                                  ...searchParams,
-                                  creditScore: e.target.value as
-                                    | "excellent"
-                                    | "good"
-                                    | "fair"
-                                    | "poor",
-                                });
-                              }}
-                              aria-label="Credit score range selection"
-                            >
-                              <MenuItem value="excellent">
-                                Excellent (750+)
-                              </MenuItem>
-                              <MenuItem value="good">Good (700-749)</MenuItem>
-                              <MenuItem value="fair">Fair (650-699)</MenuItem>
-                              <MenuItem value="poor">{"Poor (< 650)"}</MenuItem>
-                            </Select>
-                          </FormControl>
-                        </Grid>
-
-                        {/* Maximum Monthly Payment */}
-                        <Grid item xs={12}>
-                          <Input
-                            fullWidth
-                            label="Maximum Monthly Payment (Optional)"
-                            type="number"
-                            value={searchParams.monthlyPaymentMax || ""}
-                            onChange={(e) =>
-                              setSearchParams({
-                                ...searchParams,
-                                monthlyPaymentMax:
-                                  parseInt(e.target.value) || undefined,
-                              })
-                            }
-                            placeholder="e.g., 500"
-                          />
-                        </Grid>
-
-                        {/* Estimated Payment Display */}
-                        {estimatedPayment && (
-                          <Grid item xs={12}>
-                            <Alert severity="info" sx={{ mt: 2 }}>
-                              <Typography variant="body2" gutterBottom>
-                                <strong>Estimated Monthly Payment:</strong>
-                              </Typography>
-                              <Typography variant="h5" color="primary">
-                                ${estimatedPayment}/month
-                              </Typography>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                Based on average price in your range. Actual
-                                rates may vary.
-                              </Typography>
-                            </Alert>
-                          </Grid>
-                        )}
-                      </Grid>
-                    </Paper>
+                    <FinancingOptionsForm
+                      downPayment={searchParams.downPayment}
+                      tradeInValue={searchParams.tradeInValue}
+                      loanTerm={searchParams.loanTerm}
+                      creditScore={searchParams.creditScore}
+                      monthlyPaymentMax={searchParams.monthlyPaymentMax}
+                      estimatedPayment={estimatedPayment}
+                      onDownPaymentChange={(value) => {
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          downPayment: value,
+                        }));
+                        // Validate down payment
+                        const result = validateSearchField(
+                          "downPayment",
+                          value,
+                          { ...searchParams, downPayment: value }
+                        );
+                        if (!result.success && result.error) {
+                          setValidationErrors((prev) => ({
+                            ...prev,
+                            downPayment: result.error!,
+                          }));
+                        } else {
+                          setValidationErrors((prev) => {
+                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                            const { downPayment: _, ...rest } = prev;
+                            return rest;
+                          });
+                        }
+                      }}
+                      onTradeInValueChange={(value) =>
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          tradeInValue: value,
+                        }))
+                      }
+                      onLoanTermChange={(value) =>
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          loanTerm: value,
+                        }))
+                      }
+                      onCreditScoreChange={(value) =>
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          creditScore: value,
+                        }))
+                      }
+                      onMonthlyPaymentMaxChange={(value) =>
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          monthlyPaymentMax: value,
+                        }))
+                      }
+                      downPaymentError={validationErrors.downPayment}
+                    />
                   </Collapse>
                 </Grid>
 
@@ -634,96 +458,33 @@ function DashboardSearchPageContent() {
                   <Divider />
                 </Grid>
 
-                {/* Vehicle Details - Now labeled as Basic Filters */}
-                <Grid item xs={12}>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                  >
-                    <DirectionsCarIcon color="primary" />
-                    Basic Vehicle Filters
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth>
-                    <InputLabel id="make-label">Make</InputLabel>
-                    <Select
-                      labelId="make-label"
-                      value={searchParams.make}
-                      label="Make"
-                      onChange={(e) =>
-                        setSearchParams({
-                          ...searchParams,
-                          make: e.target.value,
-                        })
-                      }
-                      aria-label="Vehicle make selection"
-                    >
-                      <MenuItem value="">Any</MenuItem>
-                      {makes.map((type) => (
-                        <MenuItem key={type} value={type.toLowerCase()}>
-                          {type}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                {searchParams.make && (
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel id="model-label">Model</InputLabel>
-                      <Select
-                        labelId="model-label"
-                        value={searchParams.model}
-                        label="Model"
-                        onChange={(e) =>
-                          setSearchParams({
-                            ...searchParams,
-                            model: e.target.value,
-                          })
-                        }
-                        aria-label="Vehicle model selection"
-                      >
-                        <MenuItem value="">Any</MenuItem>
-                        {models[
-                          searchParams.make as keyof typeof models
-                        ]?.map((model) => (
-                          <MenuItem key={model} value={model.toLowerCase()}>
-                            {model}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                )}
-
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth>
-                    <InputLabel id="car-type-label">Car Type</InputLabel>
-                    <Select
-                      labelId="car-type-label"
-                      value={searchParams.carType}
-                      label="Car Type"
-                      onChange={(e) =>
-                        setSearchParams({
-                          ...searchParams,
-                          carType: e.target.value,
-                        })
-                      }
-                      aria-label="Car type selection"
-                    >
-                      <MenuItem value="">Any</MenuItem>
-                      {carTypes.map((type) => (
-                        <MenuItem key={type} value={type.toLowerCase()}>
-                          {type}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
+                {/* Basic Vehicle Filters */}
+                <BasicVehicleFilters
+                  make={searchParams.make}
+                  model={searchParams.model}
+                  carType={searchParams.carType}
+                  bodyType={searchParams.bodyType}
+                  onMakeChange={(value) =>
+                    setSearchParams((prev) => ({
+                      ...prev,
+                      make: value,
+                      model: "", // Reset model when make changes
+                    }))
+                  }
+                  onModelChange={(value) =>
+                    setSearchParams((prev) => ({ ...prev, model: value }))
+                  }
+                  onCarTypeChange={(value) =>
+                    setSearchParams((prev) => ({ ...prev, carType: value }))
+                  }
+                  onBodyTypeChange={(value) =>
+                    setSearchParams((prev) => ({ ...prev, bodyType: value }))
+                  }
+                  makes={makes}
+                  models={models}
+                  carTypes={carTypes}
+                  bodyTypes={bodyTypes}
+                />
 
                 {/* Advanced Filters - Collapsible Section */}
                 <Grid item xs={12}>
@@ -770,132 +531,63 @@ function DashboardSearchPageContent() {
 
                 <Grid item xs={12}>
                   <Collapse in={showAdvancedFilters}>
-                    <Paper
-                      id="advanced-filters-section"
-                      variant="outlined"
-                      sx={{ p: 3, bgcolor: "grey.50", borderRadius: 2 }}
-                      role="region"
-                      aria-label="Advanced search filters"
-                    >
-                      <Grid container spacing={3}>
-                        {/* Year Range */}
-                        <Grid item xs={12}>
-                          <Typography
-                            variant="h6"
-                            gutterBottom
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                              mt: 2,
-                            }}
-                          >
-                            <CalendarTodayIcon color="primary" />
-                            Year Range
-                          </Typography>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                          <Box sx={{ px: 2 }}>
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              gutterBottom
-                              id="year-slider-label"
-                            >
-                              {searchParams.yearMin} - {searchParams.yearMax}
-                            </Typography>
-                            <Slider
-                              value={[searchParams.yearMin, searchParams.yearMax]}
-                              onChange={(_, newValue) => handleYearChange(newValue)}
-                              valueLabelDisplay="auto"
-                              min={2000}
-                              max={2025}
-                              marks={[
-                                { value: 2000, label: "2000" },
-                                { value: 2025, label: "2025" },
-                              ]}
-                              sx={{ color: "success.light" }}
-                              aria-labelledby="year-slider-label"
-                              aria-label="Year range slider"
-                            />
-                            {validationErrors.yearMax && (
-                              <Typography variant="caption" color="error" sx={{ mt: 1 }}>
-                                {validationErrors.yearMax}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Grid>
-
-                        {/* Mileage */}
-                        <Grid item xs={12}>
-                          <Typography
-                            variant="h6"
-                            gutterBottom
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 1,
-                              mt: 2,
-                            }}
-                          >
-                            <SpeedIcon color="primary" />
-                            Maximum Mileage
-                          </Typography>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                          <Box sx={{ px: 2 }}>
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              gutterBottom
-                              id="mileage-slider-label"
-                            >
-                              Up to {searchParams.mileageMax.toLocaleString()} miles
-                            </Typography>
-                            <Slider
-                              value={searchParams.mileageMax}
-                              onChange={(_, newValue) => handleMileageChange(newValue)}
-                              valueLabelDisplay="auto"
-                              min={10000}
-                              max={200000}
-                              step={5000}
-                              valueLabelFormat={(value) =>
-                                `${value.toLocaleString()} mi`
-                              }
-                              marks={[
-                                { value: 10000, label: "10K" },
-                                { value: 200000, label: "200K" },
-                              ]}
-                              sx={{ color: "success.light" }}
-                              aria-labelledby="mileage-slider-label"
-                              aria-label="Maximum mileage slider"
-                            />
-                          </Box>
-                        </Grid>
-
-                        {/* Additional Preferences */}
-                        <Grid item xs={12}>
-                          <Box sx={{ px: 2 }}>
-                            <Input
-                              multiLine={true}
-                              fullWidth
-                              label="Your Priorities (Optional)"
-                              onChange={(e) =>
-                                setSearchParams({
-                                  ...searchParams,
-                                  userPriorities: e.target.value,
-                                })
-                              }
-                              placeholder="e.g., fuel efficiency, safety features, low maintenance costs"
-                              value={searchParams.userPriorities}
-                              aria-label="User priorities and preferences"
-                            />
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Paper>
+                    <AdvancedFilters
+                      yearMin={searchParams.yearMin}
+                      yearMax={searchParams.yearMax}
+                      mileageMax={searchParams.mileageMax}
+                      fuelType={searchParams.fuelType}
+                      transmission={searchParams.transmission}
+                      drivetrain={searchParams.drivetrain}
+                      mustHaveFeatures={searchParams.mustHaveFeatures}
+                      userPriorities={searchParams.userPriorities}
+                      showYearFilter={showYearFilter}
+                      showMileageFilter={showMileageFilter}
+                      onYearChange={(min, max) =>
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          yearMin: min,
+                          yearMax: max,
+                        }))
+                      }
+                      onMileageChange={(value) =>
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          mileageMax: value,
+                        }))
+                      }
+                      onFuelTypeChange={(value) =>
+                        setSearchParams((prev) => ({ ...prev, fuelType: value }))
+                      }
+                      onTransmissionChange={(value) =>
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          transmission: value,
+                        }))
+                      }
+                      onDrivetrainChange={(value) =>
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          drivetrain: value,
+                        }))
+                      }
+                      onMustHaveFeaturesChange={(value) =>
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          mustHaveFeatures: value,
+                        }))
+                      }
+                      onUserPrioritiesChange={(value) =>
+                        setSearchParams((prev) => ({
+                          ...prev,
+                          userPriorities: value,
+                        }))
+                      }
+                      yearError={validationErrors.yearMax}
+                      fuelTypes={fuelTypes}
+                      transmissions={transmissions}
+                      drivetrains={drivetrains}
+                      featureOptions={featureOptions}
+                    />
                   </Collapse>
                 </Grid>
 
@@ -919,8 +611,11 @@ function DashboardSearchPageContent() {
                           yearMax: 2025,
                           mileageMax: 100000,
                           carType: "",
+                          bodyType: "",
                           fuelType: "",
                           transmission: "",
+                          drivetrain: "",
+                          mustHaveFeatures: [],
                           userPriorities: "",
                           paymentMethod: "both",
                           budgetMin: 10000,
@@ -946,34 +641,7 @@ function DashboardSearchPageContent() {
 
           {/* Sidebar */}
           <Grid item xs={12} md={3}>
-            {/* Quick Tips */}
-            <Box sx={{ position: "sticky", top: 100 }}>
-              <Paper sx={{ p: 3, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                  💡 Financing Tips
-                </Typography>
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  • 20% down payment typically gets better rates
-                </Typography>
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  • Shorter loans save on total interest
-                </Typography>
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  • Check your credit score before applying
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  • Get pre-approved for better negotiation power
-                </Typography>
-              </Paper>
-
-              <Alert severity="info">
-                <Typography variant="body2">
-                  <strong>Pro Tip:</strong> Knowing your financing options
-                  before shopping gives you better negotiating power with
-                  dealers.
-                </Typography>
-              </Alert>
-            </Box>
+            <SearchSidebar />
           </Grid>
         </Grid>
       </Container>
