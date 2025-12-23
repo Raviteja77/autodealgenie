@@ -390,9 +390,6 @@ export function StepperProvider({ children }: { children: ReactNode }) {
     }),
     [
       state,
-      STEPS,
-      state.currentStep,
-      state.completedSteps,
       isStepCompleted,
       canNavigateToStep,
       completeStep,

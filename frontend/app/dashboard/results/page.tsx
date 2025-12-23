@@ -234,11 +234,6 @@ function ResultsContent() {
 
     fetchData();
 
-    // ✅ Cleanup function to reset ref if component unmounts
-    return () => {
-      // Don't reset refs on unmount to preserve state
-      // Only reset if query changes
-    };
   }, [currentQueryString]);
 
   const fetchVehiclesData = async (): Promise<{
