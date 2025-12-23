@@ -49,20 +49,49 @@ class DealEvaluationService:
     CACHE_TTL = 3600  # Cache evaluation results for 1 hour (in seconds)
     CACHE_KEY_PREFIX = "deal_eval"  # Prefix for cache keys
 
-    def _generate_cache_key(self, vehicle_vin: str, asking_price: float) -> str:
+    def _generate_cache_key(
+        self,
+        vehicle_vin: str,
+        asking_price: float,
+        condition: str,
+        mileage: int,
+        make: str | None = None,
+        model: str | None = None,
+        year: int | None = None,
+    ) -> str:
         """
-        Generate a unique cache key based on VIN and asking price
+        Generate a unique cache key based on all evaluation-affecting parameters
 
         Args:
             vehicle_vin: Vehicle Identification Number
             asking_price: Asking price in USD
+            condition: Vehicle condition descriptor (e.g., "excellent", "good")
+            mileage: Vehicle mileage in miles
+            make: Vehicle make (optional)
+            model: Vehicle model (optional)
+            year: Vehicle year (optional)
 
         Returns:
             Cache key string
         """
-        # Create a deterministic hash from VIN and price
-        key_data = f"{vehicle_vin}:{asking_price:.2f}"
-        key_hash = hashlib.md5(key_data.encode()).hexdigest()
+        # Create a deterministic hash from all evaluation-affecting parameters
+        key_payload: dict[str, Any] = {
+            "vin": vehicle_vin,
+            "asking_price": round(asking_price, 2),
+            "condition": condition.lower(),  # Normalize condition
+            "mileage": mileage,
+        }
+        if make is not None:
+            key_payload["make"] = make.lower()
+        if model is not None:
+            key_payload["model"] = model.lower()
+        if year is not None:
+            key_payload["year"] = year
+
+        # Use JSON for deterministic key generation
+        key_data = json.dumps(key_payload, sort_keys=True, separators=(",", ":"))
+        # Use SHA-256 for better security practices
+        key_hash = hashlib.sha256(key_data.encode()).hexdigest()
         return f"{self.CACHE_KEY_PREFIX}:{key_hash}"
 
     async def _get_cached_evaluation(self, cache_key: str) -> dict[str, Any] | None:
@@ -141,8 +170,10 @@ class DealEvaluationService:
         """
         logger.info(f"Evaluating deal for VIN: {vehicle_vin}, Price: ${asking_price:,.2f}")
 
-        # Generate cache key and check cache
-        cache_key = self._generate_cache_key(vehicle_vin, asking_price)
+        # Generate cache key and check cache (includes all evaluation-affecting parameters)
+        cache_key = self._generate_cache_key(
+            vehicle_vin, asking_price, condition, mileage, make, model, year
+        )
         cached_result = await self._get_cached_evaluation(cache_key)
 
         if cached_result:
@@ -192,11 +223,15 @@ class DealEvaluationService:
 
             return result
 
+        # Note: The JSONDecodeError and ValueError handlers below are primarily for
+        # catching errors from the caching logic (json.loads in _get_cached_evaluation).
+        # The generate_structured_json function wraps LLM JSON/validation errors in ApiError,
+        # which are caught by the generic Exception handler below.
         except json.JSONDecodeError as e:
             logger.error(
                 f"JSON parsing error during deal evaluation: {e}. "
                 f"VIN: {vehicle_vin}, Price: ${asking_price:,.2f}. "
-                "This may indicate a malformed LLM response."
+                "This may indicate a cache corruption issue."
             )
             logger.debug(f"JSON decode error details: line {e.lineno}, column {e.colno}")
             return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
@@ -204,7 +239,7 @@ class DealEvaluationService:
             logger.error(
                 f"Validation error during deal evaluation: {e}. "
                 f"VIN: {vehicle_vin}, Price: ${asking_price:,.2f}. "
-                "LLM response may not match expected schema."
+                "This may indicate a data validation issue."
             )
             return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
         except Exception as e:

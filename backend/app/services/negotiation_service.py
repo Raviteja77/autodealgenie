@@ -261,7 +261,6 @@ class NegotiationService:
             from app.schemas.schemas import DealUpdate
 
             deal_update = DealUpdate(
-                vehicle_vin=deal.vehicle_vin,
                 offer_price=latest_price,
                 status="completed",
                 notes=f"{deal.notes or ''}\nNegotiation completed. Final agreed price: ${latest_price:,.2f}".strip(),

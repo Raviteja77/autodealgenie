@@ -47,13 +47,13 @@ def mock_llm_evaluation():
         insights=[
             "This vehicle is priced $500 above market value",
             "The mileage is average for this year",
-            "Condition rating suggests proper maintenance"
+            "Condition rating suggests proper maintenance",
         ],
         talking_points=[
             "Point out comparable vehicles priced at $24,500",
             "Request maintenance records to justify the condition rating",
-            "Use the mileage as slight negotiation leverage"
-        ]
+            "Use the mileage as slight negotiation leverage",
+        ],
     )
 
 
@@ -289,3 +289,177 @@ class TestDealEvaluationEndpoint:
 
         response = authenticated_client.post("/api/v1/deals/evaluate", json=evaluation_data)
         assert response.status_code == 422  # Validation error
+
+
+class TestDealEvaluationCaching:
+    """Test Redis caching functionality in deal evaluation"""
+
+    @pytest.mark.asyncio
+    async def test_cache_key_generation_deterministic(self):
+        """Test that cache key generation is deterministic"""
+        service = DealEvaluationService()
+
+        key1 = service._generate_cache_key(
+            vehicle_vin="1HGBH41JXMN109186",
+            asking_price=25000.00,
+            condition="good",
+            mileage=45000,
+            make="Honda",
+            model="Accord",
+            year=2020,
+        )
+
+        key2 = service._generate_cache_key(
+            vehicle_vin="1HGBH41JXMN109186",
+            asking_price=25000.00,
+            condition="good",
+            mileage=45000,
+            make="Honda",
+            model="Accord",
+            year=2020,
+        )
+
+        # Same inputs should produce same cache key
+        assert key1 == key2
+
+    @pytest.mark.asyncio
+    async def test_cache_key_different_for_different_params(self):
+        """Test that cache keys differ when parameters change"""
+        service = DealEvaluationService()
+
+        key1 = service._generate_cache_key(
+            vehicle_vin="1HGBH41JXMN109186",
+            asking_price=25000.00,
+            condition="good",
+            mileage=45000,
+        )
+
+        # Different VIN
+        key2 = service._generate_cache_key(
+            vehicle_vin="2HGBH41JXMN109187",
+            asking_price=25000.00,
+            condition="good",
+            mileage=45000,
+        )
+
+        # Different price
+        key3 = service._generate_cache_key(
+            vehicle_vin="1HGBH41JXMN109186",
+            asking_price=24500.00,
+            condition="good",
+            mileage=45000,
+        )
+
+        # Different condition
+        key4 = service._generate_cache_key(
+            vehicle_vin="1HGBH41JXMN109186",
+            asking_price=25000.00,
+            condition="excellent",
+            mileage=45000,
+        )
+
+        # Different mileage
+        key5 = service._generate_cache_key(
+            vehicle_vin="1HGBH41JXMN109186",
+            asking_price=25000.00,
+            condition="good",
+            mileage=50000,
+        )
+
+        # All keys should be different
+        keys = [key1, key2, key3, key4, key5]
+        assert len(keys) == len(set(keys))
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_returns_cached_data(self, mock_llm_evaluation):
+        """Test that cached data is returned on cache hit without calling LLM"""
+        service = DealEvaluationService()
+
+        with patch("app.db.redis.redis_client") as mock_redis_client:
+            mock_redis = AsyncMock()
+            mock_redis.get.return_value = '{"fair_value": 24000.0, "score": 8.0, "insights": ["Cached insight"], "talking_points": ["Cached point"]}'
+            mock_redis_client.get_client.return_value = mock_redis
+
+            with patch("app.llm.llm_client.llm_client") as mock_client:
+                mock_client.is_available.return_value = True
+
+                with patch(
+                    "app.services.deal_evaluation_service.generate_structured_json"
+                ) as mock_gen:
+                    # LLM should NOT be called on cache hit
+                    mock_gen.return_value = mock_llm_evaluation
+
+                    result = await service.evaluate_deal(
+                        vehicle_vin="1HGBH41JXMN109186",
+                        asking_price=25000.00,
+                        condition="good",
+                        mileage=45000,
+                    )
+
+                    # Should return cached data
+                    assert result["fair_value"] == 24000.0
+                    assert result["score"] == 8.0
+
+                    # LLM should NOT have been called
+                    mock_gen.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_cache_miss_calls_llm_and_caches(self, mock_llm_evaluation):
+        """Test that LLM is called on cache miss and result is cached"""
+        service = DealEvaluationService()
+
+        with patch("app.db.redis.redis_client") as mock_redis_client:
+            mock_redis = AsyncMock()
+            mock_redis.get.return_value = None  # Cache miss
+            mock_redis_client.get_client.return_value = mock_redis
+
+            with patch("app.llm.llm_client.llm_client") as mock_client:
+                mock_client.is_available.return_value = True
+
+                with patch(
+                    "app.services.deal_evaluation_service.generate_structured_json"
+                ) as mock_gen:
+                    mock_gen.return_value = mock_llm_evaluation
+
+                    result = await service.evaluate_deal(
+                        vehicle_vin="1HGBH41JXMN109186",
+                        asking_price=25000.00,
+                        condition="good",
+                        mileage=45000,
+                    )
+
+                    # LLM should have been called
+                    mock_gen.assert_called_once()
+
+                    # Result should be cached
+                    mock_redis.setex.assert_called_once()
+                    assert result["fair_value"] == 24500.00
+                    assert result["score"] == 7.5
+
+    @pytest.mark.asyncio
+    async def test_cache_unavailable_graceful_degradation(self, mock_llm_evaluation):
+        """Test graceful degradation when Redis is unavailable"""
+        service = DealEvaluationService()
+
+        with patch("app.db.redis.redis_client") as mock_redis_client:
+            # Redis not available
+            mock_redis_client.get_client.return_value = None
+
+            with patch("app.llm.llm_client.llm_client") as mock_client:
+                mock_client.is_available.return_value = True
+
+                with patch(
+                    "app.services.deal_evaluation_service.generate_structured_json"
+                ) as mock_gen:
+                    mock_gen.return_value = mock_llm_evaluation
+
+                    result = await service.evaluate_deal(
+                        vehicle_vin="1HGBH41JXMN109186",
+                        asking_price=25000.00,
+                        condition="good",
+                        mileage=45000,
+                    )
+
+                    # LLM should still be called
+                    mock_gen.assert_called_once()
+                    assert result["fair_value"] == 24500.00
