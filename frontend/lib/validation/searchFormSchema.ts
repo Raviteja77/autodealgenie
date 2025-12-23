@@ -22,8 +22,11 @@ export const SearchFormSchema = z
       .min(10000, "Mileage must be at least 10,000")
       .max(200000, "Mileage cannot exceed 200,000"),
     carType: z.string().optional(),
+    bodyType: z.string().optional(),
     fuelType: z.string().optional(),
     transmission: z.string().optional(),
+    drivetrain: z.string().optional(),
+    mustHaveFeatures: z.array(z.string()).optional(),
     userPriorities: z.string().optional(),
 
     // Financing criteria
