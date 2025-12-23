@@ -65,14 +65,13 @@ import {
   type NegotiationMessage,
   type DealCreate,
   type LenderMatch,
+  type FinancingOption,
 } from "@/lib/api";
-import { formatPrice } from "@/lib/utils/formatting";
+import { formatPrice, formatTimestamp } from "@/lib/utils/formatting";
 import {
   getLatestNegotiatedPrice,
   validateNegotiatedPrice,
-  formatPrice,
-  formatTimestamp,
-} from "@/lib/negotiation-utils";
+} from "@/lib/utils/negotiation";
 
 interface VehicleInfo {
   vin?: string;
@@ -84,30 +83,6 @@ interface VehicleInfo {
   fuelType: string;
 }
 
-interface NegotiationState {
-  sessionId: number | null;
-  status: "idle" | "active" | "completed" | "cancelled";
-  dealId: number | null;
-  vehicleData: VehicleInfo | null;
-  targetPrice: number | null;
-  currentRound: number;
-  maxRounds: number;
-  messages: NegotiationMessage[];
-  suggestedPrice: number | null;
-  confidence: number | null;
-  isLoading: boolean;
-  error: string | null;
-  isTyping: boolean;
-  financingOptions: FinancingOption[] | null;
-  cashSavings: number | null;
-  // Enhanced AI metadata
-  recommendedAction: string | null;
-  strategyAdjustments: string | null;
-  dealerConcessionRate: number | null;
-  negotiationVelocity: number | null;
-  marketComparison: string | null;
-}
-
 function NegotiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -116,15 +91,14 @@ function NegotiationContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContext = useNegotiationChat();
 
-  // Additional state (not managed by useNegotiationState)
-  const [, setDealId] = useState<number | null>(null);
+  // Local state for vehicle data and target price (derived from URL)
   const [vehicleData, setVehicleData] = useState<VehicleInfo | null>(null);
   const [targetPrice, setTargetPrice] = useState<number | null>(null);
 
   // Use centralized negotiation state hook
   const {
     state: negotiationState,
-    latestPrice,
+    latestPrice: latestPriceValue,
     financingOptions,
     cashSavings,
     currentOfferStatus,
@@ -139,20 +113,37 @@ function NegotiationContent() {
     updateFromNextRound,
   } = useNegotiationState(targetPrice, {
     maxRounds: 10,
-    messages: [],
-    suggestedPrice: null,
-    confidence: null,
-    isLoading: false,
-    error: null,
-    isTyping: false,
-    financingOptions: null,
-    cashSavings: null,
-    recommendedAction: null,
-    strategyAdjustments: null,
-    dealerConcessionRate: null,
-    negotiationVelocity: null,
-    marketComparison: null,
   });
+
+  // Extract latest price info from messages
+  // This returns an object with price, source, round, and timestamp
+  const latestPrice = useMemo(() => {
+    return getLatestNegotiatedPrice(negotiationState.messages);
+  }, [negotiationState.messages]);
+
+  // Extract AI metadata from latest message for UI display
+  const aiMetadata = useMemo(() => {
+    if (negotiationState.messages.length === 0) {
+      return {
+        recommendedAction: null,
+        strategyAdjustments: null,
+        dealerConcessionRate: null,
+        negotiationVelocity: null,
+        marketComparison: null,
+      };
+    }
+
+    const latestMsg = negotiationState.messages[negotiationState.messages.length - 1];
+    const metadata = latestMsg.metadata || {};
+
+    return {
+      recommendedAction: typeof metadata.recommended_action === "string" ? metadata.recommended_action : null,
+      strategyAdjustments: typeof metadata.strategy_adjustments === "string" ? metadata.strategy_adjustments : null,
+      dealerConcessionRate: typeof metadata.dealer_concession_rate === "number" ? metadata.dealer_concession_rate : null,
+      negotiationVelocity: typeof metadata.negotiation_velocity === "number" ? metadata.negotiation_velocity : null,
+      marketComparison: typeof metadata.market_comparison === "string" ? metadata.market_comparison : null,
+    };
+  }, [negotiationState.messages]);
 
   // Computed confidence score based on negotiation progress
   const confidence = useMemo(() => {
@@ -170,7 +161,7 @@ function NegotiationContent() {
     // How close the latest offer is to the user's target price
     const priceDiffRatio = Math.min(
       1,
-      Math.abs(targetPrice - latestPrice) / Math.max(targetPrice, 1)
+      Math.abs(targetPrice - latestPrice.price) / Math.max(targetPrice, 1)
     );
     const priceFactor = 1 - priceDiffRatio; // 1.0 when equal, lower as we move away
 
@@ -204,13 +195,6 @@ function NegotiationContent() {
 
   // Extract vehicle data from URL params - effect to set vehicle data state
   useEffect(() => {
-  // Get latest negotiated price from messages
-  const latestPrice = useMemo(() => {
-    return getLatestNegotiatedPrice(state.messages);
-  }, [state.messages]);
-
-  // Extract vehicle data from URL params
-  const vehicleData: VehicleInfo | null = useMemo(() => {
     try {
       const vin = searchParams.get("vin") || undefined;
       const make = searchParams.get("make");
@@ -258,9 +242,9 @@ function NegotiationContent() {
     return validateNegotiatedPrice(
       latestPrice.price,
       vehicleData.price,
-      state.targetPrice
+      targetPrice
     ).isValid;
-  }, [latestPrice, vehicleData, state.targetPrice]);
+  }, [latestPrice, vehicleData, targetPrice]);
 
   // Check if user can access this step
   useEffect(() => {
@@ -304,7 +288,6 @@ function NegotiationContent() {
         };
 
         const deal = await apiClient.createDeal(dealData);
-        setDealId(deal.id);
 
         const response = await apiClient.createNegotiation({
           deal_id: deal.id,
@@ -317,31 +300,6 @@ function NegotiationContent() {
           response.session_id
         );
 
-        // Extract enhanced metadata from response
-        const metadata = response.metadata || {};
-
-        setState((prev) => ({
-          ...prev,
-          sessionId: session.id,
-          status: session.status,
-          dealId: session.deal_id,
-          vehicleData,
-          targetPrice,
-          currentRound: session.current_round,
-          maxRounds: session.max_rounds,
-          messages: session.messages,
-          suggestedPrice: (metadata.suggested_price as number) || null,
-          financingOptions:
-            (metadata.financing_options as FinancingOption[]) || null,
-          cashSavings: (metadata.cash_savings as number) || null,
-          confidence: (metadata.confidence_score as number) || 0.85,
-          recommendedAction: (metadata.recommended_action as string) || null,
-          strategyAdjustments: (metadata.strategy_adjustments as string) || null,
-          dealerConcessionRate: (metadata.dealer_concession_rate as number) || null,
-          negotiationVelocity: (metadata.negotiation_velocity as number) || null,
-          marketComparison: (metadata.market_comparison as string) || null,
-          isLoading: false,
-        }));
         // Update negotiation state using the hook
         setSessionId(session.id);
         setStatus(session.status);
@@ -384,23 +342,10 @@ function NegotiationContent() {
   ]);
 
   // Auto-scroll to bottom when messages change
-  // Dependencies: only scrollToBottom function (stable via useCallback)
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
-    
-    // Update typing indicator from chat context
-  // Dependencies: chatContext.isTyping only
-  useEffect(() => {
-    setState((prev) => ({
-      ...prev,
-      isTyping: chatContext.isTyping || prev.isTyping,
-    }));
-  }, [chatContext.isTyping]);
 
-  // Sync chat messages with state messages
-  // Dependencies: chatContext.messages only to avoid infinite loops
-  // This effect deduplicates incoming chat messages and merges them with state
   // Effect: Sync chat messages and typing indicator
   useEffect(() => {
     // Sync messages from chat context
@@ -428,15 +373,23 @@ function NegotiationContent() {
   }, [notification]);
 
   // Handle accept offer
-  const handleAcceptOffer = async () => {
-    if (!state.sessionId || !vehicleData) return;
+  const handleAcceptOffer = useCallback(async () => {
+    if (!negotiationState.sessionId || !vehicleData) return;
 
     // Validate the latest price before accepting
-    const priceToAccept = latestPrice?.price || state.suggestedPrice;
+    const priceToAccept = latestPrice?.price;
+    if (!priceToAccept) {
+      setNotification({
+        type: "error",
+        message: "No valid price available to accept",
+      });
+      return;
+    }
+
     const validation = validateNegotiatedPrice(
       priceToAccept,
       vehicleData.price,
-      state.targetPrice
+      targetPrice
     );
 
     if (!validation.isValid) {
@@ -448,7 +401,7 @@ function NegotiationContent() {
     }
 
     // Show warning if price is above target
-    if (validation.error && state.targetPrice) {
+    if (validation.error && targetPrice) {
       const shouldContinue = window.confirm(
         `${validation.error}\n\nDo you want to continue with accepting this offer?`
       );
@@ -478,7 +431,7 @@ function NegotiationContent() {
 
       setNotification({
         type: "success",
-        message: `Congratulations! You've accepted the offer at ${formatPrice(priceToAccept || 0)}!`,
+        message: `Congratulations! You've accepted the offer at ${formatPrice(priceToAccept)}!`,
       });
 
       // Fetch lender recommendations with loading state
@@ -515,10 +468,22 @@ function NegotiationContent() {
       setLoading(false);
       setTyping(false);
     }
-  }, [state.sessionId, state.financingOptions]);
+  }, [
+    negotiationState.sessionId,
+    vehicleData,
+    latestPrice,
+    targetPrice,
+    financingOptions,
+    setLoading,
+    setTyping,
+    setStatus,
+    setCurrentRound,
+    setMessages,
+    setError,
+  ]);
 
   // Handle reject offer
-  const handleRejectOffer = async () => {
+  const handleRejectOffer = useCallback(async () => {
     if (!negotiationState.sessionId) return;
 
     try {
@@ -551,13 +516,19 @@ function NegotiationContent() {
       setLoading(false);
       setTyping(false);
     }
-  }, [state.sessionId]);
+  }, [
+    negotiationState.sessionId,
+    setLoading,
+    setTyping,
+    setStatus,
+    setCurrentRound,
+    setMessages,
+    setError,
+  ]);
 
   // Handle counter offer
-  // Dependencies: state.sessionId, counterOfferValue for API call
-  // Memoized to prevent recreation on every render
   const handleCounterOffer = useCallback(async () => {
-    if (!state.sessionId || !counterOfferValue) return;
+    if (!negotiationState.sessionId || !counterOfferValue) return;
 
     const counterPrice = parseFloat(counterOfferValue);
     if (isNaN(counterPrice) || counterPrice <= 0) {
@@ -580,30 +551,12 @@ function NegotiationContent() {
       });
 
       // Fetch updated session
-      const session = await apiClient.getNegotiationSession(state.sessionId);
+      const session = await apiClient.getNegotiationSession(negotiationState.sessionId);
 
-      // Extract enhanced metadata from response
-      const metadata = response.metadata || {};
-      
-      setState((prev) => ({
-        ...prev,
-        currentRound: session.current_round,
-        messages: session.messages,
-        suggestedPrice:
-          metadata.suggested_price || prev.suggestedPrice,
-        financingOptions:
-          metadata.financing_options || prev.financingOptions,
-        cashSavings: metadata.cash_savings || prev.cashSavings,
-        // Extract enhanced AI metadata
-        confidence: metadata.confidence_score || prev.confidence,
-        recommendedAction: metadata.recommended_action || prev.recommendedAction,
-        strategyAdjustments: metadata.strategy_adjustments || prev.strategyAdjustments,
-        dealerConcessionRate: metadata.dealer_concession_rate || prev.dealerConcessionRate,
-        negotiationVelocity: metadata.negotiation_velocity || prev.negotiationVelocity,
-        marketComparison: metadata.market_comparison || prev.marketComparison,
-        isLoading: false,
-        isTyping: false,
-      }));
+      setCurrentRound(session.current_round);
+      setMessages(session.messages);
+      setLoading(false);
+      setTyping(false);
 
       // Expand the new round
       setExpandedRounds((prev) => new Set(prev).add(response.current_round));
@@ -620,11 +573,17 @@ function NegotiationContent() {
       setLoading(false);
       setTyping(false);
     }
-  }, [state.sessionId, counterOfferValue]);
+  }, [
+    negotiationState.sessionId,
+    counterOfferValue,
+    setLoading,
+    setTyping,
+    setCurrentRound,
+    setMessages,
+    setError,
+  ]);
 
   // Toggle round expansion
-  // Dependencies: none (setExpandedRounds is stable)
-  // Memoized to prevent recreation on every render
   const toggleRoundExpansion = useCallback((round: number) => {
     setExpandedRounds((prev) => {
       const newSet = new Set(prev);
@@ -638,8 +597,6 @@ function NegotiationContent() {
   }, []);
 
   // Handle chat message
-  // Dependencies: chatContext for sendChatMessage
-  // Memoized to prevent recreation on every render
   const handleChatMessage = useCallback(
     async (message: string, messageType?: string) => {
       await chatContext.sendChatMessage(message, messageType);
@@ -648,8 +605,6 @@ function NegotiationContent() {
   );
 
   // Handle dealer info
-  // Dependencies: chatContext for sendDealerInfo
-  // Memoized to prevent recreation on every render
   const handleDealerInfo = useCallback(
     async (infoType: string, content: string, priceMentioned?: number) => {
       await chatContext.sendDealerInfo(infoType, content, priceMentioned);
@@ -658,9 +613,6 @@ function NegotiationContent() {
   );
 
   // Group messages by round
-  // Dependencies: state.messages only
-  // Memoized to prevent expensive re-computation on every render
-  // This is particularly important as message grouping happens frequently
   const messagesByRound = useMemo(() => {
     const grouped: Record<number, NegotiationMessage[]> = {};
     negotiationState.messages.forEach((msg) => {
@@ -675,10 +627,10 @@ function NegotiationContent() {
   // Calculate progress
   const progress = (negotiationState.currentRound / negotiationState.maxRounds) * 100;
   const priceProgress =
-    state.vehicleData && latestPrice?.price
-      ? ((state.vehicleData.price - latestPrice.price) /
-          (state.vehicleData.price -
-            (state.targetPrice || state.vehicleData.price * 0.9))) *
+    vehicleData && latestPrice?.price
+      ? ((vehicleData.price - latestPrice.price) /
+          (vehicleData.price -
+            (targetPrice || vehicleData.price * 0.9))) *
         100
       : 0;
 
@@ -707,7 +659,7 @@ function NegotiationContent() {
                     Original Price
                   </Typography>
                   <Typography variant="h6">
-                    {formatPrice(state.vehicleData?.price || 0)}
+                    {formatPrice(vehicleData?.price || 0)}
                   </Typography>
                 </Grid>
                 <Grid item xs={6}>
@@ -715,14 +667,14 @@ function NegotiationContent() {
                     Final Price
                   </Typography>
                   <Typography variant="h6" color="success.main">
-                    {formatPrice(state.suggestedPrice || 0)}
+                    {formatPrice(latestPrice?.price || 0)}
                   </Typography>
                 </Grid>
               </Grid>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 You saved{" "}
                 {formatPrice(
-                  (state.vehicleData?.price || 0) - (state.suggestedPrice || 0)
+                  (vehicleData?.price || 0) - (latestPrice?.price || 0)
                 )}
                 !
               </Typography>
@@ -865,16 +817,16 @@ function NegotiationContent() {
                 <Button
                   variant="primary"
                   onClick={() => {
-                    if (state.vehicleData) {
-                      const finalPrice = latestPrice?.price || state.suggestedPrice || state.vehicleData.price;
+                    if (vehicleData) {
+                      const finalPrice = latestPrice?.price || vehicleData.price;
                       const vehicleParams = new URLSearchParams({
-                        vin: state.vehicleData.vin || "",
-                        make: state.vehicleData.make,
-                        model: state.vehicleData.model,
-                        year: state.vehicleData.year.toString(),
+                        vin: vehicleData.vin || "",
+                        make: vehicleData.make,
+                        model: vehicleData.model,
+                        year: vehicleData.year.toString(),
                         price: finalPrice.toString(),
-                        mileage: state.vehicleData.mileage.toString(),
-                        fuelType: state.vehicleData.fuelType || "",
+                        mileage: vehicleData.mileage.toString(),
+                        fuelType: vehicleData.fuelType || "",
                       });
                       router.push(
                         `/dashboard/evaluation?${vehicleParams.toString()}`
@@ -1063,7 +1015,7 @@ function NegotiationContent() {
                           Your Target
                         </Typography>
                         <Typography variant="body2" color="primary.main">
-                          {formatPrice(state.targetPrice || 0)}
+                          {formatPrice(targetPrice || 0)}
                         </Typography>
                       </Box>
                       {latestPrice && (
@@ -1084,7 +1036,7 @@ function NegotiationContent() {
                             {latestPrice.source === "dealer" && (
                               <Chip label="Dealer" color="secondary" size="small" sx={{ height: 16, fontSize: "0.65rem" }} />
                             )}
-                            {latestPrice.source === "counter" && (
+                            {latestPrice.source === "user" && (
                               <Chip label="You" color="info" size="small" sx={{ height: 16, fontSize: "0.65rem" }} />
                             )}
                           </Box>
@@ -1093,7 +1045,7 @@ function NegotiationContent() {
                             color="success.main"
                             fontWeight="bold"
                           >
-                            {formatPrice(state.suggestedPrice)}
+                            {formatPrice(latestPrice.price)}
                           </Typography>
                         </Box>
                       )}
@@ -1311,7 +1263,7 @@ function NegotiationContent() {
                                     {message.metadata?.message_type ===
                                       "dealer_info" && (
                                       <Chip
-                                        label={`${message.metadata?.info_type} || Dealer Info`}
+                                        label={message.metadata?.info_type ? `${message.metadata.info_type}` : "Dealer Info"}
                                         size="small"
                                         color="info"
                                         sx={{ mb: 1 }}
@@ -1452,7 +1404,7 @@ function NegotiationContent() {
                           fullWidth
                           leftIcon={<CheckCircle />}
                           onClick={() => setShowAcceptDialog(true)}
-                          disabled={state.isLoading || !isPriceValid}
+                          disabled={negotiationState.isLoading || !isPriceValid}
                         >
                           Accept Offer
                         </Button>
@@ -1546,17 +1498,17 @@ function NegotiationContent() {
                     </Typography>
                     <Stack spacing={1} sx={{ mb: 3 }}>
                       {/* AI Recommended Action */}
-                      {state.recommendedAction && (
+                      {aiMetadata.recommendedAction && (
                         <Alert
                           severity={
-                            state.recommendedAction === "accept"
+                            aiMetadata.recommendedAction === "accept"
                               ? "success"
-                              : state.recommendedAction === "counter"
+                              : aiMetadata.recommendedAction === "counter"
                               ? "info"
                               : "warning"
                           }
                           icon={
-                            state.recommendedAction === "accept" ? (
+                            aiMetadata.recommendedAction === "accept" ? (
                               <CheckCircle />
                             ) : (
                               <TrendingDown />
@@ -1565,14 +1517,14 @@ function NegotiationContent() {
                           sx={{ py: 0.5 }}
                         >
                           <Typography variant="caption" fontWeight="bold">
-                            AI Suggests: {state.recommendedAction.toUpperCase()}
+                            AI Suggests: {aiMetadata.recommendedAction.toUpperCase()}
                           </Typography>
                         </Alert>
                       )}
                       
-                      {state.suggestedPrice &&
-                        state.targetPrice &&
-                        latestPrice.price <= state.targetPrice && (
+                      {latestPrice &&
+                        targetPrice &&
+                        latestPrice.price <= targetPrice && (
                           <Alert
                             severity="success"
                             icon={<TrendingDown />}
@@ -1602,16 +1554,16 @@ function NegotiationContent() {
                         >
                           <Typography variant="caption">
                             Current savings:{" "}
-                            {formatPrice(vehicleData.price - state.suggestedPrice)}
+                            {formatPrice(vehicleData.price - latestPrice.price)}
                           </Typography>
                         </Alert>
                       )}
                     </Stack>
 
                     {/* Enhanced Negotiation Analytics */}
-                    {(state.dealerConcessionRate !== null || 
-                      state.negotiationVelocity !== null || 
-                      state.marketComparison) && (
+                    {(aiMetadata.dealerConcessionRate !== null || 
+                      aiMetadata.negotiationVelocity !== null || 
+                      aiMetadata.marketComparison) && (
                       <>
                         <Divider sx={{ my: 2 }} />
                         <Typography variant="subtitle2" gutterBottom>
@@ -1619,7 +1571,7 @@ function NegotiationContent() {
                         </Typography>
                         <Stack spacing={1.5} sx={{ mb: 3 }}>
                           {/* Dealer Concession Rate */}
-                          {state.dealerConcessionRate !== null && (
+                          {aiMetadata.dealerConcessionRate !== null && (
                             <Paper
                               elevation={1}
                               sx={{ p: 1.5, bgcolor: "background.default" }}
@@ -1635,12 +1587,12 @@ function NegotiationContent() {
                                   Dealer Flexibility
                                 </Typography>
                                 <Chip
-                                  label={`${(state.dealerConcessionRate * 100).toFixed(1)}%`}
+                                  label={`${(aiMetadata.dealerConcessionRate * 100).toFixed(1)}%`}
                                   size="small"
                                   color={
-                                    state.dealerConcessionRate > 0.05
+                                    aiMetadata.dealerConcessionRate > 0.05
                                       ? "success"
-                                      : state.dealerConcessionRate > 0.02
+                                      : aiMetadata.dealerConcessionRate > 0.02
                                       ? "warning"
                                       : "default"
                                   }
@@ -1651,9 +1603,9 @@ function NegotiationContent() {
                                 color="text.secondary"
                                 sx={{ display: "block", mt: 0.5 }}
                               >
-                                {state.dealerConcessionRate > 0.05
+                                {aiMetadata.dealerConcessionRate > 0.05
                                   ? "Dealer is very flexible"
-                                  : state.dealerConcessionRate > 0.02
+                                  : aiMetadata.dealerConcessionRate > 0.02
                                   ? "Moderate negotiation room"
                                   : "Dealer holding firm"}
                               </Typography>
@@ -1661,7 +1613,7 @@ function NegotiationContent() {
                           )}
 
                           {/* Negotiation Velocity */}
-                          {state.negotiationVelocity !== null && (
+                          {aiMetadata.negotiationVelocity !== null && (
                             <Paper
                               elevation={1}
                               sx={{ p: 1.5, bgcolor: "background.default" }}
@@ -1677,7 +1629,7 @@ function NegotiationContent() {
                                   Price Movement
                                 </Typography>
                                 <Chip
-                                  label={formatPrice(Math.abs(state.negotiationVelocity)) + "/round"}
+                                  label={formatPrice(Math.abs(aiMetadata.negotiationVelocity)) + "/round"}
                                   size="small"
                                   color="info"
                                 />
@@ -1693,10 +1645,10 @@ function NegotiationContent() {
                           )}
 
                           {/* Market Comparison */}
-                          {state.marketComparison && (
+                          {aiMetadata.marketComparison && (
                             <Alert severity="info" sx={{ py: 0.5 }}>
                               <Typography variant="caption">
-                                {state.marketComparison}
+                                {aiMetadata.marketComparison}
                               </Typography>
                             </Alert>
                           )}
@@ -1705,7 +1657,7 @@ function NegotiationContent() {
                     )}
 
                     {/* Strategy Adjustments */}
-                    {state.strategyAdjustments && (
+                    {aiMetadata.strategyAdjustments && (
                       <>
                         <Divider sx={{ my: 2 }} />
                         <Typography variant="subtitle2" gutterBottom>
@@ -1713,7 +1665,7 @@ function NegotiationContent() {
                         </Typography>
                         <Alert severity="info" icon={<SmartToy />} sx={{ mb: 3 }}>
                           <Typography variant="caption">
-                            {state.strategyAdjustments}
+                            {aiMetadata.strategyAdjustments}
                           </Typography>
                         </Alert>
                       </>
@@ -1798,10 +1750,10 @@ function NegotiationContent() {
                                 </Paper>
                               ))}
                           </Stack>
-                          {state.cashSavings && state.cashSavings > 0 && (
+                          {cashSavings && cashSavings > 0 && (
                             <Alert severity="info" sx={{ py: 0.5, mb: 1 }}>
                               <Typography variant="caption">
-                                Save {formatPrice(state.cashSavings)} by
+                                Save {formatPrice(cashSavings)} by
                                 paying cash vs 60-mo loan
                               </Typography>
                             </Alert>
@@ -1919,7 +1871,7 @@ function NegotiationContent() {
           />
           {latestPrice && (
             <Typography variant="caption" color="text.secondary">
-              Current offer: ${latestPrice.toLocaleString()}
+              Current offer: ${latestPrice.price.toLocaleString()}
             </Typography>
           )}
           <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
@@ -1983,7 +1935,7 @@ function NegotiationContent() {
                 {latestPrice.source === "dealer" && (
                   <Chip label="Dealer Price" color="secondary" size="small" />
                 )}
-                {latestPrice.source === "counter" && (
+                {latestPrice.source === "user" && (
                   <Chip label="Your Counter" color="info" size="small" />
                 )}
               </Box>
@@ -2074,12 +2026,12 @@ function NegotiationContent() {
       </Modal>
 
       {/* Financing Comparison Modal */}
-      {state.financingOptions && state.financingOptions.length > 0 && (
+      {financingOptions && financingOptions.length > 0 && (
         <FinancingComparisonModal
           isOpen={showFinancingComparison}
           onClose={() => setShowFinancingComparison(false)}
-          financingOptions={state.financingOptions}
-          purchasePrice={state.suggestedPrice || vehicleData?.price || 0}
+          financingOptions={financingOptions}
+          purchasePrice={latestPrice?.price || vehicleData?.price || 0}
           onPriceChange={(newPrice) => {
             // You could add logic here to update the negotiation with new price
             console.log("Price changed to:", newPrice);
