@@ -115,9 +115,34 @@ function NegotiationContent() {
     maxRounds: 10,
   });
 
-  // Convert latestPrice from number to LatestPriceInfo for backward compatibility
+  // Extract latest price info from messages
+  // This returns an object with price, source, round, and timestamp
   const latestPrice = useMemo(() => {
     return getLatestNegotiatedPrice(negotiationState.messages);
+  }, [negotiationState.messages]);
+
+  // Extract AI metadata from latest message for UI display
+  const aiMetadata = useMemo(() => {
+    if (negotiationState.messages.length === 0) {
+      return {
+        recommendedAction: null,
+        strategyAdjustments: null,
+        dealerConcessionRate: null,
+        negotiationVelocity: null,
+        marketComparison: null,
+      };
+    }
+
+    const latestMsg = negotiationState.messages[negotiationState.messages.length - 1];
+    const metadata = latestMsg.metadata || {};
+
+    return {
+      recommendedAction: typeof metadata.recommended_action === "string" ? metadata.recommended_action : null,
+      strategyAdjustments: typeof metadata.strategy_adjustments === "string" ? metadata.strategy_adjustments : null,
+      dealerConcessionRate: typeof metadata.dealer_concession_rate === "number" ? metadata.dealer_concession_rate : null,
+      negotiationVelocity: typeof metadata.negotiation_velocity === "number" ? metadata.negotiation_velocity : null,
+      marketComparison: typeof metadata.market_comparison === "string" ? metadata.market_comparison : null,
+    };
   }, [negotiationState.messages]);
 
   // Computed confidence score based on negotiation progress
@@ -352,7 +377,15 @@ function NegotiationContent() {
     if (!negotiationState.sessionId || !vehicleData) return;
 
     // Validate the latest price before accepting
-    const priceToAccept = latestPrice?.price || latestPriceValue;
+    const priceToAccept = latestPrice?.price;
+    if (!priceToAccept) {
+      setNotification({
+        type: "error",
+        message: "No valid price available to accept",
+      });
+      return;
+    }
+
     const validation = validateNegotiatedPrice(
       priceToAccept,
       vehicleData.price,
@@ -398,7 +431,7 @@ function NegotiationContent() {
 
       setNotification({
         type: "success",
-        message: `Congratulations! You've accepted the offer at ${formatPrice(priceToAccept || 0)}!`,
+        message: `Congratulations! You've accepted the offer at ${formatPrice(priceToAccept)}!`,
       });
 
       // Fetch lender recommendations with loading state
@@ -439,7 +472,6 @@ function NegotiationContent() {
     negotiationState.sessionId,
     vehicleData,
     latestPrice,
-    latestPriceValue,
     targetPrice,
     financingOptions,
     setLoading,
@@ -635,14 +667,14 @@ function NegotiationContent() {
                     Final Price
                   </Typography>
                   <Typography variant="h6" color="success.main">
-                    {formatPrice(latestPrice?.price || latestPriceValue || 0)}
+                    {formatPrice(latestPrice?.price || 0)}
                   </Typography>
                 </Grid>
               </Grid>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 You saved{" "}
                 {formatPrice(
-                  (vehicleData?.price || 0) - (latestPrice?.price || latestPriceValue || 0)
+                  (vehicleData?.price || 0) - (latestPrice?.price || 0)
                 )}
                 !
               </Typography>
@@ -786,7 +818,7 @@ function NegotiationContent() {
                   variant="primary"
                   onClick={() => {
                     if (vehicleData) {
-                      const finalPrice = latestPrice?.price || latestPriceValue || vehicleData.price;
+                      const finalPrice = latestPrice?.price || vehicleData.price;
                       const vehicleParams = new URLSearchParams({
                         vin: vehicleData.vin || "",
                         make: vehicleData.make,
@@ -1465,31 +1497,30 @@ function NegotiationContent() {
                       Recommendations
                     </Typography>
                     <Stack spacing={1} sx={{ mb: 3 }}>
-                      {/* AI Recommended Action - Extract from latest message metadata */}
-                      {negotiationState.messages.length > 0 &&
-                        negotiationState.messages[negotiationState.messages.length - 1].metadata?.recommended_action && (
-                          <Alert
-                            severity={
-                              negotiationState.messages[negotiationState.messages.length - 1].metadata?.recommended_action === "accept"
-                                ? "success"
-                                : negotiationState.messages[negotiationState.messages.length - 1].metadata?.recommended_action === "counter"
-                                ? "info"
-                                : "warning"
-                            }
-                            icon={
-                              negotiationState.messages[negotiationState.messages.length - 1].metadata?.recommended_action === "accept" ? (
-                                <CheckCircle />
-                              ) : (
-                                <TrendingDown />
-                              )
-                            }
-                            sx={{ py: 0.5 }}
-                          >
-                            <Typography variant="caption" fontWeight="bold">
-                              AI Suggests: {String(negotiationState.messages[negotiationState.messages.length - 1].metadata?.recommended_action).toUpperCase()}
-                            </Typography>
-                          </Alert>
-                        )}
+                      {/* AI Recommended Action */}
+                      {aiMetadata.recommendedAction && (
+                        <Alert
+                          severity={
+                            aiMetadata.recommendedAction === "accept"
+                              ? "success"
+                              : aiMetadata.recommendedAction === "counter"
+                              ? "info"
+                              : "warning"
+                          }
+                          icon={
+                            aiMetadata.recommendedAction === "accept" ? (
+                              <CheckCircle />
+                            ) : (
+                              <TrendingDown />
+                            )
+                          }
+                          sx={{ py: 0.5 }}
+                        >
+                          <Typography variant="caption" fontWeight="bold">
+                            AI Suggests: {aiMetadata.recommendedAction.toUpperCase()}
+                          </Typography>
+                        </Alert>
+                      )}
                       
                       {latestPrice &&
                         targetPrice &&
@@ -1530,126 +1561,115 @@ function NegotiationContent() {
                     </Stack>
 
                     {/* Enhanced Negotiation Analytics */}
-                    {negotiationState.messages.length > 0 && (() => {
-                      const latestMsg = negotiationState.messages[negotiationState.messages.length - 1];
-                      const metadata = latestMsg.metadata || {};
-                      const dealerConcessionRate = typeof metadata.dealer_concession_rate === "number" ? metadata.dealer_concession_rate : null;
-                      const negotiationVelocity = typeof metadata.negotiation_velocity === "number" ? metadata.negotiation_velocity : null;
-                      const marketComparison = typeof metadata.market_comparison === "string" ? metadata.market_comparison : null;
-                      
-                      return (dealerConcessionRate !== null || negotiationVelocity !== null || marketComparison) ? (
-                        <>
-                          <Divider sx={{ my: 2 }} />
-                          <Typography variant="subtitle2" gutterBottom>
-                            Negotiation Analytics
-                          </Typography>
-                          <Stack spacing={1.5} sx={{ mb: 3 }}>
-                            {/* Dealer Concession Rate */}
-                            {dealerConcessionRate !== null && (
-                              <Paper
-                                elevation={1}
-                                sx={{ p: 1.5, bgcolor: "background.default" }}
+                    {(aiMetadata.dealerConcessionRate !== null || 
+                      aiMetadata.negotiationVelocity !== null || 
+                      aiMetadata.marketComparison) && (
+                      <>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle2" gutterBottom>
+                          Negotiation Analytics
+                        </Typography>
+                        <Stack spacing={1.5} sx={{ mb: 3 }}>
+                          {/* Dealer Concession Rate */}
+                          {aiMetadata.dealerConcessionRate !== null && (
+                            <Paper
+                              elevation={1}
+                              sx={{ p: 1.5, bgcolor: "background.default" }}
+                            >
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
                               >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <Typography variant="caption" color="text.secondary">
-                                    Dealer Flexibility
-                                  </Typography>
-                                  <Chip
-                                    label={`${(dealerConcessionRate * 100).toFixed(1)}%`}
-                                    size="small"
-                                    color={
-                                      dealerConcessionRate > 0.05
-                                        ? "success"
-                                        : dealerConcessionRate > 0.02
-                                        ? "warning"
-                                        : "default"
-                                    }
-                                  />
-                                </Box>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{ display: "block", mt: 0.5 }}
-                                >
-                                  {dealerConcessionRate > 0.05
-                                    ? "Dealer is very flexible"
-                                    : dealerConcessionRate > 0.02
-                                    ? "Moderate negotiation room"
-                                    : "Dealer holding firm"}
+                                <Typography variant="caption" color="text.secondary">
+                                  Dealer Flexibility
                                 </Typography>
-                              </Paper>
-                            )}
-
-                            {/* Negotiation Velocity */}
-                            {negotiationVelocity !== null && (
-                              <Paper
-                                elevation={1}
-                                sx={{ p: 1.5, bgcolor: "background.default" }}
+                                <Chip
+                                  label={`${(aiMetadata.dealerConcessionRate * 100).toFixed(1)}%`}
+                                  size="small"
+                                  color={
+                                    aiMetadata.dealerConcessionRate > 0.05
+                                      ? "success"
+                                      : aiMetadata.dealerConcessionRate > 0.02
+                                      ? "warning"
+                                      : "default"
+                                  }
+                                />
+                              </Box>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: "block", mt: 0.5 }}
                               >
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <Typography variant="caption" color="text.secondary">
-                                    Price Movement
-                                  </Typography>
-                                  <Chip
-                                    label={formatPrice(Math.abs(negotiationVelocity)) + "/round"}
-                                    size="small"
-                                    color="info"
-                                  />
-                                </Box>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  sx={{ display: "block", mt: 0.5 }}
-                                >
-                                  Average price change per round
-                                </Typography>
-                              </Paper>
-                            )}
+                                {aiMetadata.dealerConcessionRate > 0.05
+                                  ? "Dealer is very flexible"
+                                  : aiMetadata.dealerConcessionRate > 0.02
+                                  ? "Moderate negotiation room"
+                                  : "Dealer holding firm"}
+                              </Typography>
+                            </Paper>
+                          )}
 
-                            {/* Market Comparison */}
-                            {marketComparison && (
-                              <Alert severity="info" sx={{ py: 0.5 }}>
-                                <Typography variant="caption">
-                                  {marketComparison}
+                          {/* Negotiation Velocity */}
+                          {aiMetadata.negotiationVelocity !== null && (
+                            <Paper
+                              elevation={1}
+                              sx={{ p: 1.5, bgcolor: "background.default" }}
+                            >
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Typography variant="caption" color="text.secondary">
+                                  Price Movement
                                 </Typography>
-                              </Alert>
-                            )}
-                          </Stack>
-                        </>
-                      ) : null;
-                    })()}
+                                <Chip
+                                  label={formatPrice(Math.abs(aiMetadata.negotiationVelocity)) + "/round"}
+                                  size="small"
+                                  color="info"
+                                />
+                              </Box>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: "block", mt: 0.5 }}
+                              >
+                                Average price change per round
+                              </Typography>
+                            </Paper>
+                          )}
+
+                          {/* Market Comparison */}
+                          {aiMetadata.marketComparison && (
+                            <Alert severity="info" sx={{ py: 0.5 }}>
+                              <Typography variant="caption">
+                                {aiMetadata.marketComparison}
+                              </Typography>
+                            </Alert>
+                          )}
+                        </Stack>
+                      </>
+                    )}
 
                     {/* Strategy Adjustments */}
-                    {negotiationState.messages.length > 0 && (() => {
-                      const latestMsg = negotiationState.messages[negotiationState.messages.length - 1];
-                      const strategyAdjustments = latestMsg.metadata?.strategy_adjustments;
-                      
-                      return strategyAdjustments && typeof strategyAdjustments === "string" ? (
-                        <>
-                          <Divider sx={{ my: 2 }} />
-                          <Typography variant="subtitle2" gutterBottom>
-                            AI Strategy Tip
+                    {aiMetadata.strategyAdjustments && (
+                      <>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle2" gutterBottom>
+                          AI Strategy Tip
+                        </Typography>
+                        <Alert severity="info" icon={<SmartToy />} sx={{ mb: 3 }}>
+                          <Typography variant="caption">
+                            {aiMetadata.strategyAdjustments}
                           </Typography>
-                          <Alert severity="info" icon={<SmartToy />} sx={{ mb: 3 }}>
-                            <Typography variant="caption">
-                              {strategyAdjustments}
-                            </Typography>
-                          </Alert>
-                        </>
-                      ) : null;
-                    })()}
+                        </Alert>
+                      </>
+                    )}
 
                     <Divider sx={{ my: 2 }} />
 
@@ -1915,7 +1935,7 @@ function NegotiationContent() {
                 {latestPrice.source === "dealer" && (
                   <Chip label="Dealer Price" color="secondary" size="small" />
                 )}
-                {latestPrice.source === "counter" && (
+                {latestPrice.source === "user" && (
                   <Chip label="Your Counter" color="info" size="small" />
                 )}
               </Box>
@@ -2006,12 +2026,12 @@ function NegotiationContent() {
       </Modal>
 
       {/* Financing Comparison Modal */}
-      {state.financingOptions && state.financingOptions.length > 0 && (
+      {financingOptions && financingOptions.length > 0 && (
         <FinancingComparisonModal
           isOpen={showFinancingComparison}
           onClose={() => setShowFinancingComparison(false)}
-          financingOptions={state.financingOptions}
-          purchasePrice={state.suggestedPrice || vehicleData?.price || 0}
+          financingOptions={financingOptions}
+          purchasePrice={latestPrice?.price || vehicleData?.price || 0}
           onPriceChange={(newPrice) => {
             // You could add logic here to update the negotiation with new price
             console.log("Price changed to:", newPrice);
