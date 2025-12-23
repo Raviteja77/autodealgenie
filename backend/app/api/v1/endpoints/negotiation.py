@@ -220,8 +220,6 @@ def get_lender_recommendations(
                 break
 
     # Calculate down payment using shared constant
-    from app.services.negotiation_service import NegotiationService
-
     down_payment = negotiated_price * NegotiationService.DEFAULT_DOWN_PAYMENT_PERCENT
     loan_amount = negotiated_price - down_payment
 

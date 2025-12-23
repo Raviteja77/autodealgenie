@@ -17,6 +17,7 @@ from app.llm.schemas import DealEvaluation, VehicleConditionAssessment
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import Deal
 from app.repositories.evaluation_repository import EvaluationRepository
+from app.utils.error_handler import ApiError
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +227,15 @@ class DealEvaluationService:
         # Note: The JSONDecodeError and ValueError handlers below are primarily for
         # catching errors from the caching logic (json.loads in _get_cached_evaluation).
         # The generate_structured_json function wraps LLM JSON/validation errors in ApiError,
-        # which are caught by the generic Exception handler below.
+        # which are caught by the ApiError handler below.
+        except ApiError as e:
+            logger.error(
+                f"ApiError during deal evaluation: {e.message}. "
+                f"Status: {e.status_code}, VIN: {vehicle_vin}, Price: ${asking_price:,.2f}"
+            )
+            logger.error(f"ApiError details: {e.details}")
+            # For LLM-related ApiErrors, use fallback evaluation
+            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
         except json.JSONDecodeError as e:
             logger.error(
                 f"JSON parsing error during deal evaluation: {e}. "
@@ -476,15 +485,25 @@ class DealEvaluationService:
                     "condition_notes": assessment_result.condition_notes,
                     "recommended_inspection": assessment_result.recommended_inspection,
                 }
+                logger.info(
+                    f"Vehicle condition assessment completed successfully. "
+                    f"Score: {assessment_result.condition_score}/10"
+                )
             except Exception as e:
-                logger.error(f"LLM evaluation error: {e}")
+                logger.error(
+                    f"LLM evaluation error for vehicle condition: {type(e).__name__}: {e}. "
+                    f"VIN: {user_inputs.get('vin', 'Unknown')}, "
+                    f"Deal ID: {deal.id}. Using fallback assessment."
+                )
+                logger.exception("Full traceback for vehicle condition evaluation error:")
                 assessment = {
                     "condition_score": 7.0,
-                    "condition_notes": ["Unable to perform detailed analysis"],
+                    "condition_notes": ["Unable to perform detailed analysis due to LLM error"],
                     "recommended_inspection": True,
                 }
         else:
             # Fallback assessment
+            logger.warning("LLM client not available for vehicle condition assessment")
             assessment = {
                 "condition_score": 7.0,
                 "condition_notes": ["Condition evaluation requires LLM service"],

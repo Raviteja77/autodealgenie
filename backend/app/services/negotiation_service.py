@@ -89,8 +89,8 @@ class NegotiationService:
         """
         messages = self.negotiation_repo.get_messages(session_id)
         for msg in reversed(messages[-10:]):  # Check last 10 messages
-            if msg.metadata and "suggested_price" in msg.metadata:
-                return msg.metadata["suggested_price"]
+            if msg.message_metadata and "suggested_price" in msg.message_metadata:
+                return msg.message_metadata["suggested_price"]
         return default_price
 
     async def create_negotiation(
@@ -717,10 +717,10 @@ class NegotiationService:
         messages = self.negotiation_repo.get_messages(session.id)
         offer_history = []
         for msg in messages[-self.MAX_CONVERSATION_HISTORY :]:  # Last N messages
-            if msg.metadata and "counter_offer" in msg.metadata:
-                offer_history.append(f"${msg.metadata['counter_offer']:,.2f}")
-            elif msg.metadata and "suggested_price" in msg.metadata:
-                offer_history.append(f"${msg.metadata['suggested_price']:,.2f}")
+            if msg.message_metadata and "counter_offer" in msg.message_metadata:
+                offer_history.append(f"${msg.message_metadata['counter_offer']:,.2f}")
+            elif msg.message_metadata and "suggested_price" in msg.message_metadata:
+                offer_history.append(f"${msg.message_metadata['suggested_price']:,.2f}")
 
         try:
             # Use centralized LLM client
@@ -777,8 +777,8 @@ class NegotiationService:
             # Get user target price from message history
             user_target = deal.asking_price * self.DEFAULT_TARGET_PRICE_RATIO
             for msg in reversed(messages[-10:]):
-                if msg.metadata and "target_price" in msg.metadata:
-                    user_target = msg.metadata["target_price"]
+                if msg.message_metadata and "target_price" in msg.message_metadata:
+                    user_target = msg.message_metadata["target_price"]
                     break
 
             # Calculate enhanced AI metrics for counter offer
@@ -849,8 +849,8 @@ class NegotiationService:
             # (messages already fetched at the beginning of _generate_counter_response)
             user_target = deal.asking_price * self.DEFAULT_TARGET_PRICE_RATIO
             for msg in reversed(messages[-10:]):
-                if msg.metadata and "target_price" in msg.metadata:
-                    user_target = msg.metadata["target_price"]
+                if msg.message_metadata and "target_price" in msg.message_metadata:
+                    user_target = msg.message_metadata["target_price"]
                     break
 
             # Calculate enhanced AI metrics even for fallback
@@ -1228,8 +1228,8 @@ class NegotiationService:
         user_target = deal.asking_price * self.DEFAULT_TARGET_PRICE_RATIO
 
         for msg in reversed(messages[-10:]):
-            if msg.metadata and "target_price" in msg.metadata:
-                user_target = msg.metadata["target_price"]
+            if msg.message_metadata and "target_price" in msg.message_metadata:
+                user_target = msg.message_metadata["target_price"]
                 break
 
         try:
