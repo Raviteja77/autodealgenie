@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Box,
@@ -20,6 +20,7 @@ import {
   Alert,
   Tooltip,
   IconButton,
+  AlertTitle,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -30,10 +31,16 @@ import {
   AccountBalance as AccountBalanceIcon,
   Info as InfoIcon,
   TrendingUp as TrendingUpIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from "@mui/icons-material";
 import { Input, Button } from "@/components";
 import { useAuth } from "@/lib/auth";
 import { useStepper } from "@/app/context";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SearchFormSchema, validateSearchField } from "@/lib/validation/searchFormSchema";
+import { useDebounce } from "@/lib/hooks";
+import { z } from "zod";
 
 interface SearchFormData {
   // Vehicle criteria
@@ -58,7 +65,7 @@ interface SearchFormData {
   tradeInValue?: number;
 }
 
-export default function DashboardSearchPage() {
+function DashboardSearchPageContent() {
   const { user } = useAuth();
   const router = useRouter();
   const { completeStep, setStepData } = useStepper();
@@ -79,7 +86,89 @@ export default function DashboardSearchPage() {
   });
 
   const [showFinancingOptions, setShowFinancingOptions] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [estimatedPayment, setEstimatedPayment] = useState<number | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  
+  // Debounce slider values for performance
+  const debouncedBudget = useDebounce(
+    { min: searchParams.budgetMin, max: searchParams.budgetMax },
+    { delay: 300 }
+  );
+  const debouncedYear = useDebounce(
+    { min: searchParams.yearMin, max: searchParams.yearMax },
+    { delay: 300 }
+  );
+
+  // Validate on debounced value changes
+  useEffect(() => {
+    const result = validateSearchField("budgetMax", debouncedBudget.max, {
+      ...searchParams,
+      budgetMin: debouncedBudget.min,
+      budgetMax: debouncedBudget.max,
+    });
+    if (!result.success && result.error) {
+      setValidationErrors((prev) => ({ ...prev, budgetMax: result.error! }));
+    } else {
+      setValidationErrors((prev) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { budgetMax, ...rest } = prev;
+        return rest;
+      });
+    }
+  }, [debouncedBudget, searchParams]);
+
+  useEffect(() => {
+    const result = validateSearchField("yearMax", debouncedYear.max, {
+      ...searchParams,
+      yearMin: debouncedYear.min,
+      yearMax: debouncedYear.max,
+    });
+    if (!result.success && result.error) {
+      setValidationErrors((prev) => ({ ...prev, yearMax: result.error! }));
+    } else {
+      setValidationErrors((prev) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { yearMax, ...rest } = prev;
+        return rest;
+      });
+    }
+  }, [debouncedYear, searchParams]);
+
+  // Memoize handlers to prevent unnecessary re-renders
+  const handleBudgetChange = useCallback(
+    (newValue: number | number[]) => {
+      const [min, max] = newValue as number[];
+      setSearchParams((prev) => ({
+        ...prev,
+        budgetMin: min,
+        budgetMax: max,
+      }));
+    },
+    []
+  );
+
+  const handleYearChange = useCallback(
+    (newValue: number | number[]) => {
+      const [min, max] = newValue as number[];
+      setSearchParams((prev) => ({
+        ...prev,
+        yearMin: min,
+        yearMax: max,
+      }));
+    },
+    []
+  );
+
+  const handleMileageChange = useCallback(
+    (newValue: number | number[]) => {
+      setSearchParams((prev) => ({
+        ...prev,
+        mileageMax: newValue as number,
+      }));
+    },
+    []
+  );
 
   // Calculate estimated monthly payment
   const calculateMonthlyPayment = (
@@ -150,28 +239,44 @@ export default function DashboardSearchPage() {
     searchParams.budgetMax,
   ]);
 
-  const handleSearch = () => {
-    // Convert search params to query string
-    const queryParams = new URLSearchParams();
+  const handleSearch = useCallback(() => {
+    // Validate the form before search
+    try {
+      SearchFormSchema.parse(searchParams);
+      setValidationErrors({});
 
-    // Vehicle params
-    Object.entries(searchParams).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== "") {
-        queryParams.append(key, value.toString());
+      // Convert search params to query string
+      const queryParams = new URLSearchParams();
+
+      // Vehicle params
+      Object.entries(searchParams).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          queryParams.append(key, value.toString());
+        }
+      });
+
+      // Mark search step as completed and store search params
+      completeStep(0, { searchParams, queryString: queryParams.toString() });
+      setStepData(0, { searchParams, queryString: queryParams.toString() });
+
+      // Navigate to results
+      if (user) {
+        router.push(`/dashboard/results?${queryParams.toString()}`);
+      } else {
+        router.push(`/auth/login`);
       }
-    });
-
-    // Mark search step as completed and store search params
-    completeStep(0, { searchParams, queryString: queryParams.toString() });
-    setStepData(0, { searchParams, queryString: queryParams.toString() });
-
-    // Navigate to results
-    if (user) {
-      router.push(`/dashboard/results?${queryParams.toString()}`);
-    } else {
-      router.push(`/auth/login`);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errors: Record<string, string> = {};
+        error.issues.forEach((issue) => {
+          if (issue.path[0]) {
+            errors[issue.path[0].toString()] = issue.message;
+          }
+        });
+        setValidationErrors(errors);
+      }
     }
-  };
+  }, [searchParams, completeStep, setStepData, router, user]);
 
   const makes = [
     "Toyota",
@@ -205,19 +310,23 @@ export default function DashboardSearchPage() {
     "certified pre-owned",
   ];
 
-  const fuelTypes = [
-    "Gasoline",
-    "Diesel",
-    "Electric",
-    "Hybrid",
-    "Plug-in Hybrid",
-  ];
-
-  const transmissions = ["Automatic", "Manual", "CVT"];
-
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <Container maxWidth="lg">
+        {/* Display validation errors at the top */}
+        {Object.keys(validationErrors).length > 0 && (
+          <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+            <AlertTitle>Please fix the following errors:</AlertTitle>
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {Object.entries(validationErrors).map(([field, error]) => (
+                <li key={field}>
+                  <strong>{field}:</strong> {error}
+                </li>
+              ))}
+            </ul>
+          </Alert>
+        )}
+
         <Grid container spacing={4} sx={{ mt: 1 }}>
           {/* Main Search Form */}
           <Grid item xs={12} md={9}>
@@ -304,20 +413,14 @@ export default function DashboardSearchPage() {
                       variant="body2"
                       color="text.secondary"
                       gutterBottom
+                      id="budget-slider-label"
                     >
                       ${searchParams.budgetMin.toLocaleString()} - $
                       {searchParams.budgetMax.toLocaleString()}
                     </Typography>
                     <Slider
                       value={[searchParams.budgetMin, searchParams.budgetMax]}
-                      onChange={(_, newValue) => {
-                        const [min, max] = newValue as number[];
-                        setSearchParams({
-                          ...searchParams,
-                          budgetMin: min,
-                          budgetMax: max,
-                        });
-                      }}
+                      onChange={(_, newValue) => handleBudgetChange(newValue)}
                       valueLabelDisplay="auto"
                       min={5000}
                       max={100000}
@@ -328,7 +431,14 @@ export default function DashboardSearchPage() {
                         { value: 100000, label: "$100K" },
                       ]}
                       sx={{ color: "success.light" }}
+                      aria-labelledby="budget-slider-label"
+                      aria-label="Budget range slider"
                     />
+                    {validationErrors.budgetMax && (
+                      <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                        {validationErrors.budgetMax}
+                      </Typography>
+                    )}
                   </Box>
                 </Grid>
 
@@ -357,12 +467,33 @@ export default function DashboardSearchPage() {
                             type="number"
                             value={searchParams.downPayment || ""}
                             onChange={(e) => {
+                              const value = parseInt(e.target.value) || 0;
                               setSearchParams({
                                 ...searchParams,
-                                downPayment: parseInt(e.target.value) || 0,
+                                downPayment: value,
                               });
+                              // Validate down payment
+                              const result = validateSearchField(
+                                "downPayment",
+                                value,
+                                { ...searchParams, downPayment: value }
+                              );
+                              if (!result.success && result.error) {
+                                setValidationErrors((prev) => ({
+                                  ...prev,
+                                  downPayment: result.error!,
+                                }));
+                              } else {
+                                setValidationErrors((prev) => {
+                                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                  const { downPayment: _, ...rest } = prev;
+                                  return rest;
+                                });
+                              }
                             }}
                             placeholder="e.g., 5000"
+                            error={validationErrors.downPayment}
+                            aria-label="Down payment amount"
                           />
                         </Grid>
 
@@ -386,8 +517,9 @@ export default function DashboardSearchPage() {
                         {/* Loan Term */}
                         <Grid item xs={12} md={6}>
                           <FormControl fullWidth>
-                            <InputLabel>Loan Term</InputLabel>
+                            <InputLabel id="loan-term-label">Loan Term</InputLabel>
                             <Select
+                              labelId="loan-term-label"
                               value={searchParams.loanTerm || ""}
                               label="Loan Term"
                               onChange={(e) => {
@@ -396,6 +528,7 @@ export default function DashboardSearchPage() {
                                   loanTerm: e.target.value as number,
                                 });
                               }}
+                              aria-label="Loan term selection"
                             >
                               <MenuItem value={36}>36 months (3 years)</MenuItem>
                               <MenuItem value={48}>48 months (4 years)</MenuItem>
@@ -408,8 +541,9 @@ export default function DashboardSearchPage() {
                         {/* Credit Score */}
                         <Grid item xs={12} md={6}>
                           <FormControl fullWidth>
-                            <InputLabel>Credit Score Range</InputLabel>
+                            <InputLabel id="credit-score-label">Credit Score Range</InputLabel>
                             <Select
+                              labelId="credit-score-label"
                               value={searchParams.creditScore || ""}
                               label="Credit Score Range"
                               onChange={(e) => {
@@ -422,6 +556,7 @@ export default function DashboardSearchPage() {
                                     | "poor",
                                 });
                               }}
+                              aria-label="Credit score range selection"
                             >
                               <MenuItem value="excellent">
                                 Excellent (750+)
@@ -480,7 +615,7 @@ export default function DashboardSearchPage() {
                   <Divider />
                 </Grid>
 
-                {/* Vehicle Details */}
+                {/* Vehicle Details - Now labeled as Basic Filters */}
                 <Grid item xs={12}>
                   <Typography
                     variant="h6"
@@ -488,14 +623,15 @@ export default function DashboardSearchPage() {
                     sx={{ display: "flex", alignItems: "center", gap: 1 }}
                   >
                     <DirectionsCarIcon color="primary" />
-                    Vehicle Filters
+                    Basic Vehicle Filters
                   </Typography>
                 </Grid>
 
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel>Make</InputLabel>
+                    <InputLabel id="make-label">Make</InputLabel>
                     <Select
+                      labelId="make-label"
                       value={searchParams.make}
                       label="Make"
                       onChange={(e) =>
@@ -504,6 +640,7 @@ export default function DashboardSearchPage() {
                           make: e.target.value,
                         })
                       }
+                      aria-label="Vehicle make selection"
                     >
                       <MenuItem value="">Any</MenuItem>
                       {makes.map((type) => (
@@ -518,8 +655,9 @@ export default function DashboardSearchPage() {
                 {searchParams.make && (
                   <Grid item xs={12} md={6}>
                     <FormControl fullWidth>
-                      <InputLabel>Model</InputLabel>
+                      <InputLabel id="model-label">Model</InputLabel>
                       <Select
+                        labelId="model-label"
                         value={searchParams.model}
                         label="Model"
                         onChange={(e) =>
@@ -528,6 +666,7 @@ export default function DashboardSearchPage() {
                             model: e.target.value,
                           })
                         }
+                        aria-label="Vehicle model selection"
                       >
                         <MenuItem value="">Any</MenuItem>
                         {models[
@@ -544,8 +683,9 @@ export default function DashboardSearchPage() {
 
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel>Car Type</InputLabel>
+                    <InputLabel id="car-type-label">Car Type</InputLabel>
                     <Select
+                      labelId="car-type-label"
                       value={searchParams.carType}
                       label="Car Type"
                       onChange={(e) =>
@@ -554,6 +694,7 @@ export default function DashboardSearchPage() {
                           carType: e.target.value,
                         })
                       }
+                      aria-label="Car type selection"
                     >
                       <MenuItem value="">Any</MenuItem>
                       {carTypes.map((type) => (
@@ -564,6 +705,38 @@ export default function DashboardSearchPage() {
                     </Select>
                   </FormControl>
                 </Grid>
+
+                {/* Advanced Filters - Collapsible Section */}
+                <Grid item xs={12}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      cursor: "pointer",
+                      mt: 2,
+                    }}
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  >
+                    <Typography
+                      variant="h6"
+                      sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}
+                    >
+                      <SpeedIcon color="primary" />
+                      Advanced Filters
+                    </Typography>
+                    <IconButton aria-label="Toggle advanced filters">
+                      {showAdvancedFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    </IconButton>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Collapse in={showAdvancedFilters}>
+                    <Paper
+                      variant="outlined"
+                      sx={{ p: 3, bgcolor: "grey.50", borderRadius: 2 }}
+                    >
+                      <Grid container spacing={3}>
 
                 {/* Year Range */}
                 <Grid item xs={12}>
@@ -588,19 +761,13 @@ export default function DashboardSearchPage() {
                       variant="body2"
                       color="text.secondary"
                       gutterBottom
+                      id="year-slider-label"
                     >
                       {searchParams.yearMin} - {searchParams.yearMax}
                     </Typography>
                     <Slider
                       value={[searchParams.yearMin, searchParams.yearMax]}
-                      onChange={(_, newValue) => {
-                        const [min, max] = newValue as number[];
-                        setSearchParams({
-                          ...searchParams,
-                          yearMin: min,
-                          yearMax: max,
-                        });
-                      }}
+                      onChange={(_, newValue) => handleYearChange(newValue)}
                       valueLabelDisplay="auto"
                       min={2000}
                       max={2024}
@@ -609,7 +776,14 @@ export default function DashboardSearchPage() {
                         { value: 2024, label: "2024" },
                       ]}
                       sx={{ color: "success.light" }}
+                      aria-labelledby="year-slider-label"
+                      aria-label="Year range slider"
                     />
+                    {validationErrors.yearMax && (
+                      <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                        {validationErrors.yearMax}
+                      </Typography>
+                    )}
                   </Box>
                 </Grid>
 
@@ -636,17 +810,13 @@ export default function DashboardSearchPage() {
                       variant="body2"
                       color="text.secondary"
                       gutterBottom
+                      id="mileage-slider-label"
                     >
                       Up to {searchParams.mileageMax.toLocaleString()} miles
                     </Typography>
                     <Slider
                       value={searchParams.mileageMax}
-                      onChange={(_, newValue) =>
-                        setSearchParams({
-                          ...searchParams,
-                          mileageMax: newValue as number,
-                        })
-                      }
+                      onChange={(_, newValue) => handleMileageChange(newValue)}
                       valueLabelDisplay="auto"
                       min={10000}
                       max={200000}
@@ -659,6 +829,8 @@ export default function DashboardSearchPage() {
                         { value: 200000, label: "200K" },
                       ]}
                       sx={{ color: "success.light" }}
+                      aria-labelledby="mileage-slider-label"
+                      aria-label="Maximum mileage slider"
                     />
                   </Box>
                 </Grid>
@@ -678,8 +850,13 @@ export default function DashboardSearchPage() {
                       }
                       placeholder="e.g., fuel efficiency, safety features, low maintenance costs"
                       value={searchParams.userPriorities}
+                      aria-label="User priorities and preferences"
                     />
                   </Box>
+                </Grid>
+                      </Grid>
+                    </Paper>
+                  </Collapse>
                 </Grid>
 
                 {/* Search Button */}
@@ -761,5 +938,14 @@ export default function DashboardSearchPage() {
         </Grid>
       </Container>
     </Box>
+  );
+}
+
+// Wrap with ErrorBoundary for graceful error handling
+export default function DashboardSearchPage() {
+  return (
+    <ErrorBoundary>
+      <DashboardSearchPageContent />
+    </ErrorBoundary>
   );
 }
