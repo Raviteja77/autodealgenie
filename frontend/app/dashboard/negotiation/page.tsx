@@ -282,6 +282,7 @@ function NegotiationContent() {
           vehicle_model: vehicleData.model,
           vehicle_year: vehicleData.year,
           vehicle_mileage: vehicleData.mileage,
+          vehicle_vin: vehicleData.vin || "UNKNOWN00000000000", // Use VIN if available, otherwise placeholder
           asking_price: vehicleData.price,
           status: "in_progress",
           notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
