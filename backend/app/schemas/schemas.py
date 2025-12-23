@@ -48,7 +48,9 @@ class DealUpdate(BaseModel):
     vehicle_model: str | None = Field(None, min_length=1, max_length=100)
     vehicle_year: int | None = Field(None, ge=1900, le=2100)
     vehicle_mileage: int | None = Field(None, ge=0)
-    vehicle_vin: str = Field(..., min_length=17, max_length=17, description="17-character VIN")
+    vehicle_vin: str | None = Field(
+        None, min_length=17, max_length=17, description="17-character VIN"
+    )
     asking_price: float | None = Field(None, gt=0)
     offer_price: float | None = Field(None, gt=0)
     status: DealStatus | None = None

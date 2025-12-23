@@ -4,7 +4,7 @@ Negotiation service with LLM integration for multi-round negotiations
 
 import logging
 import uuid
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import Session
 
@@ -29,7 +29,7 @@ class NegotiationService:
     DEFAULT_CREDIT_SCORE_RANGE = "good"  # Default credit range for calculations
     DEFAULT_TARGET_PRICE_RATIO = 0.9  # Default target price ratio (90% of asking price)
     INITIAL_OFFER_MULTIPLIER = 0.87  # Start 13% below user target price
-    
+
     # Counter offer strategy constants
     EXCELLENT_DISCOUNT_THRESHOLD = 10.0  # 10% off asking price
     GOOD_DISCOUNT_THRESHOLD = 5.0  # 5% off asking price
@@ -49,13 +49,14 @@ class NegotiationService:
         """Lazy load WebSocket manager to avoid circular import"""
         if self._ws_manager is None:
             from app.services.websocket_manager import connection_manager
+
             self._ws_manager = connection_manager
         return self._ws_manager
 
     async def _broadcast_message(self, session_id: int, message: Any):
         """
         Broadcast a message via WebSocket to all connected clients
-        
+
         Args:
             session_id: Negotiation session ID
             message: Message object to broadcast
@@ -78,11 +79,11 @@ class NegotiationService:
     def _get_latest_suggested_price(self, session_id: int, default_price: float) -> float:
         """
         Get the latest suggested price from message history
-        
+
         Args:
             session_id: ID of the negotiation session
             default_price: Default price to return if no suggested price found
-            
+
         Returns:
             Latest suggested price or default_price
         """
@@ -145,7 +146,7 @@ class NegotiationService:
             round_number=1,
             metadata={"target_price": user_target_price, "strategy": strategy},
         )
-        
+
         # Broadcast user message via WebSocket
         await self._broadcast_message(session.id, user_msg)
 
@@ -153,7 +154,7 @@ class NegotiationService:
         try:
             # Show typing indicator
             await self.ws_manager.broadcast_typing_indicator(session.id, True)
-            
+
             agent_response = await self._generate_agent_response(
                 session=session,
                 deal=deal,
@@ -164,7 +165,7 @@ class NegotiationService:
 
             # Hide typing indicator
             await self.ws_manager.broadcast_typing_indicator(session.id, False)
-            
+
             agent_msg = self.negotiation_repo.add_message(
                 session_id=session.id,
                 role=MessageRole.AGENT,
@@ -172,7 +173,7 @@ class NegotiationService:
                 round_number=1,
                 metadata=agent_response["metadata"],
             )
-            
+
             # Broadcast agent message via WebSocket
             await self._broadcast_message(session.id, agent_msg)
 
@@ -250,8 +251,25 @@ class NegotiationService:
 
         # Handle user action
         if user_action == "confirm":
-            # User accepts the deal
+            # User accepts the deal - update negotiation status
             self.negotiation_repo.update_session_status(session_id, NegotiationStatus.COMPLETED)
+
+            # Get the latest negotiated price to update the deal
+            latest_price = self._get_latest_suggested_price(session_id, deal.asking_price)
+
+            # Update the deal with the final negotiated price and status
+            from app.schemas.schemas import DealUpdate
+
+            deal_update = DealUpdate(
+                offer_price=latest_price,
+                status="completed",
+                notes=f"{deal.notes or ''}\nNegotiation completed. Final agreed price: ${latest_price:,.2f}".strip(),
+            )
+            self.deal_repo.update(session.deal_id, deal_update)
+            logger.info(
+                f"[{request_id}] Deal {session.deal_id} updated - "
+                f"Status: completed, Offer Price: ${latest_price:,.2f}"
+            )
 
             message_content = "Thank you! I accept the current offer."
             self.negotiation_repo.add_message(
@@ -336,7 +354,7 @@ class NegotiationService:
                 round_number=session.current_round,
                 metadata={"action": "counter", "counter_offer": counter_offer},
             )
-            
+
             # Broadcast user message via WebSocket
             await self._broadcast_message(session_id, user_msg)
 
@@ -344,7 +362,7 @@ class NegotiationService:
             try:
                 # Show typing indicator
                 await self.ws_manager.broadcast_typing_indicator(session_id, True)
-                
+
                 agent_response = await self._generate_counter_response(
                     session=session,
                     deal=deal,
@@ -354,7 +372,7 @@ class NegotiationService:
 
                 # Hide typing indicator
                 await self.ws_manager.broadcast_typing_indicator(session_id, False)
-                
+
                 agent_msg = self.negotiation_repo.add_message(
                     session_id=session_id,
                     role=MessageRole.AGENT,
@@ -362,7 +380,7 @@ class NegotiationService:
                     round_number=session.current_round,
                     metadata=agent_response["metadata"],
                 )
-                
+
                 # Broadcast agent message via WebSocket
                 await self._broadcast_message(session_id, agent_msg)
 
@@ -403,28 +421,28 @@ class NegotiationService:
     ) -> dict[str, Any]:
         """
         Calculate enhanced AI metrics for negotiation intelligence
-        
+
         Args:
             session_id: Session ID for message history
             deal: Deal object with asking price
             current_price: Current suggested/negotiated price
             user_target: User's target price
             messages: Optional pre-fetched messages to avoid redundant queries
-            
+
         Returns:
             Dictionary with AI metrics including confidence, recommendations, etc.
         """
         # Use provided messages or fetch if not provided
         if messages is None:
             messages = self.negotiation_repo.get_messages(session_id)
-        
+
         # Calculate confidence score based on deal quality
         # Handle edge case where current_price > asking_price (negative discount)
         if deal.asking_price > 0:
             discount_percent = ((deal.asking_price - current_price) / deal.asking_price) * 100
         else:
             discount_percent = 0
-        
+
         # Confidence based on discount percentage and negotiation progress
         # Handle negative discounts (price increases) with low confidence
         if discount_percent < 0:  # Price increase - very poor deal
@@ -439,15 +457,17 @@ class NegotiationService:
             confidence_score = 0.65
         else:  # Marginal deal (<2% off)
             confidence_score = 0.50
-            
+
         # Calculate dealer concession rate (total price movement / asking price)
         initial_asking = deal.asking_price
-        dealer_concession_rate = (initial_asking - current_price) / initial_asking if initial_asking > 0 else 0
-        
+        dealer_concession_rate = (
+            (initial_asking - current_price) / initial_asking if initial_asking > 0 else 0
+        )
+
         # Calculate negotiation velocity (average price change per round)
-        round_count = max(len(set(msg.round_number for msg in messages)), 1)
+        round_count = max(len({msg.round_number for msg in messages}), 1)
         negotiation_velocity = (initial_asking - current_price) / round_count
-        
+
         # Determine recommended action
         if discount_percent < 0:  # Price increase
             recommended_action = "reject"
@@ -457,14 +477,20 @@ class NegotiationService:
             recommended_action = "consider"
         else:
             recommended_action = "counter"
-            
+
         # Generate strategy adjustments based on context
         if dealer_concession_rate > 0.10:  # Dealer very flexible
-            strategy_adjustments = "Dealer showing strong flexibility. You have significant leverage—push for more!"
+            strategy_adjustments = (
+                "Dealer showing strong flexibility. You have significant leverage—push for more!"
+            )
         elif dealer_concession_rate > 0.05:  # Moderate flexibility
-            strategy_adjustments = "Moderate progress. Consider one more counter to maximize your savings."
+            strategy_adjustments = (
+                "Moderate progress. Consider one more counter to maximize your savings."
+            )
         elif round_count > 5:  # Many rounds, little movement
-            strategy_adjustments = "Limited movement detected. Consider accepting current offer or walking away."
+            strategy_adjustments = (
+                "Limited movement detected. Consider accepting current offer or walking away."
+            )
         elif dealer_concession_rate <= 0.02:  # Early stage with low concession
             strategy_adjustments = (
                 "Early in the negotiation, but the dealer has shown limited flexibility so far. "
@@ -472,18 +498,24 @@ class NegotiationService:
                 "if movement remains minimal."
             )
         else:
-            strategy_adjustments = "Early stage. Continue negotiating strategically to secure the best price."
-            
+            strategy_adjustments = (
+                "Early stage. Continue negotiating strategically to secure the best price."
+            )
+
         # Market comparison insight
         if discount_percent < 0:  # Price increase
             market_comparison = f"Warning: Price is {abs(discount_percent):.1f}% above asking. This is unusual and not recommended."
         elif discount_percent >= 10:
             market_comparison = f"Excellent! You're {discount_percent:.1f}% below asking—better than typical market deals."
         elif discount_percent >= 5:
-            market_comparison = f"Solid progress at {discount_percent:.1f}% off. Average market discount is 3-7%."
+            market_comparison = (
+                f"Solid progress at {discount_percent:.1f}% off. Average market discount is 3-7%."
+            )
         else:
-            market_comparison = f"Currently at {discount_percent:.1f}% off. Most buyers achieve 5-10% discounts."
-            
+            market_comparison = (
+                f"Currently at {discount_percent:.1f}% off. Most buyers achieve 5-10% discounts."
+            )
+
         return {
             "confidence_score": round(confidence_score, 2),
             "recommended_action": recommended_action,
@@ -710,13 +742,13 @@ class NegotiationService:
             # Generate new suggested price - favor the USER, not dealer
             # Instead of converging to asking price, suggest user holds firm or goes slightly lower
             # This encourages aggressive negotiation that benefits the user
-            
+
             # Calculate how much room there is between counter offer and asking price
             price_gap = deal.asking_price - counter_offer
-            
+
             # If user is already getting a good deal (>10% off asking), validate and hold firm
             discount_percent = (price_gap / deal.asking_price) * 100
-            
+
             if discount_percent >= self.EXCELLENT_DISCOUNT_THRESHOLD:
                 # User is already getting 10%+ off - suggest holding firm or minimal increase
                 new_suggested_price = counter_offer * self.HOLD_FIRM_ADJUSTMENT
@@ -777,7 +809,7 @@ class NegotiationService:
             # Fallback response - user-centric approach
             price_gap = deal.asking_price - counter_offer
             discount_percent = (price_gap / deal.asking_price) * 100
-            
+
             if discount_percent >= self.EXCELLENT_DISCOUNT_THRESHOLD:
                 new_suggested_price = counter_offer * self.HOLD_FIRM_ADJUSTMENT
                 fallback_content = (
@@ -928,7 +960,7 @@ class NegotiationService:
             round_number=session.current_round,
             metadata={"message_type": message_type, "chat_message": True},
         )
-        
+
         # Broadcast user message via WebSocket
         await self._broadcast_message(session_id, user_msg)
 
@@ -936,7 +968,7 @@ class NegotiationService:
         try:
             # Show typing indicator
             await self.ws_manager.broadcast_typing_indicator(session_id, True)
-            
+
             agent_response = await self._generate_chat_response(
                 session=session,
                 deal=deal,
@@ -946,7 +978,7 @@ class NegotiationService:
 
             # Hide typing indicator
             await self.ws_manager.broadcast_typing_indicator(session_id, False)
-            
+
             agent_msg = self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.AGENT,
@@ -954,7 +986,7 @@ class NegotiationService:
                 round_number=session.current_round,
                 metadata={**agent_response["metadata"], "chat_message": True},
             )
-            
+
             # Broadcast agent message via WebSocket
             await self._broadcast_message(session_id, agent_msg)
 
@@ -1190,11 +1222,11 @@ class NegotiationService:
 
         # Get latest suggested price using helper method
         suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
-        
+
         # Get user target price from messages or use default
         messages = self.negotiation_repo.get_messages(session.id)
         user_target = deal.asking_price * self.DEFAULT_TARGET_PRICE_RATIO
-        
+
         for msg in reversed(messages[-10:]):
             if msg.metadata and "target_price" in msg.metadata:
                 user_target = msg.metadata["target_price"]

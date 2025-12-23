@@ -306,13 +306,23 @@ async def test_process_next_round_counter(authenticated_client, mock_deal, db):
 
 @pytest.mark.asyncio
 async def test_process_next_round_confirm(authenticated_client, mock_deal, db):
-    """Test processing next round with confirm action"""
+    """Test processing next round with confirm action and verify deal update"""
     from app.models.models import User
+    from app.repositories.deal_repository import DealRepository
     from app.repositories.negotiation_repository import NegotiationRepository
 
     user = db.query(User).filter(User.email == "testuser@example.com").first()
     repo = NegotiationRepository(db)
     session = repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+
+    # Add a message with a suggested price to simulate negotiation
+    repo.add_message(
+        session_id=session.id,
+        role=MessageRole.AGENT,
+        content="I can offer $23,500 for this vehicle.",
+        round_number=1,
+        metadata={"suggested_price": 23500.00},
+    )
 
     request_data = {"user_action": "confirm"}
 
@@ -323,6 +333,14 @@ async def test_process_next_round_confirm(authenticated_client, mock_deal, db):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "completed"
+
+    # Verify deal was updated with negotiated price and status
+    deal_repo = DealRepository(db)
+    updated_deal = deal_repo.get(mock_deal.id)
+    assert updated_deal is not None
+    assert updated_deal.status == "completed"
+    assert updated_deal.offer_price == 23500.00
+    assert "Negotiation completed" in (updated_deal.notes or "")
 
 
 @pytest.mark.asyncio
@@ -439,7 +457,19 @@ async def test_send_chat_message(authenticated_client, mock_deal, db):
             (),
             {
                 "choices": [
-                    type("MockChoice", (), {"message": type("MockMessage", (), {"content": "Based on the current market conditions, I recommend starting with a counter offer that's 5-8% below the asking price."})()})()
+                    type(
+                        "MockChoice",
+                        (),
+                        {
+                            "message": type(
+                                "MockMessage",
+                                (),
+                                {
+                                    "content": "Based on the current market conditions, I recommend starting with a counter offer that's 5-8% below the asking price."
+                                },
+                            )()
+                        },
+                    )()
                 ]
             },
         )()

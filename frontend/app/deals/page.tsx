@@ -53,11 +53,15 @@ export default function DealsPage() {
   };
 
   const handleDealClick = (deal: Deal) => {
+    // Use offer_price if available (negotiated price), otherwise asking_price
+    // Using nullish coalescing to only fallback when offer_price is null/undefined, not 0
+    const finalPrice = deal.offer_price ?? deal.asking_price;
+    
     const vehicleParams = new URLSearchParams({
       make: deal.vehicle_make,
       model: deal.vehicle_model,
       year: deal.vehicle_year.toString(),
-      price: deal.asking_price.toString(),
+      price: finalPrice.toString(),
       mileage: deal.vehicle_mileage.toString(),
     });
     
