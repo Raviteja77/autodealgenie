@@ -14,6 +14,10 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import Grid from "@mui/material/Grid";
 import { useRouter } from "next/navigation";
 
+// Constants for fallback values when data is unavailable
+const DEFAULT_FUEL_TYPE = "Unknown";
+const DEFAULT_CONDITION = "good";
+
 export default function DealsPage() {
   const router = useRouter();
   const { data: deals, isLoading, error, execute } = useApi<Deal[]>();
@@ -63,7 +67,7 @@ export default function DealsPage() {
     }
     
     // Add fuelType with fallback
-    vehicleParams.set("fuelType", "Unknown");
+    vehicleParams.set("fuelType", DEFAULT_FUEL_TYPE);
     
     // Navigate based on deal status
     if (deal.status === "in_progress") {
@@ -71,7 +75,7 @@ export default function DealsPage() {
       router.push(`/dashboard/negotiation?${vehicleParams.toString()}`);
     } else if (deal.status === "completed") {
       // Completed deals go to evaluation page
-      vehicleParams.set("condition", "good"); // Add default condition for evaluation
+      vehicleParams.set("condition", DEFAULT_CONDITION); // Add default condition for evaluation
       router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
     }
   };
