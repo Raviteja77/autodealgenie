@@ -61,7 +61,7 @@ export function LenderRecommendations({
   useEffect(() => {
     const fetchLenders = async () => {
       if (loanAmount <= 0) {
-        setError("Invalid loan amount");
+        setError("Loan amount must be greater than $0. Please adjust your search criteria.");
         setIsLoading(false);
         return;
       }
@@ -95,9 +95,19 @@ export function LenderRecommendations({
         }
       } catch (err) {
         console.error("Error fetching lenders:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load lender recommendations"
-        );
+        
+        // Provide specific error messages based on error type
+        if (err instanceof TypeError && err.message.includes('fetch')) {
+          setError("Network error: Unable to connect to lender service. Please check your connection.");
+        } else if (err instanceof Error && err.message.includes('401')) {
+          setError("Authentication error: Please log in to view lender recommendations.");
+        } else if (err instanceof Error && err.message.includes('400')) {
+          setError("Invalid loan criteria. Please adjust your search parameters.");
+        } else {
+          setError(
+            err instanceof Error ? err.message : "Failed to load lender recommendations. Please try again."
+          );
+        }
       } finally {
         setIsLoading(false);
       }
@@ -381,7 +391,7 @@ export function LenderRecommendations({
                       >
                         Features
                       </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
                         {match.lender.features.map((feature, idx) => (
                           <Chip
                             key={idx}
@@ -406,7 +416,7 @@ export function LenderRecommendations({
                       >
                         Benefits
                       </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ gap: 1 }}>
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
                         {match.lender.benefits.map((benefit, idx) => (
                           <Chip
                             key={idx}
@@ -476,8 +486,12 @@ export function LenderRecommendations({
                     size="sm"
                     fullWidth
                     onClick={() => {
-                      if (match.lender.affiliate_url) {
-                        window.open(match.lender.affiliate_url, "_blank");
+                      // Validate URL before opening
+                      const url = match.lender.affiliate_url;
+                      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                        window.open(url, "_blank", "noopener,noreferrer");
+                      } else {
+                        console.error("Invalid affiliate URL:", url);
                       }
                     }}
                   >

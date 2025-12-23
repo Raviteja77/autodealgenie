@@ -596,8 +596,12 @@ function ResultsContent() {
                 creditScore={creditScore}
                 loanTermMonths={loanTerm}
                 onLenderSelect={(lender) => {
-                  console.log("Selected lender:", lender);
-                  // You can add custom logic here, e.g., save to context
+                  // Store selected lender in state for later use in deal evaluation
+                  // This could be extended to save to context or local storage
+                  setStepData(1, {
+                    ...getStepData(1),
+                    selectedLender: lender,
+                  });
                 }}
                 showApplyButton={true}
               />
