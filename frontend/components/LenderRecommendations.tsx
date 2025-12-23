@@ -83,16 +83,6 @@ export function LenderRecommendations({
         );
 
         setLenders(response.recommendations || []);
-        
-        // Auto-expand top 2 lenders in non-compact mode
-        if (!compact && response.recommendations.length > 0) {
-          const topLenders = new Set(
-            response.recommendations
-              .slice(0, 2)
-              .map((l) => l.lender.lender_id)
-          );
-          setExpandedLenders(topLenders);
-        }
       } catch (err) {
         console.error("Error fetching lenders:", err);
         
@@ -129,6 +119,21 @@ export function LenderRecommendations({
 
     fetchLenders();
   }, [loanAmount, creditScore, selectedTerm]);
+
+  // Handle auto-expand logic separately to avoid unnecessary API calls
+  useEffect(() => {
+    if (!compact && lenders.length > 0) {
+      const topLenders = new Set(
+        lenders
+          .slice(0, 2)
+          .map((l) => l.lender_id)
+      );
+      setExpandedLenders(topLenders);
+    } else if (compact) {
+      // Collapse all in compact mode
+      setExpandedLenders(new Set());
+    }
+  }, [compact, lenders]);
 
   const handleSortChange = (event: SelectChangeEvent<SortOption>) => {
     setSortBy(event.target.value as SortOption);
