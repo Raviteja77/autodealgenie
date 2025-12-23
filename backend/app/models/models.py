@@ -39,6 +39,7 @@ class Deal(Base):
     vehicle_model = Column(String(100), nullable=False)
     vehicle_year = Column(Integer, nullable=False)
     vehicle_mileage = Column(Integer, default=0)
+    vehicle_vin = Column(String, nullable=False)
     asking_price = Column(Float, nullable=False)
     offer_price = Column(Float, nullable=True)
     # Use values_callable to ensure SQLAlchemy uses enum values not names

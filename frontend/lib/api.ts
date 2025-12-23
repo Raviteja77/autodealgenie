@@ -15,6 +15,7 @@ export interface Deal {
   vehicle_model: string;
   vehicle_year: number;
   vehicle_mileage: number;
+  vehicle_vin: string;
   asking_price: number;
   offer_price?: number | null;
   status: "pending" | "in_progress" | "completed" | "cancelled";

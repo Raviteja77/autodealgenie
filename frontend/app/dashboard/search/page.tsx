@@ -80,7 +80,7 @@ function DashboardSearchPageContent() {
     drivetrain: "",
     mustHaveFeatures: [],
     userPriorities: "",
-    paymentMethod: "both",
+    paymentMethod: "cash",
     budgetMin: 10000,
     budgetMax: 50000,
   });
@@ -330,7 +330,8 @@ function DashboardSearchPageContent() {
   ];
 
   // Conditional filter logic: hide year and mileage for new cars
-  const isNewCar = searchParams.carType.toLowerCase() === "new";
+  const normalizedCarType = (searchParams.carType || "").trim().toLowerCase();
+  const isNewCar = normalizedCarType === "new";
   const showYearFilter = !isNewCar;
   const showMileageFilter = !isNewCar;
 
@@ -617,7 +618,7 @@ function DashboardSearchPageContent() {
                           drivetrain: "",
                           mustHaveFeatures: [],
                           userPriorities: "",
-                          paymentMethod: "both",
+                          paymentMethod: "cash",
                           budgetMin: 10000,
                           budgetMax: 50000,
                         })

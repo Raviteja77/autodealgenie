@@ -12,8 +12,10 @@ import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import Grid from "@mui/material/Grid";
+import { useRouter } from "next/navigation";
 
 export default function DealsPage() {
+  const router = useRouter();
   const { data: deals, isLoading, error, execute } = useApi<Deal[]>();
 
   useEffect(() => {
@@ -32,6 +34,21 @@ export default function DealsPage() {
         return "error";
       default:
         return "default";
+    }
+  };
+
+  const handleDealClick = (deal: Deal) => {
+    const vehicleParams = new URLSearchParams({
+      make: deal.vehicle_make,
+      model: deal.vehicle_model,
+      year: deal.vehicle_year.toString(),
+      price: deal.asking_price.toString(),
+      mileage: deal.vehicle_mileage.toString(),
+    });
+    if (deal.status === "in_progress") {
+      router.push(`/dashboard/negotiation?${vehicleParams.toString()}`);
+    } else if (deal.status === "completed") {
+      router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
     }
   };
 
@@ -122,7 +139,7 @@ export default function DealsPage() {
             <Link href="/" style={{ textDecoration: "none" }}>
               <Button variant="secondary">Home</Button>
             </Link>
-            <Button onClick={() => execute(() => apiClient.getDeals())}>
+            <Button variant="success" onClick={() => execute(() => apiClient.getDeals())}>
               Refresh
             </Button>
           </Box>
@@ -146,7 +163,7 @@ export default function DealsPage() {
           <Grid container spacing={3}>
             {deals.map((deal) => (
               <Grid item xs={12} key={deal.id}>
-                <Card hover shadow="md">
+                <Card hover shadow="md" sx={{ cursor: "pointer" }} onClick={() => handleDealClick(deal)}>
                   <Card.Body>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
                       <Box>
