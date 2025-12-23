@@ -3,6 +3,7 @@
  * Handles communication with the FastAPI backend
  */
 
+import { string } from "zod";
 import { createErrorFromResponse, NetworkError, isApiError } from "./errors";
 
 // TypeScript type definitions matching backend schemas
@@ -442,6 +443,45 @@ export interface SavedSearchList {
 }
 
 /**
+ * User interface matching backend UserResponse schema
+ */
+export interface User {
+  id: number;
+  email: string;
+  username: string;
+  full_name?: string;
+  is_active: boolean;
+  is_superuser: boolean;
+  created_at: string;
+  updated_at: string | null;
+}
+
+/**
+ * Authentication context interface
+ */
+export interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (
+    email: string,
+    username: string,
+    password: string,
+    fullName?: string
+  ) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshAuth: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}
+
+/**
  * API Client class for making requests to the backend
  */
 class ApiClient {
@@ -572,7 +612,9 @@ class ApiClient {
   /**
    * Evaluate a deal with AI analysis
    */
-  async evaluateDeal(request: DealEvaluationRequest): Promise<DealEvaluationResponse> {
+  async evaluateDeal(
+    request: DealEvaluationRequest
+  ): Promise<DealEvaluationResponse> {
     return this.request<DealEvaluationResponse>("/api/v1/deals/evaluate", {
       method: "POST",
       body: JSON.stringify(request),
@@ -596,12 +638,12 @@ class ApiClient {
       return value.some((item) => this.hasMeaningfulValue(item));
     }
     if (typeof value === "object") {
-      return Object.values(value as Record<string, unknown>).some(
-        (item) => this.hasMeaningfulValue(item)
+      return Object.values(value as Record<string, unknown>).some((item) =>
+        this.hasMeaningfulValue(item)
       );
     }
     return false;
-  };
+  }
 
   /**
    * Search for cars with AI recommendations
@@ -814,6 +856,55 @@ class ApiClient {
   async deleteSavedSearch(searchId: number): Promise<void> {
     return this.request<void>(`/api/v1/saved-searches/${searchId}`, {
       method: "DELETE",
+    });
+  }
+
+  async getCurrentUser(): Promise<User | null> {
+    return this.request<User>("/api/v1/auth/me");
+  }
+
+  async login(email: string, password: string): Promise<LoginResponse> {
+    return this.request<LoginResponse>("/api/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
+  async signup(
+    email: string,
+    username: string,
+    password: string,
+    fullName?: string
+  ): Promise<void> {
+    return this.request<void>("/api/v1/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ email, username, password, full_name: fullName }),
+    });
+  }
+
+  async logout(): Promise<void> {
+    return this.request<void>("/api/v1/auth/logout", {
+      method: "POST",
+    });
+  }
+
+  async refreshAuth(): Promise<void> {
+    return this.request<void>("/api/v1/auth/refresh", {
+      method: "POST",
+    });
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    return this.request<void>("/api/v1/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    return this.request<void>("/api/v1/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, new_password: newPassword }),
     });
   }
 }

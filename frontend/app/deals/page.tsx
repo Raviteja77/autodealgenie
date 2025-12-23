@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { apiClient, Deal } from "@/lib/api";
 import { Button, Card, Spinner } from "@/components";
@@ -21,10 +21,16 @@ const DEFAULT_CONDITION = "good";
 export default function DealsPage() {
   const router = useRouter();
   const { data: deals, isLoading, error, execute } = useApi<Deal[]>();
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
+    if (hasFetchedRef.current) {
+      return;
+    }
+    
+    hasFetchedRef.current = true;  
     execute(() => apiClient.getDeals());
-  }, [execute]);
+  }, []);
 
   const getStatusColor = (status: string): "warning" | "info" | "success" | "error" | "default" => {
     switch (status) {
