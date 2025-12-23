@@ -12,11 +12,11 @@ export const SearchFormSchema = z
     yearMin: z
       .number()
       .min(2000, "Year must be 2000 or later")
-      .max(2024, "Year cannot exceed 2024"),
+      .max(2025, "Year cannot exceed 2025"),
     yearMax: z
       .number()
       .min(2000, "Year must be 2000 or later")
-      .max(2024, "Year cannot exceed 2024"),
+      .max(2025, "Year cannot exceed 2025"),
     mileageMax: z
       .number()
       .min(10000, "Mileage must be at least 10,000")
@@ -61,8 +61,8 @@ export const SearchFormSchema = z
   })
   .refine(
     (data) => {
-      // If financing and down payment is specified, ensure it doesn't exceed budget
-      if (data.paymentMethod === "finance" && data.downPayment !== undefined) {
+      // Validate down payment doesn't exceed budget regardless of payment method
+      if (data.downPayment !== undefined && data.downPayment > 0) {
         return data.downPayment <= data.budgetMax;
       }
       return true;
@@ -85,7 +85,7 @@ export function validateSearchField(
 ): { success: boolean; error?: string } {
   try {
     // For cross-field validations, we need to validate the entire object
-    if (field === "budgetMax" || field === "yearMax" || field === "downPayment") {
+    if (field === "budgetMax" || field === "budgetMin" || field === "yearMax" || field === "yearMin" || field === "downPayment") {
       SearchFormSchema.parse({ ...allData, [field]: value });
     } else {
       // For simple fields, validate just the field

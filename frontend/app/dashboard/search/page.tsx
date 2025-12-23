@@ -74,7 +74,7 @@ function DashboardSearchPageContent() {
     make: "",
     model: "",
     yearMin: 2015,
-    yearMax: 2024,
+    yearMax: 2025,
     mileageMax: 100000,
     carType: "",
     fuelType: "",
@@ -103,9 +103,10 @@ function DashboardSearchPageContent() {
   // Validate on debounced value changes
   useEffect(() => {
     const result = validateSearchField("budgetMax", debouncedBudget.max, {
-      ...searchParams,
       budgetMin: debouncedBudget.min,
       budgetMax: debouncedBudget.max,
+      paymentMethod: searchParams.paymentMethod,
+      downPayment: searchParams.downPayment,
     });
     if (!result.success && result.error) {
       setValidationErrors((prev) => ({ ...prev, budgetMax: result.error! }));
@@ -116,11 +117,10 @@ function DashboardSearchPageContent() {
         return rest;
       });
     }
-  }, [debouncedBudget, searchParams]);
+  }, [debouncedBudget, searchParams.paymentMethod, searchParams.downPayment]);
 
   useEffect(() => {
     const result = validateSearchField("yearMax", debouncedYear.max, {
-      ...searchParams,
       yearMin: debouncedYear.min,
       yearMax: debouncedYear.max,
     });
@@ -133,7 +133,26 @@ function DashboardSearchPageContent() {
         return rest;
       });
     }
-  }, [debouncedYear, searchParams]);
+  }, [debouncedYear]);
+
+  // Validate down payment when budget changes
+  useEffect(() => {
+    if (searchParams.downPayment !== undefined && searchParams.downPayment > 0) {
+      const result = validateSearchField("downPayment", searchParams.downPayment, {
+        budgetMax: searchParams.budgetMax,
+        downPayment: searchParams.downPayment,
+      });
+      if (!result.success && result.error) {
+        setValidationErrors((prev) => ({ ...prev, downPayment: result.error! }));
+      } else {
+        setValidationErrors((prev) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { downPayment: _, ...rest } = prev;
+          return rest;
+        });
+      }
+    }
+  }, [searchParams.budgetMax, searchParams.downPayment]);
 
   // Memoize handlers to prevent unnecessary re-renders
   const handleBudgetChange = useCallback(
@@ -709,13 +728,27 @@ function DashboardSearchPageContent() {
                 {/* Advanced Filters - Collapsible Section */}
                 <Grid item xs={12}>
                   <Box
+                    component="button"
                     sx={{
                       display: "flex",
                       alignItems: "center",
                       cursor: "pointer",
                       mt: 2,
+                      width: "100%",
+                      border: "none",
+                      background: "none",
+                      padding: 0,
+                      textAlign: "left",
                     }}
                     onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setShowAdvancedFilters(!showAdvancedFilters);
+                      }
+                    }}
+                    aria-expanded={showAdvancedFilters}
+                    aria-controls="advanced-filters-section"
                   >
                     <Typography
                       variant="h6"
@@ -724,7 +757,12 @@ function DashboardSearchPageContent() {
                       <SpeedIcon color="primary" />
                       Advanced Filters
                     </Typography>
-                    <IconButton aria-label="Toggle advanced filters">
+                    <IconButton 
+                      aria-label="Toggle advanced filters"
+                      aria-expanded={showAdvancedFilters}
+                      component="span"
+                      tabIndex={-1}
+                    >
                       {showAdvancedFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                     </IconButton>
                   </Box>
@@ -733,127 +771,129 @@ function DashboardSearchPageContent() {
                 <Grid item xs={12}>
                   <Collapse in={showAdvancedFilters}>
                     <Paper
+                      id="advanced-filters-section"
                       variant="outlined"
                       sx={{ p: 3, bgcolor: "grey.50", borderRadius: 2 }}
+                      role="region"
+                      aria-label="Advanced search filters"
                     >
                       <Grid container spacing={3}>
+                        {/* Year Range */}
+                        <Grid item xs={12}>
+                          <Typography
+                            variant="h6"
+                            gutterBottom
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                              mt: 2,
+                            }}
+                          >
+                            <CalendarTodayIcon color="primary" />
+                            Year Range
+                          </Typography>
+                        </Grid>
 
-                {/* Year Range */}
-                <Grid item xs={12}>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      mt: 2,
-                    }}
-                  >
-                    <CalendarTodayIcon color="primary" />
-                    Year Range
-                  </Typography>
-                </Grid>
+                        <Grid item xs={12}>
+                          <Box sx={{ px: 2 }}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              gutterBottom
+                              id="year-slider-label"
+                            >
+                              {searchParams.yearMin} - {searchParams.yearMax}
+                            </Typography>
+                            <Slider
+                              value={[searchParams.yearMin, searchParams.yearMax]}
+                              onChange={(_, newValue) => handleYearChange(newValue)}
+                              valueLabelDisplay="auto"
+                              min={2000}
+                              max={2025}
+                              marks={[
+                                { value: 2000, label: "2000" },
+                                { value: 2025, label: "2025" },
+                              ]}
+                              sx={{ color: "success.light" }}
+                              aria-labelledby="year-slider-label"
+                              aria-label="Year range slider"
+                            />
+                            {validationErrors.yearMax && (
+                              <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                                {validationErrors.yearMax}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Grid>
 
-                <Grid item xs={12}>
-                  <Box sx={{ px: 2 }}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      gutterBottom
-                      id="year-slider-label"
-                    >
-                      {searchParams.yearMin} - {searchParams.yearMax}
-                    </Typography>
-                    <Slider
-                      value={[searchParams.yearMin, searchParams.yearMax]}
-                      onChange={(_, newValue) => handleYearChange(newValue)}
-                      valueLabelDisplay="auto"
-                      min={2000}
-                      max={2024}
-                      marks={[
-                        { value: 2000, label: "2000" },
-                        { value: 2024, label: "2024" },
-                      ]}
-                      sx={{ color: "success.light" }}
-                      aria-labelledby="year-slider-label"
-                      aria-label="Year range slider"
-                    />
-                    {validationErrors.yearMax && (
-                      <Typography variant="caption" color="error" sx={{ mt: 1 }}>
-                        {validationErrors.yearMax}
-                      </Typography>
-                    )}
-                  </Box>
-                </Grid>
+                        {/* Mileage */}
+                        <Grid item xs={12}>
+                          <Typography
+                            variant="h6"
+                            gutterBottom
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                              mt: 2,
+                            }}
+                          >
+                            <SpeedIcon color="primary" />
+                            Maximum Mileage
+                          </Typography>
+                        </Grid>
 
-                {/* Mileage */}
-                <Grid item xs={12}>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      mt: 2,
-                    }}
-                  >
-                    <SpeedIcon color="primary" />
-                    Maximum Mileage
-                  </Typography>
-                </Grid>
+                        <Grid item xs={12}>
+                          <Box sx={{ px: 2 }}>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              gutterBottom
+                              id="mileage-slider-label"
+                            >
+                              Up to {searchParams.mileageMax.toLocaleString()} miles
+                            </Typography>
+                            <Slider
+                              value={searchParams.mileageMax}
+                              onChange={(_, newValue) => handleMileageChange(newValue)}
+                              valueLabelDisplay="auto"
+                              min={10000}
+                              max={200000}
+                              step={5000}
+                              valueLabelFormat={(value) =>
+                                `${value.toLocaleString()} mi`
+                              }
+                              marks={[
+                                { value: 10000, label: "10K" },
+                                { value: 200000, label: "200K" },
+                              ]}
+                              sx={{ color: "success.light" }}
+                              aria-labelledby="mileage-slider-label"
+                              aria-label="Maximum mileage slider"
+                            />
+                          </Box>
+                        </Grid>
 
-                <Grid item xs={12}>
-                  <Box sx={{ px: 2 }}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      gutterBottom
-                      id="mileage-slider-label"
-                    >
-                      Up to {searchParams.mileageMax.toLocaleString()} miles
-                    </Typography>
-                    <Slider
-                      value={searchParams.mileageMax}
-                      onChange={(_, newValue) => handleMileageChange(newValue)}
-                      valueLabelDisplay="auto"
-                      min={10000}
-                      max={200000}
-                      step={5000}
-                      valueLabelFormat={(value) =>
-                        `${value.toLocaleString()} mi`
-                      }
-                      marks={[
-                        { value: 10000, label: "10K" },
-                        { value: 200000, label: "200K" },
-                      ]}
-                      sx={{ color: "success.light" }}
-                      aria-labelledby="mileage-slider-label"
-                      aria-label="Maximum mileage slider"
-                    />
-                  </Box>
-                </Grid>
-
-                {/* Additional Preferences */}
-                <Grid item xs={12}>
-                  <Box sx={{ px: 2 }}>
-                    <Input
-                      multiLine={true}
-                      fullWidth
-                      label="Your Priorities (Optional)"
-                      onChange={(e) =>
-                        setSearchParams({
-                          ...searchParams,
-                          userPriorities: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., fuel efficiency, safety features, low maintenance costs"
-                      value={searchParams.userPriorities}
-                      aria-label="User priorities and preferences"
-                    />
-                  </Box>
-                </Grid>
+                        {/* Additional Preferences */}
+                        <Grid item xs={12}>
+                          <Box sx={{ px: 2 }}>
+                            <Input
+                              multiLine={true}
+                              fullWidth
+                              label="Your Priorities (Optional)"
+                              onChange={(e) =>
+                                setSearchParams({
+                                  ...searchParams,
+                                  userPriorities: e.target.value,
+                                })
+                              }
+                              placeholder="e.g., fuel efficiency, safety features, low maintenance costs"
+                              value={searchParams.userPriorities}
+                              aria-label="User priorities and preferences"
+                            />
+                          </Box>
+                        </Grid>
                       </Grid>
                     </Paper>
                   </Collapse>
@@ -876,7 +916,7 @@ function DashboardSearchPageContent() {
                           make: "",
                           model: "",
                           yearMin: 2015,
-                          yearMax: 2024,
+                          yearMax: 2025,
                           mileageMax: 100000,
                           carType: "",
                           fuelType: "",
