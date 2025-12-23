@@ -3,12 +3,15 @@ Deal Evaluation Service
 Provides fair market value analysis and negotiation insights for vehicle deals
 """
 
+import hashlib
+import json
 import logging
 from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.db.redis import redis_client
 from app.llm import generate_structured_json, llm_client
 from app.llm.schemas import DealEvaluation, VehicleConditionAssessment
 from app.models.evaluation import EvaluationStatus, PipelineStep
@@ -22,25 +25,91 @@ class DealEvaluationService:
     """Service for evaluating car deals and providing negotiation insights"""
 
     MAX_INSIGHTS = 5  # Maximum number of insights/talking points to return
-    
+
     # Affordability thresholds (payment-to-income ratio percentages)
     AFFORDABILITY_EXCELLENT = 10  # ≤ 10% is excellent
     AFFORDABILITY_GOOD = 15  # ≤ 15% is good
     AFFORDABILITY_MODERATE = 20  # ≤ 20% is moderate
-    
+
     # Deal quality thresholds for financing recommendations
     EXCELLENT_DEAL_SCORE = 8.0  # >= 8.0 is excellent deal
     GOOD_DEAL_SCORE = 6.5  # >= 6.5 is good deal
     LENDER_RECOMMENDATION_MIN_SCORE = 6.5  # Minimum score for lender recommendations
-    
+
     # Interest rate thresholds for financing recommendations
     LOW_INTEREST_RATE = 4.0  # ≤ 4% is considered low/excellent
     REASONABLE_INTEREST_RATE = 5.0  # ≤ 5% is considered reasonable/good
     HIGH_INTEREST_THRESHOLD = 20  # Interest cost > 20% of purchase price is high
-    
+
     # Default loan parameters
     DEFAULT_DOWN_PAYMENT_RATIO = 0.2  # 20% down payment
     DEFAULT_LOAN_TERM_MONTHS = 60  # 5-year term
+
+    # Cache settings
+    CACHE_TTL = 3600  # Cache evaluation results for 1 hour (in seconds)
+    CACHE_KEY_PREFIX = "deal_eval"  # Prefix for cache keys
+
+    def _generate_cache_key(self, vehicle_vin: str, asking_price: float) -> str:
+        """
+        Generate a unique cache key based on VIN and asking price
+
+        Args:
+            vehicle_vin: Vehicle Identification Number
+            asking_price: Asking price in USD
+
+        Returns:
+            Cache key string
+        """
+        # Create a deterministic hash from VIN and price
+        key_data = f"{vehicle_vin}:{asking_price:.2f}"
+        key_hash = hashlib.md5(key_data.encode()).hexdigest()
+        return f"{self.CACHE_KEY_PREFIX}:{key_hash}"
+
+    async def _get_cached_evaluation(self, cache_key: str) -> dict[str, Any] | None:
+        """
+        Retrieve cached evaluation result from Redis
+
+        Args:
+            cache_key: Cache key to lookup
+
+        Returns:
+            Cached evaluation result or None if not found
+        """
+        try:
+            redis = redis_client.get_client()
+            if redis is None:
+                logger.debug("Redis client not available, skipping cache lookup")
+                return None
+
+            cached_data = await redis.get(cache_key)
+            if cached_data:
+                logger.info(f"Cache HIT for key: {cache_key}")
+                return json.loads(cached_data)
+            else:
+                logger.info(f"Cache MISS for key: {cache_key}")
+                return None
+        except Exception as e:
+            logger.warning(f"Error retrieving from cache: {e}")
+            return None
+
+    async def _set_cached_evaluation(self, cache_key: str, evaluation: dict[str, Any]) -> None:
+        """
+        Store evaluation result in Redis cache
+
+        Args:
+            cache_key: Cache key to store under
+            evaluation: Evaluation result to cache
+        """
+        try:
+            redis = redis_client.get_client()
+            if redis is None:
+                logger.debug("Redis client not available, skipping cache set")
+                return
+
+            await redis.setex(cache_key, self.CACHE_TTL, json.dumps(evaluation))
+            logger.info(f"Cached evaluation for key: {cache_key} (TTL: {self.CACHE_TTL}s)")
+        except Exception as e:
+            logger.warning(f"Error storing to cache: {e}")
 
     async def evaluate_deal(
         self,
@@ -55,6 +124,9 @@ class DealEvaluationService:
         """
         Evaluate a car deal and provide comprehensive analysis
 
+        This method implements Redis caching to avoid redundant LLM calls for
+        deals that have already been evaluated with the same VIN and price.
+
         Args:
             vehicle_vin: 17-character Vehicle Identification Number
             asking_price: Asking price in USD
@@ -67,11 +139,28 @@ class DealEvaluationService:
         Returns:
             Dictionary containing fair_value, score, insights, and talking_points
         """
+        logger.info(f"Evaluating deal for VIN: {vehicle_vin}, Price: ${asking_price:,.2f}")
+
+        # Generate cache key and check cache
+        cache_key = self._generate_cache_key(vehicle_vin, asking_price)
+        cached_result = await self._get_cached_evaluation(cache_key)
+
+        if cached_result:
+            logger.info(f"Returning cached evaluation for VIN: {vehicle_vin}")
+            return cached_result
+
         # Check if LLM client is available
         if not llm_client.is_available():
+            logger.warning("LLM client not available, using fallback evaluation")
             return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
 
         try:
+            logger.debug(
+                f"Calling LLM for evaluation - VIN: {vehicle_vin}, "
+                f"Make: {make or 'Unknown'}, Model: {model or 'Unknown'}, "
+                f"Year: {year or 'Unknown'}, Condition: {condition}"
+            )
+
             # Use centralized LLM client with the evaluation prompt
             evaluation = await generate_structured_json(
                 prompt_id="evaluation",
@@ -88,26 +177,57 @@ class DealEvaluationService:
                 temperature=0.7,
             )
 
+            logger.info(f"LLM evaluation successful - Score: {evaluation.score}/10")
+
             # Convert Pydantic model to dict and ensure limits
-            return {
+            result = {
                 "fair_value": evaluation.fair_value,
                 "score": evaluation.score,
                 "insights": evaluation.insights[: self.MAX_INSIGHTS],
                 "talking_points": evaluation.talking_points[: self.MAX_INSIGHTS],
             }
 
+            # Cache the successful result
+            await self._set_cached_evaluation(cache_key, result)
+
+            return result
+
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"JSON parsing error during deal evaluation: {e}. "
+                f"VIN: {vehicle_vin}, Price: ${asking_price:,.2f}. "
+                "This may indicate a malformed LLM response."
+            )
+            logger.debug(f"JSON decode error details: line {e.lineno}, column {e.colno}")
+            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+        except ValueError as e:
+            logger.error(
+                f"Validation error during deal evaluation: {e}. "
+                f"VIN: {vehicle_vin}, Price: ${asking_price:,.2f}. "
+                "LLM response may not match expected schema."
+            )
+            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
         except Exception as e:
-            logger.error(f"Deal evaluation error: {e}")
+            logger.error(
+                f"Unexpected error during deal evaluation: {type(e).__name__}: {e}. "
+                f"VIN: {vehicle_vin}, Price: ${asking_price:,.2f}"
+            )
+            logger.exception("Full traceback for debugging:")
             return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
 
     def _fallback_evaluation(
         self, vehicle_vin: str, asking_price: float, condition: str, mileage: int
     ) -> dict[str, Any]:
         """
-        Fallback evaluation logic when LLM is not available
+        Fallback evaluation logic when LLM is not available or fails
 
         Uses simple heuristics to provide basic evaluation
         """
+        logger.warning(
+            f"Using fallback evaluation for VIN: {vehicle_vin}, "
+            f"Price: ${asking_price:,.2f}, Condition: {condition}, Mileage: {mileage:,}"
+        )
+
         # Simple scoring based on condition and mileage
         score = 5.0  # Base score
 
@@ -180,6 +300,11 @@ class DealEvaluationService:
             )
 
         talking_points.append("Request a pre-purchase inspection by an independent mechanic")
+
+        logger.info(
+            f"Fallback evaluation completed - VIN: {vehicle_vin}, "
+            f"Score: {score:.1f}/10, Fair Value: ${fair_value:,.2f}"
+        )
 
         return {
             "fair_value": round(fair_value, 2),
@@ -300,15 +425,17 @@ class DealEvaluationService:
                         "make": deal.vehicle_make or "Unknown",
                         "model": deal.vehicle_model or "Unknown",
                         "year": str(deal.vehicle_year) if deal.vehicle_year else "Unknown",
-                        "vin": user_inputs.get('vin', 'Unknown'),
+                        "vin": user_inputs.get("vin", "Unknown"),
                         "mileage": f"{deal.vehicle_mileage:,}",
-                        "condition_description": user_inputs.get('condition_description', 'Not provided'),
+                        "condition_description": user_inputs.get(
+                            "condition_description", "Not provided"
+                        ),
                     },
                     response_model=VehicleConditionAssessment,
                     temperature=0.7,
                     agent_role="evaluator",
                 )
-                
+
                 assessment = {
                     "condition_score": assessment_result.condition_score,
                     "condition_notes": assessment_result.condition_notes,
@@ -373,7 +500,7 @@ class DealEvaluationService:
 
         financing_type = user_inputs.get("financing_type", "").lower()
         monthly_income = user_inputs.get("monthly_income", 0)
-        
+
         # Get price evaluation data for comparison
         price_data = result_json.get("price", {})
         price_score = price_data.get("assessment", {}).get("score", 5.0)
@@ -382,7 +509,7 @@ class DealEvaluationService:
             # Cash purchase assessment
             affordability_notes = ["No monthly payments required", "No interest costs"]
             affordability_score = 10.0  # Best affordability for cash
-            
+
             # Determine if cash is better based on deal quality
             if price_score >= 7.0:
                 recommendation = "cash"
@@ -391,10 +518,8 @@ class DealEvaluationService:
                 )
             else:
                 recommendation = "either"
-                recommendation_reason = (
-                    "Cash eliminates interest costs, but consider financing if you want to preserve liquidity"
-                )
-            
+                recommendation_reason = "Cash eliminates interest costs, but consider financing if you want to preserve liquidity"
+
             assessment = {
                 "financing_type": "cash",
                 "monthly_payment": None,
@@ -409,9 +534,11 @@ class DealEvaluationService:
         else:
             # Financing assessment
             interest_rate = user_inputs.get("interest_rate", 5.5)
-            down_payment = user_inputs.get("down_payment", deal.asking_price * self.DEFAULT_DOWN_PAYMENT_RATIO)
+            down_payment = user_inputs.get(
+                "down_payment", deal.asking_price * self.DEFAULT_DOWN_PAYMENT_RATIO
+            )
             loan_amount = deal.asking_price - down_payment
-            
+
             # Calculate monthly payment
             monthly_rate = interest_rate / 100 / 12
             months = self.DEFAULT_LOAN_TERM_MONTHS
@@ -424,11 +551,11 @@ class DealEvaluationService:
 
             total_cost = down_payment + (monthly_payment * months)
             total_interest = total_cost - deal.asking_price
-            
+
             # Calculate affordability metrics
             affordability_notes = []
             affordability_score = 5.0  # Base score
-            
+
             # Check monthly payment affordability (industry guideline)
             # Division by monthly_income is safe here due to the > 0 check
             if monthly_income > 0:
@@ -455,7 +582,7 @@ class DealEvaluationService:
                     affordability_score = 3.0
             else:
                 affordability_notes.append("Unable to assess affordability without income data")
-            
+
             # Add interest cost note
             if total_interest > 0:
                 interest_percent = (total_interest / deal.asking_price) * 100
@@ -467,18 +594,16 @@ class DealEvaluationService:
                     affordability_notes.append(
                         f"Interest cost: ${total_interest:,.0f} over {months} months"
                     )
-            
+
             # Compare cash vs financing
             cash_savings = total_interest  # How much you save by paying cash
-            
+
             # Generate financing recommendation
             if price_score >= self.EXCELLENT_DEAL_SCORE:
                 # Excellent deal
                 if interest_rate <= self.LOW_INTEREST_RATE:
                     recommendation = "financing"
-                    recommendation_reason = (
-                        "Excellent deal with low interest rate - financing preserves cash for other investments"
-                    )
+                    recommendation_reason = "Excellent deal with low interest rate - financing preserves cash for other investments"
                 else:
                     recommendation = "either"
                     recommendation_reason = (
@@ -493,9 +618,7 @@ class DealEvaluationService:
                     )
                 else:
                     recommendation = "cash"
-                    recommendation_reason = (
-                        f"Good deal but interest costs add ${total_interest:,.0f} - cash is better if available"
-                    )
+                    recommendation_reason = f"Good deal but interest costs add ${total_interest:,.0f} - cash is better if available"
             else:
                 # Fair or poor deal
                 recommendation = "cash"
@@ -504,7 +627,7 @@ class DealEvaluationService:
                 )
                 if affordability_score < 5.0:
                     recommendation_reason += ". Payment may also strain your budget."
-            
+
             assessment = {
                 "financing_type": financing_type,
                 "loan_amount": round(loan_amount, 2),
@@ -569,9 +692,11 @@ class DealEvaluationService:
             "recommendation": (
                 "Low risk - proceed with confidence"
                 if risk_score < 4
-                else "Moderate risk - proceed with caution"
-                if risk_score < 7
-                else "High risk - consider alternatives"
+                else (
+                    "Moderate risk - proceed with caution"
+                    if risk_score < 7
+                    else "High risk - consider alternatives"
+                )
             ),
         }
 
