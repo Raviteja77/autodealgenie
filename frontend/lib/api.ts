@@ -224,6 +224,49 @@ export interface LenderRecommendationResponse {
   request_summary: Record<string, any>;
 }
 
+// Insurance types
+export interface InsuranceProviderInfo {
+  provider_id: string;
+  name: string;
+  description: string;
+  logo_url?: string;
+  coverage_types: string[];
+  min_vehicle_value: number;
+  max_vehicle_value: number;
+  min_driver_age: number;
+  max_driver_age: number;
+  premium_range_min: number;
+  premium_range_max: number;
+  features: string[];
+  benefits: string[];
+  affiliate_url: string;
+  referral_code?: string;
+}
+
+export interface InsuranceMatch {
+  provider: InsuranceProviderInfo;
+  match_score: number;
+  estimated_monthly_premium: number;
+  estimated_annual_premium: number;
+  recommendation_reason: string;
+  rank: number;
+}
+
+export interface InsuranceRecommendationRequest {
+  vehicle_value: number;
+  vehicle_age: number;
+  vehicle_make: string;
+  vehicle_model: string;
+  coverage_type: "liability" | "comprehensive" | "full";
+  driver_age: number;
+}
+
+export interface InsuranceRecommendationResponse {
+  recommendations: InsuranceMatch[];
+  total_matches: number;
+  request_summary: Record<string, any>;
+}
+
 export interface NegotiationMessage {
   id: number;
   session_id: number;

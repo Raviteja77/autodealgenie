@@ -26,6 +26,7 @@ import {
 import Link from "next/link";
 import { useStepper } from "@/app/context";
 import { Button, Card, Spinner } from "@/components";
+import { InsuranceRecommendations } from "@/components/InsuranceRecommendations";
 import { apiClient } from "@/lib/api";
 
 interface VehicleInfo {
@@ -56,6 +57,7 @@ function EvaluationContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<DealEvaluationResult | null>(null);
+  const [driverAge, setDriverAge] = useState<number>(30); // Default age, can be customized
 
   // Extract vehicle data from URL params
   const vehicleData: VehicleInfo | null = useMemo(() => {
@@ -394,6 +396,25 @@ function EvaluationContent() {
                   </Card.Body>
                 </Card>
               )}
+
+              {/* Insurance Recommendations */}
+              <Card sx={{ mb: 3 }}>
+                <Card.Body>
+                  <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+                    Insurance Options
+                  </Typography>
+                  <InsuranceRecommendations
+                    vehicleValue={vehicleData.price}
+                    vehicleAge={new Date().getFullYear() - vehicleData.year}
+                    vehicleMake={vehicleData.make}
+                    vehicleModel={vehicleData.model}
+                    driverAge={driverAge}
+                    coverageType="full"
+                    showApplyButton={true}
+                    compact={false}
+                  />
+                </Card.Body>
+              </Card>
 
               {/* Action Buttons */}
               <Box
