@@ -26,6 +26,7 @@ import {
 import Link from "next/link";
 import { useStepper } from "@/app/context";
 import { Button, Card, Spinner } from "@/components";
+import { InsuranceRecommendations } from "@/components/InsuranceRecommendations";
 import { apiClient } from "@/lib/api";
 
 interface VehicleInfo {
@@ -394,6 +395,25 @@ function EvaluationContent() {
                   </Card.Body>
                 </Card>
               )}
+
+              {/* Insurance Recommendations */}
+              <Card sx={{ mb: 3 }}>
+                <Card.Body>
+                  <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+                    Insurance Options
+                  </Typography>
+                  <InsuranceRecommendations
+                    vehicleValue={vehicleData.price}
+                    vehicleAge={new Date().getFullYear() - vehicleData.year}
+                    vehicleMake={vehicleData.make}
+                    vehicleModel={vehicleData.model}
+                    driverAge={30}
+                    coverageType="full"
+                    showApplyButton={true}
+                    compact={false}
+                  />
+                </Card.Body>
+              </Card>
 
               {/* Action Buttons */}
               <Box
