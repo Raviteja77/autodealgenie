@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
@@ -24,25 +24,44 @@ import DashboardLayout from "../layout";
 export default function FavoritesPage() {
   const router = useRouter();
   const { user } = useAuth();
+  
+  // Use refs to prevent duplicate API calls
+  const hasFetchedRef = useRef(false);
+  const fetchInProgressRef = useRef(false);
+  
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
 
+  // Separate effect for auth check (runs once)
   useEffect(() => {
-    // Check if user is authenticated
     if (!user) {
       router.push("/auth/login");
+    }
+  }, []); // Run once, router.push doesn't need to be a dependency
+
+  // Single effect for fetching favorites
+  useEffect(() => {
+    // Guard: Already fetched or in progress
+    if (hasFetchedRef.current || fetchInProgressRef.current) {
+      return;
+    }
+
+    // Guard: No user yet
+    if (!user) {
       return;
     }
 
     const fetchFavorites = async () => {
+      fetchInProgressRef.current = true;
       setIsLoading(true);
       setError(null);
 
       try {
         const data = await apiClient.getFavorites();
         setFavorites(data);
+        hasFetchedRef.current = true; // Mark as fetched
       } catch (err: unknown) {
         console.error("Error fetching favorites:", err);
         const errorMessage =
@@ -50,13 +69,15 @@ export default function FavoritesPage() {
             ? err.message
             : "Failed to load favorites. Please try again.";
         setError(errorMessage);
+        // Don't mark as fetched on error, allow retry
+        fetchInProgressRef.current = false;
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchFavorites();
-  }, [user, router]);
+  }, [user]); // Only depends on user (which is stable)
 
   const handleRemoveFavorite = async (vin: string) => {
     setRemoveError(null);
@@ -81,6 +102,30 @@ export default function FavoritesPage() {
       setRemoveError(errorMessage);
       setTimeout(() => setRemoveError(null), 5000);
     }
+  };
+
+  const handleNavigateToNegotiation = (favorite: Favorite) => {
+    const params = new URLSearchParams({
+      vin: favorite.vin,
+      make: favorite.make,
+      model: favorite.model,
+      year: favorite.year.toString(),
+      price: favorite.price.toString(),
+      mileage: favorite.mileage.toString(),
+    });
+    router.push(`/negotiation?${params.toString()}`);
+  };
+
+  const handleNavigateToEvaluation = (favorite: Favorite) => {
+    const params = new URLSearchParams({
+      vin: favorite.vin,
+      make: favorite.make,
+      model: favorite.model,
+      year: favorite.year.toString(),
+      price: favorite.price.toString(),
+      mileage: favorite.mileage.toString(),
+    });
+    router.push(`/evaluation?${params.toString()}`);
   };
 
   if (isLoading) {
@@ -355,17 +400,7 @@ export default function FavoritesPage() {
                           variant="outline"
                           fullWidth
                           size="sm"
-                          onClick={() => {
-                            const params = new URLSearchParams({
-                              vin: favorite.vin,
-                              make: favorite.make,
-                              model: favorite.model,
-                              year: favorite.year.toString(),
-                              price: favorite.price.toString(),
-                              mileage: favorite.mileage.toString(),
-                            });
-                            router.push(`/negotiation?${params.toString()}`);
-                          }}
+                          onClick={() => handleNavigateToNegotiation(favorite)}
                         >
                           Negotiate
                         </Button>
@@ -373,17 +408,7 @@ export default function FavoritesPage() {
                           variant="primary"
                           fullWidth
                           size="sm"
-                          onClick={() => {
-                            const params = new URLSearchParams({
-                              vin: favorite.vin,
-                              make: favorite.make,
-                              model: favorite.model,
-                              year: favorite.year.toString(),
-                              price: favorite.price.toString(),
-                              mileage: favorite.mileage.toString(),
-                            });
-                            router.push(`/evaluation?${params.toString()}`);
-                          }}
+                          onClick={() => handleNavigateToEvaluation(favorite)}
                         >
                           View Details
                         </Button>

@@ -19,7 +19,7 @@ export const SearchFormSchema = z
       .max(2025, "Year cannot exceed 2025"),
     mileageMax: z
       .number()
-      .min(10000, "Mileage must be at least 10,000")
+      .min(0, "Mileage must be at least 0")
       .max(200000, "Mileage cannot exceed 200,000"),
     carType: z.string().optional(),
     bodyType: z.string().optional(),

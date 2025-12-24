@@ -49,7 +49,7 @@ export const STEPS: Step[] = [
     path: "/dashboard/evaluation",
     requiresPrevious: true,
   },
-  { id: 4, label: "Finalize", path: "/deals", requiresPrevious: true },
+  // { id: 4, label: "Finalize", path: "/deals", requiresPrevious: true },
 ];
 
 /**
@@ -390,9 +390,6 @@ export function StepperProvider({ children }: { children: ReactNode }) {
     }),
     [
       state,
-      STEPS,
-      state.currentStep,
-      state.completedSteps,
       isStepCompleted,
       canNavigateToStep,
       completeStep,

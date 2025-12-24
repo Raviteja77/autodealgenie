@@ -35,7 +35,7 @@ def upgrade():
         sa.Column("transmission", sa.String(length=50), nullable=True),
         sa.Column("condition", sa.String(length=50), nullable=True),
         sa.Column("user_priorities", sa.Text(), nullable=True),
-        sa.Column("notification_enabled", sa.Integer(), nullable=True, server_default="1"),
+        sa.Column("notification_enabled", sa.Boolean(), nullable=True, server_default="true"),
         sa.Column("last_checked", sa.DateTime(timezone=True), nullable=True),
         sa.Column("new_matches_count", sa.Integer(), nullable=True, server_default="0"),
         sa.Column(

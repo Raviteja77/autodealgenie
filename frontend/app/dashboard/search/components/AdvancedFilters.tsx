@@ -164,12 +164,12 @@ export function AdvancedFilters({
                   value={mileageMax}
                   onChange={(_, newValue) => onMileageChange(newValue as number)}
                   valueLabelDisplay="auto"
-                  min={10000}
+                  min={5000}
                   max={200000}
                   step={5000}
                   valueLabelFormat={(value) => `${value.toLocaleString()} mi`}
                   marks={[
-                    { value: 10000, label: "10K" },
+                    { value: 5000, label: "5K" },
                     { value: 200000, label: "200K" },
                   ]}
                   sx={{ color: "success.light" }}

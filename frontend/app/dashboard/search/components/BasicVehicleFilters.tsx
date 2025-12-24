@@ -143,7 +143,11 @@ export function BasicVehicleFilters({
             type="number"
             value={maxResults}
             label="Max Results"
-            onChange={(e) => onMaxResultsChange(parseInt(e.target.value))}
+            onChange={(e) => {
+              const { value } = e.target;
+              const parsed = Number.parseInt(value, 10);
+              onMaxResultsChange(Number.isNaN(parsed) ? 0 : parsed);
+            }}
             aria-label="Max Results to fetch from API for AI to analyze"
           />
         </FormControl>

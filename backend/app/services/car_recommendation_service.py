@@ -275,7 +275,7 @@ class CarRecommendationService:
         """
         # Use provided max_results or fall back to settings default
         rows = max_results if max_results is not None else settings.MAX_SEARCH_RESULTS
-        
+
         # Generate cache key
         cache_key = self._generate_cache_key(
             make,
@@ -314,7 +314,7 @@ class CarRecommendationService:
             logger.info("Cache hit from file cache, updating Redis for faster subsequent access")
             # Update Redis cache for faster subsequent access
             await self._set_cached_result(cache_key, file_cached_result)
-            
+
             # Log to history even for file cached results
             try:
                 await search_history_repository.create_search_record(
@@ -471,25 +471,27 @@ class CarRecommendationService:
             )
 
             # Check if the response has the expected structure
-            if hasattr(response, 'recommendations') and response.recommendations is not None:
+            if hasattr(response, "recommendations") and response.recommendations is not None:
                 recommendations = response.recommendations
-            elif hasattr(response, 'top_vehicles') and response.top_vehicles is not None:
-                 # Adapt to the new response structure if 'recommendations' is missing
-                 # Build final output with full vehicle data
+            elif hasattr(response, "top_vehicles") and response.top_vehicles is not None:
+                # Adapt to the new response structure if 'recommendations' is missing
+                # Build final output with full vehicle data
                 top_vehicles = []
                 for vehicle in response.top_vehicles:
-                  vehicle_data = next((item for item in listings if item.get("vin") == vehicle.vin), None)
-                  if vehicle_data:
-                    vehicle_data["recommendation_score"] = vehicle.score
-                    vehicle_data["highlights"] = vehicle.highlights
-                    vehicle_data["recommendation_summary"] = vehicle.summary
-                    top_vehicles.append(vehicle_data)
+                    vehicle_data = next(
+                        (item for item in listings if item.get("vin") == vehicle.vin), None
+                    )
+                    if vehicle_data:
+                        vehicle_data["recommendation_score"] = vehicle.score
+                        vehicle_data["highlights"] = vehicle.highlights
+                        vehicle_data["recommendation_summary"] = vehicle.summary
+                        top_vehicles.append(vehicle_data)
                 return top_vehicles
             else:
-                logger.warning("LLM response missing 'recommendations' or valid 'top_vehicles'. Using fallback recommendations.")
+                logger.warning(
+                    "LLM response missing 'recommendations' or valid 'top_vehicles'. Using fallback recommendations."
+                )
                 return self._fallback_recommendations(listings)
-
-
 
             # Build final output with full vehicle data
             top_vehicles = []

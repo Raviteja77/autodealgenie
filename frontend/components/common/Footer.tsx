@@ -58,14 +58,6 @@ export default function Footer() {
               >
                 My Deals
               </MuiLink>
-              <MuiLink
-                component={Link}
-                href="/about"
-                color="text.secondary"
-                underline="hover"
-              >
-                About Us
-              </MuiLink>
             </Box>
           </Grid>
           <Grid item xs={12} sm={4}>
@@ -85,20 +77,11 @@ export default function Footer() {
               <IconButton
                 aria-label="LinkedIn"
                 color="primary"
-                href="#"
+                href="www.linkedin.com/in/raviteja77"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 <LinkedIn />
-              </IconButton>
-              <IconButton
-                aria-label="Twitter"
-                color="primary"
-                href="#"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Twitter />
               </IconButton>
               <IconButton
                 aria-label="Email"

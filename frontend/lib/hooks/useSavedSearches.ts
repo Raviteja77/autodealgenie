@@ -16,6 +16,7 @@ export function useSavedSearches() {
     setError(null);
     try {
       const data: SavedSearchList = await apiClient.getSavedSearches();
+      console.log("Fetched saved searches:", data);
       setSearches(data.searches);
       setTotal(data.total);
     } catch (err: unknown) {
