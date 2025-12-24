@@ -57,6 +57,7 @@ function EvaluationContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<DealEvaluationResult | null>(null);
+  const [driverAge, setDriverAge] = useState<number>(30); // Default age, can be customized
 
   // Extract vehicle data from URL params
   const vehicleData: VehicleInfo | null = useMemo(() => {
@@ -407,7 +408,7 @@ function EvaluationContent() {
                     vehicleAge={new Date().getFullYear() - vehicleData.year}
                     vehicleMake={vehicleData.make}
                     vehicleModel={vehicleData.model}
-                    driverAge={30}
+                    driverAge={driverAge}
                     coverageType="full"
                     showApplyButton={true}
                     compact={false}

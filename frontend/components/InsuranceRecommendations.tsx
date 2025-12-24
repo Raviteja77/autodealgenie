@@ -8,7 +8,6 @@ import {
   Divider,
   Chip,
   Stack,
-  Paper,
   Alert,
   FormControl,
   InputLabel,
@@ -17,6 +16,7 @@ import {
   SelectChangeEvent,
   Collapse,
   IconButton,
+  Snackbar,
 } from "@mui/material";
 import {
   Shield as ShieldIcon,
@@ -35,6 +35,12 @@ import {
   type InsuranceRecommendationResponse,
   type InsuranceRecommendationRequest,
 } from "@/lib/api";
+import {
+  isApiError,
+  isAuthenticationError,
+  isNetworkError,
+  getUserFriendlyErrorMessage,
+} from "@/lib/errors";
 import { formatPrice } from "@/lib/utils/formatting";
 
 interface InsuranceRecommendationsProps {
@@ -50,6 +56,20 @@ interface InsuranceRecommendationsProps {
 }
 
 type SortOption = "match_score" | "premium_low" | "coverage_broad";
+
+// Trusted insurance provider domains for URL validation
+const TRUSTED_DOMAINS = [
+  "progressive.com",
+  "geico.com",
+  "statefarm.com",
+  "allstate.com",
+  "libertymutual.com",
+  "aarp.org",
+  "nationwide.com",
+  "travelers.com",
+  "usaa.com",
+  "farmersinsurance.com",
+];
 
 export function InsuranceRecommendations({
   vehicleValue,
@@ -69,6 +89,8 @@ export function InsuranceRecommendations({
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set());
   const [selectedCoverage, setSelectedCoverage] = useState(coverageType);
   const [selectedDriverAge, setSelectedDriverAge] = useState(driverAge);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
 
   useEffect(() => {
     const fetchProviders = async () => {
@@ -103,32 +125,18 @@ export function InsuranceRecommendations({
       } catch (err) {
         console.error("Error fetching insurance providers:", err);
 
-        // Provide specific error messages based on error type
-        if (err instanceof TypeError && err.message.includes("fetch")) {
-          setError(
-            "Network error: Unable to connect to insurance service. Please check your connection."
-          );
-        } else if (
-          err &&
-          typeof err === "object" &&
-          "status" in err &&
-          (err as { status?: number }).status === 401
-        ) {
-          setError("Authentication error: Please log in to view insurance recommendations.");
-        } else if (
-          err &&
-          typeof err === "object" &&
-          "status" in err &&
-          (err as { status?: number }).status === 400
-        ) {
-          setError("Invalid vehicle or driver criteria. Please adjust your parameters.");
-        } else {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Failed to load insurance recommendations. Please try again."
-          );
+        // Use centralized error handling
+        let errorMessage = getUserFriendlyErrorMessage(err);
+
+        if (isAuthenticationError(err)) {
+          errorMessage = "Please log in to view insurance recommendations.";
+        } else if (isNetworkError(err)) {
+          errorMessage = "Unable to connect to insurance service. Please check your connection.";
+        } else if (isApiError(err) && err.statusCode === 400) {
+          errorMessage = "Invalid vehicle or driver criteria. Please adjust your parameters.";
         }
+
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -311,22 +319,20 @@ export function InsuranceRecommendations({
           const isExpanded = expandedProviders.has(match.provider.provider_id);
           const isTopMatch = match.rank === 1;
 
-          // Using Paper directly instead of custom Card component to support
-          // dynamic elevation and border styling based on match rank
           return (
-            <Paper
+            <Card
               key={match.provider.provider_id}
-              elevation={isTopMatch ? 4 : 2}
+              shadow={isTopMatch ? "lg" : "md"}
               sx={{
-                p: 2,
                 border: isTopMatch ? 2 : 1,
                 borderColor: isTopMatch ? "primary.main" : "divider",
                 transition: "all 0.3s ease",
                 "&:hover": {
-                  boxShadow: 4,
+                  boxShadow: 6,
                 },
               }}
             >
+              <Card.Body>
               {/* Header */}
               <Box
                 sx={{
@@ -434,7 +440,7 @@ export function InsuranceRecommendations({
                     <Typography variant="subtitle2" gutterBottom fontWeight={600}>
                       Coverage Options
                     </Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                       {match.provider.coverage_types.map((coverage, idx) => (
                         <Chip
                           key={idx}
@@ -444,7 +450,7 @@ export function InsuranceRecommendations({
                           color="primary"
                         />
                       ))}
-                    </Stack>
+                    </Box>
                   </Box>
 
                   {/* Features */}
@@ -453,7 +459,7 @@ export function InsuranceRecommendations({
                       <Typography variant="subtitle2" gutterBottom fontWeight={600}>
                         Features
                       </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                         {match.provider.features.map((feature, idx) => (
                           <Chip
                             key={idx}
@@ -464,7 +470,7 @@ export function InsuranceRecommendations({
                             color="success"
                           />
                         ))}
-                      </Stack>
+                      </Box>
                     </Box>
                   )}
 
@@ -474,7 +480,7 @@ export function InsuranceRecommendations({
                       <Typography variant="subtitle2" gutterBottom fontWeight={600}>
                         Benefits
                       </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                         {match.provider.benefits.map((benefit, idx) => (
                           <Chip
                             key={idx}
@@ -485,7 +491,7 @@ export function InsuranceRecommendations({
                             color="info"
                           />
                         ))}
-                      </Stack>
+                      </Box>
                     </Box>
                   )}
 
@@ -534,7 +540,6 @@ export function InsuranceRecommendations({
                     size="sm"
                     fullWidth
                     onClick={() => {
-                      // Validate URL with strict checks
                       const url = match.provider.affiliate_url;
                       try {
                         if (!url) {
@@ -549,15 +554,23 @@ export function InsuranceRecommendations({
                           throw new Error("Invalid URL protocol");
                         }
 
-                        // Optional: Validate against trusted domains (can be expanded)
-                        // For now, just ensure it's a valid URL with proper protocol
+                        // Validate against trusted domains
+                        const hostname = urlObj.hostname.toLowerCase();
+                        const isTrusted = TRUSTED_DOMAINS.some((domain) =>
+                          hostname.endsWith(domain)
+                        );
+
+                        if (!isTrusted) {
+                          throw new Error("Untrusted domain");
+                        }
+
                         window.open(url, "_blank", "noopener,noreferrer");
                       } catch (error) {
                         console.error("Invalid affiliate URL:", url, error);
-                        alert(
-                          "We're sorry, but this provider link is currently unavailable. " +
-                            "Please try another provider or contact support."
+                        setSnackbarMessage(
+                          "This provider link is currently unavailable. Please try another provider or contact support."
                         );
+                        setSnackbarOpen(true);
                       }
                     }}
                     aria-label="Get quote, opens in new tab"
@@ -576,10 +589,20 @@ export function InsuranceRecommendations({
                   </Button>
                 )}
               </Box>
-            </Paper>
+            </Card.Body>
+            </Card>
           );
         })}
       </Stack>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        message={snackbarMessage}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      />
 
       {/* Footer Info */}
       <Alert severity="info" sx={{ mt: 3 }}>

@@ -46,7 +46,7 @@ class InsuranceRecommendationRequest(BaseModel):
         ...,
         description="Desired coverage type: liability, comprehensive, or full",
     )
-    driver_age: int = Field(..., gt=0, le=120, description="Driver age")
+    driver_age: int = Field(..., gt=0, le=100, description="Driver age")
 
     @field_validator("coverage_type")
     @classmethod
@@ -63,8 +63,8 @@ class InsuranceRecommendationRequest(BaseModel):
         """Validate driver age is reasonable"""
         if v < 16:
             raise ValueError("driver_age must be at least 16")
-        if v > 120:
-            raise ValueError("driver_age must be at most 120")
+        if v > 100:
+            raise ValueError("driver_age must be at most 100")
         return v
 
 

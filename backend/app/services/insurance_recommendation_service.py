@@ -74,7 +74,7 @@ class InsuranceRecommendationService:
             provider_id="safeguard_auto_insurance",
             name="SafeGuard Auto Insurance",
             description="Nationwide provider offering comprehensive coverage with competitive rates for all driver profiles",
-            logo_url="https://cdn.autodealgenie.com/insurance/safeguard.png",
+            logo_url=None,
             coverage_types=["liability", "comprehensive", "full"],
             min_vehicle_value=5000.0,
             max_vehicle_value=150000.0,
@@ -92,14 +92,14 @@ class InsuranceRecommendationService:
                 "Safe driver rewards",
                 "Mobile app for claims",
             ],
-            affiliate_url="https://safeguardauto.com/quote",
+            affiliate_url="https://www.progressive.com/auto/",
             referral_code="ADG_SAI_001",
         ),
         InsuranceProviderInfo(
             provider_id="premium_shield_insurance",
             name="Premium Shield Insurance",
             description="Premium coverage for high-value vehicles with personalized service and luxury repair options",
-            logo_url="https://cdn.autodealgenie.com/insurance/premium-shield.png",
+            logo_url=None,
             coverage_types=["comprehensive", "full"],
             min_vehicle_value=30000.0,
             max_vehicle_value=250000.0,
@@ -117,14 +117,14 @@ class InsuranceRecommendationService:
                 "Custom coverage options",
                 "Diminishing deductible",
             ],
-            affiliate_url="https://premiumshield.com/apply",
+            affiliate_url="https://www.statefarm.com/insurance/auto",
             referral_code="ADG_PSI_002",
         ),
         InsuranceProviderInfo(
             provider_id="value_coverage_insurance",
             name="Value Coverage Insurance",
             description="Budget-friendly insurance focusing on liability and basic coverage for cost-conscious drivers",
-            logo_url="https://cdn.autodealgenie.com/insurance/value-coverage.png",
+            logo_url=None,
             coverage_types=["liability", "comprehensive"],
             min_vehicle_value=2000.0,
             max_vehicle_value=50000.0,
@@ -142,14 +142,14 @@ class InsuranceRecommendationService:
                 "Low down payment",
                 "Month-to-month options",
             ],
-            affiliate_url="https://valuecoverage.com/start",
+            affiliate_url="https://www.geico.com/auto-insurance/",
             referral_code="ADG_VCI_003",
         ),
         InsuranceProviderInfo(
             provider_id="family_first_insurance",
             name="Family First Insurance",
             description="Family-focused coverage with multi-vehicle and teen driver programs",
-            logo_url="https://cdn.autodealgenie.com/insurance/family-first.png",
+            logo_url=None,
             coverage_types=["liability", "comprehensive", "full"],
             min_vehicle_value=5000.0,
             max_vehicle_value=100000.0,
@@ -167,14 +167,14 @@ class InsuranceRecommendationService:
                 "Educational resources",
                 "Safe driving rewards",
             ],
-            affiliate_url="https://familyfirstins.com/getquote",
+            affiliate_url="https://www.allstate.com/auto-insurance",
             referral_code="ADG_FFI_004",
         ),
         InsuranceProviderInfo(
             provider_id="senior_safe_insurance",
             name="Senior Safe Insurance",
             description="Specialized coverage for mature drivers with age-appropriate rates and services",
-            logo_url="https://cdn.autodealgenie.com/insurance/senior-safe.png",
+            logo_url=None,
             coverage_types=["liability", "comprehensive", "full"],
             min_vehicle_value=5000.0,
             max_vehicle_value=80000.0,
@@ -192,14 +192,14 @@ class InsuranceRecommendationService:
                 "Retired driver discounts",
                 "Defensive driving rewards",
             ],
-            affiliate_url="https://seniorsafe.com/quote",
+            affiliate_url="https://www.aarp.org/auto-insurance/",
             referral_code="ADG_SSI_005",
         ),
         InsuranceProviderInfo(
             provider_id="green_driver_insurance",
             name="Green Driver Insurance",
             description="Eco-friendly coverage with special rates for hybrid and electric vehicles",
-            logo_url="https://cdn.autodealgenie.com/insurance/green-driver.png",
+            logo_url=None,
             coverage_types=["liability", "comprehensive", "full"],
             min_vehicle_value=10000.0,
             max_vehicle_value=120000.0,
@@ -217,7 +217,7 @@ class InsuranceRecommendationService:
                 "Paperless policy management",
                 "Sustainable practices rewards",
             ],
-            affiliate_url="https://greendriver.com/getstarted",
+            affiliate_url="https://www.libertymutual.com/auto-insurance",
             referral_code="ADG_GDI_006",
         ),
     ]
@@ -338,8 +338,9 @@ class InsuranceRecommendationService:
         Returns:
             Estimated monthly premium
         """
-        # Start with provider's base premium (midpoint)
-        base_premium = (provider.premium_range_min + provider.premium_range_max) / 2
+        # Start with provider's midpoint premium
+        midpoint_premium = (provider.premium_range_min + provider.premium_range_max) / 2
+        range_width = provider.premium_range_max - provider.premium_range_min
 
         # Apply coverage type multiplier
         coverage_multiplier = COVERAGE_MULTIPLIERS.get(coverage_type, 1.0)
@@ -354,14 +355,15 @@ class InsuranceRecommendationService:
         # Normalize to a reasonable range
         value_factor = 1.0 + (vehicle_value / 100000.0) * 0.3  # Up to 30% increase
 
-        # Calculate final premium
-        estimated_premium = (
-            base_premium
-            * coverage_multiplier
-            * vehicle_age_factor
-            * driver_age_factor
-            * value_factor
+        # Combine all factors with scaling to stay within range
+        combined_factor = (
+            coverage_multiplier * vehicle_age_factor * driver_age_factor * value_factor
         )
+
+        # Calculate deviation from midpoint based on combined factor
+        # Scale the deviation to use only a portion of the available range
+        deviation = (combined_factor - 1.0) * range_width * 0.4  # Use 40% of range for variation
+        estimated_premium = midpoint_premium + deviation
 
         # Ensure premium is within provider's range
         estimated_premium = max(
