@@ -623,12 +623,12 @@ function ResultsContent() {
                       />
                     ))}
                   </Stack>
-                  <Link
+                  {/* <Link
                     href="/dashboard/search"
                     style={{ textDecoration: "none" }}
                   >
                     <Button variant="outline">Refine Search</Button>
-                  </Link>
+                  </Link> */}
                 </Box>
               </Card.Body>
             </Card>

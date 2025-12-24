@@ -483,7 +483,7 @@ function DashboardSearchPageContent() {
                   }
                   onCarTypeChange={(value) =>
                     setSearchParams((prev) => {
-                      if (value === "New") {
+                      if (value.toLowerCase() === "new") {
                         // Reset year and mileage for new cars
                         return { ...prev, carType: value, yearMin: 2025, yearMax: 2025, mileageMax: 0 };
                       } 
