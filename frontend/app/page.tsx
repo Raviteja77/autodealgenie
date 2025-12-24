@@ -48,9 +48,10 @@ export default function Home() {
       setLoading(true);
       try {
         // Fetch deals and favorites in parallel
-        const [deals, favorites] = await Promise.all([
+        const [deals, favorites, savedSearches] = await Promise.all([
           apiClient.getDeals(),
           apiClient.getFavorites(),
+          apiClient.getSavedSearches(),
         ]);
 
         // Calculate stats
@@ -64,7 +65,7 @@ export default function Home() {
 
         // Note: Search history would require a new backend endpoint
         // For now, we'll show 0 or you can create a backend endpoint
-        const searchHistoryCount = 0;
+        const searchHistoryCount = savedSearches.total || 0;
 
         setStats({
           activeDealCount,

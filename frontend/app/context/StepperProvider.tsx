@@ -49,7 +49,7 @@ export const STEPS: Step[] = [
     path: "/dashboard/evaluation",
     requiresPrevious: true,
   },
-  { id: 4, label: "Finalize", path: "/deals", requiresPrevious: true },
+  // { id: 4, label: "Finalize", path: "/deals", requiresPrevious: true },
 ];
 
 /**

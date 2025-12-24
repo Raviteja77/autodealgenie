@@ -4,7 +4,7 @@ SQLAlchemy models for PostgreSQL
 
 import enum
 
-from sqlalchemy import Column, DateTime, Enum, Float, Integer, String, Text, ForeignKey, JSON
+from sqlalchemy import Column, DateTime, Enum, Float, Integer, String, Text, ForeignKey, JSON, Boolean
 from sqlalchemy.sql import func
 
 from app.db.session import Base
@@ -161,7 +161,7 @@ class SavedSearch(Base):
     user_priorities = Column(Text, nullable=True)
     
     # Metadata
-    notification_enabled = Column(Integer, default=1)
+    notification_enabled = Column(Boolean, default=True)
     last_checked = Column(DateTime(timezone=True), nullable=True)
     new_matches_count = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
