@@ -61,8 +61,8 @@ def mock_negotiation_session(db, mock_user, mock_deal):
 
 def test_lender_service_integration(db, mock_negotiation_session, mock_deal):
     """Test that lender service returns recommendations based on negotiated price"""
-    from app.services.lender_service import LenderService
     from app.schemas.loan_schemas import LenderRecommendationRequest
+    from app.services.lender_service import LenderService
 
     # Calculate loan amount based on negotiated price (22000)
     negotiated_price = 22000.0
@@ -100,8 +100,8 @@ def test_lender_service_integration(db, mock_negotiation_session, mock_deal):
 
 def test_lender_recommendations_different_credit_scores(db):
     """Test that better credit scores get better rates"""
-    from app.services.lender_service import LenderService
     from app.schemas.loan_schemas import LenderRecommendationRequest
+    from app.services.lender_service import LenderService
 
     loan_amount = 20000.0
 
@@ -134,8 +134,8 @@ def test_lender_recommendations_different_credit_scores(db):
 
 def test_lender_recommendations_ranking(db):
     """Test that lender recommendations are properly ranked"""
-    from app.services.lender_service import LenderService
     from app.schemas.loan_schemas import LenderRecommendationRequest
+    from app.services.lender_service import LenderService
 
     request = LenderRecommendationRequest(
         loan_amount=25000.0,

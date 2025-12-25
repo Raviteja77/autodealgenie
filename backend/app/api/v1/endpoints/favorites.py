@@ -4,7 +4,6 @@ Favorites endpoints with repository pattern and in-memory fallback
 
 import threading
 from datetime import datetime, timezone
-from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -19,7 +18,7 @@ router = APIRouter()
 
 # In-memory storage fallback (with thread safety)
 # Structure: {user_id: {vin: favorite_data}}
-favorites_storage: Dict[int, Dict[str, dict]] = {}
+favorites_storage: dict[int, dict[str, dict]] = {}
 storage_lock = threading.Lock()
 
 
@@ -45,7 +44,7 @@ def add_favorite(
     return favorite
 
 
-@router.get("/", response_model=List[FavoriteResponse])
+@router.get("/", response_model=list[FavoriteResponse])
 def get_favorites(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

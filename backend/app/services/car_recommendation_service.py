@@ -9,9 +9,6 @@ import logging
 import os
 from typing import Any
 
-from app.llm import generate_structured_json
-from app.llm.llm_client import llm_client
-from app.llm.schemas import CarSelectionResponse
 from tenacity import (
     before_sleep_log,
     retry,
@@ -22,6 +19,9 @@ from tenacity import (
 
 from app.core.config import settings
 from app.db.redis import redis_client
+from app.llm import generate_structured_json
+from app.llm.llm_client import llm_client
+from app.llm.schemas import CarSelectionResponse
 from app.repositories.ai_response_repository import ai_response_repository
 from app.repositories.search_history_repository import search_history_repository
 from app.repositories.webhook_repository import WebhookRepository

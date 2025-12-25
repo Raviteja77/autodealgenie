@@ -36,8 +36,8 @@ async def get_deal_ai_history(
         List of AI response records with metadata
     """
     # Verify deal ownership
-    from app.repositories.deal_repository import DealRepository
     from app.api.dependencies import get_db
+    from app.repositories.deal_repository import DealRepository
 
     # Note: We need to get the database session to verify deal ownership
     # For now, we'll check if the deal exists and belongs to the user via email

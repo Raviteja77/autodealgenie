@@ -5,7 +5,7 @@ Stores loan and insurance recommendations
 
 import enum
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, JSON, String
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.sql import func
 
 from app.db.session import Base

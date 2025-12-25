@@ -1,9 +1,11 @@
 """Test fixes for negotiation, lender, and deal evaluation services"""
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+
+from app.models.negotiation import MessageRole, NegotiationMessage
 from app.services.negotiation_service import NegotiationService
-from app.models.negotiation import NegotiationMessage, MessageRole
 
 
 def test_negotiation_service_metadata_access():
@@ -42,8 +44,9 @@ def test_negotiation_service_metadata_access():
 
 def test_llm_json_parsing_with_markdown():
     """Test that LLM client handles markdown code blocks in JSON responses"""
-    from app.llm.llm_client import LLMClient
     import json
+
+    from app.llm.llm_client import LLMClient
 
     # Test cases for different markdown formats
     test_cases = [
@@ -91,8 +94,8 @@ def test_deal_evaluation_fallback():
 
 def test_lender_service_recommendations():
     """Test that lender service generates recommendations without errors"""
-    from app.services.lender_service import LenderService
     from app.schemas.loan_schemas import LenderRecommendationRequest
+    from app.services.lender_service import LenderService
 
     # Create a valid request
     request = LenderRecommendationRequest(
