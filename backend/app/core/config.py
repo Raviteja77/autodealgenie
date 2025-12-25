@@ -71,15 +71,15 @@ class Settings(BaseSettings):
 
     # Environment
     ENVIRONMENT: str = "development"  # development, staging, production
-    
+
     # Mock Services (for development/testing)
     USE_MOCK_SERVICES: bool = False
-    
+
     def __init__(self, **kwargs):
         """Initialize settings and validate critical security configurations"""
         super().__init__(**kwargs)
         self._validate_security_settings()
-    
+
     def _validate_security_settings(self):
         """Validate critical security settings at startup"""
         # Validate SECRET_KEY
@@ -87,10 +87,13 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY environment variable is required")
         if len(self.SECRET_KEY) < 32:
             raise ValueError("SECRET_KEY must be at least 32 characters long")
-        
+
         # Warn about development-only configurations in production
         if self.ENVIRONMENT == "production":
-            if self.SECRET_KEY == "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7":
+            if (
+                self.SECRET_KEY
+                == "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+            ):
                 raise ValueError("Default SECRET_KEY detected in production environment")
             if not self.POSTGRES_PASSWORD:
                 raise ValueError("POSTGRES_PASSWORD must be set in production")

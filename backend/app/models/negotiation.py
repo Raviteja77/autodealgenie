@@ -38,7 +38,7 @@ class NegotiationSession(Base):
         Enum(NegotiationStatus, values_callable=lambda x: [e.value for e in x]),
         default=NegotiationStatus.ACTIVE.value,
         nullable=False,
-        index=True
+        index=True,
     )
     current_round = Column(Integer, default=1, nullable=False)
     max_rounds = Column(Integer, default=10, nullable=False)
@@ -56,10 +56,7 @@ class NegotiationMessage(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(Integer, ForeignKey("negotiation_sessions.id"), nullable=False, index=True)
-    role = Column(
-        Enum(MessageRole, values_callable=lambda x: [e.value for e in x]),
-        nullable=False
-    )
+    role = Column(Enum(MessageRole, values_callable=lambda x: [e.value for e in x]), nullable=False)
     content = Column(Text, nullable=False)
     round_number = Column(Integer, nullable=False, index=True)
     message_metadata = Column(

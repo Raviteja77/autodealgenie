@@ -135,9 +135,7 @@ class NextRoundResponse(BaseModel):
 class ChatMessageRequest(BaseModel):
     """Schema for sending a free-form chat message"""
 
-    message: str = Field(
-        ..., min_length=1, max_length=2000, description="Chat message content"
-    )
+    message: str = Field(..., min_length=1, max_length=2000, description="Chat message content")
     message_type: str = Field(
         default="general",
         description="Type of message: general, dealer_info, question, etc.",

@@ -79,8 +79,12 @@ def upgrade():
 
     # Create indexes for insurance_recommendations
     op.create_index("ix_insurance_recommendations_id", "insurance_recommendations", ["id"])
-    op.create_index("ix_insurance_recommendations_deal_id", "insurance_recommendations", ["deal_id"])
-    op.create_index("ix_insurance_recommendations_user_id", "insurance_recommendations", ["user_id"])
+    op.create_index(
+        "ix_insurance_recommendations_deal_id", "insurance_recommendations", ["deal_id"]
+    )
+    op.create_index(
+        "ix_insurance_recommendations_user_id", "insurance_recommendations", ["user_id"]
+    )
 
 
 def downgrade():

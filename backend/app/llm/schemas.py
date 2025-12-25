@@ -69,7 +69,9 @@ class VehicleConditionAssessment(BaseModel):
 
     condition_score: float = Field(..., ge=1.0, le=10.0, description="Condition score from 1-10")
     condition_notes: list[str] = Field(..., description="Key observations about vehicle condition")
-    recommended_inspection: bool = Field(..., description="Whether pre-purchase inspection is recommended")
+    recommended_inspection: bool = Field(
+        ..., description="Whether pre-purchase inspection is recommended"
+    )
 
 
 # ============================================================================

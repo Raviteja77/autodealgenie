@@ -119,7 +119,7 @@ def refresh(
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     try:
         user_id = int(sub)
     except (ValueError, TypeError):

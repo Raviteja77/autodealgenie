@@ -20,30 +20,24 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add performance indexes for frequently queried fields"""
-    
+
     # Composite indexes for common query patterns
     # Users table - search by active status
     op.create_index(
         "ix_users_is_active_created_at",
         "users",
         ["is_active", "created_at"],
-        postgresql_where=sa.text("is_active = 1")
+        postgresql_where=sa.text("is_active = 1"),
     )
-    
+
     # Deals table - filter by status and date
-    op.create_index(
-        "ix_deals_status_created_at",
-        "deals",
-        ["status", "created_at"]
-    )
-    
+    op.create_index("ix_deals_status_created_at", "deals", ["status", "created_at"])
+
     # Deals table - search by vehicle
     op.create_index(
-        "ix_deals_vehicle_lookup",
-        "deals",
-        ["vehicle_make", "vehicle_model", "vehicle_year"]
+        "ix_deals_vehicle_lookup", "deals", ["vehicle_make", "vehicle_model", "vehicle_year"]
     )
-    
+
     # Deals table - VIN lookup (if exists)
     try:
         op.create_index(
@@ -51,7 +45,7 @@ def upgrade() -> None:
             "deals",
             ["vehicle_vin"],
             unique=True,
-            postgresql_where=sa.text("vehicle_vin IS NOT NULL")
+            postgresql_where=sa.text("vehicle_vin IS NOT NULL"),
         )
     except Exception:
         # VIN column might not exist in all versions
@@ -60,12 +54,12 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop performance indexes"""
-    
+
     try:
         op.drop_index("ix_deals_vehicle_vin", table_name="deals")
     except Exception:
         pass
-    
+
     op.drop_index("ix_deals_vehicle_lookup", table_name="deals")
     op.drop_index("ix_deals_status_created_at", table_name="deals")
     op.drop_index("ix_users_is_active_created_at", table_name="users")

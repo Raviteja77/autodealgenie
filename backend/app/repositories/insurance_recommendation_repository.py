@@ -118,9 +118,7 @@ class InsuranceRecommendationRepository:
             .all()
         )
 
-    def get_by_id(
-        self, insurance_recommendation_id: int
-    ) -> InsuranceRecommendation | None:
+    def get_by_id(self, insurance_recommendation_id: int) -> InsuranceRecommendation | None:
         """
         Get an insurance recommendation by ID
 

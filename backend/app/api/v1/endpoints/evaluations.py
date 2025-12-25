@@ -31,6 +31,7 @@ FAIR_CREDIT_RATE_THRESHOLD = 10.0
 DEFAULT_DOWN_PAYMENT_RATIO = 0.2  # 20% down payment (80% loan)
 DEFAULT_INTEREST_RATE = 5.5
 
+
 @router.post(
     "/{deal_id}/evaluation",
     response_model=dict,
@@ -214,10 +215,10 @@ def get_evaluation_lenders(
 ):
     """
     Get lender recommendations for a deal evaluation
-    
+
     This endpoint analyzes the evaluation's financing assessment and provides
     personalized lender recommendations if the deal quality warrants financing.
-    
+
     Returns lender recommendations only for deals with:
     - Completed financing evaluation step
     - Financing recommendation of "financing" or "either"
@@ -249,7 +250,7 @@ def get_evaluation_lenders(
     # Check if financing step is completed
     result_json = evaluation.result_json or {}
     financing_data = result_json.get("financing", {})
-    
+
     if not financing_data.get("completed"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -257,7 +258,7 @@ def get_evaluation_lenders(
         )
 
     financing_assessment = financing_data.get("assessment", {})
-    
+
     # Check if financing is recommended
     recommendation = financing_assessment.get("recommendation", "")
     if recommendation not in ["financing", "either"]:
@@ -270,16 +271,16 @@ def get_evaluation_lenders(
                 "reason": financing_assessment.get("recommendation_reason", ""),
             },
         )
-    
+
     # Check overall deal quality
     final_data = result_json.get("final", {})
     overall_score = final_data.get("assessment", {}).get("overall_score", 0)
-    
+
     # If final step not completed, estimate from price score
     if overall_score == 0:
         price_data = result_json.get("price", {})
         overall_score = price_data.get("assessment", {}).get("score", 0)
-    
+
     min_score = deal_evaluation_service.LENDER_RECOMMENDATION_MIN_SCORE
     if overall_score < min_score:
         return LenderRecommendationResponse(
@@ -303,9 +304,11 @@ def get_evaluation_lenders(
 
     # Extract financing parameters from user inputs
     user_inputs = result_json.get("user_inputs", {})
-    loan_amount = financing_assessment.get("loan_amount", deal.asking_price * (1 - DEFAULT_DOWN_PAYMENT_RATIO))
+    loan_amount = financing_assessment.get(
+        "loan_amount", deal.asking_price * (1 - DEFAULT_DOWN_PAYMENT_RATIO)
+    )
     interest_rate = user_inputs.get("interest_rate", DEFAULT_INTEREST_RATE)
-    
+
     # Estimate credit score range from interest rate (rough approximation)
     if interest_rate <= EXCELLENT_CREDIT_RATE_THRESHOLD:
         credit_score_range = "excellent"

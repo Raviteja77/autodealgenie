@@ -76,7 +76,9 @@ class SavedSearchList(BaseModel):
 class VehicleComparisonRequest(BaseModel):
     """Schema for vehicle comparison request"""
 
-    vins: list[str] = Field(..., min_length=2, max_length=3, description="List of 2-3 VINs to compare")
+    vins: list[str] = Field(
+        ..., min_length=2, max_length=3, description="List of 2-3 VINs to compare"
+    )
 
 
 class VehicleComparisonFeature(BaseModel):

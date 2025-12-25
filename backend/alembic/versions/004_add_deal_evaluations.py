@@ -33,7 +33,9 @@ def upgrade() -> None:
         ),
         sa.Column(
             "current_step",
-            sa.Enum("vehicle_condition", "price", "financing", "risk", "final", name="pipelinestep"),
+            sa.Enum(
+                "vehicle_condition", "price", "financing", "risk", "final", name="pipelinestep"
+            ),
             nullable=False,
         ),
         sa.Column("result_json", sa.JSON(), nullable=True),

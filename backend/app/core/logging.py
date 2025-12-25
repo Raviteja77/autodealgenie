@@ -25,11 +25,11 @@ class JSONFormatter(logging.Formatter):
         # Add request ID if available
         if hasattr(record, "request_id"):
             log_obj["request_id"] = record.request_id  # type: ignore
-        
+
         # Add user ID if available
         if hasattr(record, "user_id"):
             log_obj["user_id"] = record.user_id  # type: ignore
-        
+
         # Add extra fields if provided
         if hasattr(record, "extra"):
             log_obj["extra"] = record.extra  # type: ignore
@@ -68,15 +68,14 @@ def configure_logging() -> None:
         # Use standard readable formatter for development
         formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
         handler.setFormatter(formatter)
 
     root_logger.addHandler(handler)
-    
+
     # Suppress noisy third-party loggers
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("openai").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
-

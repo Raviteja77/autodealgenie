@@ -44,7 +44,7 @@ async def get_insurance_recommendations(
     - Coverage type (liability, comprehensive, or full)
 
     Returns up to 5 top recommendations sorted by match score.
-    
+
     Saves recommendations to database if deal_id is provided for tracking.
     """
     try:

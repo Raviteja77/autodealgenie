@@ -475,7 +475,7 @@ class CarRecommendationService:
             # Check if the response has the expected structure
             if hasattr(response, "recommendations") and response.recommendations is not None:
                 recommendations = response.recommendations
-                
+
                 # Build final output with full vehicle data
                 top_vehicles = []
                 for rec in recommendations:
@@ -498,7 +498,16 @@ class CarRecommendationService:
                             "user_criteria": user_criteria,
                             "listings_count": len(listings),
                         },
-                        response_content={"top_vehicles": [{"vin": v["vin"], "score": v["recommendation_score"], "summary": v["recommendation_summary"]} for v in top_vehicles]},
+                        response_content={
+                            "top_vehicles": [
+                                {
+                                    "vin": v["vin"],
+                                    "score": v["recommendation_score"],
+                                    "summary": v["recommendation_summary"],
+                                }
+                                for v in top_vehicles
+                            ]
+                        },
                         response_metadata={
                             "total_listings_analyzed": len(listings),
                             "recommendations_count": len(top_vehicles),
@@ -509,7 +518,7 @@ class CarRecommendationService:
                     logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
 
                 return top_vehicles
-                
+
             elif hasattr(response, "top_vehicles") and response.top_vehicles is not None:
                 # Adapt to the new response structure if 'recommendations' is missing
                 # Build final output with full vehicle data
@@ -523,7 +532,7 @@ class CarRecommendationService:
                         vehicle_data["highlights"] = vehicle.highlights
                         vehicle_data["recommendation_summary"] = vehicle.summary
                         top_vehicles.append(vehicle_data)
-                
+
                 # Log AI response to MongoDB
                 try:
                     await ai_response_repository.create_response(
@@ -535,7 +544,16 @@ class CarRecommendationService:
                             "user_criteria": user_criteria,
                             "listings_count": len(listings),
                         },
-                        response_content={"top_vehicles": [{"vin": v["vin"], "score": v["recommendation_score"], "summary": v["recommendation_summary"]} for v in top_vehicles]},
+                        response_content={
+                            "top_vehicles": [
+                                {
+                                    "vin": v["vin"],
+                                    "score": v["recommendation_score"],
+                                    "summary": v["recommendation_summary"],
+                                }
+                                for v in top_vehicles
+                            ]
+                        },
                         response_metadata={
                             "total_listings_analyzed": len(listings),
                             "recommendations_count": len(top_vehicles),
@@ -544,7 +562,7 @@ class CarRecommendationService:
                     )
                 except Exception as log_error:
                     logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
-                
+
                 return top_vehicles
             else:
                 logger.warning(

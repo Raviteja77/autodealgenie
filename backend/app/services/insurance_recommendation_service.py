@@ -553,10 +553,12 @@ class InsuranceRecommendationService:
 
         # Store recommendations in PostgreSQL if user and deal IDs are provided
         if user_id and deal_id and db_session:
-            from app.repositories.insurance_recommendation_repository import InsuranceRecommendationRepository
-            
+            from app.repositories.insurance_recommendation_repository import (
+                InsuranceRecommendationRepository,
+            )
+
             insurance_repo = InsuranceRecommendationRepository(db_session)
-            
+
             for rec in recommendations:
                 try:
                     ins_rec = InsuranceRecommendation(
@@ -585,7 +587,7 @@ class InsuranceRecommendationService:
                         f"Failed to store insurance recommendation for deal {deal_id}: {str(e)}"
                     )
                     # Don't fail the main operation if storage fails
-            
+
             # Single commit after all recommendations
             try:
                 insurance_repo.db.commit()

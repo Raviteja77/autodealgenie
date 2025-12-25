@@ -48,9 +48,7 @@ class TestMockMarketCheck:
 
     def test_mock_car_search_with_make(self, mock_client):
         """Test car search filters by make"""
-        response = mock_client.post(
-            "/mock/marketcheck/search", json={"make": "Honda"}
-        )
+        response = mock_client.post("/mock/marketcheck/search", json={"make": "Honda"})
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -342,9 +340,7 @@ class TestMockEvaluation:
 
     def test_mock_start_evaluation_pipeline(self, mock_client):
         """Test starting evaluation pipeline"""
-        response = mock_client.post(
-            "/mock/evaluation/pipeline/start", json={"deal_id": 1}
-        )
+        response = mock_client.post("/mock/evaluation/pipeline/start", json={"deal_id": 1})
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -364,17 +360,13 @@ class TestMockEvaluation:
     def test_mock_submit_evaluation_answers(self, mock_client):
         """Test submitting evaluation answers"""
         # Start pipeline first
-        start_response = mock_client.post(
-            "/mock/evaluation/pipeline/start", json={"deal_id": 1}
-        )
+        start_response = mock_client.post("/mock/evaluation/pipeline/start", json={"deal_id": 1})
         evaluation_id = start_response.json()["evaluation_id"]
 
         # Submit answers
         response = mock_client.post(
             f"/mock/evaluation/pipeline/{evaluation_id}/submit",
-            json={
-                "answers": {"exterior_condition": "Good", "interior_condition": "Good"}
-            },
+            json={"answers": {"exterior_condition": "Good", "interior_condition": "Good"}},
         )
 
         assert response.status_code == status.HTTP_200_OK

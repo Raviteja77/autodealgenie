@@ -46,8 +46,16 @@ app.add_middleware(ErrorHandlerMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS middleware - restrict in production
-allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] if settings.ENVIRONMENT == "production" else ["*"]
-allowed_headers = ["Content-Type", "Authorization", "X-Request-ID"] if settings.ENVIRONMENT == "production" else ["*"]
+allowed_methods = (
+    ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    if settings.ENVIRONMENT == "production"
+    else ["*"]
+)
+allowed_headers = (
+    ["Content-Type", "Authorization", "X-Request-ID"]
+    if settings.ENVIRONMENT == "production"
+    else ["*"]
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -67,7 +75,6 @@ if settings.USE_MOCK_SERVICES:
 
     app.include_router(mock_router, prefix="/mock")
     print("Mock router registered at /mock")
-
 
 
 # Request ID Middleware
