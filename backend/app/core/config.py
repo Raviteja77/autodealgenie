@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     MAX_SEARCH_RESULTS: int = 50  # Maximum number of results to fetch from API for LLM analysis
 
     # Security
-    SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"  # REQUIRED: Must be set via environment variable (min 32 chars)
+    SECRET_KEY: str  # REQUIRED: Must be set via environment variable (min 32 chars)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -74,6 +74,28 @@ class Settings(BaseSettings):
     
     # Mock Services (for development/testing)
     USE_MOCK_SERVICES: bool = False
+    
+    def __init__(self, **kwargs):
+        """Initialize settings and validate critical security configurations"""
+        super().__init__(**kwargs)
+        self._validate_security_settings()
+    
+    def _validate_security_settings(self):
+        """Validate critical security settings at startup"""
+        # Validate SECRET_KEY
+        if not self.SECRET_KEY:
+            raise ValueError("SECRET_KEY environment variable is required")
+        if len(self.SECRET_KEY) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters long")
+        
+        # Warn about development-only configurations in production
+        if self.ENVIRONMENT == "production":
+            if self.SECRET_KEY == "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7":
+                raise ValueError("Default SECRET_KEY detected in production environment")
+            if not self.POSTGRES_PASSWORD:
+                raise ValueError("POSTGRES_PASSWORD must be set in production")
+            if "localhost" in str(self.BACKEND_CORS_ORIGINS):
+                raise ValueError("Localhost CORS origins not allowed in production")
 
     @property
     def COOKIE_SECURE(self) -> bool:

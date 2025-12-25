@@ -13,6 +13,7 @@ from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.middleware.error_middleware import ErrorHandlerMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 
 
 @asynccontextmanager
@@ -41,14 +42,20 @@ app = FastAPI(
 # Error handling middleware (should be added first to catch all errors)
 app.add_middleware(ErrorHandlerMiddleware)
 
-# CORS middleware
+# Security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# CORS middleware - restrict in production
+allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] if settings.ENVIRONMENT == "production" else ["*"]
+allowed_headers = ["Content-Type", "Authorization", "X-Request-ID"] if settings.ENVIRONMENT == "production" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    expose_headers=["*"],
-    allow_headers=["*"],
+    allow_methods=allowed_methods,
+    expose_headers=["X-Request-ID", "X-Process-Time"],
+    allow_headers=allowed_headers,
 )
 
 # Include API router
