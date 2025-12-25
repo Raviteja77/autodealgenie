@@ -906,6 +906,49 @@ class ApiClient {
       body: JSON.stringify({ token, new_password: newPassword }),
     });
   }
+
+  /**
+   * Get insurance recommendations
+   */
+  async getInsuranceRecommendations(
+    loanAmount: number,
+    vehicleMake: string,
+    vehicleModel: string,
+    coverageType: string,
+    driverAge: number
+  ): Promise<InsuranceRecommendationResponse> {
+    return this.request<InsuranceRecommendationResponse>(
+      `/api/v1/insurance/recommendations`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          loan_amount: loanAmount,
+          vehicle_make: vehicleMake,
+          vehicle_model: vehicleModel,
+          coverage_type: coverageType,
+          driver_age: driverAge,
+        }),
+      }
+    );
+  }
+
+  /**
+   * Get lender recommendations
+   */
+  async getLenderRecommendations(
+    loanAmount: number,
+    creditScoreRange: string,
+    loanTermMonths: number
+  ): Promise<LenderRecommendationResponse> {
+    return this.request<LenderRecommendationResponse>(`/api/v1/loans/lenders`, {
+      method: "POST",
+      body: JSON.stringify({
+        loan_amount: loanAmount,
+        credit_score_range: creditScoreRange,
+        loan_term_months: loanTermMonths,
+      }),
+    });
+  }
 }
 
 // Export a singleton instance

@@ -12,7 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api";
 
-interface User {
+export interface User {
   id: number;
   email: string;
   username: string;

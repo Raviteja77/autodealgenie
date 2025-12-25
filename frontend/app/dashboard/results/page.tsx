@@ -80,6 +80,7 @@ function ResultsContent() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchMessage, setSearchMessage] = useState<string | null>(null);
 
   // New state for enhanced features
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
