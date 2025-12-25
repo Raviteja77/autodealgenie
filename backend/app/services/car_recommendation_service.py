@@ -22,6 +22,7 @@ from tenacity import (
 
 from app.core.config import settings
 from app.db.redis import redis_client
+from app.repositories.ai_response_repository import ai_response_repository
 from app.repositories.search_history_repository import search_history_repository
 from app.repositories.webhook_repository import WebhookRepository
 from app.services.webhook_service import webhook_service
@@ -383,7 +384,7 @@ class CarRecommendationService:
         # Get LLM recommendations
         if llm_client.is_available():
             top_vehicles = await self._get_llm_recommendations(
-                parsed_listings, make, model, car_type, user_priorities
+                parsed_listings, make, model, car_type, user_priorities, user_id
             )
         else:
             # Fallback: simple sorting by price and mileage
@@ -426,6 +427,7 @@ class CarRecommendationService:
         model: str | None,
         car_type: str | None,
         user_priorities: str | None,
+        user_id: int | None = None,
     ) -> list[dict[str, Any]]:
         """Use LLM to analyze and recommend top vehicles"""
 
@@ -473,6 +475,41 @@ class CarRecommendationService:
             # Check if the response has the expected structure
             if hasattr(response, "recommendations") and response.recommendations is not None:
                 recommendations = response.recommendations
+                
+                # Build final output with full vehicle data
+                top_vehicles = []
+                for rec in recommendations:
+                    idx = rec.index
+                    if idx is not None and 0 <= idx < len(listings):
+                        vehicle = listings[idx].copy()
+                        vehicle["recommendation_score"] = rec.score
+                        vehicle["highlights"] = rec.highlights
+                        vehicle["recommendation_summary"] = rec.summary
+                        top_vehicles.append(vehicle)
+
+                # Log AI response to MongoDB
+                try:
+                    await ai_response_repository.create_response(
+                        feature="car_recommendation",
+                        user_id=user_id,
+                        deal_id=None,
+                        prompt_id="car_selection_from_list",
+                        prompt_variables={
+                            "user_criteria": user_criteria,
+                            "listings_count": len(listings),
+                        },
+                        response_content={"top_vehicles": [{"vin": v["vin"], "score": v["recommendation_score"], "summary": v["recommendation_summary"]} for v in top_vehicles]},
+                        response_metadata={
+                            "total_listings_analyzed": len(listings),
+                            "recommendations_count": len(top_vehicles),
+                        },
+                        llm_used=True,
+                    )
+                except Exception as log_error:
+                    logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
+
+                return top_vehicles
+                
             elif hasattr(response, "top_vehicles") and response.top_vehicles is not None:
                 # Adapt to the new response structure if 'recommendations' is missing
                 # Build final output with full vehicle data
@@ -486,25 +523,34 @@ class CarRecommendationService:
                         vehicle_data["highlights"] = vehicle.highlights
                         vehicle_data["recommendation_summary"] = vehicle.summary
                         top_vehicles.append(vehicle_data)
+                
+                # Log AI response to MongoDB
+                try:
+                    await ai_response_repository.create_response(
+                        feature="car_recommendation",
+                        user_id=user_id,
+                        deal_id=None,
+                        prompt_id="car_selection_from_list",
+                        prompt_variables={
+                            "user_criteria": user_criteria,
+                            "listings_count": len(listings),
+                        },
+                        response_content={"top_vehicles": [{"vin": v["vin"], "score": v["recommendation_score"], "summary": v["recommendation_summary"]} for v in top_vehicles]},
+                        response_metadata={
+                            "total_listings_analyzed": len(listings),
+                            "recommendations_count": len(top_vehicles),
+                        },
+                        llm_used=True,
+                    )
+                except Exception as log_error:
+                    logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
+                
                 return top_vehicles
             else:
                 logger.warning(
                     "LLM response missing 'recommendations' or valid 'top_vehicles'. Using fallback recommendations."
                 )
                 return self._fallback_recommendations(listings)
-
-            # Build final output with full vehicle data
-            top_vehicles = []
-            for rec in recommendations:
-                idx = rec.index
-                if idx is not None and 0 <= idx < len(listings):
-                    vehicle = listings[idx].copy()
-                    vehicle["recommendation_score"] = rec.score
-                    vehicle["highlights"] = rec.highlights
-                    vehicle["recommendation_summary"] = rec.summary
-                    top_vehicles.append(vehicle)
-
-            return top_vehicles
 
         except Exception as e:
             logger.error(f"LLM recommendation error: {e}")

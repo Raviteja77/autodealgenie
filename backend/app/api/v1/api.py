@@ -5,6 +5,7 @@ API v1 router configuration
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
+    ai_responses,
     auth,
     cars,
     comparisons,
@@ -44,6 +45,7 @@ api_router.include_router(
 api_router.include_router(comparisons.router, prefix="/vehicles", tags=["comparisons"])
 api_router.include_router(loans.router, prefix="/loans", tags=["loans"])
 api_router.include_router(insurance.router, prefix="/insurance", tags=["insurance"])
+api_router.include_router(ai_responses.router, prefix="/ai-responses", tags=["ai-responses"])
 
 if settings.USE_MOCK_SERVICES:
     from app.api.mock import mock_router

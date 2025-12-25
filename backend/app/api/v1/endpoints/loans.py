@@ -1,10 +1,13 @@
 """
 Loan calculation endpoints (anonymous, secure)
 """
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, get_db
 from app.models.models import User
+from app.repositories.loan_recommendation_repository import LoanRecommendationRepository
 from app.schemas.loan_schemas import (
     LenderRecommendationRequest,
     LenderRecommendationResponse,
@@ -19,8 +22,10 @@ from app.services.loan_calculator_service import (
     CreditScoreRange,
     LoanCalculatorService,
 )
+from sqlalchemy.orm import Session
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Mock lender rate adjustments (relative to base APR for credit score)
 BEST_LENDER_DISCOUNT = 0.005  # 0.5% below base rate
@@ -81,12 +86,15 @@ def generate_mock_loan_offers(
 async def calculate_loan_payment(
     calculation: LoanCalculationRequest,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """
     Calculate monthly payment and total cost for a loan.
 
     Interest rates are determined server-side based on credit score range.
     Uses the LoanCalculatorService for accurate calculations.
+    
+    Optionally saves the loan calculation to the database if deal_id is provided.
     """
     try:
         # Use the loan calculator service
@@ -97,6 +105,27 @@ async def calculate_loan_payment(
             credit_score_range=calculation.credit_score_range,
             include_amortization=False,  # Don't include full schedule in API response
         )
+
+        # Save loan recommendation to database if deal_id is provided
+        if calculation.deal_id:
+            try:
+                loan_repo = LoanRecommendationRepository(db)
+                loan_repo.create(
+                    deal_id=calculation.deal_id,
+                    user_id=current_user.id,
+                    loan_amount=result.principal,
+                    down_payment=result.down_payment,
+                    loan_term_months=result.loan_term_months,
+                    credit_score_range=result.credit_score_range,
+                    monthly_payment=result.monthly_payment,
+                    apr=result.apr,
+                    total_interest=result.total_interest,
+                    total_amount=result.total_amount,
+                    additional_data=None,  # Could include amortization schedule if needed
+                )
+            except Exception as e:
+                # Log error but don't fail the request
+                logger.error(f"Failed to save loan recommendation: {str(e)}")
 
         # Convert to response schema
         return LoanCalculationResponse(

@@ -11,6 +11,7 @@ Provides insurance recommendations based on vehicle and driver criteria includin
 
 import logging
 
+from app.models.ai_response import InsuranceRecommendation
 from app.schemas.insurance_schemas import (
     InsuranceMatch,
     InsuranceProviderInfo,
@@ -484,7 +485,11 @@ class InsuranceRecommendationService:
 
     @staticmethod
     def get_recommendations(
-        request: InsuranceRecommendationRequest, max_results: int = 5
+        request: InsuranceRecommendationRequest,
+        max_results: int = 5,
+        user_id: int | None = None,
+        deal_id: int | None = None,
+        db_session=None,
     ) -> InsuranceRecommendationResponse:
         """
         Get top insurance provider recommendations for user criteria
@@ -492,6 +497,9 @@ class InsuranceRecommendationService:
         Args:
             request: Insurance recommendation request with vehicle and driver criteria
             max_results: Maximum number of recommendations to return
+            user_id: Optional user ID for storing recommendations
+            deal_id: Optional deal ID for associating recommendations
+            db_session: Optional database session for storing recommendations
 
         Returns:
             Insurance recommendation response with ranked matches
@@ -542,6 +550,51 @@ class InsuranceRecommendationService:
                     rank=rank,
                 )
             )
+
+        # Store recommendations in PostgreSQL if user and deal IDs are provided
+        if user_id and deal_id and db_session:
+            from app.repositories.insurance_recommendation_repository import InsuranceRecommendationRepository
+            
+            insurance_repo = InsuranceRecommendationRepository(db_session)
+            
+            for rec in recommendations:
+                try:
+                    ins_rec = InsuranceRecommendation(
+                        deal_id=deal_id,
+                        user_id=user_id,
+                        vehicle_value=request.vehicle_value,
+                        vehicle_age=request.vehicle_age,
+                        coverage_type=request.coverage_type,
+                        driver_age=request.driver_age,
+                        provider_id=rec.provider.provider_id,
+                        provider_name=rec.provider.name,
+                        match_score=rec.match_score,
+                        estimated_monthly_premium=rec.estimated_monthly_premium,
+                        estimated_annual_premium=rec.estimated_annual_premium,
+                        recommendation_reason=rec.recommendation_reason,
+                        rank=rec.rank,
+                        full_recommendation_data={
+                            "provider": rec.provider.dict(),
+                            "request": request.dict(),
+                        },
+                    )
+                    insurance_repo.db.add(ins_rec)
+                    insurance_repo.db.flush()  # Flush instead of commit
+                except Exception as e:
+                    logger.error(
+                        f"Failed to store insurance recommendation for deal {deal_id}: {str(e)}"
+                    )
+                    # Don't fail the main operation if storage fails
+            
+            # Single commit after all recommendations
+            try:
+                insurance_repo.db.commit()
+                logger.info(
+                    f"Stored {len(recommendations)} insurance recommendations for deal {deal_id}"
+                )
+            except Exception as e:
+                logger.error(f"Failed to commit insurance recommendations: {str(e)}")
+                insurance_repo.db.rollback()
 
         logger.info(
             f"Generated {len(recommendations)} recommendations from {len(matching_providers)} matches"

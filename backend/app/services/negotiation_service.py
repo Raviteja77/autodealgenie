@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.llm import generate_text
 from app.models.negotiation import MessageRole, NegotiationSession, NegotiationStatus
+from app.repositories.ai_response_repository import ai_response_repository
 from app.repositories.deal_repository import DealRepository
 from app.repositories.negotiation_repository import NegotiationRepository
 from app.services.loan_calculator_service import LoanCalculatorService
@@ -580,6 +581,36 @@ class NegotiationService:
                 messages=None,  # Will fetch messages inside the method
             )
 
+            # Log AI response to MongoDB for analytics and traceability
+            try:
+                await ai_response_repository.create_response(
+                    feature="negotiation",
+                    user_id=session.user_id,
+                    deal_id=session.deal_id,
+                    prompt_id="negotiation_initial",
+                    prompt_variables={
+                        "make": deal.vehicle_make,
+                        "model": deal.vehicle_model,
+                        "year": deal.vehicle_year,
+                        "asking_price": deal.asking_price,
+                        "target_price": user_target_price,
+                        "strategy": strategy,
+                    },
+                    response_content=response_content,
+                    response_metadata={
+                        "suggested_price": round(suggested_price, 2),
+                        "asking_price": deal.asking_price,
+                        "user_target_price": user_target_price,
+                        "financing_options": financing_options,
+                        "cash_savings": round(cash_savings, 2) if cash_savings else None,
+                        **ai_metrics,
+                    },
+                    llm_used=True,
+                )
+            except Exception as e:
+                logger.error(f"[{request_id}] Failed to log AI response to MongoDB: {str(e)}")
+                # Don't fail the main operation if logging fails
+
             return {
                 "content": response_content,
                 "metadata": {
@@ -629,6 +660,36 @@ class NegotiationService:
                 user_target=user_target_price,
                 messages=None,  # Will fetch messages inside the method
             )
+
+            # Log fallback response to MongoDB
+            try:
+                await ai_response_repository.create_response(
+                    feature="negotiation",
+                    user_id=session.user_id,
+                    deal_id=session.deal_id,
+                    prompt_id="negotiation_fallback",
+                    prompt_variables={
+                        "make": deal.vehicle_make,
+                        "model": deal.vehicle_model,
+                        "year": deal.vehicle_year,
+                        "asking_price": deal.asking_price,
+                        "target_price": user_target_price,
+                        "strategy": strategy,
+                    },
+                    response_content=fallback_content,
+                    response_metadata={
+                        "suggested_price": round(suggested_price, 2),
+                        "asking_price": deal.asking_price,
+                        "user_target_price": user_target_price,
+                        "financing_options": financing_options,
+                        "cash_savings": round(cash_savings, 2) if cash_savings else None,
+                        "fallback": True,
+                        **ai_metrics,
+                    },
+                    llm_used=False,
+                )
+            except Exception as log_error:
+                logger.error(f"[{request_id}] Failed to log fallback AI response: {str(log_error)}")
 
             return {
                 "content": fallback_content,

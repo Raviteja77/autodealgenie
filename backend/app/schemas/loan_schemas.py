@@ -14,6 +14,7 @@ class LoanCalculationRequest(BaseModel):
     credit_score_range: str = Field(
         ..., description="Credit score range: excellent, good, fair, or poor"
     )
+    deal_id: int | None = Field(None, description="Optional deal ID to associate this calculation")
 
     @field_validator("credit_score_range")
     @classmethod

@@ -246,6 +246,15 @@ Once the backend is running, visit:
 - `PUT /api/v1/deals/{id}` - Update deal (requires auth)
 - `DELETE /api/v1/deals/{id}` - Delete deal (requires auth)
 
+### AI Response Tracking
+
+All AI-generated responses are now comprehensively tracked and stored:
+- `GET /api/v1/ai-responses/history/{deal_id}` - Get AI history for a deal
+- `GET /api/v1/ai-responses/lifecycle/{deal_id}` - Get complete deal lifecycle
+- `GET /api/v1/ai-responses/analytics` - Platform-wide AI analytics (admin)
+
+For detailed documentation on AI response storage, see [AI_STORAGE_ARCHITECTURE.md](AI_STORAGE_ARCHITECTURE.md).
+
 For detailed authentication documentation, see [AUTHENTICATION.md](AUTHENTICATION.md).
 
 ## 🐳 Docker Services
