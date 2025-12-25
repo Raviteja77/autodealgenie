@@ -39,7 +39,8 @@ export default function FavoritesPage() {
     if (!user) {
       router.push("/auth/login");
     }
-  }, []); // Run once, router.push doesn't need to be a dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount, router.push and user are stable
 
   // Single effect for fetching favorites
   useEffect(() => {

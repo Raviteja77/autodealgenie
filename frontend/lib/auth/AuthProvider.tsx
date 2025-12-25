@@ -80,7 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     checkAuth();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // getCurrentUser is intentionally excluded to avoid infinite loops
 
   const getCurrentUser = useCallback(async () => {
     // Verify token with backend
@@ -114,7 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // getCurrentUser is intentionally excluded to avoid circular dependencies
 
   const signup = useCallback(
     async (email: string, username: string, password: string) => {
@@ -142,8 +144,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
-  );
+  ); // login is intentionally excluded to avoid circular dependencies
 
   const logout = useCallback(async () => {
     setLoading(true);

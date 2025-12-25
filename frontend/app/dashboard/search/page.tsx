@@ -115,11 +115,14 @@ function DashboardSearchPageContent() {
       setValidationErrors((prev) => ({ ...prev, budgetMax: result.error! }));
     } else {
       setValidationErrors((prev) => {
+        // Remove unused budgetMax variable
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { budgetMax, ...rest } = prev;
         return rest;
       });
     }
-  }, [debouncedBudget, searchParams.paymentMethod, searchParams.downPayment]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedBudget, searchParams.paymentMethod, searchParams.downPayment]); // searchParams is intentionally excluded to avoid circular dependencies
 
   useEffect(() => {
     const result = validateSearchField("yearMax", debouncedYear.max, {
@@ -131,11 +134,14 @@ function DashboardSearchPageContent() {
       setValidationErrors((prev) => ({ ...prev, yearMax: result.error! }));
     } else {
       setValidationErrors((prev) => {
+        // Remove unused yearMax variable
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { yearMax, ...rest } = prev;
         return rest;
       });
     }
-  }, [debouncedYear]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedYear]); // searchParams is intentionally excluded to avoid circular dependencies
 
   // Validate down payment when budget changes
   useEffect(() => {

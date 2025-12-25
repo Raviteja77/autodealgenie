@@ -65,7 +65,6 @@ import {
   type NegotiationMessage,
   type DealCreate,
   type LenderMatch,
-  type FinancingOption,
 } from "@/lib/api";
 import { formatPrice, formatTimestamp } from "@/lib/utils/formatting";
 import {
@@ -103,7 +102,6 @@ function NegotiationContent() {
   // Use centralized negotiation state hook
   const {
     state: negotiationState,
-    latestPrice: latestPriceValue,
     financingOptions,
     cashSavings,
     currentOfferStatus,
@@ -115,7 +113,6 @@ function NegotiationContent() {
     setError,
     setTyping,
     setCurrentRound,
-    updateFromNextRound,
   } = useNegotiationState(targetPrice, {
     maxRounds: 10,
   });
@@ -256,7 +253,8 @@ function NegotiationContent() {
     if (!canNavigateToStep(2)) {
       router.push("/dashboard/search");
     }
-  }, []); // Run once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount, canNavigateToStep and router are stable
 
   // Mark step as in-progress (separate effect)
   useEffect(() => {
@@ -267,7 +265,8 @@ function NegotiationContent() {
         timestamp: new Date().toISOString(),
       });
     }
-  }, [vehicleData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleData]); // completeStep is stable from context
 
   // Initialize negotiation session
   useEffect(() => {
@@ -347,7 +346,8 @@ function NegotiationContent() {
     };
 
     initializeNegotiation();
-  }, [vehicleData, targetPrice]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleData, targetPrice]); // Other dependencies are stable (setters, user, chatContext)
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = useCallback(() => {

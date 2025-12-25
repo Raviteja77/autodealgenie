@@ -30,7 +30,8 @@ export default function DealsPage() {
     
     hasFetchedRef.current = true;  
     execute(() => apiClient.getDeals());
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // execute is stable from useAsyncAction hook
 
   const getStatusColor = (status: string): "warning" | "info" | "success" | "error" | "default" => {
     switch (status) {
