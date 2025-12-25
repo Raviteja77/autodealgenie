@@ -361,7 +361,7 @@ function EvaluationContent() {
               )}
 
               {/* Negotiation Strategy */}
-              {evaluation.talking_points.length > 0 && (
+              {/* {evaluation.talking_points.length > 0 && (
                 <Card sx={{ mb: 3 }}>
                   <Card.Body>
                     <Typography variant="h6" gutterBottom>
@@ -395,7 +395,7 @@ function EvaluationContent() {
                     </Stack>
                   </Card.Body>
                 </Card>
-              )}
+              )} */}
 
               {/* Insurance Recommendations */}
               <Card sx={{ mb: 3 }}>
@@ -453,19 +453,19 @@ function EvaluationContent() {
                   ) : (
                     <>
                       <Button
-                        variant="outline"
+                        variant="success"
                         size="lg"
                         onClick={() => router.push("/dashboard/search")}
                       >
                         View More Options
                       </Button>
-                      <Button
+                      {/* <Button
                         variant="success"
                         size="lg"
                         onClick={() => router.push("/deals")}
                       >
                         Proceed with This Deal
-                      </Button>
+                      </Button> */}
                     </>
                   )}
                 </Box>

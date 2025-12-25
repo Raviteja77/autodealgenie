@@ -823,7 +823,7 @@ function NegotiationContent() {
                 sx={{ mt: 3 }}
               >
                 <Button
-                  variant="primary"
+                  variant="success"
                   onClick={() => {
                     if (vehicleData) {
                       const finalPrice = latestPrice?.price || vehicleData.price;

@@ -208,7 +208,7 @@ export default function Home() {
     <Box sx={{ minHeight: "100vh", bgcolor: "grey.50" }}>
       <Header />
 
-      <Container maxWidth="lg" sx={{ py: { xs: 6, sm: 8, md: 12 } }}>
+      <Container maxWidth="lg" sx={{ pt: { xs: 8, sm: 10, md: 14 } }}>
         {/* Hero Section */}
         <Box sx={{ textAlign: "center", mb: { xs: 4, md: 6 } }}>
           <Typography

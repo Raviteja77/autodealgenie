@@ -536,7 +536,7 @@ export function InsuranceRecommendations({
               <Box sx={{ display: "flex", gap: 1, mt: 2 }}>
                 {showApplyButton && (
                   <Button
-                    variant="primary"
+                    variant="success"
                     size="sm"
                     fullWidth
                     onClick={() => {
