@@ -907,15 +907,6 @@ class ApiClient {
     });
   }
 
-  // export interface InsuranceRecommendationRequest {
-  //   vehicle_value: number;
-  //   vehicle_age: number;
-  //   vehicle_make: string;
-  //   vehicle_model: string;
-  //   coverage_type: "liability" | "comprehensive" | "full";
-  //   driver_age: number;
-  // }
-
   /**
    * Get insurance recommendations
    */
