@@ -439,9 +439,9 @@ Vehicle Details:
 - Make: {make}
 - Model: {model}
 - Year: {year}
-- Mileage: {mileage} miles
+- Mileage: {mileage:,} miles
 - Condition: {condition}
-- Asking Price: ${asking_price}
+- Asking Price: ${asking_price:,.2f}
 
 Provide a comprehensive evaluation in JSON format with:
 {{
@@ -469,7 +469,7 @@ Vehicle Details:
 - Model: {model}
 - Year: {year}
 - VIN: {vin}
-- Mileage: {mileage} miles
+- Mileage: {mileage:,} miles
 - Condition Description: {condition_description}
 
 Evaluate the vehicle condition and provide a JSON response with:

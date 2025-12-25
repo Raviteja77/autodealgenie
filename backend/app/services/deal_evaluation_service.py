@@ -202,8 +202,8 @@ class DealEvaluationService:
                     "make": make or "Unknown",
                     "model": model or "Unknown",
                     "year": str(year) if year else "Unknown",
-                    "asking_price": f"{asking_price:,.2f}",
-                    "mileage": f"{mileage:,}",
+                    "asking_price": asking_price,
+                    "mileage": mileage,
                     "condition": condition,
                 },
                 response_model=DealEvaluation,
@@ -501,7 +501,7 @@ class DealEvaluationService:
                         "model": deal.vehicle_model or "Unknown",
                         "year": str(deal.vehicle_year) if deal.vehicle_year else "Unknown",
                         "vin": user_inputs.get("vin", "Unknown"),
-                        "mileage": f"{deal.vehicle_mileage:,}",
+                        "mileage": deal.vehicle_mileage,
                         "condition_description": user_inputs.get(
                             "condition_description", "Not provided"
                         ),
