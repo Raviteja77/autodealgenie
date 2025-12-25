@@ -33,7 +33,6 @@ import {
   apiClient,
   type InsuranceMatch,
   type InsuranceRecommendationResponse,
-  type InsuranceRecommendationRequest,
 } from "@/lib/api";
 import {
   isApiError,
@@ -105,7 +104,8 @@ export function InsuranceRecommendations({
         setError(null);
 
         const response: InsuranceRecommendationResponse = await apiClient.getInsuranceRecommendations(
-          loanAmount,
+          vehicleValue,
+          vehicleAge,
           vehicleMake,
           vehicleModel,
           selectedCoverage,

@@ -103,6 +103,13 @@ async def request_id_middleware(request: Request, call_next):
     process_time = time.time() - start_time
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Process-Time"] = str(process_time)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https://cdn.jsdelivr.net;"
+    )
+
 
     return response
 
