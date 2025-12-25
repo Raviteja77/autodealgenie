@@ -12,8 +12,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    ForeignKey,
-    JSON,
     Boolean,
 )
 from sqlalchemy.sql import func

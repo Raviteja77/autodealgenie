@@ -60,6 +60,7 @@ def downgrade() -> None:
     try:
         op.drop_index("ix_deals_vehicle_vin", table_name="deals")
     except Exception:
+        # Index might not exist in all database versions/environments; ignore if missing.
         pass
 
     op.drop_index("ix_deals_vehicle_lookup", table_name="deals")
