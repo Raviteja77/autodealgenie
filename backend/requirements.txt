@@ -16,7 +16,8 @@ alembic==1.13.3
 
 # Database - MongoDB
 motor==3.6.0
-pymongo==4.10.1
+# pymongo is automatically installed as a motor dependency
+
 
 # Cache - Redis
 redis==5.2.0

@@ -3,7 +3,6 @@ Rate limiting dependency for FastAPI endpoints
 """
 
 from fastapi import HTTPException, Request, status
-from fastapi.responses import JSONResponse
 
 from app.core.rate_limiter import RateLimiter
 

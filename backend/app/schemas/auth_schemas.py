@@ -26,8 +26,8 @@ class LoginRequest(BaseModel):
 
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
-    
-    @field_validator('email')
+
+    @field_validator("email")
     @classmethod
     def normalize_email(cls, v: str) -> str:
         """Normalize email to lowercase"""
@@ -44,8 +44,8 @@ class ForgotPasswordRequest(BaseModel):
     """Forgot password request schema"""
 
     email: EmailStr
-    
-    @field_validator('email')
+
+    @field_validator("email")
     @classmethod
     def normalize_email(cls, v: str) -> str:
         """Normalize email to lowercase"""
@@ -57,12 +57,13 @@ class ResetPasswordRequest(BaseModel):
 
     token: str = Field(..., min_length=10)
     new_password: str = Field(..., min_length=8, max_length=128)
-    
-    @field_validator('new_password')
+
+    @field_validator("new_password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
         """Validate password strength"""
         from app.utils.validators import validate_password_strength
+
         return validate_password_strength(v)
 
 

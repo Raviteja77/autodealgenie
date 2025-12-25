@@ -39,25 +39,25 @@ class DealBase(BaseModel):
     status: DealStatus = DealStatus.PENDING
     notes: str | None = Field(None, max_length=5000)
 
-    @field_validator('vehicle_vin')
+    @field_validator("vehicle_vin")
     @classmethod
     def validate_vin_format(cls, v: str) -> str:
         """Validate VIN format"""
         return validate_vin(v)
 
-    @field_validator('vehicle_year')
+    @field_validator("vehicle_year")
     @classmethod
     def validate_year_range(cls, v: int) -> int:
         """Validate vehicle year"""
         return validate_year(v)
 
-    @field_validator('vehicle_mileage')
+    @field_validator("vehicle_mileage")
     @classmethod
     def validate_mileage_range(cls, v: int) -> int:
         """Validate vehicle mileage"""
         return validate_mileage(v)
 
-    @field_validator('asking_price', 'offer_price')
+    @field_validator("asking_price", "offer_price")
     @classmethod
     def validate_price_range(cls, v: float | None) -> float | None:
         """Validate price"""
@@ -65,7 +65,7 @@ class DealBase(BaseModel):
             return validate_price(v)
         return v
 
-    @field_validator('customer_name', 'vehicle_make', 'vehicle_model')
+    @field_validator("customer_name", "vehicle_make", "vehicle_model")
     @classmethod
     def sanitize_text_fields(cls, v: str) -> str:
         """Sanitize text fields"""
@@ -95,7 +95,7 @@ class DealUpdate(BaseModel):
     status: DealStatus | None = None
     notes: str | None = Field(None, max_length=5000)
 
-    @field_validator('vehicle_vin')
+    @field_validator("vehicle_vin")
     @classmethod
     def validate_vin_format(cls, v: str | None) -> str | None:
         """Validate VIN format"""
@@ -103,7 +103,7 @@ class DealUpdate(BaseModel):
             return validate_vin(v)
         return v
 
-    @field_validator('vehicle_year')
+    @field_validator("vehicle_year")
     @classmethod
     def validate_year_range(cls, v: int | None) -> int | None:
         """Validate vehicle year"""
@@ -111,7 +111,7 @@ class DealUpdate(BaseModel):
             return validate_year(v)
         return v
 
-    @field_validator('vehicle_mileage')
+    @field_validator("vehicle_mileage")
     @classmethod
     def validate_mileage_range(cls, v: int | None) -> int | None:
         """Validate vehicle mileage"""
@@ -119,7 +119,7 @@ class DealUpdate(BaseModel):
             return validate_mileage(v)
         return v
 
-    @field_validator('asking_price', 'offer_price')
+    @field_validator("asking_price", "offer_price")
     @classmethod
     def validate_price_range(cls, v: float | None) -> float | None:
         """Validate price"""
@@ -146,11 +146,12 @@ class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=100)
     full_name: str | None = Field(None, max_length=255)
 
-    @field_validator('username')
+    @field_validator("username")
     @classmethod
     def validate_username_format(cls, v: str) -> str:
         """Validate username format"""
         from app.utils.validators import validate_username
+
         return validate_username(v)
 
 
@@ -159,11 +160,12 @@ class UserCreate(UserBase):
 
     password: str = Field(..., min_length=8, max_length=128)
 
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
         """Validate password strength"""
         from app.utils.validators import validate_password_strength
+
         return validate_password_strength(v)
 
 
@@ -175,21 +177,23 @@ class UserUpdate(BaseModel):
     full_name: str | None = Field(None, max_length=255)
     password: str | None = Field(None, min_length=8, max_length=128)
 
-    @field_validator('username')
+    @field_validator("username")
     @classmethod
     def validate_username_format(cls, v: str | None) -> str | None:
         """Validate username format"""
         if v is not None:
             from app.utils.validators import validate_username
+
             return validate_username(v)
         return v
 
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v: str | None) -> str | None:
         """Validate password strength"""
         if v is not None:
             from app.utils.validators import validate_password_strength
+
             return validate_password_strength(v)
         return v
 
