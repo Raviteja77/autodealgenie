@@ -59,9 +59,7 @@ def upgrade() -> None:
         sa.Column("offer_price", sa.Float(), nullable=True),
         sa.Column(
             "status",
-            sa.Enum(
-                "pending", "in_progress", "completed", "cancelled", name="dealstatus"
-            ),
+            sa.Enum("pending", "in_progress", "completed", "cancelled", name="dealstatus"),
             nullable=False,
             server_default="pending",
         ),

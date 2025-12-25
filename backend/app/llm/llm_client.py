@@ -76,9 +76,7 @@ class LLMClient:
                 client_kwargs["base_url"] = "https://openrouter.ai/api/v1"
 
             self.client = OpenAI(**client_kwargs)
-            logger.info(
-                f"LLM client initialized with model: {settings.OPENAI_MODEL_NAME}"
-            )
+            logger.info(f"LLM client initialized with model: {settings.OPENAI_MODEL_NAME}")
 
     def is_available(self) -> bool:
         """
@@ -190,17 +188,11 @@ class LLMClient:
 
             # Parse JSON from response
             # First, check if the LLM returns Markdown code block and clean it
-            if content.strip().startswith("```json") and content.strip().endswith(
-                "```"
-            ):
-                logger.debug(
-                    "Detected markdown code block in LLM response, cleaning it"
-                )
+            if content.strip().startswith("```json") and content.strip().endswith("```"):
+                logger.debug("Detected markdown code block in LLM response, cleaning it")
                 content = content.strip()[7:-3].strip()
             elif content.strip().startswith("```") and content.strip().endswith("```"):
-                logger.debug(
-                    "Detected generic markdown code block in LLM response, cleaning it"
-                )
+                logger.debug("Detected generic markdown code block in LLM response, cleaning it")
                 # Handle ```\n{json}\n``` format
                 content = content.strip()[3:-3].strip()
 
@@ -316,9 +308,7 @@ class LLMClient:
             ) from e
 
         except Exception as e:
-            logger.error(
-                f"Unexpected error in generate_structured_json: {e}", exc_info=True
-            )
+            logger.error(f"Unexpected error in generate_structured_json: {e}", exc_info=True)
             raise ApiError(
                 status_code=500,
                 message="Unexpected error during LLM generation",

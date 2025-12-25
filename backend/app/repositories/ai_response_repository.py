@@ -98,12 +98,7 @@ class AIResponseRepository:
 
         collection = mongodb.get_collection(self.COLLECTION_NAME)
 
-        cursor = (
-            collection.find({"deal_id": deal_id})
-            .sort("timestamp", -1)
-            .skip(skip)
-            .limit(limit)
-        )
+        cursor = collection.find({"deal_id": deal_id}).sort("timestamp", -1).skip(skip).limit(limit)
 
         records = []
         async for doc in cursor:
@@ -132,12 +127,7 @@ class AIResponseRepository:
 
         collection = mongodb.get_collection(self.COLLECTION_NAME)
 
-        cursor = (
-            collection.find({"user_id": user_id})
-            .sort("timestamp", -1)
-            .skip(skip)
-            .limit(limit)
-        )
+        cursor = collection.find({"user_id": user_id}).sort("timestamp", -1).skip(skip).limit(limit)
 
         records = []
         async for doc in cursor:
@@ -174,9 +164,7 @@ class AIResponseRepository:
             "insurance",
         }
         if feature not in ALLOWED_FEATURES:
-            raise ValueError(
-                f"Invalid feature: {feature}. Must be one of {ALLOWED_FEATURES}"
-            )
+            raise ValueError(f"Invalid feature: {feature}. Must be one of {ALLOWED_FEATURES}")
 
         collection = mongodb.get_collection(self.COLLECTION_NAME)
 
@@ -260,12 +248,8 @@ class AIResponseRepository:
                 "$group": {
                     "_id": "$feature",
                     "count": {"$sum": 1},
-                    "llm_count": {
-                        "$sum": {"$cond": [{"$eq": ["$llm_used", True]}, 1, 0]}
-                    },
-                    "fallback_count": {
-                        "$sum": {"$cond": [{"$eq": ["$llm_used", False]}, 1, 0]}
-                    },
+                    "llm_count": {"$sum": {"$cond": [{"$eq": ["$llm_used", True]}, 1, 0]}},
+                    "fallback_count": {"$sum": {"$cond": [{"$eq": ["$llm_used", False]}, 1, 0]}},
                     "total_tokens": {"$sum": "$tokens_used"},
                 }
             },

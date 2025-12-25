@@ -55,15 +55,11 @@ class Settings(BaseSettings):
     # OpenAI / OpenRouter
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str = "gpt-4"
-    OPENAI_BASE_URL: str | None = (
-        None  # Optional: Use for OpenRouter or custom endpoints
-    )
+    OPENAI_BASE_URL: str | None = None  # Optional: Use for OpenRouter or custom endpoints
 
     # MarketCheck API
     MARKET_CHECK_API_KEY: str | None = None
-    MAX_SEARCH_RESULTS: int = (
-        50  # Maximum number of results to fetch from API for LLM analysis
-    )
+    MAX_SEARCH_RESULTS: int = 50  # Maximum number of results to fetch from API for LLM analysis
 
     # Security
     SECRET_KEY: str  # REQUIRED: Must be set via environment variable (min 32 chars)
@@ -98,9 +94,7 @@ class Settings(BaseSettings):
                 self.SECRET_KEY
                 == "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
             ):
-                raise ValueError(
-                    "Default SECRET_KEY detected in production environment"
-                )
+                raise ValueError("Default SECRET_KEY detected in production environment")
             if not self.POSTGRES_PASSWORD:
                 raise ValueError("POSTGRES_PASSWORD must be set in production")
             if "localhost" in str(self.BACKEND_CORS_ORIGINS):
@@ -121,9 +115,7 @@ class Settings(BaseSettings):
         """Refresh token expiry in seconds for cookie max_age"""
         return self.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
 
-    model_config = SettingsConfigDict(
-        env_file=".env", case_sensitive=True, extra="allow"
-    )
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="allow")
 
 
 settings = Settings()

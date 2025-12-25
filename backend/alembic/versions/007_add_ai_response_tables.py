@@ -45,12 +45,8 @@ def upgrade():
 
     # Create indexes for loan_recommendations
     op.create_index("ix_loan_recommendations_id", "loan_recommendations", ["id"])
-    op.create_index(
-        "ix_loan_recommendations_deal_id", "loan_recommendations", ["deal_id"]
-    )
-    op.create_index(
-        "ix_loan_recommendations_user_id", "loan_recommendations", ["user_id"]
-    )
+    op.create_index("ix_loan_recommendations_deal_id", "loan_recommendations", ["deal_id"])
+    op.create_index("ix_loan_recommendations_user_id", "loan_recommendations", ["user_id"])
 
     # Create insurance_recommendations table
     op.create_table(
@@ -82,9 +78,7 @@ def upgrade():
     )
 
     # Create indexes for insurance_recommendations
-    op.create_index(
-        "ix_insurance_recommendations_id", "insurance_recommendations", ["id"]
-    )
+    op.create_index("ix_insurance_recommendations_id", "insurance_recommendations", ["id"])
     op.create_index(
         "ix_insurance_recommendations_deal_id", "insurance_recommendations", ["deal_id"]
     )
@@ -95,15 +89,9 @@ def upgrade():
 
 def downgrade():
     # Drop indexes for insurance_recommendations
-    op.drop_index(
-        "ix_insurance_recommendations_user_id", table_name="insurance_recommendations"
-    )
-    op.drop_index(
-        "ix_insurance_recommendations_deal_id", table_name="insurance_recommendations"
-    )
-    op.drop_index(
-        "ix_insurance_recommendations_id", table_name="insurance_recommendations"
-    )
+    op.drop_index("ix_insurance_recommendations_user_id", table_name="insurance_recommendations")
+    op.drop_index("ix_insurance_recommendations_deal_id", table_name="insurance_recommendations")
+    op.drop_index("ix_insurance_recommendations_id", table_name="insurance_recommendations")
 
     # Drop insurance_recommendations table
     op.drop_table("insurance_recommendations")

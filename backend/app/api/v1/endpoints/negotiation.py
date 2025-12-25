@@ -162,9 +162,7 @@ def get_negotiation_session(
     return result
 
 
-@router.get(
-    "/{session_id}/lender-recommendations", response_model=LenderRecommendationResponse
-)
+@router.get("/{session_id}/lender-recommendations", response_model=LenderRecommendationResponse)
 def get_lender_recommendations(
     session_id: int,
     loan_term_months: int = 60,
@@ -438,9 +436,7 @@ async def websocket_endpoint(
                 await websocket.send_json({"type": "pong"})
             elif data.get("type") == "subscribe":
                 # Client is subscribing to updates (implicit by connection)
-                await websocket.send_json(
-                    {"type": "subscribed", "session_id": session_id}
-                )
+                await websocket.send_json({"type": "subscribed", "session_id": session_id})
                 logger.debug(f"Client subscribed to session {session_id}")
             else:
                 logger.debug(f"Unknown message type: {data.get('type')}")

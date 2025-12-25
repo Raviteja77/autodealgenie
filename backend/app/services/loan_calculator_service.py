@@ -149,9 +149,7 @@ class LoanCalculatorService:
             return APR_RATES[CreditScoreRange.GOOD]
 
     @staticmethod
-    def calculate_monthly_payment(
-        principal: float, annual_rate: float, term_months: int
-    ) -> float:
+    def calculate_monthly_payment(principal: float, annual_rate: float, term_months: int) -> float:
         """
         Calculate monthly payment using standard amortization formula
 
@@ -272,9 +270,7 @@ class LoanCalculatorService:
             ValueError: If inputs are invalid
         """
         # Validate all inputs
-        cls.validate_inputs(
-            loan_amount, down_payment, loan_term_months, credit_score_range
-        )
+        cls.validate_inputs(loan_amount, down_payment, loan_term_months, credit_score_range)
 
         # Calculate principal (amount to be financed)
         principal = loan_amount - down_payment
@@ -283,9 +279,7 @@ class LoanCalculatorService:
         apr = cls.get_apr_for_credit_score(credit_score_range)
 
         # Calculate monthly payment
-        monthly_payment = cls.calculate_monthly_payment(
-            principal, apr, loan_term_months
-        )
+        monthly_payment = cls.calculate_monthly_payment(principal, apr, loan_term_months)
 
         # Calculate total amounts
         total_paid = monthly_payment * loan_term_months

@@ -44,9 +44,7 @@ async def get_deal_ai_history(
     # In a production system, deals should have a user_id foreign key
 
     try:
-        responses = await ai_response_repository.get_by_deal_id(
-            deal_id, limit=limit, skip=skip
-        )
+        responses = await ai_response_repository.get_by_deal_id(deal_id, limit=limit, skip=skip)
         return {
             "deal_id": deal_id,
             "count": len(responses),
@@ -84,14 +82,10 @@ async def get_user_ai_history(
     """
     # Authorization check: users can only see their own history
     if current_user.id != user_id and current_user.is_superuser != 1:
-        raise HTTPException(
-            status_code=403, detail="Not authorized to view this user's history"
-        )
+        raise HTTPException(status_code=403, detail="Not authorized to view this user's history")
 
     try:
-        responses = await ai_response_repository.get_by_user_id(
-            user_id, limit=limit, skip=skip
-        )
+        responses = await ai_response_repository.get_by_user_id(user_id, limit=limit, skip=skip)
         return {
             "user_id": user_id,
             "count": len(responses),
@@ -131,9 +125,7 @@ async def get_feature_ai_history(
     """
     # Authorization check if user_id filter is provided
     if user_id and current_user.id != user_id and current_user.is_superuser != 1:
-        raise HTTPException(
-            status_code=403, detail="Not authorized to view this user's history"
-        )
+        raise HTTPException(status_code=403, detail="Not authorized to view this user's history")
 
     try:
         responses = await ai_response_repository.get_by_feature(
@@ -207,9 +199,7 @@ async def get_ai_analytics(
         Only superusers can access platform-wide analytics.
     """
     if current_user.is_superuser != 1:
-        raise HTTPException(
-            status_code=403, detail="Superuser access required for analytics"
-        )
+        raise HTTPException(status_code=403, detail="Superuser access required for analytics")
 
     try:
         analytics = await ai_response_repository.get_analytics(days=days)

@@ -10,9 +10,7 @@ class UserPreferenceInput(BaseModel):
 
     budget_min: int | None = Field(None, description="Minimum budget", ge=0)
     budget_max: int | None = Field(None, description="Maximum budget", ge=0)
-    body_type: str | None = Field(
-        None, description="Preferred body type (e.g., sedan, suv, truck)"
-    )
+    body_type: str | None = Field(None, description="Preferred body type (e.g., sedan, suv, truck)")
     must_have_features: list[str] | None = Field(
         None, description="Must-have features for the vehicle"
     )
@@ -102,10 +100,6 @@ class CarRecommendationResponse(BaseModel):
         default_factory=list, description="List of recommended vehicles"
     )
     total_found: int = Field(default=0, description="Total number of vehicles found")
-    total_analyzed: int = Field(
-        default=0, description="Total number of vehicles analyzed"
-    )
-    search_criteria: dict = Field(
-        default_factory=dict, description="Search criteria used"
-    )
+    total_analyzed: int = Field(default=0, description="Total number of vehicles analyzed")
+    search_criteria: dict = Field(default_factory=dict, description="Search criteria used")
     message: str | None = Field(None, description="Additional message or information")

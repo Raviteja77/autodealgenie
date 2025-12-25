@@ -85,9 +85,7 @@ class TestSaveUserPreferences:
     """Tests for save_user_preferences method"""
 
     @pytest.mark.asyncio
-    async def test_save_user_preferences_full(
-        self, service, mock_collection, sample_preferences
-    ):
+    async def test_save_user_preferences_full(self, service, mock_collection, sample_preferences):
         """Test saving user preferences with all fields"""
         service._collection = mock_collection
 
@@ -105,16 +103,9 @@ class TestSaveUserPreferences:
 
         assert call_args["user_id"] == "user123"
         assert call_args["preferences"]["makes"] == sample_preferences["makes"]
-        assert (
-            call_args["preferences"]["budget_range"]
-            == sample_preferences["budget_range"]
-        )
-        assert (
-            call_args["preferences"]["year_range"] == sample_preferences["year_range"]
-        )
-        assert (
-            call_args["preferences"]["body_types"] == sample_preferences["body_types"]
-        )
+        assert call_args["preferences"]["budget_range"] == sample_preferences["budget_range"]
+        assert call_args["preferences"]["year_range"] == sample_preferences["year_range"]
+        assert call_args["preferences"]["body_types"] == sample_preferences["body_types"]
         assert call_args["preferences"]["features"] == sample_preferences["features"]
         assert "created_at" in call_args
         assert "updated_at" in call_args
@@ -159,9 +150,7 @@ class TestGetUserPreferences:
     """Tests for get_user_preferences method"""
 
     @pytest.mark.asyncio
-    async def test_get_user_preferences_found(
-        self, service, mock_collection, sample_preferences
-    ):
+    async def test_get_user_preferences_found(self, service, mock_collection, sample_preferences):
         """Test retrieving existing user preferences"""
         service._collection = mock_collection
 
@@ -204,9 +193,7 @@ class TestGetUserPreferences:
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_get_user_preferences_multiple_results(
-        self, service, mock_collection
-    ):
+    async def test_get_user_preferences_multiple_results(self, service, mock_collection):
         """Test retrieving multiple preference records"""
         service._collection = mock_collection
 
@@ -269,10 +256,7 @@ class TestUpdateUserPreferences:
         assert call_args["user_id"] == "user123"
         assert call_args["preferences"]["makes"] == new_makes
         # Other fields should be preserved
-        assert (
-            call_args["preferences"]["budget_range"]
-            == sample_preferences["budget_range"]
-        )
+        assert call_args["preferences"]["budget_range"] == sample_preferences["budget_range"]
         assert call_args["preferences"]["features"] == sample_preferences["features"]
 
     @pytest.mark.asyncio
@@ -295,9 +279,7 @@ class TestUpdateUserPreferences:
         assert call_args["preferences"]["budget_range"] == {"min": 15000, "max": 25000}
 
     @pytest.mark.asyncio
-    async def test_update_user_preferences_multiple_fields(
-        self, service, mock_collection
-    ):
+    async def test_update_user_preferences_multiple_fields(self, service, mock_collection):
         """Test updating multiple fields at once"""
         service._collection = mock_collection
 
@@ -333,9 +315,7 @@ class TestDeleteOlderPreferences:
     """Tests for delete_older_preferences method"""
 
     @pytest.mark.asyncio
-    async def test_delete_older_preferences_default_days(
-        self, service, mock_collection
-    ):
+    async def test_delete_older_preferences_default_days(self, service, mock_collection):
         """Test deleting preferences older than 30 days (default)"""
         service._collection = mock_collection
 
@@ -380,9 +360,7 @@ class TestDeleteOlderPreferences:
         assert result == 10
 
     @pytest.mark.asyncio
-    async def test_delete_older_preferences_none_deleted(
-        self, service, mock_collection
-    ):
+    async def test_delete_older_preferences_none_deleted(self, service, mock_collection):
         """Test when no preferences are old enough to delete"""
         service._collection = mock_collection
 

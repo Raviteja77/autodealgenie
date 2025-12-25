@@ -29,14 +29,10 @@ class FavoriteRepository:
     def get_by_user_and_vin(self, user_id: int, vin: str) -> Favorite | None:
         """Get a specific favorite by user ID and VIN"""
         return (
-            self.db.query(Favorite)
-            .filter(Favorite.user_id == user_id, Favorite.vin == vin)
-            .first()
+            self.db.query(Favorite).filter(Favorite.user_id == user_id, Favorite.vin == vin).first()
         )
 
-    def get_all_by_user(
-        self, user_id: int, skip: int = 0, limit: int = 100
-    ) -> list[Favorite]:
+    def get_all_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[Favorite]:
         """Get all favorites for a user with pagination"""
         return (
             self.db.query(Favorite)

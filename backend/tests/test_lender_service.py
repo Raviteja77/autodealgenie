@@ -217,9 +217,7 @@ class TestScoreLenders:
 
         # Get average score for excellent credit
         if scored_excellent:
-            avg_score_excellent = sum(s[1] for s in scored_excellent) / len(
-                scored_excellent
-            )
+            avg_score_excellent = sum(s[1] for s in scored_excellent) / len(scored_excellent)
             # Excellent credit should get decent scores
             assert avg_score_excellent > 0
 
@@ -245,8 +243,7 @@ class TestScoreLenders:
                 if "second chance" in lender.name.lower():
                     # Should have credit rebuilding mention in reason
                     assert (
-                        "credit rebuilding" in reason.lower()
-                        or "second chance" in reason.lower()
+                        "credit rebuilding" in reason.lower() or "second chance" in reason.lower()
                     )
 
     def test_score_lenders_reason_quality(self):

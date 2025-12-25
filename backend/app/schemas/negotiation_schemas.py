@@ -37,9 +37,7 @@ class CreateNegotiationRequest(BaseModel):
     """Schema for creating a negotiation session"""
 
     deal_id: int = Field(..., gt=0, description="ID of the deal being negotiated")
-    user_target_price: float = Field(
-        ..., gt=0, description="User's target price in USD"
-    )
+    user_target_price: float = Field(..., gt=0, description="User's target price in USD")
     strategy: str | None = Field(
         None,
         max_length=50,
@@ -50,9 +48,7 @@ class CreateNegotiationRequest(BaseModel):
 class NextRoundRequest(BaseModel):
     """Schema for processing the next negotiation round"""
 
-    user_action: UserAction = Field(
-        ..., description="User's action: confirm, reject, or counter"
-    )
+    user_action: UserAction = Field(..., description="User's action: confirm, reject, or counter")
     counter_offer: float | None = Field(
         None, gt=0, description="Counter offer price (required if action is counter)"
     )
@@ -111,9 +107,7 @@ class FinancingOption(BaseModel):
 
     loan_amount: float = Field(..., description="Loan amount after down payment")
     down_payment: float = Field(..., description="Down payment amount")
-    monthly_payment_estimate: float = Field(
-        ..., description="Estimated monthly payment"
-    )
+    monthly_payment_estimate: float = Field(..., description="Estimated monthly payment")
     loan_term_months: int = Field(..., description="Loan term in months")
     estimated_apr: float = Field(..., description="Estimated APR as decimal")
     total_cost: float = Field(..., description="Total cost over loan term")
@@ -143,9 +137,7 @@ class NextRoundResponse(BaseModel):
 class ChatMessageRequest(BaseModel):
     """Schema for sending a free-form chat message"""
 
-    message: str = Field(
-        ..., min_length=1, max_length=2000, description="Chat message content"
-    )
+    message: str = Field(..., min_length=1, max_length=2000, description="Chat message content")
     message_type: str = Field(
         default="general",
         description="Type of message: general, dealer_info, question, etc.",
@@ -168,9 +160,7 @@ class DealerInfoRequest(BaseModel):
         ...,
         description="Type of dealer info: price_quote, inspection_report, additional_offer, etc.",
     )
-    content: str = Field(
-        ..., min_length=1, max_length=5000, description="Dealer information"
-    )
+    content: str = Field(..., min_length=1, max_length=5000, description="Dealer information")
     price_mentioned: float | None = Field(
         None, gt=0, description="Price mentioned in dealer info, if any"
     )

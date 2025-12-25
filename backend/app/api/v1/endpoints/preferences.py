@@ -114,9 +114,7 @@ async def cleanup_old_preferences(days: int = 30):
         Number of documents deleted
     """
     try:
-        deleted_count = await user_preferences_service.delete_older_preferences(
-            days=days
-        )
+        deleted_count = await user_preferences_service.delete_older_preferences(days=days)
         return {
             "message": "Cleanup completed",
             "deleted_count": deleted_count,

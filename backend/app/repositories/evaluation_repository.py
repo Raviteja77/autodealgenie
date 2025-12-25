@@ -31,19 +31,11 @@ class EvaluationRepository:
 
     def get(self, evaluation_id: int) -> DealEvaluation | None:
         """Get an evaluation by ID"""
-        return (
-            self.db.query(DealEvaluation)
-            .filter(DealEvaluation.id == evaluation_id)
-            .first()
-        )
+        return self.db.query(DealEvaluation).filter(DealEvaluation.id == evaluation_id).first()
 
     def get_by_deal(self, deal_id: int) -> list[DealEvaluation]:
         """Get all evaluations for a deal"""
-        return (
-            self.db.query(DealEvaluation)
-            .filter(DealEvaluation.deal_id == deal_id)
-            .all()
-        )
+        return self.db.query(DealEvaluation).filter(DealEvaluation.deal_id == deal_id).all()
 
     def get_latest_by_deal(self, deal_id: int) -> DealEvaluation | None:
         """Get the most recent evaluation for a deal"""
@@ -54,9 +46,7 @@ class EvaluationRepository:
             .first()
         )
 
-    def get_by_user(
-        self, user_id: int, skip: int = 0, limit: int = 100
-    ) -> list[DealEvaluation]:
+    def get_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[DealEvaluation]:
         """Get all evaluations for a user with pagination"""
         return (
             self.db.query(DealEvaluation)
@@ -67,9 +57,7 @@ class EvaluationRepository:
             .all()
         )
 
-    def update_status(
-        self, evaluation_id: int, status: EvaluationStatus
-    ) -> DealEvaluation | None:
+    def update_status(self, evaluation_id: int, status: EvaluationStatus) -> DealEvaluation | None:
         """Update evaluation status"""
         evaluation = self.get(evaluation_id)
         if not evaluation:
@@ -80,9 +68,7 @@ class EvaluationRepository:
         self.db.refresh(evaluation)
         return evaluation
 
-    def update_step(
-        self, evaluation_id: int, current_step: PipelineStep
-    ) -> DealEvaluation | None:
+    def update_step(self, evaluation_id: int, current_step: PipelineStep) -> DealEvaluation | None:
         """Update evaluation current step"""
         evaluation = self.get(evaluation_id)
         if not evaluation:

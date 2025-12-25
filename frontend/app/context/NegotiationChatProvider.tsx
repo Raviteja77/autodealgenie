@@ -444,6 +444,7 @@ export function NegotiationChatProvider({
         error: "Failed to connect to real-time updates",
       }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.sessionId, syncMissedMessages]);
 
   const disconnectWebSocket = useCallback(() => {

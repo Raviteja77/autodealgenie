@@ -301,10 +301,7 @@ class InsuranceRecommendationService:
                 continue
 
             # Check if provider accepts this driver age
-            if (
-                driver_age < provider.min_driver_age
-                or driver_age > provider.max_driver_age
-            ):
+            if driver_age < provider.min_driver_age or driver_age > provider.max_driver_age:
                 continue
 
             # Check if provider offers this coverage type
@@ -350,14 +347,10 @@ class InsuranceRecommendationService:
         coverage_multiplier = COVERAGE_MULTIPLIERS.get(coverage_type, 1.0)
 
         # Apply vehicle age factor
-        vehicle_age_factor = InsuranceRecommendationService._get_vehicle_age_factor(
-            vehicle_age
-        )
+        vehicle_age_factor = InsuranceRecommendationService._get_vehicle_age_factor(vehicle_age)
 
         # Apply driver age factor
-        driver_age_factor = InsuranceRecommendationService._get_driver_age_factor(
-            driver_age
-        )
+        driver_age_factor = InsuranceRecommendationService._get_driver_age_factor(driver_age)
 
         # Calculate vehicle value factor (higher value = higher premium)
         # Normalize to a reasonable range
@@ -370,9 +363,7 @@ class InsuranceRecommendationService:
 
         # Calculate deviation from midpoint based on combined factor
         # Scale the deviation to use only a portion of the available range
-        deviation = (
-            (combined_factor - 1.0) * range_width * 0.4
-        )  # Use 40% of range for variation
+        deviation = (combined_factor - 1.0) * range_width * 0.4  # Use 40% of range for variation
         estimated_premium = midpoint_premium + deviation
 
         # Ensure premium is within provider's range
@@ -417,22 +408,19 @@ class InsuranceRecommendationService:
             reasons = []
 
             # Calculate estimated premium for this provider
-            estimated_premium = (
-                InsuranceRecommendationService.calculate_estimated_premium(
-                    provider=provider,
-                    vehicle_value=vehicle_value,
-                    vehicle_age=vehicle_age,
-                    coverage_type=coverage_type,
-                    driver_age=driver_age,
-                )
+            estimated_premium = InsuranceRecommendationService.calculate_estimated_premium(
+                provider=provider,
+                vehicle_value=vehicle_value,
+                vehicle_age=vehicle_age,
+                coverage_type=coverage_type,
+                driver_age=driver_age,
             )
 
             # 1. Premium Competitiveness (40% weight) - lower is better
             premium_score = (
                 max(
                     0,
-                    (MAX_PREMIUM_FOR_SCORING - estimated_premium)
-                    / PREMIUM_SCORING_RANGE,
+                    (MAX_PREMIUM_FOR_SCORING - estimated_premium) / PREMIUM_SCORING_RANGE,
                 )
                 * WEIGHT_PREMIUM_COMPETITIVENESS
             )
@@ -462,9 +450,7 @@ class InsuranceRecommendationService:
             value_range = provider.max_vehicle_value - provider.min_vehicle_value
             if value_range > 0:
                 # Prefer providers where vehicle value is in the middle of their range
-                value_position = (
-                    vehicle_value - provider.min_vehicle_value
-                ) / value_range
+                value_position = (vehicle_value - provider.min_vehicle_value) / value_range
                 value_score = (1 - abs(0.5 - value_position)) * WEIGHT_VEHICLE_VALUE_FIT
                 score += value_score
 
@@ -483,10 +469,7 @@ class InsuranceRecommendationService:
                 reasons.append("Young driver programs")
             if "family" in provider.name.lower():
                 reasons.append("Family-focused benefits")
-            if (
-                "green" in provider.name.lower()
-                or "eco" in provider.description.lower()
-            ):
+            if "green" in provider.name.lower() or "eco" in provider.description.lower():
                 reasons.append("Eco-friendly options")
 
             # Create recommendation reason
@@ -494,9 +477,7 @@ class InsuranceRecommendationService:
                 reasons.append("Good overall match")
             reason = " • ".join(reasons)
 
-            scored_providers.append(
-                (provider, round(score, 2), estimated_premium, reason)
-            )
+            scored_providers.append((provider, round(score, 2), estimated_premium, reason))
 
         # Sort by score descending
         scored_providers.sort(key=lambda x: x[1], reverse=True)

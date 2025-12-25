@@ -24,9 +24,7 @@ from app.schemas.schemas import UserCreate, UserResponse
 router = APIRouter()
 
 
-@router.post(
-    "/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def signup(user_in: UserCreate, db: Session = Depends(get_db)):
     """
     Create a new user account
@@ -50,9 +48,7 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(
-    response: Response, login_request: LoginRequest, db: Session = Depends(get_db)
-):
+def login(response: Response, login_request: LoginRequest, db: Session = Depends(get_db)):
     """
     Login and get access and refresh tokens
     """

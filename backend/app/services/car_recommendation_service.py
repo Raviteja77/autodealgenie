@@ -197,9 +197,7 @@ class CarRecommendationService:
             rows=rows,
         )
 
-    async def _trigger_webhooks(
-        self, vehicles: list[dict[str, Any]], db_session=None
-    ) -> None:
+    async def _trigger_webhooks(self, vehicles: list[dict[str, Any]], db_session=None) -> None:
         """
         Trigger webhooks for matching vehicle alerts
 
@@ -228,9 +226,7 @@ class CarRecommendationService:
 
                 if matching_subs:
                     # Send webhooks asynchronously
-                    result = await webhook_service.send_vehicle_alerts(
-                        matching_subs, vehicle
-                    )
+                    result = await webhook_service.send_vehicle_alerts(matching_subs, vehicle)
                     logger.info(
                         f"Sent vehicle alert webhooks: {result['success']} succeeded, "
                         f"{result['failed']} failed"
@@ -238,9 +234,7 @@ class CarRecommendationService:
 
                     # Update subscription statuses
                     for sub in matching_subs:
-                        webhook_repo.update(
-                            sub.id, {"last_triggered": datetime.utcnow()}
-                        )
+                        webhook_repo.update(sub.id, {"last_triggered": datetime.utcnow()})
 
         except Exception as e:
             logger.error(f"Error triggering webhooks: {e}")
@@ -318,9 +312,7 @@ class CarRecommendationService:
         # Check file cache as fallback (persistent storage to avoid API costs)
         file_cached_result = self._get_from_file_cache(cache_key)
         if file_cached_result:
-            logger.info(
-                "Cache hit from file cache, updating Redis for faster subsequent access"
-            )
+            logger.info("Cache hit from file cache, updating Redis for faster subsequent access")
             # Update Redis cache for faster subsequent access
             await self._set_cached_result(cache_key, file_cached_result)
 
@@ -394,9 +386,7 @@ class CarRecommendationService:
             return result
 
         # Parse listings to standardized format
-        parsed_listings = [
-            marketcheck_client.parse_listing(listing) for listing in listings
-        ]
+        parsed_listings = [marketcheck_client.parse_listing(listing) for listing in listings]
 
         # Get LLM recommendations
         if llm_client.is_available():
@@ -490,10 +480,7 @@ class CarRecommendationService:
             )
 
             # Check if the response has the expected structure
-            if (
-                hasattr(response, "recommendations")
-                and response.recommendations is not None
-            ):
+            if hasattr(response, "recommendations") and response.recommendations is not None:
                 recommendations = response.recommendations
 
                 # Build final output with full vehicle data
@@ -535,15 +522,11 @@ class CarRecommendationService:
                         llm_used=True,
                     )
                 except Exception as log_error:
-                    logger.error(
-                        f"Failed to log car recommendation AI response: {str(log_error)}"
-                    )
+                    logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
 
                 return top_vehicles
 
-            elif (
-                hasattr(response, "top_vehicles") and response.top_vehicles is not None
-            ):
+            elif hasattr(response, "top_vehicles") and response.top_vehicles is not None:
                 # Adapt to the new response structure if 'recommendations' is missing
                 # Build final output with full vehicle data
                 top_vehicles = []
@@ -586,9 +569,7 @@ class CarRecommendationService:
                         llm_used=True,
                     )
                 except Exception as log_error:
-                    logger.error(
-                        f"Failed to log car recommendation AI response: {str(log_error)}"
-                    )
+                    logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
 
                 return top_vehicles
             else:
@@ -602,9 +583,7 @@ class CarRecommendationService:
             # Fallback to simple sorting
             return self._fallback_recommendations(listings)
 
-    def _fallback_recommendations(
-        self, listings: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def _fallback_recommendations(self, listings: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Fallback recommendation logic when LLM is not available"""
         # Simple scoring based on price, mileage, and condition
         scored_listings = []
@@ -640,9 +619,7 @@ class CarRecommendationService:
 
             listing["recommendation_score"] = round(score, 1)
             listing["highlights"] = self._generate_fallback_highlights(listing)
-            listing[
-                "recommendation_summary"
-            ] = "Good option based on condition and features."
+            listing["recommendation_summary"] = "Good option based on condition and features."
             scored_listings.append(listing)
 
         # Sort by score

@@ -50,22 +50,14 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        op.f("ix_webhook_subscriptions_id"), "webhook_subscriptions", ["id"]
-    )
-    op.create_index(
-        op.f("ix_webhook_subscriptions_user_id"), "webhook_subscriptions", ["user_id"]
-    )
+    op.create_index(op.f("ix_webhook_subscriptions_id"), "webhook_subscriptions", ["id"])
+    op.create_index(op.f("ix_webhook_subscriptions_user_id"), "webhook_subscriptions", ["user_id"])
 
 
 def downgrade() -> None:
     """Drop webhook_subscriptions table"""
-    op.drop_index(
-        op.f("ix_webhook_subscriptions_user_id"), table_name="webhook_subscriptions"
-    )
-    op.drop_index(
-        op.f("ix_webhook_subscriptions_id"), table_name="webhook_subscriptions"
-    )
+    op.drop_index(op.f("ix_webhook_subscriptions_user_id"), table_name="webhook_subscriptions")
+    op.drop_index(op.f("ix_webhook_subscriptions_id"), table_name="webhook_subscriptions")
     op.drop_table("webhook_subscriptions")
     # Drop the enum type after dropping the table that uses it
     op.execute("DROP TYPE IF EXISTS webhookstatus")

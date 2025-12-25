@@ -34,22 +34,16 @@ api_router.include_router(deals.router, prefix="/deals", tags=["deals"])
 api_router.include_router(evaluations.router, prefix="/deals", tags=["evaluations"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(preferences.router, prefix="/users", tags=["preferences"])
-api_router.include_router(
-    negotiation.router, prefix="/negotiations", tags=["negotiations"]
-)
+api_router.include_router(negotiation.router, prefix="/negotiations", tags=["negotiations"])
 api_router.include_router(
     recommendations.router, prefix="/recommendations", tags=["recommendations"]
 )
 api_router.include_router(favorites.router, prefix="/favorites", tags=["favorites"])
-api_router.include_router(
-    saved_searches.router, prefix="/saved-searches", tags=["saved-searches"]
-)
+api_router.include_router(saved_searches.router, prefix="/saved-searches", tags=["saved-searches"])
 api_router.include_router(comparisons.router, prefix="/vehicles", tags=["comparisons"])
 api_router.include_router(loans.router, prefix="/loans", tags=["loans"])
 api_router.include_router(insurance.router, prefix="/insurance", tags=["insurance"])
-api_router.include_router(
-    ai_responses.router, prefix="/ai-responses", tags=["ai-responses"]
-)
+api_router.include_router(ai_responses.router, prefix="/ai-responses", tags=["ai-responses"])
 
 if settings.USE_MOCK_SERVICES:
     from app.api.mock import mock_router

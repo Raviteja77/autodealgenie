@@ -26,9 +26,7 @@ class DealRepository:
         # Use mode='json' to properly serialize enums to their string values
         deal = Deal(**deal_in.model_dump(mode="json"))
         if isinstance(deal_in.status, str):
-            deal_in.status = NORMALIZE_STATUS.get(
-                deal_in.status, DealStatus.IN_PROGRESS
-            )
+            deal_in.status = NORMALIZE_STATUS.get(deal_in.status, DealStatus.IN_PROGRESS)
         self.db.add(deal)
         self.db.commit()
         self.db.refresh(deal)
@@ -44,13 +42,7 @@ class DealRepository:
 
     def get_by_status(self, status: str, skip: int = 0, limit: int = 100) -> list[Deal]:
         """Get deals by status"""
-        return (
-            self.db.query(Deal)
-            .filter(Deal.status == status)
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
+        return self.db.query(Deal).filter(Deal.status == status).offset(skip).limit(limit).all()
 
     def get_by_email(self, email: str) -> list[Deal]:
         """Get deals by customer email"""

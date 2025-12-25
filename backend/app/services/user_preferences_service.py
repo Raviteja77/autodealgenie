@@ -118,9 +118,7 @@ class UserPreferencesService:
             features: List of desired features
         """
         # Get the most recent preference to merge with new data
-        existing = await self.collection.find_one(
-            {"user_id": user_id}, sort=[("created_at", -1)]
-        )
+        existing = await self.collection.find_one({"user_id": user_id}, sort=[("created_at", -1)])
 
         # Prepare updated preferences
         if existing and "preferences" in existing:

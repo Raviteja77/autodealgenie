@@ -145,9 +145,7 @@ def validate_username(username: str) -> str:
 
     # Can only contain alphanumeric, underscore, hyphen
     if not re.match(r"^[a-zA-Z][a-zA-Z0-9_-]*$", username):
-        raise ValueError(
-            "Username can only contain letters, numbers, underscores, and hyphens"
-        )
+        raise ValueError("Username can only contain letters, numbers, underscores, and hyphens")
 
     # Check for reserved usernames
     reserved = ["admin", "root", "system", "api", "null", "undefined"]

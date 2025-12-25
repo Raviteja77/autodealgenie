@@ -49,9 +49,7 @@ def generate_mock_loan_offers(
     except (ValueError, KeyError):
         base_rate = APR_RATES[CreditScoreRange.GOOD]  # Default to good credit
 
-    def _monthly_payment(
-        principal: float, annual_rate: float, term_months: int
-    ) -> float:
+    def _monthly_payment(principal: float, annual_rate: float, term_months: int) -> float:
         monthly_rate = annual_rate / 12
         if monthly_rate == 0:
             return principal / term_months

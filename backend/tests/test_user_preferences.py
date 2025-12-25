@@ -228,9 +228,7 @@ class TestSavedSearch:
     def test_valid_saved_search(self):
         """Test creating a valid saved search"""
         criteria = CarPreferences(make="BMW", car_type=CarType.SEDAN)
-        search = SavedSearch(
-            name="My BMW Search", criteria=criteria, alert_enabled=True
-        )
+        search = SavedSearch(name="My BMW Search", criteria=criteria, alert_enabled=True)
         assert search.name == "My BMW Search"
         assert search.criteria.make == "BMW"
         assert search.alert_enabled is True

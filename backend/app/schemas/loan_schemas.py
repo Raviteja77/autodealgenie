@@ -14,9 +14,7 @@ class LoanCalculationRequest(BaseModel):
     credit_score_range: str = Field(
         ..., description="Credit score range: excellent, good, fair, or poor"
     )
-    deal_id: int | None = Field(
-        None, description="Optional deal ID to associate this calculation"
-    )
+    deal_id: int | None = Field(None, description="Optional deal ID to associate this calculation")
 
     @field_validator("credit_score_range")
     @classmethod
@@ -54,20 +52,14 @@ class LoanOffer(BaseModel):
     monthly_payment: float = Field(..., description="Calculated monthly payment")
     total_cost: float = Field(..., description="Total cost over loan term")
     term_months: int = Field(..., description="Loan term in months")
-    pre_approved: bool = Field(
-        default=False, description="Whether user is pre-approved"
-    )
+    pre_approved: bool = Field(default=False, description="Whether user is pre-approved")
 
 
 class LoanOffersResponse(BaseModel):
     """Response schema for loan offers"""
 
-    offers: list[LoanOffer] = Field(
-        default_factory=list, description="List of loan offers"
-    )
-    comparison_url: str | None = Field(
-        None, description="URL for detailed comparison tool"
-    )
+    offers: list[LoanOffer] = Field(default_factory=list, description="List of loan offers")
+    comparison_url: str | None = Field(None, description="URL for detailed comparison tool")
 
 
 class LenderInfo(BaseModel):
@@ -124,12 +116,8 @@ class LenderMatch(BaseModel):
     lender: LenderInfo = Field(..., description="Lender information")
     match_score: float = Field(..., ge=0, le=100, description="Match score (0-100)")
     estimated_apr: float = Field(..., description="Estimated APR for user (as decimal)")
-    estimated_monthly_payment: float = Field(
-        ..., description="Estimated monthly payment"
-    )
-    recommendation_reason: str = Field(
-        ..., description="Why this lender is recommended"
-    )
+    estimated_monthly_payment: float = Field(..., description="Estimated monthly payment")
+    recommendation_reason: str = Field(..., description="Why this lender is recommended")
     rank: int = Field(..., ge=1, description="Ranking position")
 
 

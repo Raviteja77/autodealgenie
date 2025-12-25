@@ -178,14 +178,12 @@ class TestCalculateEstimatedPremium:
             coverage_type="liability",
             driver_age=18,
         )
-        premium_experienced = (
-            InsuranceRecommendationService.calculate_estimated_premium(
-                provider=provider,
-                vehicle_value=20000.0,
-                vehicle_age=3,
-                coverage_type="liability",
-                driver_age=30,
-            )
+        premium_experienced = InsuranceRecommendationService.calculate_estimated_premium(
+            provider=provider,
+            vehicle_value=20000.0,
+            vehicle_age=3,
+            coverage_type="liability",
+            driver_age=30,
         )
         # Young driver should pay more
         assert premium_young > premium_experienced
@@ -248,9 +246,7 @@ class TestGetRecommendations:
             coverage_type="full",
             driver_age=30,
         )
-        response = InsuranceRecommendationService.get_recommendations(
-            request, max_results=5
-        )
+        response = InsuranceRecommendationService.get_recommendations(request, max_results=5)
 
         assert response.total_matches > 0
         assert len(response.recommendations) > 0
@@ -274,9 +270,7 @@ class TestGetRecommendations:
             coverage_type="liability",
             driver_age=25,
         )
-        response = InsuranceRecommendationService.get_recommendations(
-            request, max_results=3
-        )
+        response = InsuranceRecommendationService.get_recommendations(request, max_results=3)
 
         assert len(response.recommendations) <= 3
         # All recommendations should support liability coverage
@@ -293,9 +287,7 @@ class TestGetRecommendations:
             coverage_type="full",
             driver_age=45,
         )
-        response = InsuranceRecommendationService.get_recommendations(
-            request, max_results=5
-        )
+        response = InsuranceRecommendationService.get_recommendations(request, max_results=5)
 
         assert response.total_matches > 0
         # Premiums should be higher for expensive vehicles
@@ -312,9 +304,7 @@ class TestGetRecommendations:
             coverage_type="comprehensive",
             driver_age=19,
         )
-        response = InsuranceRecommendationService.get_recommendations(
-            request, max_results=5
-        )
+        response = InsuranceRecommendationService.get_recommendations(request, max_results=5)
 
         # Should have providers accepting young drivers
         assert response.total_matches > 0
@@ -331,9 +321,7 @@ class TestGetRecommendations:
             coverage_type="full",
             driver_age=100,  # Very old driver
         )
-        response = InsuranceRecommendationService.get_recommendations(
-            request, max_results=5
-        )
+        response = InsuranceRecommendationService.get_recommendations(request, max_results=5)
 
         assert response.total_matches == 0
         assert len(response.recommendations) == 0

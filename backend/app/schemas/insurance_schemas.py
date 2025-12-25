@@ -8,13 +8,9 @@ from pydantic import BaseModel, Field, field_validator
 class InsuranceProviderInfo(BaseModel):
     """Schema for insurance provider information"""
 
-    provider_id: str = Field(
-        ..., description="Unique identifier for the insurance provider"
-    )
+    provider_id: str = Field(..., description="Unique identifier for the insurance provider")
     name: str = Field(..., description="Insurance provider name")
-    description: str = Field(
-        ..., description="Brief description of the insurance provider"
-    )
+    description: str = Field(..., description="Brief description of the insurance provider")
     logo_url: str | None = Field(None, description="URL to insurance provider logo")
 
     # Coverage criteria
@@ -22,12 +18,8 @@ class InsuranceProviderInfo(BaseModel):
         default_factory=list,
         description="Types of coverage offered (e.g., liability, full)",
     )
-    min_vehicle_value: float = Field(
-        ..., description="Minimum vehicle value for coverage"
-    )
-    max_vehicle_value: float = Field(
-        ..., description="Maximum vehicle value for coverage"
-    )
+    min_vehicle_value: float = Field(..., description="Minimum vehicle value for coverage")
+    max_vehicle_value: float = Field(..., description="Maximum vehicle value for coverage")
     min_driver_age: int = Field(default=16, description="Minimum driver age")
     max_driver_age: int = Field(default=100, description="Maximum driver age")
 
@@ -83,17 +75,11 @@ class InsuranceRecommendationRequest(BaseModel):
 class InsuranceMatch(BaseModel):
     """Schema for a matched insurance provider with recommendation details"""
 
-    provider: InsuranceProviderInfo = Field(
-        ..., description="Insurance provider information"
-    )
+    provider: InsuranceProviderInfo = Field(..., description="Insurance provider information")
     match_score: float = Field(..., ge=0, le=100, description="Match score (0-100)")
-    estimated_monthly_premium: float = Field(
-        ..., description="Estimated monthly premium"
-    )
+    estimated_monthly_premium: float = Field(..., description="Estimated monthly premium")
     estimated_annual_premium: float = Field(..., description="Estimated annual premium")
-    recommendation_reason: str = Field(
-        ..., description="Why this provider is recommended"
-    )
+    recommendation_reason: str = Field(..., description="Why this provider is recommended")
     rank: int = Field(..., ge=1, description="Ranking position")
 
 

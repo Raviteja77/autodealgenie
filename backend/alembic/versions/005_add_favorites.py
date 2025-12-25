@@ -49,9 +49,7 @@ def upgrade():
     op.create_index("ix_favorites_vin", "favorites", ["vin"])
 
     # Create unique constraint on user_id + vin to prevent duplicates
-    op.create_index(
-        "ix_favorites_user_vin", "favorites", ["user_id", "vin"], unique=True
-    )
+    op.create_index("ix_favorites_user_vin", "favorites", ["user_id", "vin"], unique=True)
 
 
 def downgrade():

@@ -71,9 +71,7 @@ async def test_initiate_evaluation(authenticated_client, mock_deal):
 @pytest.mark.asyncio
 async def test_initiate_evaluation_nonexistent_deal(authenticated_client):
     """Test initiating evaluation for non-existent deal"""
-    response = authenticated_client.post(
-        "/api/v1/deals/99999/evaluation", json={"answers": None}
-    )
+    response = authenticated_client.post("/api/v1/deals/99999/evaluation", json={"answers": None})
 
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
@@ -90,9 +88,7 @@ async def test_get_evaluation(authenticated_client, mock_deal):
     evaluation_id = create_response.json()["evaluation_id"]
 
     # Now get the evaluation
-    response = authenticated_client.get(
-        f"/api/v1/deals/{mock_deal.id}/evaluation/{evaluation_id}"
-    )
+    response = authenticated_client.get(f"/api/v1/deals/{mock_deal.id}/evaluation/{evaluation_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -102,9 +98,7 @@ async def test_get_evaluation(authenticated_client, mock_deal):
 
 def test_get_nonexistent_evaluation(authenticated_client, mock_deal):
     """Test getting a non-existent evaluation"""
-    response = authenticated_client.get(
-        f"/api/v1/deals/{mock_deal.id}/evaluation/99999"
-    )
+    response = authenticated_client.get(f"/api/v1/deals/{mock_deal.id}/evaluation/99999")
 
     assert response.status_code == 404
 
@@ -132,9 +126,7 @@ def test_get_evaluation_wrong_deal(authenticated_client, mock_deal, db):
     evaluation_id = create_response.json()["evaluation_id"]
 
     # Try to get it with wrong deal_id
-    response = authenticated_client.get(
-        f"/api/v1/deals/{other_deal.id}/evaluation/{evaluation_id}"
-    )
+    response = authenticated_client.get(f"/api/v1/deals/{other_deal.id}/evaluation/{evaluation_id}")
 
     assert response.status_code == 400
     assert "does not belong" in response.json()["detail"].lower()

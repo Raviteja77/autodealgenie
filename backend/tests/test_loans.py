@@ -43,9 +43,7 @@ def test_calculate_loan_payment_excellent_credit(authenticated_client):
         "credit_score_range": "excellent",
     }
 
-    response = authenticated_client.post(
-        "/api/v1/loans/calculate", json=calculation_data
-    )
+    response = authenticated_client.post("/api/v1/loans/calculate", json=calculation_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -68,9 +66,7 @@ def test_calculate_loan_payment_good_credit(authenticated_client):
         "credit_score_range": "good",
     }
 
-    response = authenticated_client.post(
-        "/api/v1/loans/calculate", json=calculation_data
-    )
+    response = authenticated_client.post("/api/v1/loans/calculate", json=calculation_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -88,9 +84,7 @@ def test_calculate_loan_payment_fair_credit(authenticated_client):
         "credit_score_range": "fair",
     }
 
-    response = authenticated_client.post(
-        "/api/v1/loans/calculate", json=calculation_data
-    )
+    response = authenticated_client.post("/api/v1/loans/calculate", json=calculation_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -107,9 +101,7 @@ def test_calculate_loan_payment_poor_credit(authenticated_client):
         "credit_score_range": "poor",
     }
 
-    response = authenticated_client.post(
-        "/api/v1/loans/calculate", json=calculation_data
-    )
+    response = authenticated_client.post("/api/v1/loans/calculate", json=calculation_data)
 
     assert response.status_code == 200
     data = response.json()
@@ -126,9 +118,7 @@ def test_calculate_loan_payment_invalid_credit_score(authenticated_client):
         "credit_score_range": "invalid",
     }
 
-    response = authenticated_client.post(
-        "/api/v1/loans/calculate", json=calculation_data
-    )
+    response = authenticated_client.post("/api/v1/loans/calculate", json=calculation_data)
 
     # Should return 422 for validation error
     assert response.status_code == 422
@@ -143,9 +133,7 @@ def test_calculate_loan_payment_zero_term(authenticated_client):
         "credit_score_range": "good",
     }
 
-    response = authenticated_client.post(
-        "/api/v1/loans/calculate", json=calculation_data
-    )
+    response = authenticated_client.post("/api/v1/loans/calculate", json=calculation_data)
 
     # Should return 422 for validation error
     assert response.status_code == 422
@@ -160,9 +148,7 @@ def test_calculate_loan_payment_negative_amount(authenticated_client):
         "credit_score_range": "good",
     }
 
-    response = authenticated_client.post(
-        "/api/v1/loans/calculate", json=calculation_data
-    )
+    response = authenticated_client.post("/api/v1/loans/calculate", json=calculation_data)
 
     # Should return 422 for validation error
     assert response.status_code == 422
@@ -177,9 +163,7 @@ def test_calculate_loan_payment_down_payment_exceeds_loan(authenticated_client):
         "credit_score_range": "good",
     }
 
-    response = authenticated_client.post(
-        "/api/v1/loans/calculate", json=calculation_data
-    )
+    response = authenticated_client.post("/api/v1/loans/calculate", json=calculation_data)
 
     # Should return 400 for business logic error
     assert response.status_code == 400
@@ -265,18 +249,14 @@ def test_loan_calculation_total_cost_accuracy(authenticated_client):
         "credit_score_range": "good",
     }
 
-    response = authenticated_client.post(
-        "/api/v1/loans/calculate", json=calculation_data
-    )
+    response = authenticated_client.post("/api/v1/loans/calculate", json=calculation_data)
 
     assert response.status_code == 200
     data = response.json()
 
     # Total amount should equal monthly payment * term
     expected_total_paid = data["monthly_payment"] * 60
-    calculated_principal = (
-        calculation_data["loan_amount"] - calculation_data["down_payment"]
-    )
+    calculated_principal = calculation_data["loan_amount"] - calculation_data["down_payment"]
 
     # Total interest should be total paid minus principal
     expected_interest = expected_total_paid - calculated_principal

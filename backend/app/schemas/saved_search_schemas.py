@@ -11,9 +11,7 @@ from pydantic import BaseModel, Field
 class SavedSearchBase(BaseModel):
     """Base schema for saved search"""
 
-    name: str = Field(
-        ..., min_length=1, max_length=255, description="Name of the saved search"
-    )
+    name: str = Field(..., min_length=1, max_length=255, description="Name of the saved search")
     make: Optional[str] = Field(None, max_length=100)
     model: Optional[str] = Field(None, max_length=100)
     budget_min: Optional[float] = Field(None, ge=0)

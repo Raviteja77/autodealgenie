@@ -18,9 +18,7 @@ class TestLLMRequest:
 
     def test_llm_request_basic(self):
         """Test creating a basic LLM request"""
-        request = LLMRequest(
-            prompt_id="car_recommendation", variables={"budget": 30000}
-        )
+        request = LLMRequest(prompt_id="car_recommendation", variables={"budget": 30000})
 
         assert request.prompt_id == "car_recommendation"
         assert request.variables == {"budget": 30000}
@@ -178,9 +176,7 @@ class TestCarSelectionItem:
         assert item.score == 9.2
         assert len(item.highlights) == 3
         assert "Excellent safety ratings" in item.highlights
-        assert (
-            item.summary == "Top choice for family vehicle with strong safety features"
-        )
+        assert item.summary == "Top choice for family vehicle with strong safety features"
 
     def test_car_selection_item_validation(self):
         """Test validation of required fields"""
@@ -195,21 +191,15 @@ class TestCarSelectionItem:
 
     def test_car_selection_item_score_types(self):
         """Test that score accepts both int and float"""
-        item_float = CarSelectionItem(
-            index=0, score=8.5, highlights=["Good"], summary="Nice car"
-        )
-        item_int = CarSelectionItem(
-            index=1, score=9, highlights=["Great"], summary="Best car"
-        )
+        item_float = CarSelectionItem(index=0, score=8.5, highlights=["Good"], summary="Nice car")
+        item_int = CarSelectionItem(index=1, score=9, highlights=["Great"], summary="Best car")
 
         assert item_float.score == 8.5
         assert item_int.score == 9
 
     def test_car_selection_item_empty_highlights(self):
         """Test car selection item with empty highlights list"""
-        item = CarSelectionItem(
-            index=0, score=7.0, highlights=[], summary="Basic option"
-        )
+        item = CarSelectionItem(index=0, score=7.0, highlights=[], summary="Basic option")
 
         assert item.highlights == []
         assert len(item.highlights) == 0
@@ -308,32 +298,22 @@ class TestDealEvaluation:
     def test_deal_evaluation_score_validation(self):
         """Test score validation (must be 1-10)"""
         # Valid scores
-        DealEvaluation(
-            fair_value=20000, score=1.0, insights=["Good"], talking_points=["Talk"]
-        )
-        DealEvaluation(
-            fair_value=20000, score=10.0, insights=["Good"], talking_points=["Talk"]
-        )
+        DealEvaluation(fair_value=20000, score=1.0, insights=["Good"], talking_points=["Talk"])
+        DealEvaluation(fair_value=20000, score=10.0, insights=["Good"], talking_points=["Talk"])
 
         # Invalid score (too low)
         with pytest.raises(ValidationError):
-            DealEvaluation(
-                fair_value=20000, score=0.5, insights=["Good"], talking_points=["Talk"]
-            )
+            DealEvaluation(fair_value=20000, score=0.5, insights=["Good"], talking_points=["Talk"])
 
         # Invalid score (too high)
         with pytest.raises(ValidationError):
-            DealEvaluation(
-                fair_value=20000, score=10.5, insights=["Good"], talking_points=["Talk"]
-            )
+            DealEvaluation(fair_value=20000, score=10.5, insights=["Good"], talking_points=["Talk"])
 
     def test_deal_evaluation_required_fields(self):
         """Test validation of required fields"""
         # Missing required fields should raise ValidationError
         with pytest.raises(ValidationError):
-            DealEvaluation(
-                fair_value=20000, score=7.5
-            )  # Missing insights and talking_points
+            DealEvaluation(fair_value=20000, score=7.5)  # Missing insights and talking_points
 
     def test_deal_evaluation_empty_lists(self):
         """Test deal evaluation with empty insight/talking point lists"""

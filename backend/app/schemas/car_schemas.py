@@ -12,18 +12,14 @@ class CarSearchRequest(BaseModel):
     model: str | None = Field(None, description="Vehicle model (e.g., 'RAV4')")
     budget_min: int | None = Field(None, description="Minimum budget", ge=0)
     budget_max: int | None = Field(None, description="Maximum budget", ge=0)
-    car_type: str | None = Field(
-        None, description="Type of car: 'new', 'used', or 'certified'"
-    )
+    car_type: str | None = Field(None, description="Type of car: 'new', 'used', or 'certified'")
     year_min: int | None = Field(None, description="Minimum year", ge=1900, le=2100)
     year_max: int | None = Field(None, description="Maximum year", ge=1900, le=2100)
     mileage_max: int | None = Field(None, description="Maximum mileage", ge=0)
     user_priorities: str | None = Field(
         None, description="User's specific priorities or preferences"
     )
-    max_results: int = Field(
-        50, description="Maximum number of results to return", ge=1, le=100
-    )
+    max_results: int = Field(50, description="Maximum number of results to return", ge=1, le=100)
 
 
 class SearchCriteria(BaseModel):

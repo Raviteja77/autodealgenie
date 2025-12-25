@@ -99,9 +99,7 @@ class InsuranceRecommendationRepository:
             .all()
         )
 
-    def get_by_user_id(
-        self, user_id: int, limit: int = 50
-    ) -> list[InsuranceRecommendation]:
+    def get_by_user_id(self, user_id: int, limit: int = 50) -> list[InsuranceRecommendation]:
         """
         Get insurance recommendations for a user
 
@@ -120,9 +118,7 @@ class InsuranceRecommendationRepository:
             .all()
         )
 
-    def get_by_id(
-        self, insurance_recommendation_id: int
-    ) -> InsuranceRecommendation | None:
+    def get_by_id(self, insurance_recommendation_id: int) -> InsuranceRecommendation | None:
         """
         Get an insurance recommendation by ID
 
@@ -152,8 +148,6 @@ class InsuranceRecommendationRepository:
         if insurance_recommendation:
             self.db.delete(insurance_recommendation)
             self.db.commit()
-            logger.info(
-                f"Deleted insurance recommendation {insurance_recommendation_id}"
-            )
+            logger.info(f"Deleted insurance recommendation {insurance_recommendation_id}")
             return True
         return False
