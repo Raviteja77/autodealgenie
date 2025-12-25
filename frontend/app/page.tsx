@@ -301,7 +301,7 @@ export default function Home() {
                       {stat.icon}
                     </Box>
                   </Box>
-                  <Typography variant="h3" fontWeight={700} gutterBottom>
+                  <Typography variant="h5" fontWeight={700} gutterBottom>
                     {stat.value}
                   </Typography>
                   <Typography

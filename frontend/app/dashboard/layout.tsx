@@ -17,7 +17,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <>
       <Header />
-      <Container maxWidth="xl" sx={{ pt: 12, pb: 12, flexGrow: 1 }}>
+      <Container maxWidth="xl" sx={{ pt: 16, pb: 6, flexGrow: 1 }}>
         {showStepper && (
           <ProgressStepper
             activeStep={currentStep}
