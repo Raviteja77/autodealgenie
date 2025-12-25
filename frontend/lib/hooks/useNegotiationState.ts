@@ -11,7 +11,7 @@
  */
 
 import { useState, useCallback, useMemo } from "react";
-import type { NegotiationMessage, FinancingOption, MessageRole } from "@/lib/api";
+import type { NegotiationMessage, FinancingOption } from "@/lib/api";
 
 export interface OfferInfo {
   price: number;

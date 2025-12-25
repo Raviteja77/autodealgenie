@@ -2,7 +2,7 @@
 
 import { Box, Container, Grid, Typography, Link as MuiLink, IconButton, Divider } from "@mui/material";
 import Link from "next/link";
-import { GitHub, LinkedIn, Twitter, Email } from "@mui/icons-material";
+import { GitHub, LinkedIn, Email } from "@mui/icons-material";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();

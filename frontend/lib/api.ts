@@ -161,7 +161,7 @@ export interface EvaluationResponse {
   deal_id: number;
   status: EvaluationStatus;
   current_step: PipelineStep;
-  result_json: Record<string, any> | null;
+  result_json: Record<string, unknown> | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -174,10 +174,10 @@ export interface EvaluationStepResult {
   step_result: {
     questions?: string[];
     required_fields?: string[];
-    assessment?: Record<string, any>;
+    assessment?: Record<string, unknown>;
     completed?: boolean;
   };
-  result_json: Record<string, any> | null;
+  result_json: Record<string, unknown> | null;
 }
 
 export interface EvaluationInitiateRequest {
@@ -222,7 +222,7 @@ export interface LenderMatch {
 export interface LenderRecommendationResponse {
   recommendations: LenderMatch[];
   total_matches: number;
-  request_summary: Record<string, any>;
+  request_summary: Record<string, unknown>;
 }
 
 // Insurance types
@@ -265,7 +265,7 @@ export interface InsuranceRecommendationRequest {
 export interface InsuranceRecommendationResponse {
   recommendations: InsuranceMatch[];
   total_matches: number;
-  request_summary: Record<string, any>;
+  request_summary: Record<string, unknown>;
 }
 
 export interface NegotiationMessage {
@@ -351,7 +351,7 @@ export interface DealerInfoRequest {
   info_type: string;
   content: string;
   price_mentioned?: number | null;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface DealerInfoResponse {
@@ -394,7 +394,7 @@ export interface LenderMatch {
 export interface LenderRecommendationResponse {
   recommendations: LenderMatch[];
   total_matches: number;
-  request_summary: Record<string, any>;
+  request_summary: Record<string, unknown>;
 }
 
 export interface SavedSearch {

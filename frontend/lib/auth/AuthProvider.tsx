@@ -264,7 +264,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api";
 
 interface User {
@@ -291,7 +291,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   
   // Use refs to prevent duplicate API calls
   const hasCheckedAuthRef = useRef(false);
@@ -378,7 +377,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
 
       try {
-        const response = await apiClient.signup(
+        await apiClient.signup(
           email,
           username,
           password,
