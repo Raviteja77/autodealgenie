@@ -126,7 +126,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               <Chip
                 label={activeFilterCount}
                 size="small"
-                color="primary"
+                color="success"
                 sx={{ ml: 1 }}
               />
             )}
@@ -155,6 +155,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               max={100000}
               step={1000}
               valueLabelFormat={(value) => `$${value.toLocaleString()}`}
+              sx={{ color: 'success.light' }}
             />
           </Box>
 
@@ -177,6 +178,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               max={200000}
               step={5000}
               valueLabelFormat={(value) => `${value.toLocaleString()} mi`}
+              sx={{ color: 'success.light' }}
             />
           </Box>
 
@@ -197,6 +199,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
               min={2000}
               max={2024}
               step={1}
+              sx={{ color: 'success.light' }}
             />
           </Box>
 
@@ -309,7 +312,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           <Button variant="outline" fullWidth onClick={handleReset}>
             Reset
           </Button>
-          <Button variant="primary" fullWidth onClick={handleApply}>
+          <Button variant="success" fullWidth onClick={handleApply}>
             Apply ({vehicleCount})
           </Button>
         </Box>

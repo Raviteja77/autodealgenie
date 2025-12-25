@@ -129,6 +129,11 @@ Type \dT and press Enter. This lists all custom types (like your enums).
 Type select * from alembic_version; to see the latest applied migration ID.
 
 
+docker exec -it autodealgenie-mongodb mongosh
+
+use autodealgenie
+
+
 # 4. Access the applications
 # Frontend:  http://localhost:3000
 # Backend:   http://localhost:8000

@@ -548,7 +548,7 @@ function ResultsContent() {
           )} */}
 
           {/* Toolbar with controls */}
-          <Card shadow="sm" sx={{ mb: 3 }}>
+          <Card shadow="sm" sx={{ mb: 3, mt: 3 }}>
             <Card.Body>
               <Box
                 sx={{
@@ -928,9 +928,9 @@ function ResultsContent() {
                     </Card.Body>
 
                     <Card.Footer>
-                      <Box sx={{ display: "flex", gap: 1, width: "100%" }}>
+                      <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>
                         <Button
-                          variant="outline"
+                          variant="success"
                           fullWidth
                           size="sm"
                           onClick={() =>
@@ -942,7 +942,7 @@ function ResultsContent() {
                         >
                           Negotiate
                         </Button>
-                        <Button
+                        {/* <Button
                           variant="primary"
                           fullWidth
                           size="sm"
@@ -951,7 +951,7 @@ function ResultsContent() {
                           }
                         >
                           View Details
-                        </Button>
+                        </Button> */}
                       </Box>
                     </Card.Footer>
                   </Card>

@@ -58,12 +58,12 @@ class LLMClient:
 
         Supports custom base URLs for OpenRouter and other OpenAI-compatible endpoints.
         """
-        if not settings.OPENAI_API_KEY:
-            logger.warning("OPENAI_API_KEY not set. LLM features will be disabled.")
+        if not settings.OPENROUTER_API_KEY:
+            logger.warning("OPENROUTER_API_KEY not set. LLM features will be disabled.")
             self.client = None
         else:
             # Initialize with optional base_url for OpenRouter support
-            client_kwargs = {"api_key": settings.OPENAI_API_KEY}
+            client_kwargs = {"api_key": settings.OPENROUTER_API_KEY}
             # Determine base_url: check settings or default to OpenRouter
             base_url = getattr(settings, "OPENAI_API_BASE", None) or getattr(
                 settings, "OPENAI_BASE_URL", None
@@ -76,7 +76,7 @@ class LLMClient:
                 client_kwargs["base_url"] = "https://openrouter.ai/api/v1"
 
             self.client = OpenAI(**client_kwargs)
-            logger.info(f"LLM client initialized with model: {settings.OPENAI_MODEL}")
+            logger.info(f"LLM client initialized with model: {settings.OPENAI_MODEL_NAME}")
 
     def is_available(self) -> bool:
         """
@@ -126,11 +126,11 @@ class LLMClient:
             ... )
         """
         if not self.is_available():
-            logger.error("LLM client not available - OPENAI_API_KEY not configured")
+            logger.error("LLM client not available - OPENROUTER_API_KEY not configured")
             raise ApiError(
                 status_code=503,
                 message="LLM service is not available",
-                details={"reason": "OPENAI_API_KEY not configured"},
+                details={"reason": "OPENROUTER_API_KEY not configured"},
             )
 
         try:
@@ -143,7 +143,7 @@ class LLMClient:
 
             logger.info(
                 f"Generating structured JSON: prompt_id='{prompt_id}', "
-                f"agent_role='{agent_role or 'default'}', model={settings.OPENAI_MODEL}"
+                f"agent_role='{agent_role or 'default'}', model={settings.OPENAI_MODEL_NAME}"
             )
 
         except KeyError as e:
@@ -158,7 +158,7 @@ class LLMClient:
             # Call OpenAI API with JSON mode
             # Using response_format to ensure valid JSON output
             response = self.client.chat.completions.create(
-                model=settings.OPENAI_MODEL,
+                model=settings.OPENAI_MODEL_NAME,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": formatted_prompt},
@@ -344,11 +344,11 @@ class LLMClient:
             ... )
         """
         if not self.is_available():
-            logger.error("LLM client not available - OPENAI_API_KEY not configured")
+            logger.error("LLM client not available - OPENROUTER_API_KEY not configured")
             raise ApiError(
                 status_code=503,
                 message="LLM service is not available",
-                details={"reason": "OPENAI_API_KEY not configured"},
+                details={"reason": "OPENROUTER_API_KEY not configured"},
             )
 
         try:
@@ -361,7 +361,7 @@ class LLMClient:
 
             logger.info(
                 f"Generating text: prompt_id='{prompt_id}', "
-                f"agent_role='{agent_role or 'default'}', model={settings.OPENAI_MODEL}"
+                f"agent_role='{agent_role or 'default'}', model={settings.OPENAI_MODEL_NAME}"
             )
 
         except KeyError as e:
@@ -375,7 +375,7 @@ class LLMClient:
         try:
             # Call OpenAI API
             response = self.client.chat.completions.create(
-                model=settings.OPENAI_MODEL,
+                model=settings.OPENAI_MODEL_NAME,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": formatted_prompt},
