@@ -3,7 +3,6 @@
  * Handles communication with the FastAPI backend
  */
 
-import { string } from "zod";
 import { createErrorFromResponse, NetworkError, isApiError } from "./errors";
 
 // TypeScript type definitions matching backend schemas

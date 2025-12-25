@@ -8,7 +8,6 @@ Create Date: 2025-12-20 15:45:00.000000
 from alembic import op
 import sqlalchemy as sa
 
-
 # revision identifiers, used by Alembic.
 revision = "006_add_saved_searches"
 down_revision = "005_add_favorites"
