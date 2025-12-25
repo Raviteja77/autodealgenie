@@ -80,7 +80,6 @@ function ResultsContent() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchMessage, setSearchMessage] = useState<string | null>(null);
 
   // New state for enhanced features
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -178,7 +177,6 @@ function ResultsContent() {
           ) {
             // Use cached data
             setVehicles(cachedData.vehicles);
-            setSearchMessage(cachedData.message);
             setIsLoading(false);
             
             // Fetch favorites in background (non-blocking)
@@ -200,7 +198,6 @@ function ResultsContent() {
         if (vehiclesResult.status === "fulfilled") {
           const { vehicles: fetchedVehicles, message } = vehiclesResult.value;
           setVehicles(fetchedVehicles);
-          setSearchMessage(message);
 
           // Cache the results
           completeStep(1, {

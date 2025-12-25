@@ -104,15 +104,6 @@ export function InsuranceRecommendations({
         setIsLoading(true);
         setError(null);
 
-        const request: InsuranceRecommendationRequest = {
-          vehicle_value: vehicleValue,
-          vehicle_age: vehicleAge,
-          vehicle_make: vehicleMake,
-          vehicle_model: vehicleModel,
-          coverage_type: selectedCoverage,
-          driver_age: selectedDriverAge,
-        };
-
         const response: InsuranceRecommendationResponse = await apiClient.getInsuranceRecommendations(
           loanAmount,
           vehicleMake,
