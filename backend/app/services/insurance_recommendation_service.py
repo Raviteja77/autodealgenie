@@ -11,6 +11,7 @@ Provides insurance recommendations based on vehicle and driver criteria includin
 
 import logging
 
+from app.models.ai_response import InsuranceRecommendation
 from app.schemas.insurance_schemas import (
     InsuranceMatch,
     InsuranceProviderInfo,
@@ -558,7 +559,7 @@ class InsuranceRecommendationService:
             
             for rec in recommendations:
                 try:
-                    insurance_repo.create(
+                    ins_rec = InsuranceRecommendation(
                         deal_id=deal_id,
                         user_id=user_id,
                         vehicle_value=request.vehicle_value,
@@ -577,15 +578,23 @@ class InsuranceRecommendationService:
                             "request": request.dict(),
                         },
                     )
-                    logger.info(
-                        f"Stored insurance recommendation for deal {deal_id}, "
-                        f"provider {rec.provider.name}, rank {rec.rank}"
-                    )
+                    insurance_repo.db.add(ins_rec)
+                    insurance_repo.db.flush()  # Flush instead of commit
                 except Exception as e:
                     logger.error(
                         f"Failed to store insurance recommendation for deal {deal_id}: {str(e)}"
                     )
                     # Don't fail the main operation if storage fails
+            
+            # Single commit after all recommendations
+            try:
+                insurance_repo.db.commit()
+                logger.info(
+                    f"Stored {len(recommendations)} insurance recommendations for deal {deal_id}"
+                )
+            except Exception as e:
+                logger.error(f"Failed to commit insurance recommendations: {str(e)}")
+                insurance_repo.db.rollback()
 
         logger.info(
             f"Generated {len(recommendations)} recommendations from {len(matching_providers)} matches"

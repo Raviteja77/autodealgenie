@@ -57,7 +57,7 @@ class InsuranceRecommendationRepository:
         Returns:
             Created InsuranceRecommendation
         """
-        ins_rec = InsuranceRecommendation(
+        insurance_recommendation = InsuranceRecommendation(
             deal_id=deal_id,
             user_id=user_id,
             vehicle_value=vehicle_value,
@@ -73,14 +73,14 @@ class InsuranceRecommendationRepository:
             rank=rank,
             full_recommendation_data=full_recommendation_data,
         )
-        self.db.add(ins_rec)
+        self.db.add(insurance_recommendation)
         self.db.commit()
-        self.db.refresh(ins_rec)
+        self.db.refresh(insurance_recommendation)
         logger.info(
-            f"Created insurance recommendation {ins_rec.id} for deal {deal_id}, "
+            f"Created insurance recommendation {insurance_recommendation.id} for deal {deal_id}, "
             f"provider {provider_name}, rank {rank}"
         )
-        return ins_rec
+        return insurance_recommendation
 
     def get_by_deal_id(self, deal_id: int) -> list[InsuranceRecommendation]:
         """
@@ -118,36 +118,38 @@ class InsuranceRecommendationRepository:
             .all()
         )
 
-    def get_by_id(self, ins_rec_id: int) -> InsuranceRecommendation | None:
+    def get_by_id(
+        self, insurance_recommendation_id: int
+    ) -> InsuranceRecommendation | None:
         """
         Get an insurance recommendation by ID
 
         Args:
-            ins_rec_id: Insurance recommendation ID
+            insurance_recommendation_id: Insurance recommendation ID
 
         Returns:
             InsuranceRecommendation or None
         """
         return (
             self.db.query(InsuranceRecommendation)
-            .filter(InsuranceRecommendation.id == ins_rec_id)
+            .filter(InsuranceRecommendation.id == insurance_recommendation_id)
             .first()
         )
 
-    def delete(self, ins_rec_id: int) -> bool:
+    def delete(self, insurance_recommendation_id: int) -> bool:
         """
         Delete an insurance recommendation
 
         Args:
-            ins_rec_id: Insurance recommendation ID
+            insurance_recommendation_id: Insurance recommendation ID
 
         Returns:
             True if deleted, False if not found
         """
-        ins_rec = self.get_by_id(ins_rec_id)
-        if ins_rec:
-            self.db.delete(ins_rec)
+        insurance_recommendation = self.get_by_id(insurance_recommendation_id)
+        if insurance_recommendation:
+            self.db.delete(insurance_recommendation)
             self.db.commit()
-            logger.info(f"Deleted insurance recommendation {ins_rec_id}")
+            logger.info(f"Deleted insurance recommendation {insurance_recommendation_id}")
             return True
         return False

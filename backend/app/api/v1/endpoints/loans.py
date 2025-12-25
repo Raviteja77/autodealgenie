@@ -1,6 +1,8 @@
 """
 Loan calculation endpoints (anonymous, secure)
 """
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.dependencies import get_current_user, get_db
@@ -23,6 +25,7 @@ from app.services.loan_calculator_service import (
 from sqlalchemy.orm import Session
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Mock lender rate adjustments (relative to base APR for credit score)
 BEST_LENDER_DISCOUNT = 0.005  # 0.5% below base rate
@@ -104,7 +107,7 @@ async def calculate_loan_payment(
         )
 
         # Save loan recommendation to database if deal_id is provided
-        if hasattr(calculation, 'deal_id') and calculation.deal_id:
+        if calculation.deal_id:
             try:
                 loan_repo = LoanRecommendationRepository(db)
                 loan_repo.create(
@@ -122,8 +125,6 @@ async def calculate_loan_payment(
                 )
             except Exception as e:
                 # Log error but don't fail the request
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.error(f"Failed to save loan recommendation: {str(e)}")
 
         # Convert to response schema

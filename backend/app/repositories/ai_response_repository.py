@@ -92,6 +92,10 @@ class AIResponseRepository:
         Returns:
             List of AI response records
         """
+        # Validate deal_id
+        if not isinstance(deal_id, int) or deal_id <= 0:
+            raise ValueError(f"Invalid deal_id: {deal_id}")
+        
         collection = mongodb.get_collection(self.COLLECTION_NAME)
 
         cursor = (
@@ -122,6 +126,10 @@ class AIResponseRepository:
         Returns:
             List of AI response records
         """
+        # Validate user_id
+        if not isinstance(user_id, int) or user_id <= 0:
+            raise ValueError(f"Invalid user_id: {user_id}")
+        
         collection = mongodb.get_collection(self.COLLECTION_NAME)
 
         cursor = (
@@ -157,10 +165,23 @@ class AIResponseRepository:
         Returns:
             List of AI response records
         """
+        # Validate feature name
+        ALLOWED_FEATURES = {
+            "negotiation",
+            "deal_evaluation",
+            "car_recommendation",
+            "loan",
+            "insurance",
+        }
+        if feature not in ALLOWED_FEATURES:
+            raise ValueError(f"Invalid feature: {feature}. Must be one of {ALLOWED_FEATURES}")
+        
         collection = mongodb.get_collection(self.COLLECTION_NAME)
 
         query = {"feature": feature}
         if user_id is not None:
+            if not isinstance(user_id, int) or user_id <= 0:
+                raise ValueError(f"Invalid user_id: {user_id}")
             query["user_id"] = user_id
 
         cursor = collection.find(query).sort("timestamp", -1).skip(skip).limit(limit)

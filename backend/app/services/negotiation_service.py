@@ -667,7 +667,7 @@ class NegotiationService:
                     feature="negotiation",
                     user_id=session.user_id,
                     deal_id=session.deal_id,
-                    prompt_id="negotiation_initial",
+                    prompt_id="negotiation_fallback",
                     prompt_variables={
                         "make": deal.vehicle_make,
                         "model": deal.vehicle_model,
