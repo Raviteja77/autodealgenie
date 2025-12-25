@@ -907,11 +907,21 @@ class ApiClient {
     });
   }
 
+  // export interface InsuranceRecommendationRequest {
+  //   vehicle_value: number;
+  //   vehicle_age: number;
+  //   vehicle_make: string;
+  //   vehicle_model: string;
+  //   coverage_type: "liability" | "comprehensive" | "full";
+  //   driver_age: number;
+  // }
+
   /**
    * Get insurance recommendations
    */
   async getInsuranceRecommendations(
-    loanAmount: number,
+    vehicleValue: number,
+    vehicleAge: number,
     vehicleMake: string,
     vehicleModel: string,
     coverageType: string,
@@ -922,7 +932,8 @@ class ApiClient {
       {
         method: "POST",
         body: JSON.stringify({
-          loan_amount: loanAmount,
+          vehicle_value: vehicleValue,
+          vehicle_age: vehicleAge,
           vehicle_make: vehicleMake,
           vehicle_model: vehicleModel,
           coverage_type: coverageType,
