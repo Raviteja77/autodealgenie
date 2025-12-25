@@ -108,7 +108,6 @@ class TestLLMClient:
             assert not client.is_available()
             assert client.client is None
 
-    
     def test_generate_structured_json_success(self, mock_openai_client, mock_openai_response):
         """Test successful structured JSON generation"""
         mock_openai_client.chat.completions.create.return_value = mock_openai_response
@@ -139,8 +138,6 @@ class TestLLMClient:
                 assert len(result.insights) == 2
                 assert len(result.talking_points) == 2
 
-    
-    
     def test_generate_structured_json_client_not_available(self):
         """Test structured JSON generation when client is not available"""
         with patch("app.llm.llm_client.settings") as mock_settings:
@@ -158,7 +155,6 @@ class TestLLMClient:
             assert exc_info.value.status_code == 503
             assert "not available" in exc_info.value.message.lower()
 
-    
     def test_generate_structured_json_invalid_prompt_id(self, mock_openai_client):
         """Test structured JSON generation with invalid prompt ID"""
         with patch("app.llm.llm_client.settings") as mock_settings:
@@ -178,7 +174,6 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 400
                 assert "Invalid prompt_id" in exc_info.value.message
 
-    
     def test_generate_structured_json_validation_error(
         self, mock_openai_client, mock_openai_response
     ):
@@ -219,7 +214,6 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 500
                 assert "validation" in exc_info.value.message.lower()
 
-    
     def test_generate_structured_json_openai_auth_error(self, mock_openai_client):
         """Test structured JSON generation with OpenAI authentication error"""
         mock_openai_client.chat.completions.create.side_effect = AuthenticationError(
@@ -251,7 +245,6 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 401
                 assert "authentication" in exc_info.value.message.lower()
 
-    
     def test_generate_structured_json_rate_limit_error(self, mock_openai_client):
         """Test structured JSON generation with rate limit error"""
         mock_openai_client.chat.completions.create.side_effect = RateLimitError(
@@ -283,7 +276,6 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 429
                 assert "rate limit" in exc_info.value.message.lower()
 
-    
     def test_generate_structured_json_timeout_error(self, mock_openai_client):
         """Test structured JSON generation with timeout error"""
         mock_openai_client.chat.completions.create.side_effect = APITimeoutError(
@@ -315,7 +307,6 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 504
                 assert "timed out" in exc_info.value.message.lower()
 
-    
     def test_generate_structured_json_api_error(self, mock_openai_client):
         """Test structured JSON generation with general API error"""
         mock_openai_client.chat.completions.create.side_effect = APIError(
@@ -346,7 +337,6 @@ class TestLLMClient:
 
                 assert exc_info.value.status_code == 502
 
-    
     def test_generate_structured_json_invalid_json_response(
         self, mock_openai_client, mock_openai_response
     ):
@@ -379,7 +369,6 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 500
                 assert "parse" in exc_info.value.message.lower()
 
-    
     def test_generate_structured_json_empty_response(
         self, mock_openai_client, mock_openai_response
     ):
@@ -413,7 +402,6 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 500
                 assert "empty response" in exc_info.value.message.lower()
 
-    
     def test_generate_text_success(self, mock_openai_client, mock_text_response):
         """Test successful text generation"""
         mock_openai_client.chat.completions.create.return_value = mock_text_response
@@ -441,7 +429,6 @@ class TestLLMClient:
                 assert isinstance(result, str)
                 assert result == "This is a test response from the LLM."
 
-    
     def test_generate_text_client_not_available(self):
         """Test text generation when client is not available"""
         with patch("app.llm.llm_client.settings") as mock_settings:
@@ -458,7 +445,6 @@ class TestLLMClient:
             assert exc_info.value.status_code == 503
             assert "not available" in exc_info.value.message.lower()
 
-    
     def test_generate_text_invalid_prompt_id(self, mock_openai_client):
         """Test text generation with invalid prompt ID"""
         with patch("app.llm.llm_client.settings") as mock_settings:
@@ -477,7 +463,6 @@ class TestLLMClient:
                 assert exc_info.value.status_code == 400
                 assert "Invalid prompt_id" in exc_info.value.message
 
-    
     def test_generate_text_empty_response(self, mock_openai_client, mock_text_response):
         """Test text generation with empty response"""
         mock_text_response.choices[0].message.content = None
@@ -508,5 +493,3 @@ class TestLLMClient:
                 # Empty response check happens before other processing
                 assert exc_info.value.status_code == 500
                 assert "empty response" in exc_info.value.message.lower()
-
-

@@ -133,7 +133,9 @@ class TestSaveUserPreferences:
         service._collection = mock_collection
 
         await service.save_user_preferences(
-            user_id="user789", makes=["Ford", "Chevrolet"], features=["4WD", "towing package"]
+            user_id="user789",
+            makes=["Ford", "Chevrolet"],
+            features=["4WD", "towing package"],
         )
 
         mock_collection.insert_one.assert_called_once()
@@ -264,7 +266,9 @@ class TestUpdateUserPreferences:
         mock_collection.find_one.return_value = None
 
         await service.update_user_preferences(
-            user_id="newuser", makes=["Nissan"], budget_range={"min": 15000, "max": 25000}
+            user_id="newuser",
+            makes=["Nissan"],
+            budget_range={"min": 15000, "max": 25000},
         )
 
         mock_collection.insert_one.assert_called_once()

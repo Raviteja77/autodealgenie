@@ -41,12 +41,12 @@ class DealEvaluation(Base):
         Enum(EvaluationStatus, values_callable=lambda x: [e.value for e in x]),
         default=EvaluationStatus.ANALYZING.value,
         nullable=False,
-        index=True
+        index=True,
     )
     current_step = Column(
         Enum(PipelineStep, values_callable=lambda x: [e.value for e in x]),
         default=PipelineStep.VEHICLE_CONDITION.value,
-        nullable=False
+        nullable=False,
     )
     result_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

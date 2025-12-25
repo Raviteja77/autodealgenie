@@ -10,7 +10,10 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.models import User
-from app.schemas.loan_schemas import LenderRecommendationRequest, LenderRecommendationResponse
+from app.schemas.loan_schemas import (
+    LenderRecommendationRequest,
+    LenderRecommendationResponse,
+)
 from app.schemas.negotiation_schemas import (
     ChatMessageRequest,
     ChatMessageResponse,

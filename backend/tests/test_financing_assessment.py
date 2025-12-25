@@ -137,12 +137,8 @@ async def test_financing_assessment_cash_purchase(authenticated_client, mock_dea
         f"/api/v1/deals/{mock_deal.id}/evaluation/{evaluation_id}/answers",
         json={"answers": answers},
     )
-    authenticated_client.post(
-        f"/api/v1/deals/{mock_deal.id}/evaluation", json={"answers": None}
-    )
-    authenticated_client.post(
-        f"/api/v1/deals/{mock_deal.id}/evaluation", json={"answers": None}
-    )
+    authenticated_client.post(f"/api/v1/deals/{mock_deal.id}/evaluation", json={"answers": None})
+    authenticated_client.post(f"/api/v1/deals/{mock_deal.id}/evaluation", json={"answers": None})
 
     # Provide cash financing answer
     financing_answers = {"financing_type": "cash"}
@@ -215,7 +211,9 @@ async def test_get_lender_recommendations(authenticated_client, mock_deal, mock_
 
 
 @pytest.mark.asyncio
-async def test_lender_recommendations_not_for_poor_deals(authenticated_client, mock_deal, mock_user, db):
+async def test_lender_recommendations_not_for_poor_deals(
+    authenticated_client, mock_deal, mock_user, db
+):
     """Test that lender recommendations are not provided for poor quality deals"""
     from app.repositories.evaluation_repository import EvaluationRepository
 

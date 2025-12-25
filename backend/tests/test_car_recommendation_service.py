@@ -50,7 +50,8 @@ async def test_get_cached_result():
     mock_redis.get = AsyncMock(return_value=json.dumps(cached_data))
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         result = await service._get_cached_result(cache_key)
 
@@ -76,7 +77,8 @@ async def test_set_cached_result():
     mock_redis.setex = AsyncMock()
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         await service._set_cached_result(cache_key, result_data)
 
@@ -110,7 +112,8 @@ async def test_search_with_cache_hit():
     mock_collection.insert_one = AsyncMock(return_value=mock_insert_result)
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         with patch(
             "app.repositories.search_history_repository.mongodb.get_collection",
@@ -153,7 +156,8 @@ async def test_search_with_retry_logic():
     mock_collection.insert_one = AsyncMock(return_value=mock_insert_result)
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         with patch(
             "app.repositories.search_history_repository.mongodb.get_collection",
@@ -184,7 +188,8 @@ async def test_search_with_retry_exhausted():
     mock_redis.get = AsyncMock(return_value=None)
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         with patch(
             "app.tools.marketcheck_client.marketcheck_client.search_cars",
@@ -225,7 +230,8 @@ async def test_search_history_logging():
     mock_collection.insert_one = AsyncMock(return_value=mock_insert_result)
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         with patch(
             "app.repositories.search_history_repository.mongodb.get_collection",
@@ -296,7 +302,8 @@ async def test_webhook_triggering():
     mock_collection.insert_one = AsyncMock(return_value=mock_insert_result)
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         with patch(
             "app.repositories.search_history_repository.mongodb.get_collection",

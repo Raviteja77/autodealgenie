@@ -388,7 +388,10 @@ class DealEvaluationService:
     # Multi-step pipeline methods
 
     async def process_evaluation_step(
-        self, db: Session, evaluation_id: int, user_answers: dict[str, Any] | None = None
+        self,
+        db: Session,
+        evaluation_id: int,
+        user_answers: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Process the current step of an evaluation pipeline

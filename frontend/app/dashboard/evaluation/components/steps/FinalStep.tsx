@@ -6,8 +6,6 @@ import {
   Typography,
   List,
   ListItem,
-  ListItemIcon,
-  ListItemText,
   Divider,
   Chip,
   Accordion,
@@ -62,7 +60,10 @@ export const FinalStep: React.FC<FinalStepProps> = ({ assessment, vehicleInfo })
     });
   };
 
-  const getRecommendationType = (score: number) => {
+  const getRecommendationType = (score: number): {
+    text: string;
+    color: string;
+  } => {
     if (score >= 8) return { text: 'Highly Recommended', color: 'success' };
     if (score >= 6.5) return { text: 'Recommended', color: 'info' };
     if (score >= 5) return { text: 'Fair Deal', color: 'warning' };
@@ -104,11 +105,10 @@ export const FinalStep: React.FC<FinalStepProps> = ({ assessment, vehicleInfo })
             <Chip
               icon={<CheckCircle />}
               label={recType.text}
-              color={recType.color as any}
+              color={recType.color as 'error' | 'info' | 'success' | 'warning'}
               sx={{ fontWeight: 'bold', fontSize: '0.9rem', px: 1 }}
             />
           </Box>
-
           <Box
             sx={{
               bgcolor: `${recType.color}.light`,

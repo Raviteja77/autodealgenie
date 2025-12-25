@@ -8,8 +8,6 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Alert,
-  AlertTitle,
 } from '@mui/material';
 import { LightbulbOutlined, CheckCircle, Warning, Info } from '@mui/icons-material';
 

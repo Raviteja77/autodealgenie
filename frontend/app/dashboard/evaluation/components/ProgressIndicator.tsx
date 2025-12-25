@@ -51,7 +51,7 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
   return (
     <Box sx={{ width: '100%', mb: 4 }}>
       <Stepper activeStep={currentStepIndex} alternativeLabel>
-        {STEPS.map((step, index) => {
+        {STEPS.map((step) => {
           const isCompleted = completedSteps.includes(step.key);
           const isCurrent = step.key === currentStep;
 

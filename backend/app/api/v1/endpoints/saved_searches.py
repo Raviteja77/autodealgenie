@@ -85,9 +85,7 @@ async def get_saved_search(
     )
 
     if not saved_search:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
 
     return saved_search
 
@@ -110,9 +108,7 @@ async def update_saved_search(
     )
 
     if not updated_search:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
 
     return updated_search
 
@@ -126,13 +122,9 @@ async def delete_saved_search(
     """
     Delete a saved search
     """
-    deleted = saved_search_repository.delete(
-        db=db, search_id=search_id, user_id=current_user.id
-    )
+    deleted = saved_search_repository.delete(db=db, search_id=search_id, user_id=current_user.id)
 
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
 
     return None

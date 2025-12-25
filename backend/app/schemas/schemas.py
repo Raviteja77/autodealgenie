@@ -5,7 +5,14 @@ Pydantic schemas for request/response validation
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from app.utils.validators import (
+    validate_mileage,
+    validate_price,
+    validate_vin,
+    validate_year,
+)
 
 
 class DealStatus(str, Enum):
@@ -30,7 +37,39 @@ class DealBase(BaseModel):
     asking_price: float = Field(..., gt=0)
     offer_price: float | None = Field(None, gt=0)
     status: DealStatus = DealStatus.PENDING
-    notes: str | None = None
+    notes: str | None = Field(None, max_length=5000)
+
+    @field_validator("vehicle_vin")
+    @classmethod
+    def validate_vin_format(cls, v: str) -> str:
+        """Validate VIN format"""
+        return validate_vin(v)
+
+    @field_validator("vehicle_year")
+    @classmethod
+    def validate_year_range(cls, v: int) -> int:
+        """Validate vehicle year"""
+        return validate_year(v)
+
+    @field_validator("vehicle_mileage")
+    @classmethod
+    def validate_mileage_range(cls, v: int) -> int:
+        """Validate vehicle mileage"""
+        return validate_mileage(v)
+
+    @field_validator("asking_price", "offer_price")
+    @classmethod
+    def validate_price_range(cls, v: float | None) -> float | None:
+        """Validate price"""
+        if v is not None:
+            return validate_price(v)
+        return v
+
+    @field_validator("customer_name", "vehicle_make", "vehicle_model")
+    @classmethod
+    def sanitize_text_fields(cls, v: str) -> str:
+        """Sanitize text fields"""
+        return v.strip() if v else v
 
 
 class DealCreate(DealBase):
@@ -54,7 +93,39 @@ class DealUpdate(BaseModel):
     asking_price: float | None = Field(None, gt=0)
     offer_price: float | None = Field(None, gt=0)
     status: DealStatus | None = None
-    notes: str | None = None
+    notes: str | None = Field(None, max_length=5000)
+
+    @field_validator("vehicle_vin")
+    @classmethod
+    def validate_vin_format(cls, v: str | None) -> str | None:
+        """Validate VIN format"""
+        if v is not None:
+            return validate_vin(v)
+        return v
+
+    @field_validator("vehicle_year")
+    @classmethod
+    def validate_year_range(cls, v: int | None) -> int | None:
+        """Validate vehicle year"""
+        if v is not None:
+            return validate_year(v)
+        return v
+
+    @field_validator("vehicle_mileage")
+    @classmethod
+    def validate_mileage_range(cls, v: int | None) -> int | None:
+        """Validate vehicle mileage"""
+        if v is not None:
+            return validate_mileage(v)
+        return v
+
+    @field_validator("asking_price", "offer_price")
+    @classmethod
+    def validate_price_range(cls, v: float | None) -> float | None:
+        """Validate price"""
+        if v is not None:
+            return validate_price(v)
+        return v
 
 
 class DealResponse(DealBase):
@@ -75,11 +146,27 @@ class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=100)
     full_name: str | None = Field(None, max_length=255)
 
+    @field_validator("username")
+    @classmethod
+    def validate_username_format(cls, v: str) -> str:
+        """Validate username format"""
+        from app.utils.validators import validate_username
+
+        return validate_username(v)
+
 
 class UserCreate(UserBase):
     """Schema for creating a user"""
 
-    password: str = Field(..., min_length=8)
+    password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Validate password strength"""
+        from app.utils.validators import validate_password_strength
+
+        return validate_password_strength(v)
 
 
 class UserUpdate(BaseModel):
@@ -88,7 +175,27 @@ class UserUpdate(BaseModel):
     email: EmailStr | None = None
     username: str | None = Field(None, min_length=3, max_length=100)
     full_name: str | None = Field(None, max_length=255)
-    password: str | None = Field(None, min_length=8)
+    password: str | None = Field(None, min_length=8, max_length=128)
+
+    @field_validator("username")
+    @classmethod
+    def validate_username_format(cls, v: str | None) -> str | None:
+        """Validate username format"""
+        if v is not None:
+            from app.utils.validators import validate_username
+
+            return validate_username(v)
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str | None) -> str | None:
+        """Validate password strength"""
+        if v is not None:
+            from app.utils.validators import validate_password_strength
+
+            return validate_password_strength(v)
+        return v
 
 
 class UserResponse(UserBase):
@@ -117,7 +224,10 @@ class DealEvaluationRequest(BaseModel):
     vehicle_vin: str = Field(..., min_length=17, max_length=17, description="17-character VIN")
     asking_price: float = Field(..., gt=0, description="Asking price in USD")
     condition: str = Field(
-        ..., min_length=1, max_length=50, description="Vehicle condition (e.g., excellent, good)"
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Vehicle condition (e.g., excellent, good)",
     )
     mileage: int = Field(..., ge=0, description="Current mileage in miles")
 

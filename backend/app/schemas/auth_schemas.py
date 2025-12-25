@@ -2,7 +2,7 @@
 Authentication-related Pydantic schemas
 """
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class Token(BaseModel):
@@ -25,13 +25,19 @@ class LoginRequest(BaseModel):
     """Login request schema"""
 
     email: EmailStr
-    password: str = Field(..., min_length=8)
+    password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        """Normalize email to lowercase"""
+        return v.lower().strip()
 
 
 class RefreshTokenRequest(BaseModel):
     """Refresh token request schema"""
 
-    refresh_token: str
+    refresh_token: str = Field(..., min_length=10)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -39,12 +45,26 @@ class ForgotPasswordRequest(BaseModel):
 
     email: EmailStr
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        """Normalize email to lowercase"""
+        return v.lower().strip()
+
 
 class ResetPasswordRequest(BaseModel):
     """Reset password request schema"""
 
-    token: str
-    new_password: str = Field(..., min_length=8)
+    token: str = Field(..., min_length=10)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Validate password strength"""
+        from app.utils.validators import validate_password_strength
+
+        return validate_password_strength(v)
 
 
 class ForgotPasswordResponse(BaseModel):

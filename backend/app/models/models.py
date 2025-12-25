@@ -4,7 +4,16 @@ SQLAlchemy models for PostgreSQL
 
 import enum
 
-from sqlalchemy import Column, DateTime, Enum, Float, Integer, String, Text, ForeignKey, JSON, Boolean
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    Integer,
+    String,
+    Text,
+    Boolean,
+)
 from sqlalchemy.sql import func
 
 from app.db.session import Base
@@ -47,7 +56,7 @@ class Deal(Base):
         Enum(DealStatus, values_callable=lambda x: [e.value for e in x]),
         default=DealStatus.PENDING.value,  # Use .value for default
         nullable=False,
-        index=True
+        index=True,
     )
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -89,7 +98,7 @@ class WebhookSubscription(Base):
     status = Column(
         Enum(WebhookStatus, values_callable=lambda x: [e.value for e in x]),
         default=WebhookStatus.ACTIVE.value,
-        nullable=False
+        nullable=False,
     )
 
     # Search criteria filters
@@ -145,7 +154,7 @@ class SavedSearch(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False, index=True)
     name = Column(String(255), nullable=False)
-    
+
     # Search criteria
     make = Column(String(100), nullable=True)
     model = Column(String(100), nullable=True)
@@ -159,7 +168,7 @@ class SavedSearch(Base):
     transmission = Column(String(50), nullable=True)
     condition = Column(String(50), nullable=True)
     user_priorities = Column(Text, nullable=True)
-    
+
     # Metadata
     notification_enabled = Column(Boolean, default=True)
     last_checked = Column(DateTime(timezone=True), nullable=True)

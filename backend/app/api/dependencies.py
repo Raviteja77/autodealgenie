@@ -48,7 +48,7 @@ def get_current_user(
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     try:
         user_id = int(sub)
     except (ValueError, TypeError):

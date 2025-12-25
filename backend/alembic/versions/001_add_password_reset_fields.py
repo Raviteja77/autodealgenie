@@ -23,7 +23,8 @@ def upgrade() -> None:
     """Add reset_token and reset_token_expires columns to users table"""
     op.add_column("users", sa.Column("reset_token", sa.String(length=255), nullable=True))
     op.add_column(
-        "users", sa.Column("reset_token_expires", sa.DateTime(timezone=True), nullable=True)
+        "users",
+        sa.Column("reset_token_expires", sa.DateTime(timezone=True), nullable=True),
     )
 
 

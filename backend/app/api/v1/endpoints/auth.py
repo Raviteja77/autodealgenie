@@ -90,7 +90,9 @@ def login(response: Response, login_request: LoginRequest, db: Session = Depends
 
 @router.post("/refresh", response_model=Token)
 def refresh(
-    response: Response, refresh_request: RefreshTokenRequest, db: Session = Depends(get_db)
+    response: Response,
+    refresh_request: RefreshTokenRequest,
+    db: Session = Depends(get_db),
 ):
     """
     Refresh access token using refresh token
@@ -119,7 +121,7 @@ def refresh(
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     try:
         user_id = int(sub)
     except (ValueError, TypeError):

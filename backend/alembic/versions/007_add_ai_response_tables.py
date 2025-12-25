@@ -8,7 +8,6 @@ Create Date: 2025-12-25 14:30:00.000000
 from alembic import op
 import sqlalchemy as sa
 
-
 # revision identifiers, used by Alembic.
 revision = "007_add_ai_response_tables"
 down_revision = "006_add_saved_searches"
@@ -79,8 +78,12 @@ def upgrade():
 
     # Create indexes for insurance_recommendations
     op.create_index("ix_insurance_recommendations_id", "insurance_recommendations", ["id"])
-    op.create_index("ix_insurance_recommendations_deal_id", "insurance_recommendations", ["deal_id"])
-    op.create_index("ix_insurance_recommendations_user_id", "insurance_recommendations", ["user_id"])
+    op.create_index(
+        "ix_insurance_recommendations_deal_id", "insurance_recommendations", ["deal_id"]
+    )
+    op.create_index(
+        "ix_insurance_recommendations_user_id", "insurance_recommendations", ["user_id"]
+    )
 
 
 def downgrade():

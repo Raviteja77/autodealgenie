@@ -438,9 +438,7 @@ async def mock_create_negotiation(request_data: dict[str, Any]) -> dict[str, Any
 
 
 @router.post("/{session_id}/next")
-async def mock_process_next_round(
-    session_id: int, request_data: dict[str, Any]
-) -> dict[str, Any]:
+async def mock_process_next_round(session_id: int, request_data: dict[str, Any]) -> dict[str, Any]:
     """
     Mock endpoint for processing the next negotiation round
     """
@@ -611,11 +609,11 @@ async def mock_start_evaluation(deal_id: int, request_data: dict[str, Any]) -> d
     Simulates POST /api/v1/deals/{deal_id}/evaluation
     """
     global EVALUATION_ID_COUNTER
-    
+
     answers = request_data.get("answers", {})
     evaluation_id = EVALUATION_ID_COUNTER
     EVALUATION_ID_COUNTER += 1
-    
+
     # Check if VIN was provided
     if answers and "vin" in answers:
         # Start with condition assessment (no questions needed)
@@ -649,7 +647,7 @@ async def mock_start_evaluation(deal_id: int, request_data: dict[str, Any]) -> d
         status = "awaiting_input"
         current_step = "vehicle_condition"
         result_json = {"user_inputs": answers} if answers else None
-    
+
     # Store evaluation state
     MOCK_EVALUATIONS[evaluation_id] = {
         "deal_id": deal_id,
@@ -657,7 +655,7 @@ async def mock_start_evaluation(deal_id: int, request_data: dict[str, Any]) -> d
         "current_step": current_step,
         "result_json": result_json,
     }
-    
+
     return {
         "evaluation_id": evaluation_id,
         "deal_id": deal_id,
@@ -677,23 +675,26 @@ async def mock_submit_evaluation_answers(
     Simulates POST /api/v1/deals/{deal_id}/evaluation/{evaluation_id}/answers
     """
     answers = request_data.get("answers", {})
-    
+
     # Get current evaluation state or create new one
-    eval_state = MOCK_EVALUATIONS.get(evaluation_id, {
-        "deal_id": deal_id,
-        "status": "analyzing",
-        "current_step": "vehicle_condition",
-        "result_json": {"user_inputs": {}},
-    })
-    
+    eval_state = MOCK_EVALUATIONS.get(
+        evaluation_id,
+        {
+            "deal_id": deal_id,
+            "status": "analyzing",
+            "current_step": "vehicle_condition",
+            "result_json": {"user_inputs": {}},
+        },
+    )
+
     # Update user inputs
     if not eval_state.get("result_json"):
         eval_state["result_json"] = {"user_inputs": {}}
     eval_state["result_json"]["user_inputs"].update(answers)
-    
+
     current_step = eval_state["current_step"]
     result_json = eval_state["result_json"]
-    
+
     # Process based on current step
     if current_step == "vehicle_condition":
         # Complete condition assessment
@@ -711,7 +712,7 @@ async def mock_submit_evaluation_answers(
         }
         result_json["vehicle_condition"] = step_result
         next_step = "price"
-        
+
     elif current_step == "price":
         # Complete price analysis
         step_result = {
@@ -733,7 +734,7 @@ async def mock_submit_evaluation_answers(
         }
         result_json["price"] = step_result
         next_step = "financing"
-        
+
     elif current_step == "financing":
         # Check if financing info provided
         if "financing_type" in answers:
@@ -761,7 +762,7 @@ async def mock_submit_evaluation_answers(
             }
             eval_state["status"] = "awaiting_input"
             MOCK_EVALUATIONS[evaluation_id] = eval_state
-            
+
             return {
                 "evaluation_id": evaluation_id,
                 "deal_id": deal_id,
@@ -770,7 +771,7 @@ async def mock_submit_evaluation_answers(
                 "step_result": step_result,
                 "result_json": result_json,
             }
-            
+
     elif current_step == "risk":
         # Complete risk assessment
         step_result = {
@@ -786,7 +787,7 @@ async def mock_submit_evaluation_answers(
         }
         result_json["risk"] = step_result
         next_step = "final"
-        
+
     elif current_step == "final":
         # Generate final recommendation
         step_result = {
@@ -809,18 +810,18 @@ async def mock_submit_evaluation_answers(
         result_json["final"] = step_result
         next_step = None
         eval_state["status"] = "completed"
-        
+
     else:
         next_step = None
-    
+
     # Update evaluation state
     if next_step:
         eval_state["current_step"] = next_step
         eval_state["status"] = "analyzing"
-    
+
     eval_state["result_json"] = result_json
     MOCK_EVALUATIONS[evaluation_id] = eval_state
-    
+
     return {
         "evaluation_id": evaluation_id,
         "deal_id": deal_id,
@@ -838,13 +839,13 @@ async def mock_get_evaluation(deal_id: int, evaluation_id: int) -> dict[str, Any
     Simulates GET /api/v1/deals/{deal_id}/evaluation/{evaluation_id}
     """
     eval_state = MOCK_EVALUATIONS.get(evaluation_id)
-    
+
     if not eval_state:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Evaluation {evaluation_id} not found",
         )
-    
+
     return {
         "id": evaluation_id,
         "user_id": 1,

@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Create initial users and deals tables"""
-    
+
     # Create users table
     op.create_table(
         "users",
@@ -43,7 +43,7 @@ def upgrade() -> None:
     op.create_index(op.f("ix_users_id"), "users", ["id"])
     op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)
     op.create_index(op.f("ix_users_username"), "users", ["username"], unique=True)
-    
+
     # Create deals table
     op.create_table(
         "deals",
@@ -84,11 +84,11 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_deals_customer_email"), table_name="deals")
     op.drop_index(op.f("ix_deals_id"), table_name="deals")
     op.drop_table("deals")
-    
+
     op.drop_index(op.f("ix_users_username"), table_name="users")
     op.drop_index(op.f("ix_users_email"), table_name="users")
     op.drop_index(op.f("ix_users_id"), table_name="users")
     op.drop_table("users")
-    
+
     # Drop the enum type after dropping the table that uses it
     op.execute("DROP TYPE IF EXISTS dealstatus")

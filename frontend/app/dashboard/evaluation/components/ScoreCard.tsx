@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Card, CardContent, Typography, LinearProgress, Chip } from '@mui/material';
+import { Box, Card, CardContent, Typography, LinearProgress } from '@mui/material';
 import { CheckCircle, ThumbUp, Warning, ThumbDown } from '@mui/icons-material';
 
 interface ScoreCardProps {
@@ -9,12 +9,6 @@ interface ScoreCardProps {
   financingScore?: number;
   riskScore?: number;
 }
-
-const getScoreColor = (score: number): 'success' | 'warning' | 'error' => {
-  if (score >= 8) return 'success';
-  if (score >= 6) return 'warning';
-  return 'error';
-};
 
 const getOverallRating = (score: number) => {
   if (score >= 8.5)

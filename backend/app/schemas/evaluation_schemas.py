@@ -77,5 +77,6 @@ class FinancingAssessment(BaseModel):
     )
     recommendation_reason: str = Field(..., description="Explanation for the recommendation")
     cash_vs_financing_savings: float | None = Field(
-        None, description="Savings if paying cash vs financing (negative if financing is better)"
+        None,
+        description="Savings if paying cash vs financing (negative if financing is better)",
     )

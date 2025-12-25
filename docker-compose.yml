@@ -108,9 +108,18 @@ services:
       REDIS_DB: 0
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production-min-32-chars-long}
+      ENVIRONMENT: development
     volumes:
       - ./backend:/app
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
 
   # Next.js Frontend
   frontend:
@@ -119,7 +128,8 @@ services:
       dockerfile: Dockerfile
     container_name: autodealgenie-frontend
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
@@ -129,6 +139,13 @@ services:
       - /app/node_modules
       - /app/.next
     command: npm run dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
 
 volumes:
   postgres_data:

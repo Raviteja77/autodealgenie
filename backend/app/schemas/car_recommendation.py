@@ -85,7 +85,8 @@ class CarRecommendationItem(BaseModel):
         le=10,
     )
     highlights: list[str] = Field(
-        default_factory=list, description="Key highlights and reasons to consider this vehicle"
+        default_factory=list,
+        description="Key highlights and reasons to consider this vehicle",
     )
     recommendation_summary: str | None = Field(
         None, description="Brief summary of why this vehicle is recommended"

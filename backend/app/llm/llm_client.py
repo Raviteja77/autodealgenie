@@ -282,7 +282,10 @@ class LLMClient:
             raise ApiError(
                 status_code=429,
                 message="OpenAI API rate limit exceeded",
-                details={"error": str(e), "retry_after": getattr(e, "retry_after", None)},
+                details={
+                    "error": str(e),
+                    "retry_after": getattr(e, "retry_after", None),
+                },
             ) from e
 
         except openai.APITimeoutError as e:
@@ -298,7 +301,10 @@ class LLMClient:
             raise ApiError(
                 status_code=502,
                 message="OpenAI API error",
-                details={"error": str(e), "status_code": getattr(e, "status_code", None)},
+                details={
+                    "error": str(e),
+                    "status_code": getattr(e, "status_code", None),
+                },
             ) from e
 
         except Exception as e:
@@ -425,7 +431,10 @@ class LLMClient:
             raise ApiError(
                 status_code=429,
                 message="OpenAI API rate limit exceeded",
-                details={"error": str(e), "retry_after": getattr(e, "retry_after", None)},
+                details={
+                    "error": str(e),
+                    "retry_after": getattr(e, "retry_after", None),
+                },
             ) from e
 
         except openai.APITimeoutError as e:
@@ -441,7 +450,10 @@ class LLMClient:
             raise ApiError(
                 status_code=502,
                 message="OpenAI API error",
-                details={"error": str(e), "status_code": getattr(e, "status_code", None)},
+                details={
+                    "error": str(e),
+                    "status_code": getattr(e, "status_code", None),
+                },
             ) from e
 
         except Exception as e:

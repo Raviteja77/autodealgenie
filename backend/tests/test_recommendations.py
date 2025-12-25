@@ -165,7 +165,8 @@ def test_get_car_recommendations_success(
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
@@ -205,7 +206,8 @@ def test_get_car_recommendations_minimal_input(
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
@@ -235,7 +237,8 @@ def test_get_car_recommendations_no_results(authenticated_client, mock_rate_limi
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
@@ -260,7 +263,8 @@ def test_get_car_recommendations_rate_limit_exceeded(
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_exceeded
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_exceeded,
     ):
         response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
@@ -277,7 +281,8 @@ def test_get_car_recommendations_validation_error(authenticated_client, mock_rat
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
@@ -298,7 +303,8 @@ def test_get_car_recommendations_connection_error(authenticated_client, mock_rat
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
@@ -318,7 +324,8 @@ def test_get_car_recommendations_internal_error(authenticated_client, mock_rate_
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
@@ -364,7 +371,8 @@ def test_get_car_recommendations_with_all_preferences(
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
@@ -446,7 +454,8 @@ def test_must_have_features_integration(
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",

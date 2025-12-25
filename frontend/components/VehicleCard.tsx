@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import {
   Box,
   Typography,
@@ -22,8 +23,6 @@ import {
   FavoriteBorder as FavoriteBorderIcon,
   AttachMoney as AttachMoneyIcon,
   AccountBalance as AccountBalanceIcon,
-  TrendingUp as TrendingUpIcon,
-  Info as InfoIcon,
 } from "@mui/icons-material";
 import { Card, Button } from "@/components";
 
@@ -110,8 +109,8 @@ export function VehicleCard({
 
   // Check affordability
   const isAffordable = budgetMax ? vehicle.price <= budgetMax : true;
-  const monthlyAffordable =
-    budgetMax && monthlyPayment ? monthlyPayment <= budgetMax : true;
+  // const monthlyAffordable =
+  //   budgetMax && monthlyPayment ? monthlyPayment <= budgetMax : true;
 
   return (
     <Card
@@ -142,10 +141,12 @@ export function VehicleCard({
           }}
         >
           {vehicle.image ? (
-            <img
+            <Image
+              fill
               src={vehicle.image}
               alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              style={{ objectFit: "cover" }}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           ) : (
             <DirectionsCarIcon sx={{ fontSize: 64, color: "grey.400" }} />

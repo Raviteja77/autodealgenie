@@ -8,6 +8,7 @@ from app.services.negotiation_service import NegotiationService
 
 class MockDeal:
     """Mock Deal object for testing"""
+
     def __init__(self, asking_price):
         self.asking_price = asking_price
         self.vehicle_make = "Toyota"
@@ -18,6 +19,7 @@ class MockDeal:
 
 class MockMessage:
     """Mock NegotiationMessage object for testing"""
+
     def __init__(self, round_number, metadata=None):
         self.round_number = round_number
         self.metadata = metadata or {}
@@ -38,15 +40,15 @@ class TestCalculateAIMetrics:
         current_price = 21250  # 15% off
         user_target = 22000
         messages = [MockMessage(1), MockMessage(2)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert metrics["confidence_score"] == 0.95
         assert metrics["recommended_action"] == "accept"
         assert "Excellent" in metrics["market_comparison"]
@@ -57,15 +59,15 @@ class TestCalculateAIMetrics:
         current_price = 22500  # 10% off
         user_target = 23000
         messages = [MockMessage(1)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert metrics["confidence_score"] == 0.85
         assert metrics["recommended_action"] == "accept"
 
@@ -75,15 +77,15 @@ class TestCalculateAIMetrics:
         current_price = 23750  # 5% off
         user_target = 23500
         messages = [MockMessage(1)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert metrics["confidence_score"] == 0.75
         assert metrics["recommended_action"] == "accept"
 
@@ -93,15 +95,15 @@ class TestCalculateAIMetrics:
         current_price = 24375  # 2.5% off
         user_target = 23000
         messages = [MockMessage(1)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert metrics["confidence_score"] == 0.65
         assert metrics["recommended_action"] == "counter"
 
@@ -111,15 +113,15 @@ class TestCalculateAIMetrics:
         current_price = 24750  # 1% off
         user_target = 23000
         messages = [MockMessage(1)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert metrics["confidence_score"] == 0.50
         assert metrics["recommended_action"] == "counter"
 
@@ -129,15 +131,15 @@ class TestCalculateAIMetrics:
         current_price = 26000  # 4% increase
         user_target = 23000
         messages = [MockMessage(1)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert metrics["confidence_score"] == 0.20
         assert metrics["recommended_action"] == "reject"
         assert "Warning" in metrics["market_comparison"]
@@ -149,15 +151,15 @@ class TestCalculateAIMetrics:
         current_price = 22000  # 12% off
         user_target = 23000
         messages = [MockMessage(1)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert metrics["dealer_concession_rate"] == 0.12
         assert "strong flexibility" in metrics["strategy_adjustments"]
 
@@ -167,15 +169,15 @@ class TestCalculateAIMetrics:
         current_price = 23750  # 5% off
         user_target = 23000
         messages = [MockMessage(1)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert metrics["dealer_concession_rate"] == 0.05
         assert "Moderate progress" in metrics["strategy_adjustments"]
 
@@ -185,18 +187,22 @@ class TestCalculateAIMetrics:
         current_price = 24500  # 2% off
         user_target = 23000
         messages = [
-            MockMessage(1), MockMessage(2), MockMessage(3),
-            MockMessage(4), MockMessage(5), MockMessage(6)
+            MockMessage(1),
+            MockMessage(2),
+            MockMessage(3),
+            MockMessage(4),
+            MockMessage(5),
+            MockMessage(6),
         ]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert "Limited movement detected" in metrics["strategy_adjustments"]
 
     def test_early_stage_low_concession(self, negotiation_service):
@@ -205,15 +211,15 @@ class TestCalculateAIMetrics:
         current_price = 24900  # 0.4% off (very low)
         user_target = 23000
         messages = [MockMessage(1), MockMessage(2)]  # Only 2 rounds
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert "limited flexibility" in metrics["strategy_adjustments"]
         assert "walk-away price" in metrics["strategy_adjustments"]
 
@@ -223,15 +229,15 @@ class TestCalculateAIMetrics:
         current_price = 24250  # 3% off
         user_target = 23000
         messages = [MockMessage(1), MockMessage(2)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert "Early stage" in metrics["strategy_adjustments"]
         assert "strategically" in metrics["strategy_adjustments"]
 
@@ -241,15 +247,15 @@ class TestCalculateAIMetrics:
         current_price = 23750  # 5% off
         user_target = 23000
         messages = []
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         # Should use max(len(set(...)), 1) to avoid division by zero
         assert metrics["negotiation_velocity"] == 1250.0  # (25000 - 23750) / 1
 
@@ -259,15 +265,15 @@ class TestCalculateAIMetrics:
         current_price = 100
         user_target = 50
         messages = [MockMessage(1)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         # Should handle division by zero gracefully
         assert metrics["dealer_concession_rate"] == 0
 
@@ -277,15 +283,15 @@ class TestCalculateAIMetrics:
         current_price = 23000  # 8% off
         user_target = 22500  # Target is lower, but getting decent discount
         messages = [MockMessage(1)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         assert metrics["recommended_action"] == "consider"
 
     def test_negotiation_velocity_multiple_rounds(self, negotiation_service):
@@ -294,14 +300,14 @@ class TestCalculateAIMetrics:
         current_price = 22000  # 3000 off
         user_target = 21000
         messages = [MockMessage(1), MockMessage(2), MockMessage(3)]
-        
+
         metrics = negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
             user_target=user_target,
-            messages=messages
+            messages=messages,
         )
-        
+
         # 3000 price reduction / 3 rounds = 1000 per round
         assert metrics["negotiation_velocity"] == 1000.0

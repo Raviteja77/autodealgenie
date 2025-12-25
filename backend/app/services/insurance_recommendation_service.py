@@ -368,7 +368,8 @@ class InsuranceRecommendationService:
 
         # Ensure premium is within provider's range
         estimated_premium = max(
-            provider.premium_range_min, min(provider.premium_range_max, estimated_premium)
+            provider.premium_range_min,
+            min(provider.premium_range_max, estimated_premium),
         )
 
         return round(estimated_premium, 2)
@@ -553,10 +554,12 @@ class InsuranceRecommendationService:
 
         # Store recommendations in PostgreSQL if user and deal IDs are provided
         if user_id and deal_id and db_session:
-            from app.repositories.insurance_recommendation_repository import InsuranceRecommendationRepository
-            
+            from app.repositories.insurance_recommendation_repository import (
+                InsuranceRecommendationRepository,
+            )
+
             insurance_repo = InsuranceRecommendationRepository(db_session)
-            
+
             for rec in recommendations:
                 try:
                     ins_rec = InsuranceRecommendation(
@@ -585,7 +588,7 @@ class InsuranceRecommendationService:
                         f"Failed to store insurance recommendation for deal {deal_id}: {str(e)}"
                     )
                     # Don't fail the main operation if storage fails
-            
+
             # Single commit after all recommendations
             try:
                 insurance_repo.db.commit()

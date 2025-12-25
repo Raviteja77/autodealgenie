@@ -30,16 +30,13 @@ export function BasicVehicleFilters({
   make,
   model,
   carType,
-  bodyType,
   onMakeChange,
   onModelChange,
   onCarTypeChange,
-  onBodyTypeChange,
   onMaxResultsChange,
   makes,
   models,
   carTypes,
-  bodyTypes,
   maxResults,
 }: BasicVehicleFiltersProps) {
   return (

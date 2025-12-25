@@ -24,7 +24,7 @@ class DealRepository:
     def create(self, deal_in: DealCreate) -> Deal:
         """Create a new deal"""
         # Use mode='json' to properly serialize enums to their string values
-        deal = Deal(**deal_in.model_dump(mode='json'))
+        deal = Deal(**deal_in.model_dump(mode="json"))
         if isinstance(deal_in.status, str):
             deal_in.status = NORMALIZE_STATUS.get(deal_in.status, DealStatus.IN_PROGRESS)
         self.db.add(deal)
@@ -55,7 +55,7 @@ class DealRepository:
             return None
 
         # Use mode='json' to properly serialize enums
-        update_data = deal_in.model_dump(exclude_unset=True, mode='json')
+        update_data = deal_in.model_dump(exclude_unset=True, mode="json")
         for field, value in update_data.items():
             setattr(deal, field, value)
 

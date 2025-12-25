@@ -39,9 +39,7 @@ api_router.include_router(
     recommendations.router, prefix="/recommendations", tags=["recommendations"]
 )
 api_router.include_router(favorites.router, prefix="/favorites", tags=["favorites"])
-api_router.include_router(
-    saved_searches.router, prefix="/saved-searches", tags=["saved-searches"]
-)
+api_router.include_router(saved_searches.router, prefix="/saved-searches", tags=["saved-searches"])
 api_router.include_router(comparisons.router, prefix="/vehicles", tags=["comparisons"])
 api_router.include_router(loans.router, prefix="/loans", tags=["loans"])
 api_router.include_router(insurance.router, prefix="/insurance", tags=["insurance"])

@@ -76,7 +76,9 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_negotiation_messages_id"), "negotiation_messages", ["id"])
     op.create_index(
-        op.f("ix_negotiation_messages_session_id"), "negotiation_messages", ["session_id"]
+        op.f("ix_negotiation_messages_session_id"),
+        "negotiation_messages",
+        ["session_id"],
     )
     op.create_index(
         op.f("ix_negotiation_messages_round_number"),
@@ -97,7 +99,7 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_negotiation_sessions_user_id"), table_name="negotiation_sessions")
     op.drop_index(op.f("ix_negotiation_sessions_id"), table_name="negotiation_sessions")
     op.drop_table("negotiation_sessions")
-    
+
     # Drop the enum types after dropping the tables that use them
     op.execute("DROP TYPE IF EXISTS messagerole")
     op.execute("DROP TYPE IF EXISTS negotiationstatus")

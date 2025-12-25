@@ -14,7 +14,11 @@ class EvaluationRepository:
         self.db = db
 
     def create(
-        self, user_id: int, deal_id: int, status: EvaluationStatus, current_step: PipelineStep
+        self,
+        user_id: int,
+        deal_id: int,
+        status: EvaluationStatus,
+        current_step: PipelineStep,
     ) -> DealEvaluation:
         """Create a new deal evaluation"""
         evaluation = DealEvaluation(
@@ -76,7 +80,10 @@ class EvaluationRepository:
         return evaluation
 
     def update_result(
-        self, evaluation_id: int, result_json: dict, status: EvaluationStatus | None = None
+        self,
+        evaluation_id: int,
+        result_json: dict,
+        status: EvaluationStatus | None = None,
     ) -> DealEvaluation | None:
         """Update evaluation result JSON and optionally status"""
         evaluation = self.get(evaluation_id)

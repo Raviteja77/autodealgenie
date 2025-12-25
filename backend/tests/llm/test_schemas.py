@@ -87,7 +87,10 @@ class TestLLMResponse:
     def test_llm_response_text_content(self):
         """Test LLM response with text content"""
         response = LLMResponse(
-            content="This is a test response", prompt_id="test", model="gpt-4", tokens_used=50
+            content="This is a test response",
+            prompt_id="test",
+            model="gpt-4",
+            tokens_used=50,
         )
 
         assert response.content == "This is a test response"
@@ -161,7 +164,11 @@ class TestCarSelectionItem:
         item = CarSelectionItem(
             index=2,
             score=9.2,
-            highlights=["Excellent safety ratings", "Low maintenance costs", "Good resale value"],
+            highlights=[
+                "Excellent safety ratings",
+                "Low maintenance costs",
+                "Good resale value",
+            ],
             summary="Top choice for family vehicle with strong safety features",
         )
 
@@ -184,9 +191,7 @@ class TestCarSelectionItem:
 
     def test_car_selection_item_score_types(self):
         """Test that score accepts both int and float"""
-        item_float = CarSelectionItem(
-            index=0, score=8.5, highlights=["Good"], summary="Nice car"
-        )
+        item_float = CarSelectionItem(index=0, score=8.5, highlights=["Good"], summary="Nice car")
         item_int = CarSelectionItem(index=1, score=9, highlights=["Great"], summary="Best car")
 
         assert item_float.score == 8.5
@@ -253,7 +258,12 @@ class TestCarSelectionResponse:
     def test_car_selection_response_multiple_items(self):
         """Test car selection response with multiple recommendations"""
         items = [
-            CarSelectionItem(index=i, score=8.0 + i * 0.5, highlights=[f"Feature {i}"], summary=f"Car {i}")
+            CarSelectionItem(
+                index=i,
+                score=8.0 + i * 0.5,
+                highlights=[f"Feature {i}"],
+                summary=f"Car {i}",
+            )
             for i in range(5)
         ]
         response = CarSelectionResponse(recommendations=items)
@@ -273,7 +283,11 @@ class TestDealEvaluation:
             fair_value=25000.00,
             score=7.5,
             insights=["Priced above market", "Good condition", "Average mileage"],
-            talking_points=["Request maintenance records", "Point out comparable vehicles", "Negotiate warranty"],
+            talking_points=[
+                "Request maintenance records",
+                "Point out comparable vehicles",
+                "Negotiate warranty",
+            ],
         )
 
         assert evaluation.fair_value == 25000.00
@@ -284,24 +298,16 @@ class TestDealEvaluation:
     def test_deal_evaluation_score_validation(self):
         """Test score validation (must be 1-10)"""
         # Valid scores
-        DealEvaluation(
-            fair_value=20000, score=1.0, insights=["Good"], talking_points=["Talk"]
-        )
-        DealEvaluation(
-            fair_value=20000, score=10.0, insights=["Good"], talking_points=["Talk"]
-        )
+        DealEvaluation(fair_value=20000, score=1.0, insights=["Good"], talking_points=["Talk"])
+        DealEvaluation(fair_value=20000, score=10.0, insights=["Good"], talking_points=["Talk"])
 
         # Invalid score (too low)
         with pytest.raises(ValidationError):
-            DealEvaluation(
-                fair_value=20000, score=0.5, insights=["Good"], talking_points=["Talk"]
-            )
+            DealEvaluation(fair_value=20000, score=0.5, insights=["Good"], talking_points=["Talk"])
 
         # Invalid score (too high)
         with pytest.raises(ValidationError):
-            DealEvaluation(
-                fair_value=20000, score=10.5, insights=["Good"], talking_points=["Talk"]
-            )
+            DealEvaluation(fair_value=20000, score=10.5, insights=["Good"], talking_points=["Talk"])
 
     def test_deal_evaluation_required_fields(self):
         """Test validation of required fields"""

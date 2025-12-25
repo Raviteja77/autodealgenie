@@ -12,7 +12,8 @@ class LLMRequest(BaseModel):
 
     prompt_id: str = Field(..., description="ID of the prompt template to use")
     variables: dict[str, Any] = Field(
-        default_factory=dict, description="Variables to substitute in the prompt template"
+        default_factory=dict,
+        description="Variables to substitute in the prompt template",
     )
     model: str | None = Field(None, description="Override the default OpenAI model")
     temperature: float = Field(
@@ -69,7 +70,9 @@ class VehicleConditionAssessment(BaseModel):
 
     condition_score: float = Field(..., ge=1.0, le=10.0, description="Condition score from 1-10")
     condition_notes: list[str] = Field(..., description="Key observations about vehicle condition")
-    recommended_inspection: bool = Field(..., description="Whether pre-purchase inspection is recommended")
+    recommended_inspection: bool = Field(
+        ..., description="Whether pre-purchase inspection is recommended"
+    )
 
 
 # ============================================================================

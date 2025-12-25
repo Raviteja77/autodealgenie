@@ -119,7 +119,9 @@ class LoanRecommendationRepository:
         Returns:
             LoanRecommendation or None
         """
-        return self.db.query(LoanRecommendation).filter(LoanRecommendation.id == loan_rec_id).first()
+        return (
+            self.db.query(LoanRecommendation).filter(LoanRecommendation.id == loan_rec_id).first()
+        )
 
     def delete(self, loan_rec_id: int) -> bool:
         """

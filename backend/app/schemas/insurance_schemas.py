@@ -15,7 +15,8 @@ class InsuranceProviderInfo(BaseModel):
 
     # Coverage criteria
     coverage_types: list[str] = Field(
-        default_factory=list, description="Types of coverage offered (e.g., liability, full)"
+        default_factory=list,
+        description="Types of coverage offered (e.g., liability, full)",
     )
     min_vehicle_value: float = Field(..., description="Minimum vehicle value for coverage")
     max_vehicle_value: float = Field(..., description="Maximum vehicle value for coverage")
@@ -47,7 +48,9 @@ class InsuranceRecommendationRequest(BaseModel):
         description="Desired coverage type: liability, comprehensive, or full",
     )
     driver_age: int = Field(..., gt=0, le=100, description="Driver age")
-    deal_id: int | None = Field(None, description="Optional deal ID to associate these recommendations")
+    deal_id: int | None = Field(
+        None, description="Optional deal ID to associate these recommendations"
+    )
 
     @field_validator("coverage_type")
     @classmethod

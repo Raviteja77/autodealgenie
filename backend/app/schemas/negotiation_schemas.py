@@ -39,7 +39,9 @@ class CreateNegotiationRequest(BaseModel):
     deal_id: int = Field(..., gt=0, description="ID of the deal being negotiated")
     user_target_price: float = Field(..., gt=0, description="User's target price in USD")
     strategy: str | None = Field(
-        None, max_length=50, description="Negotiation strategy (e.g., aggressive, moderate)"
+        None,
+        max_length=50,
+        description="Negotiation strategy (e.g., aggressive, moderate)",
     )
 
 
@@ -135,9 +137,7 @@ class NextRoundResponse(BaseModel):
 class ChatMessageRequest(BaseModel):
     """Schema for sending a free-form chat message"""
 
-    message: str = Field(
-        ..., min_length=1, max_length=2000, description="Chat message content"
-    )
+    message: str = Field(..., min_length=1, max_length=2000, description="Chat message content")
     message_type: str = Field(
         default="general",
         description="Type of message: general, dealer_info, question, etc.",

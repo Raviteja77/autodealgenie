@@ -93,7 +93,7 @@ async def calculate_loan_payment(
 
     Interest rates are determined server-side based on credit score range.
     Uses the LoanCalculatorService for accurate calculations.
-    
+
     Optionally saves the loan calculation to the database if deal_id is provided.
     """
     try:
