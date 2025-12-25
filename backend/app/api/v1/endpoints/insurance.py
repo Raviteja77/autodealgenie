@@ -3,6 +3,7 @@ Insurance recommendation endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, get_db
 from app.models.models import User
@@ -11,7 +12,6 @@ from app.schemas.insurance_schemas import (
     InsuranceRecommendationResponse,
 )
 from app.services.insurance_recommendation_service import InsuranceRecommendationService
-from sqlalchemy.orm import Session
 
 router = APIRouter()
 

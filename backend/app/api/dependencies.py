@@ -2,7 +2,7 @@
 Authentication dependencies for FastAPI
 """
 
-from fastapi import Cookie, Depends, HTTPException, status, Header
+from fastapi import Cookie, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.security import decode_token

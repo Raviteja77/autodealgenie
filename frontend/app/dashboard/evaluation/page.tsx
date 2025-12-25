@@ -57,7 +57,8 @@ function EvaluationContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<DealEvaluationResult | null>(null);
-  const [driverAge, setDriverAge] = useState<number>(30); // Default age, can be customized
+  // Driver age for insurance calculation - currently using default
+  const driverAge = 30;
 
   // Extract vehicle data from URL params
   const vehicleData: VehicleInfo | null = useMemo(() => {
@@ -159,6 +160,7 @@ function EvaluationContent() {
     evaluateDeal(vehicleData);
 
     // No cleanup needed as we use refs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicleData, evaluation]);
 
   const getScoreColor = (score: number) => {

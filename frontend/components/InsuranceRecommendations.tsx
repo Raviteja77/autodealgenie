@@ -104,21 +104,12 @@ export function InsuranceRecommendations({
         setIsLoading(true);
         setError(null);
 
-        const request: InsuranceRecommendationRequest = {
-          vehicle_value: vehicleValue,
-          vehicle_age: vehicleAge,
-          vehicle_make: vehicleMake,
-          vehicle_model: vehicleModel,
-          coverage_type: selectedCoverage,
-          driver_age: selectedDriverAge,
-        };
-
-        const response: InsuranceRecommendationResponse = await apiClient.request(
-          `/api/v1/insurance/recommendations`,
-          {
-            method: "POST",
-            body: JSON.stringify(request),
-          }
+        const response: InsuranceRecommendationResponse = await apiClient.getInsuranceRecommendations(
+          loanAmount,
+          vehicleMake,
+          vehicleModel,
+          selectedCoverage,
+          selectedDriverAge
         );
 
         setProviders(response.recommendations || []);

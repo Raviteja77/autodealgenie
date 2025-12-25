@@ -439,9 +439,9 @@ Vehicle Details:
 - Make: {make}
 - Model: {model}
 - Year: {year}
-- Mileage: {mileage} miles
+- Mileage: {mileage:,} miles
 - Condition: {condition}
-- Asking Price: ${asking_price}
+- Asking Price: ${asking_price:,.2f}
 
 Provide a comprehensive evaluation in JSON format with:
 {{
@@ -469,7 +469,7 @@ Vehicle Details:
 - Model: {model}
 - Year: {year}
 - VIN: {vin}
-- Mileage: {mileage} miles
+- Mileage: {mileage:,} miles
 - Condition Description: {condition_description}
 
 Evaluate the vehicle condition and provide a JSON response with:
@@ -554,10 +554,10 @@ Vehicle Details:
 - Make: {make}
 - Model: {model}
 - Year: {year}
-- Mileage: {mileage} miles
-- Asking Price: ${asking_price}
+- Mileage: {mileage:,} miles
+- Asking Price: ${asking_price:,.2f}
 
-User's Target Price: ${target_price}
+User's Target Price: ${target_price:,.2f}
 Negotiation Strategy: {strategy}
 
 CRITICAL: You work for the buyer, not the dealer. Your goal is to help the user pay as little as possible while still getting the vehicle they want.
@@ -581,11 +581,11 @@ Vehicle Details:
 - Make: {make}
 - Model: {model}
 - Year: {year}
-- Mileage: {mileage} miles
-- Original Asking Price: ${asking_price}
+- Mileage: {mileage:,} miles
+- Original Asking Price: ${asking_price:,.2f}
 
 Current Negotiation Context:
-- User's Counter Offer: ${counter_offer}
+- User's Counter Offer: ${counter_offer:,.2f}
 - Current Round: {round_number}
 - Previous Offers: {offer_history}
 
@@ -610,11 +610,11 @@ Vehicle Details:
 - Make: {make}
 - Model: {model}
 - Year: {year}
-- Asking Price: ${asking_price}
+- Asking Price: ${asking_price:,.2f}
 
 Current Negotiation Status:
 - Current Round: {current_round}
-- Latest Suggested Price: ${suggested_price}
+- Latest Suggested Price: ${suggested_price:,.2f}
 - Session Status: {status}
 
 Recent Conversation:
@@ -647,12 +647,12 @@ Vehicle Details:
 - Make: {make}
 - Model: {model}
 - Year: {year}
-- Original Asking Price: ${asking_price}
+- Original Asking Price: ${asking_price:,.2f}
 
 Current Negotiation Context:
 - Current Round: {current_round}
-- Latest AI Suggested Price: ${suggested_price}
-- User's Target: ${user_target}
+- Latest AI Suggested Price: ${suggested_price:,.2f}
+- User's Target: ${user_target:,.2f}
 
 Dealer Information Type: {info_type}
 Dealer Information:

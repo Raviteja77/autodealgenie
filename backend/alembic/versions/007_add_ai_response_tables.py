@@ -5,8 +5,10 @@ Revises: 006_add_saved_searches
 Create Date: 2025-12-25 14:30:00.000000
 
 """
-from alembic import op
+
 import sqlalchemy as sa
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "007_add_ai_response_tables"

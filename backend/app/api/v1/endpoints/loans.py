@@ -1,9 +1,11 @@
 """
 Loan calculation endpoints (anonymous, secure)
 """
+
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, get_db
 from app.models.models import User
@@ -22,7 +24,6 @@ from app.services.loan_calculator_service import (
     CreditScoreRange,
     LoanCalculatorService,
 )
-from sqlalchemy.orm import Session
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

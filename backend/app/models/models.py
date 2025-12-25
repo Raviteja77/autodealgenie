@@ -5,6 +5,7 @@ SQLAlchemy models for PostgreSQL
 import enum
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Enum,
@@ -12,7 +13,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    Boolean,
 )
 from sqlalchemy.sql import func
 

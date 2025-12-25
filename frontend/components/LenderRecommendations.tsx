@@ -70,16 +70,10 @@ export function LenderRecommendations({
         setIsLoading(true);
         setError(null);
 
-        const response: LenderRecommendationResponse = await apiClient.request(
-          `/api/v1/loans/lenders`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              loan_amount: loanAmount,
-              credit_score_range: creditScore,
-              loan_term_months: selectedTerm,
-            }),
-          }
+        const response: LenderRecommendationResponse = await apiClient.getLenderRecommendations(
+          loanAmount,
+          creditScore,
+          selectedTerm
         );
 
         setLenders(response.recommendations || []);
@@ -126,7 +120,7 @@ export function LenderRecommendations({
       const topLenders = new Set(
         lenders
           .slice(0, 2)
-          .map((l) => l.lender_id)
+          .map((l) => l.lender.lender_id)
       );
       setExpandedLenders(topLenders);
     } else if (compact) {

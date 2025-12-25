@@ -80,7 +80,6 @@ function ResultsContent() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchMessage, setSearchMessage] = useState<string | null>(null);
 
   // New state for enhanced features
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -178,7 +177,6 @@ function ResultsContent() {
           ) {
             // Use cached data
             setVehicles(cachedData.vehicles);
-            setSearchMessage(cachedData.message);
             setIsLoading(false);
             
             // Fetch favorites in background (non-blocking)
@@ -200,7 +198,6 @@ function ResultsContent() {
         if (vehiclesResult.status === "fulfilled") {
           const { vehicles: fetchedVehicles, message } = vehiclesResult.value;
           setVehicles(fetchedVehicles);
-          setSearchMessage(message);
 
           // Cache the results
           completeStep(1, {
@@ -233,8 +230,8 @@ function ResultsContent() {
     };
 
     fetchData();
-
-  }, [currentQueryString]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentQueryString]); // Other dependencies are stable or intentionally excluded
 
   const fetchVehiclesData = async (): Promise<{
     vehicles: Vehicle[];
@@ -643,6 +640,7 @@ function ResultsContent() {
                 loanTermMonths={loanTerm}
                 onLenderSelect={(lender) => {
                   // Store selected lender in stepper context for later use in deal evaluation
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   setStepData(1, (prevStepData: any) => ({
                     ...prevStepData,
                     selectedLender: lender,

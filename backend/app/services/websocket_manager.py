@@ -3,7 +3,6 @@ WebSocket Connection Manager for Real-Time Negotiation Chat
 """
 
 import logging
-from typing import Dict, List
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -15,7 +14,7 @@ class ConnectionManager:
 
     def __init__(self):
         # Maps session_id to list of active WebSocket connections
-        self.active_connections: Dict[int, List[WebSocket]] = {}
+        self.active_connections: dict[int, list[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, session_id: int):
         """
