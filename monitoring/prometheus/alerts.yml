@@ -1,0 +1,198 @@
+# Prometheus Alert Rules for AutoDealGenie
+# Defines alerts for critical application errors, performance degradation, and infrastructure issues
+
+groups:
+  - name: autodealgenie_application
+    interval: 30s
+    rules:
+      # High Error Rate Alert
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "High error rate detected on {{ $labels.instance }}"
+          description: "Error rate is {{ $value | humanize }} requests/second for the last 5 minutes"
+          runbook: "Check application logs, database connections, and external API status"
+
+      # High API Latency
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "High API latency detected on {{ $labels.instance }}"
+          description: "95th percentile latency is {{ $value | humanize }}s for the last 10 minutes"
+          runbook: "Check database query performance, external API response times, and system resources"
+
+      # Service Down
+      - alert: ServiceDown
+        expr: up{job="autodealgenie-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "AutoDealGenie backend service is down"
+          description: "Backend service {{ $labels.instance }} has been unreachable for 2 minutes"
+          runbook: "Check container status, application logs, and restart service if needed"
+
+      # High Request Rate
+      - alert: HighRequestRate
+        expr: rate(http_requests_total[5m]) > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: backend
+        annotations:
+          summary: "High request rate detected"
+          description: "Request rate is {{ $value | humanize }} requests/second"
+          runbook: "Check for potential DDoS attack or legitimate traffic spike"
+
+  - name: autodealgenie_database
+    interval: 30s
+    rules:
+      # Database Connection Pool Near Full
+      - alert: DatabaseConnectionPoolHigh
+        expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "PostgreSQL connection pool utilization is high"
+          description: "Connection pool is {{ $value | humanizePercentage }} utilized"
+          runbook: "Check for connection leaks, increase pool size, or scale database"
+
+      # Database Down
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL has been unreachable for 2 minutes"
+          runbook: "Check database container status, logs, and disk space"
+
+      # Slow Queries
+      - alert: SlowQueries
+        expr: rate(pg_stat_statements_mean_exec_time[5m]) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Average query execution time is {{ $value | humanize }}ms"
+          runbook: "Check slow query log, optimize queries, or add indexes"
+
+  - name: autodealgenie_cache
+    interval: 30s
+    rules:
+      # Low Cache Hit Rate
+      - alert: LowCacheHitRate
+        expr: rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m])) < 0.8
+        for: 15m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Redis cache hit rate is low"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+          runbook: "Review cache key TTLs, increase cache size, or warm up cache"
+
+      # Redis Down
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "Redis cache is down"
+          description: "Redis has been unreachable for 2 minutes"
+          runbook: "Check Redis container status, logs, and memory availability"
+
+      # High Redis Memory Usage
+      - alert: HighRedisMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis is using {{ $value | humanizePercentage }} of available memory"
+          runbook: "Review cache eviction policy, increase memory limit, or clear old keys"
+
+  - name: autodealgenie_infrastructure
+    interval: 30s
+    rules:
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes / node_memory_MemTotal_bytes) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+          runbook: "Check for memory leaks, optimize application, or increase memory allocation"
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+          runbook: "Check for CPU-intensive operations, optimize code, or scale horizontally"
+
+      # Disk Space Low
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "Disk space is running low"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining"
+          runbook: "Clean up old logs, increase disk size, or archive old data"
+
+  - name: autodealgenie_business
+    interval: 60s
+    rules:
+      # Low User Signup Rate
+      - alert: LowUserSignupRate
+        expr: rate(autodealgenie_user_signups_total[1h]) < 0.01
+        for: 2h
+        labels:
+          severity: info
+          component: business
+        annotations:
+          summary: "User signup rate is unusually low"
+          description: "Only {{ $value | humanize }} signups per hour"
+          runbook: "Check marketing campaigns, website availability, and signup flow"
+
+      # Authentication Failure Spike
+      - alert: HighAuthenticationFailureRate
+        expr: rate(autodealgenie_auth_failures_total[5m]) > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High authentication failure rate"
+          description: "{{ $value | humanize }} authentication failures per second"
+          runbook: "Check for brute force attacks, credential stuffing, or service issues"
