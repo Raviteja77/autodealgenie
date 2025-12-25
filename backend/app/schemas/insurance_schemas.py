@@ -47,6 +47,7 @@ class InsuranceRecommendationRequest(BaseModel):
         description="Desired coverage type: liability, comprehensive, or full",
     )
     driver_age: int = Field(..., gt=0, le=100, description="Driver age")
+    deal_id: int | None = Field(None, description="Optional deal ID to associate these recommendations")
 
     @field_validator("coverage_type")
     @classmethod
