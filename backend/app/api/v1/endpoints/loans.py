@@ -1,6 +1,7 @@
 """
 Loan calculation endpoints (anonymous, secure)
 """
+
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException

@@ -5,6 +5,7 @@ Revises: 004_add_deal_evaluations
 Create Date: 2025-12-19 14:00:00.000000
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 

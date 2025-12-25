@@ -2,7 +2,6 @@
 Unit tests for Lender Service
 """
 
-
 from app.schemas.loan_schemas import (
     LenderRecommendationRequest,
 )
