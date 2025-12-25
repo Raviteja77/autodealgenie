@@ -65,7 +65,9 @@ class FinancingAssessment(BaseModel):
     )
     monthly_payment: float | None = Field(None, description="Estimated monthly payment")
     total_cost: float = Field(..., description="Total cost including interest/fees")
-    total_interest: float | None = Field(None, description="Total interest paid over term")
+    total_interest: float | None = Field(
+        None, description="Total interest paid over term"
+    )
     affordability_score: float = Field(
         ..., ge=0, le=10, description="Affordability score (0-10, higher is better)"
     )
@@ -75,7 +77,10 @@ class FinancingAssessment(BaseModel):
     recommendation: Literal["cash", "financing", "either"] = Field(
         ..., description="Financing recommendation: cash, financing, or either"
     )
-    recommendation_reason: str = Field(..., description="Explanation for the recommendation")
+    recommendation_reason: str = Field(
+        ..., description="Explanation for the recommendation"
+    )
     cash_vs_financing_savings: float | None = Field(
-        None, description="Savings if paying cash vs financing (negative if financing is better)"
+        None,
+        description="Savings if paying cash vs financing (negative if financing is better)",
     )

@@ -17,8 +17,12 @@ router = APIRouter()
 class WebhookSubscriptionCreate(BaseModel):
     """Schema for creating webhook subscription"""
 
-    webhook_url: HttpUrl = Field(..., description="URL to receive webhook notifications")
-    secret_token: str | None = Field(None, description="Secret token for webhook verification")
+    webhook_url: HttpUrl = Field(
+        ..., description="URL to receive webhook notifications"
+    )
+    secret_token: str | None = Field(
+        None, description="Secret token for webhook verification"
+    )
     make: str | None = Field(None, description="Filter by vehicle make")
     model: str | None = Field(None, description="Filter by vehicle model")
     price_min: float | None = Field(None, description="Minimum price filter", ge=0)
@@ -65,7 +69,9 @@ class WebhookSubscriptionResponse(BaseModel):
         from_attributes = True
 
 
-@router.post("/", response_model=WebhookSubscriptionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=WebhookSubscriptionResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_webhook_subscription(
     subscription_data: WebhookSubscriptionCreate,
     current_user: User = Depends(get_current_user),

@@ -46,7 +46,9 @@ def mock_rate_limiter_allowed():
     mock_pipeline.zcard = MagicMock(return_value=None)
     mock_pipeline.zadd = MagicMock(return_value=None)
     mock_pipeline.expire = MagicMock(return_value=None)
-    mock_pipeline.execute = AsyncMock(return_value=[None, 10, None, None])  # request count = 10
+    mock_pipeline.execute = AsyncMock(
+        return_value=[None, 10, None, None]
+    )  # request count = 10
 
     mock_redis = MagicMock()
     mock_redis.pipeline = MagicMock(return_value=mock_pipeline)
@@ -165,13 +167,16 @@ def test_get_car_recommendations_success(
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             return_value=mock_service_response,
         ):
-            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
+            response = authenticated_client.post(
+                "/api/v1/recommendations/cars", json=request_data
+            )
 
             assert response.status_code == 200
             data = response.json()
@@ -205,20 +210,25 @@ def test_get_car_recommendations_minimal_input(
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             return_value=mock_service_response,
         ):
-            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
+            response = authenticated_client.post(
+                "/api/v1/recommendations/cars", json=request_data
+            )
 
             assert response.status_code == 200
             data = response.json()
             assert "recommendations" in data
 
 
-def test_get_car_recommendations_no_results(authenticated_client, mock_rate_limiter_allowed):
+def test_get_car_recommendations_no_results(
+    authenticated_client, mock_rate_limiter_allowed
+):
     """Test car recommendations when no vehicles found"""
     request_data = {
         "budget_min": 1000,
@@ -235,13 +245,16 @@ def test_get_car_recommendations_no_results(authenticated_client, mock_rate_limi
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             return_value=empty_response,
         ):
-            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
+            response = authenticated_client.post(
+                "/api/v1/recommendations/cars", json=request_data
+            )
 
             assert response.status_code == 200
             data = response.json()
@@ -260,16 +273,21 @@ def test_get_car_recommendations_rate_limit_exceeded(
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_exceeded
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_exceeded,
     ):
-        response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
+        response = authenticated_client.post(
+            "/api/v1/recommendations/cars", json=request_data
+        )
 
         assert response.status_code == 429
         data = response.json()
         assert "Rate limit exceeded" in data["detail"]
 
 
-def test_get_car_recommendations_validation_error(authenticated_client, mock_rate_limiter_allowed):
+def test_get_car_recommendations_validation_error(
+    authenticated_client, mock_rate_limiter_allowed
+):
     """Test validation error handling"""
     request_data = {
         "budget_min": 20000,
@@ -277,20 +295,25 @@ def test_get_car_recommendations_validation_error(authenticated_client, mock_rat
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             side_effect=ValueError("Invalid budget range"),
         ):
-            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
+            response = authenticated_client.post(
+                "/api/v1/recommendations/cars", json=request_data
+            )
 
             assert response.status_code == 400
             data = response.json()
             assert "Invalid request" in data["detail"]
 
 
-def test_get_car_recommendations_connection_error(authenticated_client, mock_rate_limiter_allowed):
+def test_get_car_recommendations_connection_error(
+    authenticated_client, mock_rate_limiter_allowed
+):
     """Test external API connection error handling"""
     request_data = {
         "make": "Toyota",
@@ -298,33 +321,41 @@ def test_get_car_recommendations_connection_error(authenticated_client, mock_rat
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             side_effect=ConnectionError("MarketCheck API unavailable"),
         ):
-            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
+            response = authenticated_client.post(
+                "/api/v1/recommendations/cars", json=request_data
+            )
 
             assert response.status_code == 503
             data = response.json()
             assert "temporarily unavailable" in data["detail"]
 
 
-def test_get_car_recommendations_internal_error(authenticated_client, mock_rate_limiter_allowed):
+def test_get_car_recommendations_internal_error(
+    authenticated_client, mock_rate_limiter_allowed
+):
     """Test internal server error handling"""
     request_data = {
         "make": "Toyota",
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             side_effect=Exception("Unexpected error"),
         ):
-            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
+            response = authenticated_client.post(
+                "/api/v1/recommendations/cars", json=request_data
+            )
 
             assert response.status_code == 500
             data = response.json()
@@ -364,13 +395,16 @@ def test_get_car_recommendations_with_all_preferences(
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             return_value=mock_service_response,
         ) as mock_search:
-            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
+            response = authenticated_client.post(
+                "/api/v1/recommendations/cars", json=request_data
+            )
 
             assert response.status_code == 200
 
@@ -446,13 +480,16 @@ def test_must_have_features_integration(
     }
 
     with patch(
-        "app.core.rate_limiter.redis_client.get_client", return_value=mock_rate_limiter_allowed
+        "app.core.rate_limiter.redis_client.get_client",
+        return_value=mock_rate_limiter_allowed,
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
             return_value=mock_service_response,
         ) as mock_search:
-            response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
+            response = authenticated_client.post(
+                "/api/v1/recommendations/cars", json=request_data
+            )
 
             assert response.status_code == 200
 

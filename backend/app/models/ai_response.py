@@ -46,12 +46,12 @@ class LoanRecommendation(Base):
     additional_data = Column(JSON, nullable=True)
 
     # Metadata
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     def __repr__(self):
-        return (
-            f"<LoanRecommendation {self.id}: Deal {self.deal_id}, Term {self.loan_term_months}mo>"
-        )
+        return f"<LoanRecommendation {self.id}: Deal {self.deal_id}, Term {self.loan_term_months}mo>"
 
 
 class InsuranceRecommendation(Base):
@@ -87,7 +87,9 @@ class InsuranceRecommendation(Base):
     full_recommendation_data = Column(JSON, nullable=True)
 
     # Metadata
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     def __repr__(self):
         return f"<InsuranceRecommendation {self.id}: Deal {self.deal_id}, Provider {self.provider_name}>"

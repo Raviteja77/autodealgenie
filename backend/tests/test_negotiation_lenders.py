@@ -111,7 +111,9 @@ def test_lender_recommendations_different_credit_scores(db):
         credit_score_range="excellent",
         loan_term_months=60,
     )
-    excellent_response = LenderService.get_recommendations(excellent_request, max_results=3)
+    excellent_response = LenderService.get_recommendations(
+        excellent_request, max_results=3
+    )
 
     # Get recommendations for poor credit
     poor_request = LenderRecommendationRequest(

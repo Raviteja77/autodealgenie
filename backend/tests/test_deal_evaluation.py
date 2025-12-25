@@ -69,7 +69,9 @@ class TestDealEvaluationService:
             mock_client.is_available.return_value = True
             mock_client.generate_structured_json.return_value = mock_llm_evaluation
 
-            with patch("app.services.deal_evaluation_service.generate_structured_json") as mock_gen:
+            with patch(
+                "app.services.deal_evaluation_service.generate_structured_json"
+            ) as mock_gen:
                 mock_gen.return_value = mock_llm_evaluation
 
                 result = await service.evaluate_deal(
@@ -158,7 +160,9 @@ class TestDealEvaluationService:
         """Test deal evaluation handles LLM errors gracefully"""
         service = DealEvaluationService()
 
-        with patch("app.services.deal_evaluation_service.generate_structured_json") as mock_gen:
+        with patch(
+            "app.services.deal_evaluation_service.generate_structured_json"
+        ) as mock_gen:
             # Mock generate_structured_json to raise an exception
             mock_gen.side_effect = Exception("LLM API Error")
 
@@ -182,7 +186,9 @@ class TestDealEvaluationService:
         """Test deal evaluation handles invalid responses from LLM"""
         service = DealEvaluationService()
 
-        with patch("app.services.deal_evaluation_service.generate_structured_json") as mock_gen:
+        with patch(
+            "app.services.deal_evaluation_service.generate_structured_json"
+        ) as mock_gen:
             # Mock invalid response
             mock_gen.side_effect = ValueError("Invalid JSON")
 
@@ -215,9 +221,13 @@ class TestDealEvaluationEndpoint:
         }
 
         with patch("app.llm.llm_client.llm_client") as mock_client:
-            mock_client.is_available.return_value = False  # Use fallback for predictable results
+            mock_client.is_available.return_value = (
+                False  # Use fallback for predictable results
+            )
 
-            response = authenticated_client.post("/api/v1/deals/evaluate", json=evaluation_data)
+            response = authenticated_client.post(
+                "/api/v1/deals/evaluate", json=evaluation_data
+            )
 
             assert response.status_code == 200
             data = response.json()
@@ -253,7 +263,9 @@ class TestDealEvaluationEndpoint:
             "mileage": 45000,
         }
 
-        response = authenticated_client.post("/api/v1/deals/evaluate", json=evaluation_data)
+        response = authenticated_client.post(
+            "/api/v1/deals/evaluate", json=evaluation_data
+        )
         assert response.status_code == 422  # Validation error
 
     def test_evaluate_deal_endpoint_invalid_price(self, authenticated_client):
@@ -265,7 +277,9 @@ class TestDealEvaluationEndpoint:
             "mileage": 45000,
         }
 
-        response = authenticated_client.post("/api/v1/deals/evaluate", json=evaluation_data)
+        response = authenticated_client.post(
+            "/api/v1/deals/evaluate", json=evaluation_data
+        )
         assert response.status_code == 422  # Validation error
 
     def test_evaluate_deal_endpoint_invalid_mileage(self, authenticated_client):
@@ -277,7 +291,9 @@ class TestDealEvaluationEndpoint:
             "mileage": -5000,  # Invalid: negative mileage
         }
 
-        response = authenticated_client.post("/api/v1/deals/evaluate", json=evaluation_data)
+        response = authenticated_client.post(
+            "/api/v1/deals/evaluate", json=evaluation_data
+        )
         assert response.status_code == 422  # Validation error
 
     def test_evaluate_deal_endpoint_missing_fields(self, authenticated_client):
@@ -287,7 +303,9 @@ class TestDealEvaluationEndpoint:
             # Missing asking_price, condition, mileage
         }
 
-        response = authenticated_client.post("/api/v1/deals/evaluate", json=evaluation_data)
+        response = authenticated_client.post(
+            "/api/v1/deals/evaluate", json=evaluation_data
+        )
         assert response.status_code == 422  # Validation error
 
 

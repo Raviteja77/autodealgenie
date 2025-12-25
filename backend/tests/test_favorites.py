@@ -64,7 +64,9 @@ def sample_favorite_data():
 
 def test_add_favorite(authenticated_client, sample_favorite_data):
     """Test adding a favorite"""
-    response = authenticated_client.post("/api/v1/favorites/", json=sample_favorite_data)
+    response = authenticated_client.post(
+        "/api/v1/favorites/", json=sample_favorite_data
+    )
 
     assert response.status_code == 201
     data = response.json()
@@ -80,11 +82,15 @@ def test_add_favorite(authenticated_client, sample_favorite_data):
 def test_add_duplicate_favorite(authenticated_client, sample_favorite_data):
     """Test adding a duplicate favorite (should fail)"""
     # Add favorite first time
-    response1 = authenticated_client.post("/api/v1/favorites/", json=sample_favorite_data)
+    response1 = authenticated_client.post(
+        "/api/v1/favorites/", json=sample_favorite_data
+    )
     assert response1.status_code == 201
 
     # Try to add same favorite again
-    response2 = authenticated_client.post("/api/v1/favorites/", json=sample_favorite_data)
+    response2 = authenticated_client.post(
+        "/api/v1/favorites/", json=sample_favorite_data
+    )
     assert response2.status_code == 400
     assert "already in favorites" in response2.json()["detail"].lower()
 
@@ -102,7 +108,9 @@ def test_get_favorites_empty(authenticated_client):
 def test_get_favorites(authenticated_client, sample_favorite_data):
     """Test getting all favorites"""
     # Add a favorite
-    add_response = authenticated_client.post("/api/v1/favorites/", json=sample_favorite_data)
+    add_response = authenticated_client.post(
+        "/api/v1/favorites/", json=sample_favorite_data
+    )
     assert add_response.status_code == 201
 
     # Get all favorites
@@ -118,7 +126,9 @@ def test_get_favorites(authenticated_client, sample_favorite_data):
 def test_get_favorite_by_vin(authenticated_client, sample_favorite_data):
     """Test getting a specific favorite by VIN"""
     # Add a favorite
-    add_response = authenticated_client.post("/api/v1/favorites/", json=sample_favorite_data)
+    add_response = authenticated_client.post(
+        "/api/v1/favorites/", json=sample_favorite_data
+    )
     assert add_response.status_code == 201
 
     # Get specific favorite
@@ -141,7 +151,9 @@ def test_get_favorite_not_found(authenticated_client):
 def test_remove_favorite(authenticated_client, sample_favorite_data):
     """Test removing a favorite"""
     # Add a favorite
-    add_response = authenticated_client.post("/api/v1/favorites/", json=sample_favorite_data)
+    add_response = authenticated_client.post(
+        "/api/v1/favorites/", json=sample_favorite_data
+    )
     assert add_response.status_code == 201
 
     # Remove the favorite

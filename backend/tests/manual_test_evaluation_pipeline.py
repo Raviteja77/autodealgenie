@@ -80,7 +80,9 @@ async def main():
             db=db, evaluation_id=evaluation.id, user_answers=answers
         )
         db.refresh(evaluation)
-        print(f"✓ Status: {evaluation.status.value}, Step: {evaluation.current_step.value}")
+        print(
+            f"✓ Status: {evaluation.status.value}, Step: {evaluation.current_step.value}"
+        )
         if result.get("assessment"):
             print(f"Assessment: {json.dumps(result['assessment'], indent=2)}")
 
@@ -90,7 +92,9 @@ async def main():
             db=db, evaluation_id=evaluation.id, user_answers=None
         )
         db.refresh(evaluation)
-        print(f"✓ Status: {evaluation.status.value}, Step: {evaluation.current_step.value}")
+        print(
+            f"✓ Status: {evaluation.status.value}, Step: {evaluation.current_step.value}"
+        )
         if result.get("assessment"):
             assessment = result["assessment"]
             print(f"Fair Value: ${assessment.get('fair_value', 0):,.2f}")
@@ -110,7 +114,9 @@ async def main():
                 db=db, evaluation_id=evaluation.id, user_answers=financing_answers
             )
             db.refresh(evaluation)
-        print(f"✓ Status: {evaluation.status.value}, Step: {evaluation.current_step.value}")
+        print(
+            f"✓ Status: {evaluation.status.value}, Step: {evaluation.current_step.value}"
+        )
         if result.get("assessment"):
             print(f"Assessment: {json.dumps(result['assessment'], indent=2)}")
 
@@ -120,7 +126,9 @@ async def main():
             db=db, evaluation_id=evaluation.id, user_answers=None
         )
         db.refresh(evaluation)
-        print(f"✓ Status: {evaluation.status.value}, Step: {evaluation.current_step.value}")
+        print(
+            f"✓ Status: {evaluation.status.value}, Step: {evaluation.current_step.value}"
+        )
         if result.get("assessment"):
             assessment = result["assessment"]
             print(f"Risk Score: {assessment.get('risk_score', 0)}/10")
@@ -138,7 +146,9 @@ async def main():
             print(f"\n=== Final Results ===")
             print(f"Overall Score: {assessment.get('overall_score', 0)}/10")
             print(f"Recommendation: {assessment.get('recommendation', 'N/A')}")
-            print(f"Estimated Total Cost: ${assessment.get('estimated_total_cost', 0):,.2f}")
+            print(
+                f"Estimated Total Cost: ${assessment.get('estimated_total_cost', 0):,.2f}"
+            )
             print(f"Next Steps: {assessment.get('next_steps', [])}")
 
         # Show complete result

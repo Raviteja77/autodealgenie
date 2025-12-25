@@ -71,17 +71,27 @@ class TransmissionType(str, Enum):
 class CarPreferences(BaseModel):
     """Car preferences schema"""
 
-    make: str | None = Field(None, min_length=1, max_length=100, description="Preferred car make")
-    model: str | None = Field(None, min_length=1, max_length=100, description="Preferred car model")
+    make: str | None = Field(
+        None, min_length=1, max_length=100, description="Preferred car make"
+    )
+    model: str | None = Field(
+        None, min_length=1, max_length=100, description="Preferred car model"
+    )
     budget: BudgetRange | None = Field(None, description="Budget range")
     car_type: CarType | None = Field(None, description="Preferred car type")
     year_min: int | None = Field(None, ge=1900, le=2100, description="Minimum year")
     year_max: int | None = Field(None, ge=1900, le=2100, description="Maximum year")
     mileage_max: int | None = Field(None, ge=0, description="Maximum mileage")
     fuel_type: FuelType | None = Field(None, description="Preferred fuel type")
-    transmission: TransmissionType | None = Field(None, description="Preferred transmission")
-    colors: list[str] | None = Field(None, max_length=10, description="Preferred exterior colors")
-    features: list[str] | None = Field(None, max_length=20, description="Desired features")
+    transmission: TransmissionType | None = Field(
+        None, description="Preferred transmission"
+    )
+    colors: list[str] | None = Field(
+        None, max_length=10, description="Preferred exterior colors"
+    )
+    features: list[str] | None = Field(
+        None, max_length=20, description="Desired features"
+    )
     priorities: str | None = Field(
         None, max_length=500, description="User priorities and requirements"
     )
@@ -101,10 +111,16 @@ class CarPreferences(BaseModel):
 class NotificationPreferences(BaseModel):
     """Notification preferences schema"""
 
-    email_notifications: bool = Field(default=True, description="Enable email notifications")
+    email_notifications: bool = Field(
+        default=True, description="Enable email notifications"
+    )
     deal_alerts: bool = Field(default=True, description="Receive deal alerts")
-    price_drop_alerts: bool = Field(default=True, description="Receive price drop alerts")
-    new_inventory_alerts: bool = Field(default=False, description="Receive new inventory alerts")
+    price_drop_alerts: bool = Field(
+        default=True, description="Receive price drop alerts"
+    )
+    new_inventory_alerts: bool = Field(
+        default=False, description="Receive new inventory alerts"
+    )
     weekly_digest: bool = Field(default=False, description="Receive weekly digest")
 
 
@@ -117,8 +133,12 @@ class SearchPreferences(BaseModel):
     search_radius_miles: int | None = Field(
         None, ge=1, le=500, description="Search radius in miles"
     )
-    auto_save_searches: bool = Field(default=True, description="Automatically save searches")
-    results_per_page: int = Field(default=10, ge=5, le=100, description="Results per page")
+    auto_save_searches: bool = Field(
+        default=True, description="Automatically save searches"
+    )
+    results_per_page: int = Field(
+        default=10, ge=5, le=100, description="Results per page"
+    )
 
 
 class UserPreferencesBase(BaseModel):
@@ -166,7 +186,9 @@ class SavedSearch(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=100, description="Search name")
     criteria: CarPreferences = Field(..., description="Search criteria")
-    alert_enabled: bool = Field(default=False, description="Enable alerts for this search")
+    alert_enabled: bool = Field(
+        default=False, description="Enable alerts for this search"
+    )
 
 
 class SavedSearchCreate(SavedSearch):
@@ -194,5 +216,7 @@ class UserPreferencesData(BaseModel):
     makes: list[str] | None = Field(default=None, description="Preferred car makes")
     budget_range: BudgetRange | None = Field(default=None, description="Budget range")
     year_range: YearRange | None = Field(default=None, description="Year range")
-    body_types: list[str] | None = Field(default=None, description="Preferred body types")
+    body_types: list[str] | None = Field(
+        default=None, description="Preferred body types"
+    )
     features: list[str] | None = Field(default=None, description="Desired features")

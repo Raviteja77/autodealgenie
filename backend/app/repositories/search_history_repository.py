@@ -67,7 +67,12 @@ class SearchHistoryRepository:
         """
         collection = mongodb.get_collection(self.COLLECTION_NAME)
 
-        cursor = collection.find({"user_id": user_id}).sort("timestamp", -1).skip(skip).limit(limit)
+        cursor = (
+            collection.find({"user_id": user_id})
+            .sort("timestamp", -1)
+            .skip(skip)
+            .limit(limit)
+        )
 
         records = []
         async for doc in cursor:
@@ -76,7 +81,9 @@ class SearchHistoryRepository:
 
         return records
 
-    async def get_popular_searches(self, limit: int = 10, days: int = 7) -> list[dict[str, Any]]:
+    async def get_popular_searches(
+        self, limit: int = 10, days: int = 7
+    ) -> list[dict[str, Any]]:
         """
         Get popular search criteria from recent history
 

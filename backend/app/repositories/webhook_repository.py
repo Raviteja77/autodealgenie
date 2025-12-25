@@ -41,7 +41,9 @@ class WebhookRepository:
     def get_by_user(self, user_id: int) -> list[WebhookSubscription]:
         """Get all webhook subscriptions for a user"""
         return (
-            self.db.query(WebhookSubscription).filter(WebhookSubscription.user_id == user_id).all()
+            self.db.query(WebhookSubscription)
+            .filter(WebhookSubscription.user_id == user_id)
+            .all()
         )
 
     def get_active_subscriptions(self) -> list[WebhookSubscription]:
@@ -84,21 +86,26 @@ class WebhookRepository:
             )
         if model:
             query = query.filter(
-                (WebhookSubscription.model is None) | (WebhookSubscription.model == model)
+                (WebhookSubscription.model is None)
+                | (WebhookSubscription.model == model)
             )
         if price:
             query = query.filter(
-                (WebhookSubscription.price_min is None) | (WebhookSubscription.price_min <= price)
+                (WebhookSubscription.price_min is None)
+                | (WebhookSubscription.price_min <= price)
             )
             query = query.filter(
-                (WebhookSubscription.price_max is None) | (WebhookSubscription.price_max >= price)
+                (WebhookSubscription.price_max is None)
+                | (WebhookSubscription.price_max >= price)
             )
         if year:
             query = query.filter(
-                (WebhookSubscription.year_min is None) | (WebhookSubscription.year_min <= year)
+                (WebhookSubscription.year_min is None)
+                | (WebhookSubscription.year_min <= year)
             )
             query = query.filter(
-                (WebhookSubscription.year_max is None) | (WebhookSubscription.year_max >= year)
+                (WebhookSubscription.year_max is None)
+                | (WebhookSubscription.year_max >= year)
             )
         if mileage:
             query = query.filter(
@@ -108,7 +115,9 @@ class WebhookRepository:
 
         return query.all()
 
-    def update(self, subscription_id: int, update_data: dict) -> WebhookSubscription | None:
+    def update(
+        self, subscription_id: int, update_data: dict
+    ) -> WebhookSubscription | None:
         """
         Update webhook subscription
 

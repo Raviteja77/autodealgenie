@@ -70,14 +70,18 @@ class NegotiationService:
                 "content": message.content,
                 "round_number": message.round_number,
                 "metadata": message.message_metadata,
-                "created_at": message.created_at.isoformat() if message.created_at else None,
+                "created_at": message.created_at.isoformat()
+                if message.created_at
+                else None,
             }
             await self.ws_manager.broadcast_message(session_id, message_data)
         except Exception as e:
             logger.error(f"Failed to broadcast message via WebSocket: {str(e)}")
             # Don't fail the main operation if WebSocket broadcast fails
 
-    def _get_latest_suggested_price(self, session_id: int, default_price: float) -> float:
+    def _get_latest_suggested_price(
+        self, session_id: int, default_price: float
+    ) -> float:
         """
         Get the latest suggested price from message history
 
@@ -237,7 +241,9 @@ class NegotiationService:
         # Check max rounds
         if session.current_round >= session.max_rounds:
             logger.warning(f"[{request_id}] Session {session_id} reached max rounds")
-            self.negotiation_repo.update_session_status(session_id, NegotiationStatus.COMPLETED)
+            self.negotiation_repo.update_session_status(
+                session_id, NegotiationStatus.COMPLETED
+            )
             raise ApiError(
                 status_code=400,
                 message="Maximum negotiation rounds reached",
@@ -253,10 +259,14 @@ class NegotiationService:
         # Handle user action
         if user_action == "confirm":
             # User accepts the deal - update negotiation status
-            self.negotiation_repo.update_session_status(session_id, NegotiationStatus.COMPLETED)
+            self.negotiation_repo.update_session_status(
+                session_id, NegotiationStatus.COMPLETED
+            )
 
             # Get the latest negotiated price to update the deal
-            latest_price = self._get_latest_suggested_price(session_id, deal.asking_price)
+            latest_price = self._get_latest_suggested_price(
+                session_id, deal.asking_price
+            )
 
             # Update the deal with the final negotiated price and status
             from app.schemas.schemas import DealUpdate
@@ -282,7 +292,8 @@ class NegotiationService:
             )
 
             agent_content = (
-                "Excellent! The deal is confirmed. " "We'll proceed with finalizing the paperwork."
+                "Excellent! The deal is confirmed. "
+                "We'll proceed with finalizing the paperwork."
             )
             self.negotiation_repo.add_message(
                 session_id=session_id,
@@ -292,7 +303,9 @@ class NegotiationService:
                 metadata={"action": "deal_confirmed"},
             )
 
-            logger.info(f"[{request_id}] Session {session_id} completed (user confirmed)")
+            logger.info(
+                f"[{request_id}] Session {session_id} completed (user confirmed)"
+            )
             return {
                 "session_id": session_id,
                 "status": NegotiationStatus.COMPLETED.value,
@@ -303,7 +316,9 @@ class NegotiationService:
 
         elif user_action == "reject":
             # User rejects and ends negotiation
-            self.negotiation_repo.update_session_status(session_id, NegotiationStatus.CANCELLED)
+            self.negotiation_repo.update_session_status(
+                session_id, NegotiationStatus.CANCELLED
+            )
 
             message_content = "I'm not interested in continuing this negotiation."
             self.negotiation_repo.add_message(
@@ -326,7 +341,9 @@ class NegotiationService:
                 metadata={"action": "negotiation_cancelled"},
             )
 
-            logger.info(f"[{request_id}] Session {session_id} cancelled (user rejected)")
+            logger.info(
+                f"[{request_id}] Session {session_id} cancelled (user rejected)"
+            )
             return {
                 "session_id": session_id,
                 "status": NegotiationStatus.CANCELLED.value,
@@ -347,7 +364,9 @@ class NegotiationService:
             session = self.negotiation_repo.increment_round(session_id)
 
             # Add user counter message
-            message_content = f"I'd like to counter with an offer of ${counter_offer:,.2f}."
+            message_content = (
+                f"I'd like to counter with an offer of ${counter_offer:,.2f}."
+            )
             user_msg = self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.USER,
@@ -398,7 +417,9 @@ class NegotiationService:
                 }
 
             except Exception as e:
-                logger.error(f"[{request_id}] Error generating counter response: {str(e)}")
+                logger.error(
+                    f"[{request_id}] Error generating counter response: {str(e)}"
+                )
                 raise ApiError(
                     status_code=500,
                     message="Failed to generate negotiation response",
@@ -440,7 +461,9 @@ class NegotiationService:
         # Calculate confidence score based on deal quality
         # Handle edge case where current_price > asking_price (negative discount)
         if deal.asking_price > 0:
-            discount_percent = ((deal.asking_price - current_price) / deal.asking_price) * 100
+            discount_percent = (
+                (deal.asking_price - current_price) / deal.asking_price
+            ) * 100
         else:
             discount_percent = 0
 
@@ -462,7 +485,9 @@ class NegotiationService:
         # Calculate dealer concession rate (total price movement / asking price)
         initial_asking = deal.asking_price
         dealer_concession_rate = (
-            (initial_asking - current_price) / initial_asking if initial_asking > 0 else 0
+            (initial_asking - current_price) / initial_asking
+            if initial_asking > 0
+            else 0
         )
 
         # Calculate negotiation velocity (average price change per round)
@@ -481,17 +506,13 @@ class NegotiationService:
 
         # Generate strategy adjustments based on context
         if dealer_concession_rate > 0.10:  # Dealer very flexible
-            strategy_adjustments = (
-                "Dealer showing strong flexibility. You have significant leverage—push for more!"
-            )
+            strategy_adjustments = "Dealer showing strong flexibility. You have significant leverage—push for more!"
         elif dealer_concession_rate > 0.05:  # Moderate flexibility
             strategy_adjustments = (
                 "Moderate progress. Consider one more counter to maximize your savings."
             )
         elif round_count > 5:  # Many rounds, little movement
-            strategy_adjustments = (
-                "Limited movement detected. Consider accepting current offer or walking away."
-            )
+            strategy_adjustments = "Limited movement detected. Consider accepting current offer or walking away."
         elif dealer_concession_rate <= 0.02:  # Early stage with low concession
             strategy_adjustments = (
                 "Early in the negotiation, but the dealer has shown limited flexibility so far. "
@@ -499,9 +520,7 @@ class NegotiationService:
                 "if movement remains minimal."
             )
         else:
-            strategy_adjustments = (
-                "Early stage. Continue negotiating strategically to secure the best price."
-            )
+            strategy_adjustments = "Early stage. Continue negotiating strategically to secure the best price."
 
         # Market comparison insight
         if discount_percent < 0:  # Price increase
@@ -509,13 +528,9 @@ class NegotiationService:
         elif discount_percent >= 10:
             market_comparison = f"Excellent! You're {discount_percent:.1f}% below asking—better than typical market deals."
         elif discount_percent >= 5:
-            market_comparison = (
-                f"Solid progress at {discount_percent:.1f}% off. Average market discount is 3-7%."
-            )
+            market_comparison = f"Solid progress at {discount_percent:.1f}% off. Average market discount is 3-7%."
         else:
-            market_comparison = (
-                f"Currently at {discount_percent:.1f}% off. Most buyers achieve 5-10% discounts."
-            )
+            market_comparison = f"Currently at {discount_percent:.1f}% off. Most buyers achieve 5-10% discounts."
 
         return {
             "confidence_score": round(confidence_score, 2),
@@ -535,7 +550,9 @@ class NegotiationService:
         request_id: str,
     ) -> dict[str, Any]:
         """Generate agent's initial response using LLM"""
-        logger.info(f"[{request_id}] Generating agent response for session {session.id}")
+        logger.info(
+            f"[{request_id}] Generating agent response for session {session.id}"
+        )
 
         try:
             # Use centralized LLM client
@@ -602,13 +619,17 @@ class NegotiationService:
                         "asking_price": deal.asking_price,
                         "user_target_price": user_target_price,
                         "financing_options": financing_options,
-                        "cash_savings": round(cash_savings, 2) if cash_savings else None,
+                        "cash_savings": round(cash_savings, 2)
+                        if cash_savings
+                        else None,
                         **ai_metrics,
                     },
                     llm_used=True,
                 )
             except Exception as e:
-                logger.error(f"[{request_id}] Failed to log AI response to MongoDB: {str(e)}")
+                logger.error(
+                    f"[{request_id}] Failed to log AI response to MongoDB: {str(e)}"
+                )
                 # Don't fail the main operation if logging fails
 
             return {
@@ -682,14 +703,18 @@ class NegotiationService:
                         "asking_price": deal.asking_price,
                         "user_target_price": user_target_price,
                         "financing_options": financing_options,
-                        "cash_savings": round(cash_savings, 2) if cash_savings else None,
+                        "cash_savings": round(cash_savings, 2)
+                        if cash_savings
+                        else None,
                         "fallback": True,
                         **ai_metrics,
                     },
                     llm_used=False,
                 )
             except Exception as log_error:
-                logger.error(f"[{request_id}] Failed to log fallback AI response: {str(log_error)}")
+                logger.error(
+                    f"[{request_id}] Failed to log fallback AI response: {str(log_error)}"
+                )
 
             return {
                 "content": fallback_content,
@@ -746,7 +771,8 @@ class NegotiationService:
                         "monthly_payment_estimate": loan_result.monthly_payment,
                         "loan_term_months": loan_result.loan_term_months,
                         "estimated_apr": loan_result.apr,
-                        "total_cost": loan_result.total_amount + loan_result.down_payment,
+                        "total_cost": loan_result.total_amount
+                        + loan_result.down_payment,
                         "total_interest": loan_result.total_interest,
                     }
                 )
@@ -772,7 +798,9 @@ class NegotiationService:
         request_id: str,
     ) -> dict[str, Any]:
         """Generate agent's counter response using LLM"""
-        logger.info(f"[{request_id}] Generating counter response for session {session.id}")
+        logger.info(
+            f"[{request_id}] Generating counter response for session {session.id}"
+        )
 
         # Get conversation history
         messages = self.negotiation_repo.get_messages(session.id)
@@ -795,7 +823,9 @@ class NegotiationService:
                     "asking_price": f"{deal.asking_price:,.2f}",
                     "counter_offer": f"{counter_offer:,.2f}",
                     "round_number": session.current_round,
-                    "offer_history": ", ".join(offer_history) if offer_history else "None",
+                    "offer_history": ", ".join(offer_history)
+                    if offer_history
+                    else "None",
                 },
                 temperature=0.7,
             )
@@ -819,7 +849,9 @@ class NegotiationService:
             else:
                 # User not getting good deal yet - suggest aggressive stance
                 # Go slightly lower to pressure dealer
-                new_suggested_price = counter_offer * self.AGGRESSIVE_DECREASE_ADJUSTMENT
+                new_suggested_price = (
+                    counter_offer * self.AGGRESSIVE_DECREASE_ADJUSTMENT
+                )
 
             # Calculate financing options for the new suggested price
             financing_options = self._calculate_financing_options(new_suggested_price)
@@ -833,7 +865,9 @@ class NegotiationService:
                     financing_options[0] if financing_options else None,
                 )
                 if baseline_financing:
-                    cash_savings = baseline_financing["total_cost"] - new_suggested_price
+                    cash_savings = (
+                        baseline_financing["total_cost"] - new_suggested_price
+                    )
 
             # Get user target price from message history
             user_target = deal.asking_price * self.DEFAULT_TARGET_PRICE_RATIO
@@ -886,7 +920,9 @@ class NegotiationService:
                     f"a better deal. Consider holding your ground or only increasing minimally."
                 )
             else:
-                new_suggested_price = counter_offer * self.AGGRESSIVE_DECREASE_ADJUSTMENT
+                new_suggested_price = (
+                    counter_offer * self.AGGRESSIVE_DECREASE_ADJUSTMENT
+                )
                 fallback_content = (
                     f"Your offer of ${counter_offer:,.2f} is reasonable, but you might be able to do better. "
                     f"Consider actually going LOWER to ${new_suggested_price:,.2f} to test the dealer's flexibility. "
@@ -904,7 +940,9 @@ class NegotiationService:
                     financing_options[0] if financing_options else None,
                 )
                 if baseline_financing:
-                    cash_savings = baseline_financing["total_cost"] - new_suggested_price
+                    cash_savings = (
+                        baseline_financing["total_cost"] - new_suggested_price
+                    )
 
             # Get user target price from previously fetched message history
             # (messages already fetched at the beginning of _generate_counter_response)
@@ -1104,7 +1142,9 @@ class NegotiationService:
             conversation_history.append(f"{role_label}: {msg.content}")
 
         # Get latest suggested price using helper method
-        suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
+        suggested_price = self._get_latest_suggested_price(
+            session.id, deal.asking_price
+        )
 
         try:
             # Use centralized LLM client
@@ -1240,7 +1280,9 @@ class NegotiationService:
                 "session_id": session_id,
                 "status": session.status.value,
                 "analysis": agent_response["content"],
-                "recommended_action": agent_response["metadata"].get("recommended_action"),
+                "recommended_action": agent_response["metadata"].get(
+                    "recommended_action"
+                ),
                 "user_message": {
                     "id": user_msg.id,
                     "session_id": user_msg.session_id,
@@ -1279,10 +1321,14 @@ class NegotiationService:
         request_id: str,
     ) -> dict[str, Any]:
         """Generate AI analysis of dealer-provided information"""
-        logger.info(f"[{request_id}] Generating dealer info analysis for session {session.id}")
+        logger.info(
+            f"[{request_id}] Generating dealer info analysis for session {session.id}"
+        )
 
         # Get latest suggested price using helper method
-        suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
+        suggested_price = self._get_latest_suggested_price(
+            session.id, deal.asking_price
+        )
 
         # Get user target price from messages or use default
         messages = self.negotiation_repo.get_messages(session.id)
@@ -1307,7 +1353,9 @@ class NegotiationService:
                     "user_target": f"{user_target:,.2f}",
                     "info_type": info_type,
                     "dealer_content": content,
-                    "price_mentioned": f"${price_mentioned:,.2f}" if price_mentioned else "None",
+                    "price_mentioned": f"${price_mentioned:,.2f}"
+                    if price_mentioned
+                    else "None",
                 },
                 temperature=0.7,
             )
@@ -1334,7 +1382,9 @@ class NegotiationService:
             }
 
         except Exception as e:
-            logger.error(f"[{request_id}] LLM call failed for dealer info analysis: {str(e)}")
+            logger.error(
+                f"[{request_id}] LLM call failed for dealer info analysis: {str(e)}"
+            )
             # Fallback response
             fallback_content = (
                 f"I've received the dealer information ({info_type}). "

@@ -123,7 +123,9 @@ class DealEvaluationService:
             logger.warning(f"Error retrieving from cache: {e}")
             return None
 
-    async def _set_cached_evaluation(self, cache_key: str, evaluation: dict[str, Any]) -> None:
+    async def _set_cached_evaluation(
+        self, cache_key: str, evaluation: dict[str, Any]
+    ) -> None:
         """
         Store evaluation result in Redis cache
 
@@ -138,7 +140,9 @@ class DealEvaluationService:
                 return
 
             await redis.setex(cache_key, self.CACHE_TTL, json.dumps(evaluation))
-            logger.info(f"Cached evaluation for key: {cache_key} (TTL: {self.CACHE_TTL}s)")
+            logger.info(
+                f"Cached evaluation for key: {cache_key} (TTL: {self.CACHE_TTL}s)"
+            )
         except Exception as e:
             logger.warning(f"Error storing to cache: {e}")
 
@@ -170,7 +174,9 @@ class DealEvaluationService:
         Returns:
             Dictionary containing fair_value, score, insights, and talking_points
         """
-        logger.info(f"Evaluating deal for VIN: {vehicle_vin}, Price: ${asking_price:,.2f}")
+        logger.info(
+            f"Evaluating deal for VIN: {vehicle_vin}, Price: ${asking_price:,.2f}"
+        )
 
         # Generate cache key and check cache (includes all evaluation-affecting parameters)
         cache_key = self._generate_cache_key(
@@ -185,7 +191,9 @@ class DealEvaluationService:
         # Check if LLM client is available
         if not llm_client.is_available():
             logger.warning("LLM client not available, using fallback evaluation")
-            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+            return self._fallback_evaluation(
+                vehicle_vin, asking_price, condition, mileage
+            )
 
         try:
             logger.debug(
@@ -247,7 +255,9 @@ class DealEvaluationService:
                     llm_used=True,
                 )
             except Exception as log_error:
-                logger.error(f"Failed to log evaluation AI response to MongoDB: {str(log_error)}")
+                logger.error(
+                    f"Failed to log evaluation AI response to MongoDB: {str(log_error)}"
+                )
                 # Don't fail the main operation if logging fails
 
             return result
@@ -263,29 +273,39 @@ class DealEvaluationService:
             )
             logger.error(f"ApiError details: {e.details}")
             # For LLM-related ApiErrors, use fallback evaluation
-            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+            return self._fallback_evaluation(
+                vehicle_vin, asking_price, condition, mileage
+            )
         except json.JSONDecodeError as e:
             logger.error(
                 f"JSON parsing error during deal evaluation: {e}. "
                 f"VIN: {vehicle_vin}, Price: ${asking_price:,.2f}. "
                 "This may indicate a cache corruption issue."
             )
-            logger.debug(f"JSON decode error details: line {e.lineno}, column {e.colno}")
-            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+            logger.debug(
+                f"JSON decode error details: line {e.lineno}, column {e.colno}"
+            )
+            return self._fallback_evaluation(
+                vehicle_vin, asking_price, condition, mileage
+            )
         except ValueError as e:
             logger.error(
                 f"Validation error during deal evaluation: {e}. "
                 f"VIN: {vehicle_vin}, Price: ${asking_price:,.2f}. "
                 "This may indicate a data validation issue."
             )
-            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+            return self._fallback_evaluation(
+                vehicle_vin, asking_price, condition, mileage
+            )
         except Exception as e:
             logger.error(
                 f"Unexpected error during deal evaluation: {type(e).__name__}: {e}. "
                 f"VIN: {vehicle_vin}, Price: ${asking_price:,.2f}"
             )
             logger.exception("Full traceback for debugging:")
-            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+            return self._fallback_evaluation(
+                vehicle_vin, asking_price, condition, mileage
+            )
 
     def _fallback_evaluation(
         self, vehicle_vin: str, asking_price: float, condition: str, mileage: int
@@ -371,7 +391,9 @@ class DealEvaluationService:
                 f"Mention that comparable vehicles are priced around ${fair_value:,.0f}"
             )
 
-        talking_points.append("Request a pre-purchase inspection by an independent mechanic")
+        talking_points.append(
+            "Request a pre-purchase inspection by an independent mechanic"
+        )
 
         logger.info(
             f"Fallback evaluation completed - VIN: {vehicle_vin}, "
@@ -388,7 +410,10 @@ class DealEvaluationService:
     # Multi-step pipeline methods
 
     async def process_evaluation_step(
-        self, db: Session, evaluation_id: int, user_answers: dict[str, Any] | None = None
+        self,
+        db: Session,
+        evaluation_id: int,
+        user_answers: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Process the current step of an evaluation pipeline
@@ -437,7 +462,9 @@ class DealEvaluationService:
         if step_result.get("questions"):
             # If questions are returned, update status to awaiting_input
             result_json[current_step.value] = step_result
-            repo.update_result(evaluation_id, result_json, EvaluationStatus.AWAITING_INPUT)
+            repo.update_result(
+                evaluation_id, result_json, EvaluationStatus.AWAITING_INPUT
+            )
         else:
             # If no questions, advance to next step
             result_json[current_step.value] = step_result
@@ -445,10 +472,14 @@ class DealEvaluationService:
 
             if next_step:
                 repo.update_step(evaluation_id, next_step)
-                repo.update_result(evaluation_id, result_json, EvaluationStatus.ANALYZING)
+                repo.update_result(
+                    evaluation_id, result_json, EvaluationStatus.ANALYZING
+                )
             else:
                 # Final step completed
-                repo.update_result(evaluation_id, result_json, EvaluationStatus.COMPLETED)
+                repo.update_result(
+                    evaluation_id, result_json, EvaluationStatus.COMPLETED
+                )
 
         return step_result
 
@@ -471,7 +502,9 @@ class DealEvaluationService:
 
         return None
 
-    async def _evaluate_vehicle_condition(self, deal: Deal, result_json: dict) -> dict[str, Any]:
+    async def _evaluate_vehicle_condition(
+        self, deal: Deal, result_json: dict
+    ) -> dict[str, Any]:
         """Evaluate vehicle condition step"""
         user_inputs = result_json.get("user_inputs", {})
 
@@ -496,7 +529,9 @@ class DealEvaluationService:
                     variables={
                         "make": deal.vehicle_make or "Unknown",
                         "model": deal.vehicle_model or "Unknown",
-                        "year": str(deal.vehicle_year) if deal.vehicle_year else "Unknown",
+                        "year": str(deal.vehicle_year)
+                        if deal.vehicle_year
+                        else "Unknown",
                         "vin": user_inputs.get("vin", "Unknown"),
                         "mileage": f"{deal.vehicle_mileage:,}",
                         "condition_description": user_inputs.get(
@@ -523,10 +558,14 @@ class DealEvaluationService:
                     f"VIN: {user_inputs.get('vin', 'Unknown')}, "
                     f"Deal ID: {deal.id}. Using fallback assessment."
                 )
-                logger.exception("Full traceback for vehicle condition evaluation error:")
+                logger.exception(
+                    "Full traceback for vehicle condition evaluation error:"
+                )
                 assessment = {
                     "condition_score": 7.0,
-                    "condition_notes": ["Unable to perform detailed analysis due to LLM error"],
+                    "condition_notes": [
+                        "Unable to perform detailed analysis due to LLM error"
+                    ],
                     "recommended_inspection": True,
                 }
         else:
@@ -564,7 +603,9 @@ class DealEvaluationService:
             "completed": True,
         }
 
-    async def _evaluate_financing(self, deal: Deal, result_json: dict) -> dict[str, Any]:
+    async def _evaluate_financing(
+        self, deal: Deal, result_json: dict
+    ) -> dict[str, Any]:
         """Evaluate financing step with comprehensive affordability analysis"""
         user_inputs = result_json.get("user_inputs", {})
 
@@ -595,9 +636,7 @@ class DealEvaluationService:
             # Determine if cash is better based on deal quality
             if price_score >= 7.0:
                 recommendation = "cash"
-                recommendation_reason = (
-                    "This is a good deal - paying cash avoids interest and saves money long-term"
-                )
+                recommendation_reason = "This is a good deal - paying cash avoids interest and saves money long-term"
             else:
                 recommendation = "either"
                 recommendation_reason = "Cash eliminates interest costs, but consider financing if you want to preserve liquidity"
@@ -625,9 +664,9 @@ class DealEvaluationService:
             monthly_rate = interest_rate / 100 / 12
             months = self.DEFAULT_LOAN_TERM_MONTHS
             if monthly_rate > 0:
-                monthly_payment = (loan_amount * monthly_rate * (1 + monthly_rate) ** months) / (
-                    (1 + monthly_rate) ** months - 1
-                )
+                monthly_payment = (
+                    loan_amount * monthly_rate * (1 + monthly_rate) ** months
+                ) / ((1 + monthly_rate) ** months - 1)
             else:
                 monthly_payment = loan_amount / months
 
@@ -663,7 +702,9 @@ class DealEvaluationService:
                     )
                     affordability_score = 3.0
             else:
-                affordability_notes.append("Unable to assess affordability without income data")
+                affordability_notes.append(
+                    "Unable to assess affordability without income data"
+                )
 
             # Add interest cost note
             if total_interest > 0:
@@ -688,9 +729,7 @@ class DealEvaluationService:
                     recommendation_reason = "Excellent deal with low interest rate - financing preserves cash for other investments"
                 else:
                     recommendation = "either"
-                    recommendation_reason = (
-                        "Excellent deal, but moderate interest rate - consider your cash position"
-                    )
+                    recommendation_reason = "Excellent deal, but moderate interest rate - consider your cash position"
             elif price_score >= self.GOOD_DEAL_SCORE:
                 # Good deal
                 if interest_rate <= self.REASONABLE_INTEREST_RATE:
@@ -704,9 +743,7 @@ class DealEvaluationService:
             else:
                 # Fair or poor deal
                 recommendation = "cash"
-                recommendation_reason = (
-                    "Deal quality is mediocre - avoid paying interest on an overpriced vehicle"
-                )
+                recommendation_reason = "Deal quality is mediocre - avoid paying interest on an overpriced vehicle"
                 if affordability_score < 5.0:
                     recommendation_reason += ". Payment may also strain your budget."
 
@@ -744,7 +781,9 @@ class DealEvaluationService:
         current_year = datetime.now().year
         vehicle_age = current_year - deal.vehicle_year
         if vehicle_age > 10:
-            risk_factors.append("Vehicle is over 10 years old - check for wear and tear")
+            risk_factors.append(
+                "Vehicle is over 10 years old - check for wear and tear"
+            )
             risk_score += 1.0
         elif vehicle_age > 7:
             risk_factors.append("Vehicle age warrants thorough inspection")
@@ -760,10 +799,14 @@ class DealEvaluationService:
         # Price risk
         price_data = result_json.get("price", {})
         if price_data:
-            fair_value = price_data.get("assessment", {}).get("fair_value", deal.asking_price)
+            fair_value = price_data.get("assessment", {}).get(
+                "fair_value", deal.asking_price
+            )
             price_diff = deal.asking_price - fair_value
             if price_diff > 2000:
-                risk_factors.append(f"Vehicle priced ${price_diff:,.0f} above fair value")
+                risk_factors.append(
+                    f"Vehicle priced ${price_diff:,.0f} above fair value"
+                )
                 risk_score += 1.0
 
         risk_score = min(10.0, max(1.0, risk_score))
@@ -793,12 +836,16 @@ class DealEvaluationService:
         risk_data = result_json.get("risk", {})
 
         # Calculate overall score
-        condition_score = condition_data.get("assessment", {}).get("condition_score", 5.0)
+        condition_score = condition_data.get("assessment", {}).get(
+            "condition_score", 5.0
+        )
         price_score = price_data.get("assessment", {}).get("score", 5.0)
         risk_score = risk_data.get("assessment", {}).get("risk_score", 5.0)
 
         # Overall score: weighted average (condition 20%, price 50%, risk 30% inverted)
-        overall_score = (condition_score * 0.2) + (price_score * 0.5) + ((11 - risk_score) * 0.3)
+        overall_score = (
+            (condition_score * 0.2) + (price_score * 0.5) + ((11 - risk_score) * 0.3)
+        )
         overall_score = round(min(10.0, max(1.0, overall_score)), 1)
 
         # Generate recommendation

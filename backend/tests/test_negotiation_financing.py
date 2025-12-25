@@ -39,7 +39,9 @@ class TestFinancingOptions:
         assert len(financing_options) == 4
 
         # Check 60-month option exists
-        option_60 = next((opt for opt in financing_options if opt["loan_term_months"] == 60), None)
+        option_60 = next(
+            (opt for opt in financing_options if opt["loan_term_months"] == 60), None
+        )
         assert option_60 is not None
         assert option_60["loan_amount"] == 27000.0  # 90% of 30000
         assert option_60["down_payment"] == 3000.0  # 10% of 30000
@@ -85,14 +87,21 @@ class TestFinancingOptions:
         financing_options = service._calculate_financing_options(vehicle_price)
 
         # Get 36 and 72 month options
-        option_36 = next((opt for opt in financing_options if opt["loan_term_months"] == 36), None)
-        option_72 = next((opt for opt in financing_options if opt["loan_term_months"] == 72), None)
+        option_36 = next(
+            (opt for opt in financing_options if opt["loan_term_months"] == 36), None
+        )
+        option_72 = next(
+            (opt for opt in financing_options if opt["loan_term_months"] == 72), None
+        )
 
         assert option_36 is not None
         assert option_72 is not None
 
         # Shorter term should have higher monthly payment but lower total interest
-        assert option_36["monthly_payment_estimate"] > option_72["monthly_payment_estimate"]
+        assert (
+            option_36["monthly_payment_estimate"]
+            > option_72["monthly_payment_estimate"]
+        )
         assert option_36["total_interest"] < option_72["total_interest"]
 
     def test_financing_options_cash_savings_calculation(self, db):
@@ -103,7 +112,9 @@ class TestFinancingOptions:
         financing_options = service._calculate_financing_options(vehicle_price)
 
         # Get baseline financing option (60 months)
-        baseline = next((opt for opt in financing_options if opt["loan_term_months"] == 60), None)
+        baseline = next(
+            (opt for opt in financing_options if opt["loan_term_months"] == 60), None
+        )
         assert baseline is not None
 
         # Calculate cash savings

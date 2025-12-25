@@ -19,7 +19,9 @@ from app.schemas.saved_search_schemas import (
 router = APIRouter()
 
 
-@router.post("/", response_model=SavedSearchResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=SavedSearchResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_saved_search(
     search: SavedSearchCreate,
     current_user: User = Depends(get_current_user),
@@ -60,7 +62,9 @@ async def get_saved_searches(
         searches = saved_search_repository.get_user_searches(
             db=db, user_id=current_user.id, skip=skip, limit=limit
         )
-        total = saved_search_repository.count_user_searches(db=db, user_id=current_user.id)
+        total = saved_search_repository.count_user_searches(
+            db=db, user_id=current_user.id
+        )
 
         return SavedSearchList(searches=searches, total=total)
 
@@ -85,7 +89,9 @@ async def get_saved_search(
     )
 
     if not saved_search:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found"
+        )
 
     return saved_search
 
@@ -108,7 +114,9 @@ async def update_saved_search(
     )
 
     if not updated_search:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found"
+        )
 
     return updated_search
 
@@ -122,9 +130,13 @@ async def delete_saved_search(
     """
     Delete a saved search
     """
-    deleted = saved_search_repository.delete(db=db, search_id=search_id, user_id=current_user.id)
+    deleted = saved_search_repository.delete(
+        db=db, search_id=search_id, user_id=current_user.id
+    )
 
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found"
+        )
 
     return None

@@ -16,7 +16,10 @@ from app.schemas.evaluation_schemas import (
     EvaluationInitiateRequest,
     EvaluationResponse,
 )
-from app.schemas.loan_schemas import LenderRecommendationRequest, LenderRecommendationResponse
+from app.schemas.loan_schemas import (
+    LenderRecommendationRequest,
+    LenderRecommendationResponse,
+)
 from app.services.deal_evaluation_service import deal_evaluation_service
 from app.services.lender_service import LenderService
 
@@ -54,7 +57,8 @@ async def initiate_or_continue_evaluation(
     deal = deal_repo.get(deal_id)
     if not deal:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Deal with id {deal_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Deal with id {deal_id} not found",
         )
 
     eval_repo = EvaluationRepository(db)
@@ -93,7 +97,9 @@ async def initiate_or_continue_evaluation(
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -194,7 +200,9 @@ async def submit_evaluation_answers(
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -328,7 +336,9 @@ def get_evaluation_lenders(
 
     # Get lender recommendations
     try:
-        recommendations = LenderService.get_recommendations(lender_request, max_results=5)
+        recommendations = LenderService.get_recommendations(
+            lender_request, max_results=5
+        )
         return recommendations
     except Exception as e:
         raise HTTPException(

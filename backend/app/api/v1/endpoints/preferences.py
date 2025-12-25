@@ -59,7 +59,11 @@ async def get_preferences(user_id: str):
     """
     try:
         preferences = await user_preferences_service.get_user_preferences(user_id)
-        return {"user_id": user_id, "preferences": preferences, "count": len(preferences)}
+        return {
+            "user_id": user_id,
+            "preferences": preferences,
+            "count": len(preferences),
+        }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -110,8 +114,14 @@ async def cleanup_old_preferences(days: int = 30):
         Number of documents deleted
     """
     try:
-        deleted_count = await user_preferences_service.delete_older_preferences(days=days)
-        return {"message": "Cleanup completed", "deleted_count": deleted_count, "days": days}
+        deleted_count = await user_preferences_service.delete_older_preferences(
+            days=days
+        )
+        return {
+            "message": "Cleanup completed",
+            "deleted_count": deleted_count,
+            "days": days,
+        }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

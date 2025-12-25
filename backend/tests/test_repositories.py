@@ -28,7 +28,9 @@ class TestUserRepository:
     def test_get_by_email(self, db):
         """Test getting user by email"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(
+            email="test@example.com", username="testuser", password="testpass123"
+        )
 
         created_user = repo.create(user_in)
         found_user = repo.get_by_email("test@example.com")
@@ -46,7 +48,9 @@ class TestUserRepository:
     def test_get_by_username(self, db):
         """Test getting user by username"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(
+            email="test@example.com", username="testuser", password="testpass123"
+        )
 
         created_user = repo.create(user_in)
         found_user = repo.get_by_username("testuser")
@@ -64,7 +68,9 @@ class TestUserRepository:
     def test_get_by_id(self, db):
         """Test getting user by ID"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(
+            email="test@example.com", username="testuser", password="testpass123"
+        )
 
         created_user = repo.create(user_in)
         found_user = repo.get_by_id(created_user.id)
@@ -81,7 +87,9 @@ class TestUserRepository:
     def test_authenticate_success(self, db):
         """Test successful authentication"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(
+            email="test@example.com", username="testuser", password="testpass123"
+        )
 
         repo.create(user_in)
         authenticated_user = repo.authenticate("test@example.com", "testpass123")
@@ -92,7 +100,9 @@ class TestUserRepository:
     def test_authenticate_wrong_password(self, db):
         """Test authentication with wrong password"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(
+            email="test@example.com", username="testuser", password="testpass123"
+        )
 
         repo.create(user_in)
         authenticated_user = repo.authenticate("test@example.com", "wrongpassword")
@@ -108,7 +118,9 @@ class TestUserRepository:
     def test_authenticate_inactive_user(self, db):
         """Test authentication with inactive user"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(
+            email="test@example.com", username="testuser", password="testpass123"
+        )
 
         user = repo.create(user_in)
         # Manually set user as inactive
@@ -278,7 +290,9 @@ class TestDealRepository:
         deal = repo.create(deal_in)
 
         # Update the deal
-        update_data = DealUpdate(status="in_progress", offer_price=24000.00, notes="Negotiating")
+        update_data = DealUpdate(
+            status="in_progress", offer_price=24000.00, notes="Negotiating"
+        )
 
         updated_deal = repo.update(deal.id, update_data)
 

@@ -219,7 +219,9 @@ async def test_send_vehicle_alerts_mixed_results():
     mock_client = AsyncMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock()
-    mock_client.post = AsyncMock(side_effect=[mock_response_success, mock_response_failure])
+    mock_client.post = AsyncMock(
+        side_effect=[mock_response_success, mock_response_failure]
+    )
 
     with patch("httpx.AsyncClient", return_value=mock_client):
         result = await service.send_vehicle_alerts(subscriptions, vehicle_data)

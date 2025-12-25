@@ -52,9 +52,13 @@ async def get_car_recommendations(
         # Build enhanced user priorities string that includes must-have features
         enhanced_priorities = user_preferences.user_priorities or ""
         if user_preferences.must_have_features:
-            features_text = f"Must-have features: {', '.join(user_preferences.must_have_features)}"
+            features_text = (
+                f"Must-have features: {', '.join(user_preferences.must_have_features)}"
+            )
             enhanced_priorities = (
-                f"{enhanced_priorities}. {features_text}" if enhanced_priorities else features_text
+                f"{enhanced_priorities}. {features_text}"
+                if enhanced_priorities
+                else features_text
             )
 
         # Note: Location is captured in UserPreferenceInput but not currently supported
@@ -78,7 +82,8 @@ async def get_car_recommendations(
 
         # Transform the result to match CarRecommendationResponse schema
         recommendations = [
-            CarRecommendationItem(**vehicle) for vehicle in result.get("top_vehicles", [])
+            CarRecommendationItem(**vehicle)
+            for vehicle in result.get("top_vehicles", [])
         ]
 
         return CarRecommendationResponse(

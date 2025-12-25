@@ -61,7 +61,9 @@ class Deal(Base):
         index=True,
     )
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     def __repr__(self):
@@ -82,7 +84,9 @@ class User(Base):
     is_superuser = Column(Integer, default=0)
     reset_token = Column(String(255), nullable=True)
     reset_token_expires = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     def __repr__(self):
@@ -116,7 +120,9 @@ class WebhookSubscription(Base):
     secret_token = Column(String(255), nullable=True)  # For webhook verification
     last_triggered = Column(DateTime(timezone=True), nullable=True)
     failure_count = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     def __repr__(self):
@@ -141,7 +147,9 @@ class Favorite(Base):
     color = Column(String(50), nullable=True)
     condition = Column(String(50), nullable=True)
     image = Column(String(512), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     def __repr__(self):
@@ -175,7 +183,9 @@ class SavedSearch(Base):
     notification_enabled = Column(Boolean, default=True)
     last_checked = Column(DateTime(timezone=True), nullable=True)
     new_matches_count = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     def __repr__(self):

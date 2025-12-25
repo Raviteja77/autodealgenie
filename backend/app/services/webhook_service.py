@@ -123,7 +123,11 @@ class WebhookService:
             f"{failed_count} failed"
         )
 
-        return {"total": len(subscriptions), "success": success_count, "failed": failed_count}
+        return {
+            "total": len(subscriptions),
+            "success": success_count,
+            "failed": failed_count,
+        }
 
 
 # Singleton instance

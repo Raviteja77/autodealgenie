@@ -37,7 +37,9 @@ class JSONFormatter(logging.Formatter):
         # Add exception info if available
         if record.exc_info:
             log_obj["exception"] = self.formatException(record.exc_info)
-            log_obj["exc_type"] = record.exc_info[0].__name__ if record.exc_info[0] else None
+            log_obj["exc_type"] = (
+                record.exc_info[0].__name__ if record.exc_info[0] else None
+            )
 
         return json.dumps(log_obj)
 

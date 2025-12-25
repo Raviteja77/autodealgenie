@@ -57,7 +57,8 @@ def get_deal(
     deal = repository.get(deal_id)
     if not deal:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Deal with id {deal_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Deal with id {deal_id} not found",
         )
     return deal
 
@@ -74,7 +75,8 @@ def update_deal(
     deal = repository.update(deal_id, deal_in)
     if not deal:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Deal with id {deal_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Deal with id {deal_id} not found",
         )
     return deal
 
@@ -90,7 +92,8 @@ def delete_deal(
     deleted = repository.delete(deal_id)
     if not deleted:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Deal with id {deal_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Deal with id {deal_id} not found",
         )
     return None
 

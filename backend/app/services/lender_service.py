@@ -250,11 +250,17 @@ class LenderService:
 
         for lender in LenderService.PARTNER_LENDERS:
             # Check if lender accepts this credit score
-            if credit_score < lender.min_credit_score or credit_score > lender.max_credit_score:
+            if (
+                credit_score < lender.min_credit_score
+                or credit_score > lender.max_credit_score
+            ):
                 continue
 
             # Check if lender accepts this loan amount
-            if loan_amount < lender.min_loan_amount or loan_amount > lender.max_loan_amount:
+            if (
+                loan_amount < lender.min_loan_amount
+                or loan_amount > lender.max_loan_amount
+            ):
                 continue
 
             # Check if lender accepts this loan term
@@ -332,8 +338,12 @@ class LenderService:
             # 3. Credit Score Fit (20% weight) - how well score fits their range
             credit_range = lender.max_credit_score - lender.min_credit_score
             if credit_range > 0:
-                credit_position = (credit_score - lender.min_credit_score) / credit_range
-                credit_score_fit = (1 - abs(0.5 - credit_position)) * WEIGHT_CREDIT_SCORE_FIT
+                credit_position = (
+                    credit_score - lender.min_credit_score
+                ) / credit_range
+                credit_score_fit = (
+                    1 - abs(0.5 - credit_position)
+                ) * WEIGHT_CREDIT_SCORE_FIT
                 score += credit_score_fit
 
                 # Bonus for being in the upper half of their range
@@ -343,7 +353,9 @@ class LenderService:
             # 4. Term Flexibility (10% weight)
             term_range = lender.max_term_months - lender.min_term_months
             if term_range > 0:
-                term_flexibility_score = min(term_range / 60, 1.0) * WEIGHT_TERM_FLEXIBILITY
+                term_flexibility_score = (
+                    min(term_range / 60, 1.0) * WEIGHT_TERM_FLEXIBILITY
+                )
                 score += term_flexibility_score
 
             # 5. Features and Benefits (10% weight)
@@ -422,11 +434,15 @@ class LenderService:
 
         # Build recommendations
         recommendations = []
-        for rank, (lender, score, reason) in enumerate(scored_lenders[:max_results], start=1):
+        for rank, (lender, score, reason) in enumerate(
+            scored_lenders[:max_results], start=1
+        ):
             # Estimate APR for this user with this lender
             # Use lender's APR range adjusted for user's credit
             apr_range = lender.apr_range_max - lender.apr_range_min
-            credit_score = LenderService._get_credit_score_midpoint(request.credit_score_range)
+            credit_score = LenderService._get_credit_score_midpoint(
+                request.credit_score_range
+            )
             credit_normalized = (credit_score - lender.min_credit_score) / (
                 lender.max_credit_score - lender.min_credit_score
             )

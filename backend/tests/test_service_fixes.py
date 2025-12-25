@@ -29,7 +29,9 @@ def test_negotiation_service_metadata_access():
 
     # Mock the repository to return messages
     service.negotiation_repo = Mock()
-    service.negotiation_repo.get_messages = Mock(return_value=[mock_msg1, mock_msg2, mock_msg3])
+    service.negotiation_repo.get_messages = Mock(
+        return_value=[mock_msg1, mock_msg2, mock_msg3]
+    )
 
     # Test _get_latest_suggested_price method
     result = service._get_latest_suggested_price(session_id=1, default_price=25000.0)

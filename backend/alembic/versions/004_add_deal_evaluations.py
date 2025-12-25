@@ -28,13 +28,20 @@ def upgrade() -> None:
         sa.Column("deal_id", sa.Integer(), nullable=False),
         sa.Column(
             "status",
-            sa.Enum("analyzing", "awaiting_input", "completed", name="evaluationstatus"),
+            sa.Enum(
+                "analyzing", "awaiting_input", "completed", name="evaluationstatus"
+            ),
             nullable=False,
         ),
         sa.Column(
             "current_step",
             sa.Enum(
-                "vehicle_condition", "price", "financing", "risk", "final", name="pipelinestep"
+                "vehicle_condition",
+                "price",
+                "financing",
+                "risk",
+                "final",
+                name="pipelinestep",
             ),
             nullable=False,
         ),
@@ -51,8 +58,12 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["deal_id"], ["deals.id"]),
     )
     op.create_index(op.f("ix_deal_evaluations_id"), "deal_evaluations", ["id"])
-    op.create_index(op.f("ix_deal_evaluations_user_id"), "deal_evaluations", ["user_id"])
-    op.create_index(op.f("ix_deal_evaluations_deal_id"), "deal_evaluations", ["deal_id"])
+    op.create_index(
+        op.f("ix_deal_evaluations_user_id"), "deal_evaluations", ["user_id"]
+    )
+    op.create_index(
+        op.f("ix_deal_evaluations_deal_id"), "deal_evaluations", ["deal_id"]
+    )
     op.create_index(op.f("ix_deal_evaluations_status"), "deal_evaluations", ["status"])
 
 

@@ -85,7 +85,9 @@ class TestAgentSystemPrompts:
             # Each prompt should define who they are
             assert "You are" in prompt
             # Each prompt should list expertise
-            assert "expertise includes" in prompt.lower() or "expertise" in prompt.lower()
+            assert (
+                "expertise includes" in prompt.lower() or "expertise" in prompt.lower()
+            )
             # Each prompt should define their goal
             assert "goal" in prompt.lower()
 
@@ -118,7 +120,10 @@ class TestAgentSystemPrompts:
         evaluator_prompt = AGENT_SYSTEM_PROMPTS["evaluator"]
 
         # Should mention comparing total costs
-        assert "compare" in evaluator_prompt.lower() or "comparison" in evaluator_prompt.lower()
+        assert (
+            "compare" in evaluator_prompt.lower()
+            or "comparison" in evaluator_prompt.lower()
+        )
         assert "total cost" in evaluator_prompt.lower()
 
         # Should mention considering vehicle price + financing

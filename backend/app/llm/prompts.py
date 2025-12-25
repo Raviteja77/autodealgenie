@@ -687,7 +687,9 @@ def get_prompt(prompt_id: str) -> PromptTemplate:
     """
     if prompt_id not in PROMPTS:
         available_prompts = ", ".join(PROMPTS.keys())
-        raise KeyError(f"Prompt '{prompt_id}' not found. Available prompts: {available_prompts}")
+        raise KeyError(
+            f"Prompt '{prompt_id}' not found. Available prompts: {available_prompts}"
+        )
     return PROMPTS[prompt_id]
 
 

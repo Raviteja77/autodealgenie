@@ -2,7 +2,12 @@
 LLM module for OpenAI integration
 """
 
-from app.llm.llm_client import AgentRole, generate_structured_json, generate_text, llm_client
+from app.llm.llm_client import (
+    AgentRole,
+    generate_structured_json,
+    generate_text,
+    llm_client,
+)
 from app.llm.prompts import get_prompt, list_prompts
 from app.llm.schemas import (
     AddOn,

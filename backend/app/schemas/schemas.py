@@ -33,7 +33,9 @@ class DealBase(BaseModel):
     vehicle_model: str = Field(..., min_length=1, max_length=100)
     vehicle_year: int = Field(..., ge=1900, le=2100)
     vehicle_mileage: int = Field(default=0, ge=0)
-    vehicle_vin: str = Field(..., min_length=17, max_length=17, description="17-character VIN")
+    vehicle_vin: str = Field(
+        ..., min_length=17, max_length=17, description="17-character VIN"
+    )
     asking_price: float = Field(..., gt=0)
     offer_price: float | None = Field(None, gt=0)
     status: DealStatus = DealStatus.PENDING
@@ -221,10 +223,15 @@ class HealthCheck(BaseModel):
 class DealEvaluationRequest(BaseModel):
     """Schema for deal evaluation request"""
 
-    vehicle_vin: str = Field(..., min_length=17, max_length=17, description="17-character VIN")
+    vehicle_vin: str = Field(
+        ..., min_length=17, max_length=17, description="17-character VIN"
+    )
     asking_price: float = Field(..., gt=0, description="Asking price in USD")
     condition: str = Field(
-        ..., min_length=1, max_length=50, description="Vehicle condition (e.g., excellent, good)"
+        ...,
+        min_length=1,
+        max_length=50,
+        description="Vehicle condition (e.g., excellent, good)",
     )
     mileage: int = Field(..., ge=0, description="Current mileage in miles")
 

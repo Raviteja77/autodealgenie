@@ -438,7 +438,9 @@ async def mock_create_negotiation(request_data: dict[str, Any]) -> dict[str, Any
 
 
 @router.post("/{session_id}/next")
-async def mock_process_next_round(session_id: int, request_data: dict[str, Any]) -> dict[str, Any]:
+async def mock_process_next_round(
+    session_id: int, request_data: dict[str, Any]
+) -> dict[str, Any]:
     """
     Mock endpoint for processing the next negotiation round
     """
@@ -603,7 +605,9 @@ EVALUATION_ID_COUNTER = 5000
 
 
 @router.post("/evaluation/pipeline/{deal_id}/evaluation")
-async def mock_start_evaluation(deal_id: int, request_data: dict[str, Any]) -> dict[str, Any]:
+async def mock_start_evaluation(
+    deal_id: int, request_data: dict[str, Any]
+) -> dict[str, Any]:
     """
     Mock endpoint for starting evaluation pipeline
     Simulates POST /api/v1/deals/{deal_id}/evaluation

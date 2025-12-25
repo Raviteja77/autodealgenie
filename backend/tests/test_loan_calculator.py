@@ -31,10 +31,14 @@ class TestLoanCalculatorValidation:
 
     def test_validate_down_payment_exceeds_loan_amount(self):
         """Test that down payment >= loan amount raises ValueError"""
-        with pytest.raises(ValueError, match="Down payment must be less than loan amount"):
+        with pytest.raises(
+            ValueError, match="Down payment must be less than loan amount"
+        ):
             LoanCalculatorService.validate_inputs(25000, 25000, 60, "good")
 
-        with pytest.raises(ValueError, match="Down payment must be less than loan amount"):
+        with pytest.raises(
+            ValueError, match="Down payment must be less than loan amount"
+        ):
             LoanCalculatorService.validate_inputs(25000, 30000, 60, "good")
 
     def test_validate_zero_loan_term(self):

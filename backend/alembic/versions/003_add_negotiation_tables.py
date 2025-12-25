@@ -48,9 +48,15 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_negotiation_sessions_id"), "negotiation_sessions", ["id"])
-    op.create_index(op.f("ix_negotiation_sessions_user_id"), "negotiation_sessions", ["user_id"])
-    op.create_index(op.f("ix_negotiation_sessions_deal_id"), "negotiation_sessions", ["deal_id"])
-    op.create_index(op.f("ix_negotiation_sessions_status"), "negotiation_sessions", ["status"])
+    op.create_index(
+        op.f("ix_negotiation_sessions_user_id"), "negotiation_sessions", ["user_id"]
+    )
+    op.create_index(
+        op.f("ix_negotiation_sessions_deal_id"), "negotiation_sessions", ["deal_id"]
+    )
+    op.create_index(
+        op.f("ix_negotiation_sessions_status"), "negotiation_sessions", ["status"]
+    )
 
     # Create negotiation_messages table
     op.create_table(
@@ -71,12 +77,16 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.ForeignKeyConstraint(["session_id"], ["negotiation_sessions.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["session_id"], ["negotiation_sessions.id"], ondelete="CASCADE"
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_negotiation_messages_id"), "negotiation_messages", ["id"])
     op.create_index(
-        op.f("ix_negotiation_messages_session_id"), "negotiation_messages", ["session_id"]
+        op.f("ix_negotiation_messages_session_id"),
+        "negotiation_messages",
+        ["session_id"],
     )
     op.create_index(
         op.f("ix_negotiation_messages_round_number"),
@@ -87,14 +97,24 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop negotiation_messages and negotiation_sessions tables"""
-    op.drop_index(op.f("ix_negotiation_messages_round_number"), table_name="negotiation_messages")
-    op.drop_index(op.f("ix_negotiation_messages_session_id"), table_name="negotiation_messages")
+    op.drop_index(
+        op.f("ix_negotiation_messages_round_number"), table_name="negotiation_messages"
+    )
+    op.drop_index(
+        op.f("ix_negotiation_messages_session_id"), table_name="negotiation_messages"
+    )
     op.drop_index(op.f("ix_negotiation_messages_id"), table_name="negotiation_messages")
     op.drop_table("negotiation_messages")
 
-    op.drop_index(op.f("ix_negotiation_sessions_status"), table_name="negotiation_sessions")
-    op.drop_index(op.f("ix_negotiation_sessions_deal_id"), table_name="negotiation_sessions")
-    op.drop_index(op.f("ix_negotiation_sessions_user_id"), table_name="negotiation_sessions")
+    op.drop_index(
+        op.f("ix_negotiation_sessions_status"), table_name="negotiation_sessions"
+    )
+    op.drop_index(
+        op.f("ix_negotiation_sessions_deal_id"), table_name="negotiation_sessions"
+    )
+    op.drop_index(
+        op.f("ix_negotiation_sessions_user_id"), table_name="negotiation_sessions"
+    )
     op.drop_index(op.f("ix_negotiation_sessions_id"), table_name="negotiation_sessions")
     op.drop_table("negotiation_sessions")
 

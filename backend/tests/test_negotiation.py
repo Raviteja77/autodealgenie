@@ -108,7 +108,9 @@ def test_update_session_status(negotiation_repo, mock_user, mock_deal):
         deal_id=mock_deal.id,
     )
 
-    updated = negotiation_repo.update_session_status(session.id, NegotiationStatus.COMPLETED)
+    updated = negotiation_repo.update_session_status(
+        session.id, NegotiationStatus.COMPLETED
+    )
     assert updated is not None
     assert updated.status == NegotiationStatus.COMPLETED
 
@@ -290,7 +292,9 @@ async def test_process_next_round_counter(authenticated_client, mock_deal, db):
     with patch(
         "app.services.negotiation_service.langchain_service.generate_customer_response"
     ) as mock_llm:
-        mock_llm.return_value = "I appreciate your offer. How about we meet in the middle?"
+        mock_llm.return_value = (
+            "I appreciate your offer. How about we meet in the middle?"
+        )
 
         response = authenticated_client.post(
             f"/api/v1/negotiations/{session.id}/next", json=request_data
@@ -450,7 +454,9 @@ async def test_send_chat_message(authenticated_client, mock_deal, db):
         "message_type": "question",
     }
 
-    with patch("app.llm.llm_client.async_openai_client.chat.completions.create") as mock_llm:
+    with patch(
+        "app.llm.llm_client.async_openai_client.chat.completions.create"
+    ) as mock_llm:
         # Mock LLM response
         mock_response = type(
             "MockResponse",
@@ -497,7 +503,9 @@ async def test_send_chat_message_invalid_session(authenticated_client):
         "message_type": "general",
     }
 
-    response = authenticated_client.post("/api/v1/negotiations/99999/chat", json=request_data)
+    response = authenticated_client.post(
+        "/api/v1/negotiations/99999/chat", json=request_data
+    )
     assert response.status_code == 404
 
 
@@ -552,7 +560,9 @@ async def test_submit_dealer_info(authenticated_client, mock_deal, db):
         "metadata": {"financing_required": True},
     }
 
-    with patch("app.llm.llm_client.async_openai_client.chat.completions.create") as mock_llm:
+    with patch(
+        "app.llm.llm_client.async_openai_client.chat.completions.create"
+    ) as mock_llm:
         # Mock LLM response
         mock_response = type(
             "MockResponse",

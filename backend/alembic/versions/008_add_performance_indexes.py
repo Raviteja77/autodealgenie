@@ -35,7 +35,9 @@ def upgrade() -> None:
 
     # Deals table - search by vehicle
     op.create_index(
-        "ix_deals_vehicle_lookup", "deals", ["vehicle_make", "vehicle_model", "vehicle_year"]
+        "ix_deals_vehicle_lookup",
+        "deals",
+        ["vehicle_make", "vehicle_model", "vehicle_year"],
     )
 
     # Deals table - VIN lookup (if exists)

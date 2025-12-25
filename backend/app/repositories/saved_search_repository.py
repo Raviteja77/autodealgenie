@@ -31,7 +31,9 @@ class SavedSearchRepository:
         db.refresh(saved_search)
         return saved_search
 
-    def get_by_id(self, db: Session, search_id: int, user_id: int) -> Optional[SavedSearch]:
+    def get_by_id(
+        self, db: Session, search_id: int, user_id: int
+    ) -> Optional[SavedSearch]:
         """
         Get a saved search by ID
 

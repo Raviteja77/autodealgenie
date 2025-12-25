@@ -108,7 +108,9 @@ class TestLLMClient:
             assert not client.is_available()
             assert client.client is None
 
-    def test_generate_structured_json_success(self, mock_openai_client, mock_openai_response):
+    def test_generate_structured_json_success(
+        self, mock_openai_client, mock_openai_response
+    ):
         """Test successful structured JSON generation"""
         mock_openai_client.chat.completions.create.return_value = mock_openai_response
 

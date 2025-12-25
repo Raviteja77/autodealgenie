@@ -12,13 +12,16 @@ class LLMRequest(BaseModel):
 
     prompt_id: str = Field(..., description="ID of the prompt template to use")
     variables: dict[str, Any] = Field(
-        default_factory=dict, description="Variables to substitute in the prompt template"
+        default_factory=dict,
+        description="Variables to substitute in the prompt template",
     )
     model: str | None = Field(None, description="Override the default OpenAI model")
     temperature: float = Field(
         default=0.7, ge=0.0, le=2.0, description="Sampling temperature (0-2)"
     )
-    max_tokens: int | None = Field(None, gt=0, description="Maximum number of tokens to generate")
+    max_tokens: int | None = Field(
+        None, gt=0, description="Maximum number of tokens to generate"
+    )
 
 
 class LLMResponse(BaseModel):
@@ -27,7 +30,9 @@ class LLMResponse(BaseModel):
     content: str | dict[str, Any] = Field(..., description="Generated content")
     prompt_id: str = Field(..., description="ID of the prompt template used")
     model: str = Field(..., description="OpenAI model used for generation")
-    tokens_used: int | None = Field(None, description="Total tokens used in the request")
+    tokens_used: int | None = Field(
+        None, description="Total tokens used in the request"
+    )
 
 
 class LLMError(BaseModel):
@@ -45,30 +50,42 @@ class CarSelectionItem(BaseModel):
 
     index: int = Field(..., description="Index of the vehicle in the provided list")
     score: float = Field(..., ge=1.0, le=10.0, description="Confidence score (1-10)")
-    highlights: list[str] = Field(..., description="Top 3 reasons to consider this vehicle")
+    highlights: list[str] = Field(
+        ..., description="Top 3 reasons to consider this vehicle"
+    )
     summary: str = Field(..., description="Brief recommendation summary")
 
 
 class CarSelectionResponse(BaseModel):
     """Schema for car selection response"""
 
-    recommendations: list[CarSelectionItem] = Field(..., description="List of selected vehicles")
+    recommendations: list[CarSelectionItem] = Field(
+        ..., description="List of selected vehicles"
+    )
 
 
 class DealEvaluation(BaseModel):
     """Schema for deal evaluation response"""
 
     fair_value: float = Field(..., description="Estimated fair market value in USD")
-    score: float = Field(..., ge=1.0, le=10.0, description="Deal quality score from 1-10")
+    score: float = Field(
+        ..., ge=1.0, le=10.0, description="Deal quality score from 1-10"
+    )
     insights: list[str] = Field(..., description="3-5 key observations about the deal")
-    talking_points: list[str] = Field(..., description="3-5 specific negotiation strategies")
+    talking_points: list[str] = Field(
+        ..., description="3-5 specific negotiation strategies"
+    )
 
 
 class VehicleConditionAssessment(BaseModel):
     """Schema for vehicle condition assessment in multi-step pipeline"""
 
-    condition_score: float = Field(..., ge=1.0, le=10.0, description="Condition score from 1-10")
-    condition_notes: list[str] = Field(..., description="Key observations about vehicle condition")
+    condition_score: float = Field(
+        ..., ge=1.0, le=10.0, description="Condition score from 1-10"
+    )
+    condition_notes: list[str] = Field(
+        ..., description="Key observations about vehicle condition"
+    )
     recommended_inspection: bool = Field(
         ..., description="Whether pre-purchase inspection is recommended"
     )
@@ -95,7 +112,9 @@ class VehicleInfo(BaseModel):
     dealer_contact: str | None = Field(None, description="Dealer contact information")
     pros: list[str] = Field(default_factory=list, description="Positive aspects")
     cons: list[str] = Field(default_factory=list, description="Negative aspects")
-    reliability_score: float | None = Field(None, description="Reliability rating (1-10)")
+    reliability_score: float | None = Field(
+        None, description="Reliability rating (1-10)"
+    )
     review_summary: str | None = Field(None, description="Expert review summary")
 
 
@@ -106,7 +125,9 @@ class SearchCriteria(BaseModel):
     model: str | None = Field(None, description="Vehicle model")
     price_min: float | None = Field(None, description="Minimum price")
     price_max: float | None = Field(None, description="Maximum price")
-    condition: str | None = Field(None, description="Vehicle condition (new, used, certified)")
+    condition: str | None = Field(
+        None, description="Vehicle condition (new, used, certified)"
+    )
     year_min: int | None = Field(None, description="Minimum model year")
     year_max: int | None = Field(None, description="Maximum model year")
     mileage_max: int | None = Field(None, description="Maximum mileage")
@@ -117,7 +138,9 @@ class VehicleReport(BaseModel):
     """Schema for research agent vehicle report"""
 
     search_criteria: SearchCriteria = Field(..., description="Search parameters used")
-    top_vehicles: list[VehicleInfo] = Field(..., description="Top 3-5 recommended vehicles")
+    top_vehicles: list[VehicleInfo] = Field(
+        ..., description="Top 3-5 recommended vehicles"
+    )
 
 
 class LoanOption(BaseModel):
@@ -138,7 +161,9 @@ class FinancingReport(BaseModel):
     loan_amount: float = Field(..., description="Total loan amount needed")
     down_payment: float = Field(..., description="Down payment amount")
     options: list[LoanOption] = Field(..., description="Available financing options")
-    recommended_option_index: int = Field(..., description="Zero-based index of recommended option")
+    recommended_option_index: int = Field(
+        ..., description="Zero-based index of recommended option"
+    )
 
 
 class AddOn(BaseModel):

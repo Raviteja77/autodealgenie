@@ -202,7 +202,9 @@ def test_logout(client: TestClient):
 
     # Logout
     access_token = login_response.cookies.get("access_token")
-    response = client.post("/api/v1/auth/logout", cookies={"access_token": access_token})
+    response = client.post(
+        "/api/v1/auth/logout", cookies={"access_token": access_token}
+    )
     assert response.status_code == 200
     assert "successfully" in response.json()["message"].lower()
 

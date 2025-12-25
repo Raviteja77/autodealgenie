@@ -50,7 +50,8 @@ async def test_get_cached_result():
     mock_redis.get = AsyncMock(return_value=json.dumps(cached_data))
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         result = await service._get_cached_result(cache_key)
 
@@ -76,7 +77,8 @@ async def test_set_cached_result():
     mock_redis.setex = AsyncMock()
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         await service._set_cached_result(cache_key, result_data)
 
@@ -110,13 +112,16 @@ async def test_search_with_cache_hit():
     mock_collection.insert_one = AsyncMock(return_value=mock_insert_result)
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         with patch(
             "app.repositories.search_history_repository.mongodb.get_collection",
             return_value=mock_collection,
         ):
-            result = await service.search_and_recommend(make="Toyota", model="RAV4", user_id=1)
+            result = await service.search_and_recommend(
+                make="Toyota", model="RAV4", user_id=1
+            )
 
             # Should return cached result
             assert result == cached_result
@@ -153,7 +158,8 @@ async def test_search_with_retry_logic():
     mock_collection.insert_one = AsyncMock(return_value=mock_insert_result)
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         with patch(
             "app.repositories.search_history_repository.mongodb.get_collection",
@@ -163,7 +169,9 @@ async def test_search_with_retry_logic():
                 "app.tools.marketcheck_client.marketcheck_client.search_cars",
                 side_effect=mock_search_cars,
             ):
-                result = await service.search_and_recommend(make="Toyota", model="RAV4", user_id=1)
+                result = await service.search_and_recommend(
+                    make="Toyota", model="RAV4", user_id=1
+                )
 
                 # Should have retried and succeeded on 3rd attempt
                 assert call_count == 3
@@ -184,14 +192,17 @@ async def test_search_with_retry_exhausted():
     mock_redis.get = AsyncMock(return_value=None)
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         with patch(
             "app.tools.marketcheck_client.marketcheck_client.search_cars",
             side_effect=mock_search_cars,
         ):
             with pytest.raises(ConnectionError):
-                await service.search_and_recommend(make="Toyota", model="RAV4", user_id=1)
+                await service.search_and_recommend(
+                    make="Toyota", model="RAV4", user_id=1
+                )
 
 
 @pytest.mark.asyncio
@@ -225,7 +236,8 @@ async def test_search_history_logging():
     mock_collection.insert_one = AsyncMock(return_value=mock_insert_result)
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         with patch(
             "app.repositories.search_history_repository.mongodb.get_collection",
@@ -239,7 +251,9 @@ async def test_search_history_logging():
                     "app.tools.marketcheck_client.marketcheck_client.parse_listing",
                     return_value=mock_api_response["listings"][0],
                 ):
-                    await service.search_and_recommend(make="Toyota", model="RAV4", user_id=1)
+                    await service.search_and_recommend(
+                        make="Toyota", model="RAV4", user_id=1
+                    )
 
                     # Verify MongoDB insert was called
                     mock_collection.insert_one.assert_called_once()
@@ -296,7 +310,8 @@ async def test_webhook_triggering():
     mock_collection.insert_one = AsyncMock(return_value=mock_insert_result)
 
     with patch(
-        "app.services.car_recommendation_service.redis_client.get_client", return_value=mock_redis
+        "app.services.car_recommendation_service.redis_client.get_client",
+        return_value=mock_redis,
     ):
         with patch(
             "app.repositories.search_history_repository.mongodb.get_collection",

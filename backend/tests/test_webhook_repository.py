@@ -53,7 +53,10 @@ def test_get_webhook_by_id(mock_db):
     repo = WebhookRepository(mock_db)
 
     mock_subscription = WebhookSubscription(
-        id=1, user_id=1, webhook_url="https://example.com/webhook", status=WebhookStatus.ACTIVE
+        id=1,
+        user_id=1,
+        webhook_url="https://example.com/webhook",
+        status=WebhookStatus.ACTIVE,
     )
 
     mock_query = MagicMock()
@@ -73,10 +76,16 @@ def test_get_webhooks_by_user(mock_db):
 
     mock_subscriptions = [
         WebhookSubscription(
-            id=1, user_id=1, webhook_url="https://example.com/webhook1", status=WebhookStatus.ACTIVE
+            id=1,
+            user_id=1,
+            webhook_url="https://example.com/webhook1",
+            status=WebhookStatus.ACTIVE,
         ),
         WebhookSubscription(
-            id=2, user_id=1, webhook_url="https://example.com/webhook2", status=WebhookStatus.ACTIVE
+            id=2,
+            user_id=1,
+            webhook_url="https://example.com/webhook2",
+            status=WebhookStatus.ACTIVE,
         ),
     ]
 
@@ -96,10 +105,16 @@ def test_get_active_subscriptions(mock_db):
 
     mock_subscriptions = [
         WebhookSubscription(
-            id=1, user_id=1, webhook_url="https://example.com/webhook1", status=WebhookStatus.ACTIVE
+            id=1,
+            user_id=1,
+            webhook_url="https://example.com/webhook1",
+            status=WebhookStatus.ACTIVE,
         ),
         WebhookSubscription(
-            id=2, user_id=2, webhook_url="https://example.com/webhook2", status=WebhookStatus.ACTIVE
+            id=2,
+            user_id=2,
+            webhook_url="https://example.com/webhook2",
+            status=WebhookStatus.ACTIVE,
         ),
     ]
 
@@ -180,7 +195,10 @@ def test_delete_webhook_subscription(mock_db):
     repo = WebhookRepository(mock_db)
 
     mock_subscription = WebhookSubscription(
-        id=1, user_id=1, webhook_url="https://example.com/webhook", status=WebhookStatus.ACTIVE
+        id=1,
+        user_id=1,
+        webhook_url="https://example.com/webhook",
+        status=WebhookStatus.ACTIVE,
     )
 
     mock_query = MagicMock()
