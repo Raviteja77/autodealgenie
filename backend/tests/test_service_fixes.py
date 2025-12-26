@@ -82,7 +82,7 @@ def test_deal_evaluation_fallback():
     assert "score" in result
     assert "insights" in result
     assert "talking_points" in result
-    assert isinstance(result["score"], (int, float))
+    assert isinstance(result["score"], int | float)
     assert 1.0 <= result["score"] <= 10.0
 
     print("✓ Test passed: Deal evaluation service provides valid fallback")
