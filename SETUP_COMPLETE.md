@@ -101,6 +101,13 @@ deactivate
 # Install dependencies
 pip install -r requirements.txt
 
+# Run backend tests
+pytest --cov=app --cov-report=term
+
+# Run specific file
+pytest tests/test_auth.py
+
+
 # Set environment variables (Make sure DB hosts point to localhost now)
 # You might need to edit .env to set POSTGRES_SERVER=localhost instead of 'postgres'
 export POSTGRES_SERVER=localhost
@@ -128,11 +135,20 @@ Type \dt and press Enter. This lists all tables.
 Type \dT and press Enter. This lists all custom types (like your enums).
 Type select * from alembic_version; to see the latest applied migration ID.
 
-
+# for mongodb
 docker exec -it autodealgenie-mongodb mongosh
 
 use autodealgenie
 
+# for redis
+docker exec -it autodealgenie-redis-1 redis-cli
+
+Run Redis commands: Once inside, you can use any Redis command. Here are a few useful ones:
+
+PING: Checks if the server is responsive. Should return PONG.
+KEYS *: Lists all keys in the database. Useful for seeing what's being cached.
+GET "cache_key": Retrieves the value for a specific key. For example: GET "deal_eval:...".
+TTL "cache_key": Shows the remaining time-to-live for a key in seconds.
 
 # 4. Access the applications
 # Frontend:  http://localhost:3000
