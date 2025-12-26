@@ -342,7 +342,7 @@ class TestMockEvaluation:
         """Test starting evaluation pipeline"""
         response = mock_client.post("/mock/evaluation/pipeline/start", json={"deal_id": 1})
 
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == 200
         data = response.json()
 
         assert "evaluation_id" in data

@@ -37,6 +37,7 @@ async def main():
             customer_name="John Doe",
             customer_email="john@example.com",
             vehicle_make="Toyota",
+            vehicle_vin= "1HGCM41JXMN109186",
             vehicle_model="Camry",
             vehicle_year=2022,
             vehicle_mileage=15000,
