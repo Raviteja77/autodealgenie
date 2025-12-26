@@ -3,6 +3,8 @@ Prometheus Metrics Module
 Defines custom application metrics for AutoDealGenie
 """
 
+import logging
+
 from prometheus_client import Counter, Histogram, Gauge, Info
 
 # Application Info
@@ -190,8 +192,6 @@ def initialize_metrics():
             }
         )
     except Exception as e:
-        import logging
-
         logger = logging.getLogger(__name__)
         logger.error(f"Failed to initialize metrics: {e}")
         # Don't raise - allow application to continue without metrics
