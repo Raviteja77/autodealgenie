@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.models.evaluation import DealEvaluation, EvaluationStatus, PipelineStep
+from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import Deal, User
 from app.repositories.evaluation_repository import EvaluationRepository
 

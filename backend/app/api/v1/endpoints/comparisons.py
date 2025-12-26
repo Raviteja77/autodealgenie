@@ -8,7 +8,6 @@ from app.api.dependencies import get_current_user
 from app.llm import generate_text
 from app.models.models import User
 from app.schemas.saved_search_schemas import (
-    VehicleComparisonFeature,
     VehicleComparisonRequest,
     VehicleComparisonResponse,
 )

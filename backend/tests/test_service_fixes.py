@@ -1,8 +1,6 @@
 """Test fixes for negotiation, lender, and deal evaluation services"""
 
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import Mock
 
 from app.models.negotiation import MessageRole, NegotiationMessage
 from app.services.negotiation_service import NegotiationService
@@ -45,8 +43,6 @@ def test_negotiation_service_metadata_access():
 def test_llm_json_parsing_with_markdown():
     """Test that LLM client handles markdown code blocks in JSON responses"""
     import json
-
-    from app.llm.llm_client import LLMClient
 
     # Test cases for different markdown formats
     test_cases = [

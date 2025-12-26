@@ -165,7 +165,6 @@ async def test_continue_evaluation_with_answers(authenticated_client, mock_deal)
 @pytest.mark.asyncio
 async def test_submit_answers_when_not_awaiting(authenticated_client, mock_deal, db):
     """Test submitting answers when evaluation is not awaiting input"""
-    from app.models.evaluation import DealEvaluation
     from app.repositories.evaluation_repository import EvaluationRepository
 
     # Create evaluation in completed status

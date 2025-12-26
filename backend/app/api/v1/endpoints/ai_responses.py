@@ -3,8 +3,6 @@ AI Response History Endpoints
 Provides access to comprehensive AI interaction logs and analytics
 """
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.dependencies import get_current_user
@@ -36,8 +34,6 @@ async def get_deal_ai_history(
         List of AI response records with metadata
     """
     # Verify deal ownership
-    from app.api.dependencies import get_db
-    from app.repositories.deal_repository import DealRepository
 
     # Note: We need to get the database session to verify deal ownership
     # For now, we'll check if the deal exists and belongs to the user via email
@@ -101,7 +97,7 @@ async def get_user_ai_history(
 async def get_feature_ai_history(
     feature: str,
     current_user: User = Depends(get_current_user),
-    user_id: Optional[int] = Query(None),
+    user_id: int | None = Query(None),
     limit: int = Query(100, ge=1, le=500),
     skip: int = Query(0, ge=0),
 ):

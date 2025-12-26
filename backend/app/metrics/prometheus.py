@@ -5,7 +5,7 @@ Defines custom application metrics for AutoDealGenie
 
 import logging
 
-from prometheus_client import Counter, Histogram, Gauge, Info
+from prometheus_client import Counter, Gauge, Histogram, Info
 
 # Application Info
 app_info = Info("autodealgenie_app", "AutoDealGenie application information")

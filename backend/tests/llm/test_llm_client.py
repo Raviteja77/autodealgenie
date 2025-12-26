@@ -7,7 +7,7 @@ import pytest
 from openai import APIError, APITimeoutError, AuthenticationError, RateLimitError
 from pydantic import BaseModel, Field
 
-from app.llm.llm_client import LLMClient, generate_structured_json, generate_text
+from app.llm.llm_client import LLMClient
 from app.utils.error_handler import ApiError
 
 

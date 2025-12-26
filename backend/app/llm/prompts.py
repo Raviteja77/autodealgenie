@@ -260,21 +260,21 @@ FINANCING OPTIONS (for comparison):
 
 AUDIT CHECKLIST:
 1. **Price Verification**: Compare final_price against fair market value
-2. **Vehicle History**: Review provided vehicle_history_summary. If "Unknown", "Not available", 
-   or empty, clearly state that vehicle history could not be independently verified. DO NOT 
+2. **Vehicle History**: Review provided vehicle_history_summary. If "Unknown", "Not available",
+   or empty, clearly state that vehicle history could not be independently verified. DO NOT
    assume or invent accident or title information.
-3. **Safety Recalls**: Use safety_recalls_summary. If "Unknown", "Not available", or empty, 
+3. **Safety Recalls**: Use safety_recalls_summary. If "Unknown", "Not available", or empty,
    clearly state that recall status could not be verified. DO NOT fabricate recall information.
-4. **Market Context**: Analyze days on market and sales trends. If missing or "Unknown", 
+4. **Market Context**: Analyze days on market and sales trends. If missing or "Unknown",
    explicitly note the absence rather than guessing.
 5. **Financing Comparison**: Compare dealer offer vs pre-approved options
 6. **Total Cost Calculation**: Include all fees, add-ons, interest in TCO
 7. **Risk Assessment**: Identify red flags or unfavorable terms
 
 DATA SOURCE NOTES:
-- vehicle_history_summary: Derived from external providers (Carfax, AutoCheck) when available. 
+- vehicle_history_summary: Derived from external providers (Carfax, AutoCheck) when available.
   May be "Unknown" or "Not available" if no report obtained. Do NOT infer missing details.
-- safety_recalls_summary: Derived from official recall sources (NHTSA) when available. May be 
+- safety_recalls_summary: Derived from official recall sources (NHTSA) when available. May be
   "Unknown" or "Not available".
 - days_on_market: From external market data. May be "Unknown" or missing.
 

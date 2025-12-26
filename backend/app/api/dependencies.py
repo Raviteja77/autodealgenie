@@ -2,7 +2,7 @@
 Authentication dependencies for FastAPI
 """
 
-from fastapi import Cookie, Depends, Header, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.security import decode_token
@@ -51,12 +51,12 @@ def get_current_user(
 
     try:
         user_id = int(sub)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token subject",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
     user_repo = UserRepository(db)
     user = user_repo.get_by_id(user_id)

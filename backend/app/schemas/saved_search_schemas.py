@@ -3,7 +3,6 @@ Pydantic schemas for saved searches
 """
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -12,18 +11,18 @@ class SavedSearchBase(BaseModel):
     """Base schema for saved search"""
 
     name: str = Field(..., min_length=1, max_length=255, description="Name of the saved search")
-    make: Optional[str] = Field(None, max_length=100)
-    model: Optional[str] = Field(None, max_length=100)
-    budget_min: Optional[float] = Field(None, ge=0)
-    budget_max: Optional[float] = Field(None, ge=0)
-    car_type: Optional[str] = Field(None, max_length=50)
-    year_min: Optional[int] = Field(None, ge=1900, le=2100)
-    year_max: Optional[int] = Field(None, ge=1900, le=2100)
-    mileage_max: Optional[int] = Field(None, ge=0)
-    fuel_type: Optional[str] = Field(None, max_length=50)
-    transmission: Optional[str] = Field(None, max_length=50)
-    condition: Optional[str] = Field(None, max_length=50)
-    user_priorities: Optional[str] = None
+    make: str | None = Field(None, max_length=100)
+    model: str | None = Field(None, max_length=100)
+    budget_min: float | None = Field(None, ge=0)
+    budget_max: float | None = Field(None, ge=0)
+    car_type: str | None = Field(None, max_length=50)
+    year_min: int | None = Field(None, ge=1900, le=2100)
+    year_max: int | None = Field(None, ge=1900, le=2100)
+    mileage_max: int | None = Field(None, ge=0)
+    fuel_type: str | None = Field(None, max_length=50)
+    transmission: str | None = Field(None, max_length=50)
+    condition: str | None = Field(None, max_length=50)
+    user_priorities: str | None = None
     notification_enabled: bool = True
 
 
@@ -36,20 +35,20 @@ class SavedSearchCreate(SavedSearchBase):
 class SavedSearchUpdate(BaseModel):
     """Schema for updating a saved search"""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    make: Optional[str] = Field(None, max_length=100)
-    model: Optional[str] = Field(None, max_length=100)
-    budget_min: Optional[float] = Field(None, ge=0)
-    budget_max: Optional[float] = Field(None, ge=0)
-    car_type: Optional[str] = Field(None, max_length=50)
-    year_min: Optional[int] = Field(None, ge=1900, le=2100)
-    year_max: Optional[int] = Field(None, ge=1900, le=2100)
-    mileage_max: Optional[int] = Field(None, ge=0)
-    fuel_type: Optional[str] = Field(None, max_length=50)
-    transmission: Optional[str] = Field(None, max_length=50)
-    condition: Optional[str] = Field(None, max_length=50)
-    user_priorities: Optional[str] = None
-    notification_enabled: Optional[bool] = None
+    name: str | None = Field(None, min_length=1, max_length=255)
+    make: str | None = Field(None, max_length=100)
+    model: str | None = Field(None, max_length=100)
+    budget_min: float | None = Field(None, ge=0)
+    budget_max: float | None = Field(None, ge=0)
+    car_type: str | None = Field(None, max_length=50)
+    year_min: int | None = Field(None, ge=1900, le=2100)
+    year_max: int | None = Field(None, ge=1900, le=2100)
+    mileage_max: int | None = Field(None, ge=0)
+    fuel_type: str | None = Field(None, max_length=50)
+    transmission: str | None = Field(None, max_length=50)
+    condition: str | None = Field(None, max_length=50)
+    user_priorities: str | None = None
+    notification_enabled: bool | None = None
 
 
 class SavedSearchResponse(SavedSearchBase):
@@ -58,9 +57,9 @@ class SavedSearchResponse(SavedSearchBase):
     id: int
     user_id: int
     new_matches_count: int = 0
-    last_checked: Optional[datetime] = None
+    last_checked: datetime | None = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -90,17 +89,17 @@ class VehicleComparisonFeature(BaseModel):
     year: int
     price: float
     mileage: int
-    fuel_type: Optional[str] = None
-    transmission: Optional[str] = None
-    condition: Optional[str] = None
+    fuel_type: str | None = None
+    transmission: str | None = None
+    condition: str | None = None
     features: list[str] = []
     pros: list[str] = []
     cons: list[str] = []
-    recommendation_score: Optional[float] = None
+    recommendation_score: float | None = None
 
 
 class VehicleComparisonResponse(BaseModel):
     """Schema for vehicle comparison response"""
 
     vehicles: list[VehicleComparisonFeature]
-    comparison_summary: Optional[str] = None
+    comparison_summary: str | None = None
