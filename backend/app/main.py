@@ -3,6 +3,7 @@ AutoDealGenie FastAPI Application
 Main entry point for the backend service
 """
 
+import asyncio
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -15,6 +16,8 @@ from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.metrics import initialize_metrics
+from app.services.kafka_consumer import deals_consumer, handle_deal_message
+from app.services.kafka_producer import kafka_producer
 from app.middleware.error_middleware import ErrorHandlerMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 
@@ -27,6 +30,7 @@ async def lifespan(app: FastAPI):
     # Startup
     configure_logging()
     initialize_metrics()
+    consumer_tasks = []
     print("Starting up AutoDealGenie backend...")
 
     # Import here to avoid circular dependency issues during module initialization
@@ -51,6 +55,18 @@ async def lifespan(app: FastAPI):
         print("Application cannot start without Redis. Please check your configuration.")
         raise
 
+    # Initialize Kafka producer and consumers
+    try:
+        await kafka_producer.start()
+        await deals_consumer.start()
+        # Start consumer in background task
+        deals_task = asyncio.create_task(deals_consumer.consume_messages(handle_deal_message))
+        consumer_tasks.append(deals_task)
+        print("Kafka services initialized successfully")
+    except Exception as e:
+        print(f"WARNING: Failed to initialize Kafka: {e}")
+        print("Application will continue without Kafka features.")
+
     if settings.USE_MOCK_SERVICES:
         print("Mock services are ENABLED - using mock endpoints for development")
     yield
@@ -63,6 +79,14 @@ async def lifespan(app: FastAPI):
 
     await redis_client.close_redis()
     print("Redis connection closed")
+
+    # Stop Kafka consumers and producer
+    for task in consumer_tasks:
+        task.cancel()
+    await asyncio.gather(*consumer_tasks, return_exceptions=True)
+    await deals_consumer.stop()
+    await kafka_producer.stop()
+    print("Kafka services stopped")
 
 
 app = FastAPI(

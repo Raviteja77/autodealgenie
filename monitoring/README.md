@@ -11,7 +11,7 @@ docker-compose up -d
 # Access services
 # - Prometheus: http://localhost:9090
 # - Grafana: http://localhost:3001 (admin/admin)
-# - Alertmanager: http://localhost:9093
+# - Alertmanager: http://localhost:9094
 # - Backend Metrics: http://localhost:8000/metrics
 ```
 
@@ -67,7 +67,7 @@ Visualization and dashboards.
 
 **Configuration**: `grafana/provisioning/`
 
-### Alertmanager (Port 9093)
+### Alertmanager (Port 9094)
 
 Alert routing and notification management.
 

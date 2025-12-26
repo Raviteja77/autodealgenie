@@ -16,12 +16,12 @@ from app.schemas.schemas import HealthCheck
 router = APIRouter()
 
 
-@router.get("/health", response_model=HealthCheck, tags=["Health"])
+@router.get("/health", response_model=HealthCheck)
 async def health_check():
     """Health check endpoint"""
     return HealthCheck(status="healthy", timestamp=datetime.utcnow())
 
-@router.get("/health/detailed", tags=["Health"])
+@router.get("/health/detailed")
 async def detailed_health_check(
     response: Response, db: AsyncSession = Depends(get_async_db)
 ):

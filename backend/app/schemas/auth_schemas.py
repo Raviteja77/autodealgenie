@@ -2,6 +2,7 @@
 Authentication-related Pydantic schemas
 """
 
+from app.utils.validators import validate_password_strength
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
@@ -32,6 +33,13 @@ class LoginRequest(BaseModel):
     def normalize_email(cls, v: str) -> str:
         """Normalize email to lowercase"""
         return v.lower().strip()
+    
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Validate password strength"""
+
+        return validate_password_strength(v)
 
 
 class RefreshTokenRequest(BaseModel):

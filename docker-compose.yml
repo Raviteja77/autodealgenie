@@ -172,7 +172,7 @@ services:
     image: prom/alertmanager:v0.26.0
     container_name: autodealgenie-alertmanager
     ports:
-      - "9093:9093"
+      - "9094:9094"
     volumes:
       - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
       - alertmanager_data:/alertmanager

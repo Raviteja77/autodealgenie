@@ -74,7 +74,7 @@ echo "================================"
 check_service "Backend" "http://localhost:8000/health"
 check_service "Prometheus" "http://localhost:9090/-/healthy"
 check_service "Grafana" "http://localhost:3001/api/health"
-check_service "Alertmanager" "http://localhost:9093/-/healthy"
+check_service "Alertmanager" "http://localhost:9094/-/healthy"
 check_service "Postgres Exporter" "http://localhost:9187/metrics"
 check_service "Redis Exporter" "http://localhost:9121/metrics"
 echo ""
@@ -173,7 +173,7 @@ if [ $FAILED -eq 0 ]; then
     echo "  1. Access Grafana at http://localhost:3001 (admin/admin)"
     echo "  2. View dashboards in the AutoDealGenie folder"
     echo "  3. Check Prometheus at http://localhost:9090"
-    echo "  4. Review alerts at http://localhost:9093"
+    echo "  4. Review alerts at http://localhost:9094"
     exit 0
 else
     echo -e "${RED}✗ Some tests failed. Please check the errors above.${NC}"

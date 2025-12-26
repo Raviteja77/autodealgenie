@@ -3,6 +3,7 @@
  * Handles communication with the FastAPI backend
  */
 
+import ApiError from "./error-handler";
 import { createErrorFromResponse, NetworkError, isApiError } from "./errors";
 
 // TypeScript type definitions matching backend schemas

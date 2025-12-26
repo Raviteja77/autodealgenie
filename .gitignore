@@ -108,4 +108,4 @@ build/
 .env.test
 *.backup
 
-*.jsonmarket_data_cache/
+*.json

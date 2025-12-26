@@ -12,7 +12,7 @@ global:
 alerting:
   alertmanagers:
     - static_configs:
-        - targets: ['alertmanager:9093']
+        - targets: ['alertmanager:9094']
 
 # Load alert rules
 rule_files:
@@ -49,5 +49,5 @@ scrape_configs:
   # Alertmanager metrics
   - job_name: 'alertmanager'
     static_configs:
-      - targets: ['alertmanager:9093']
+      - targets: ['alertmanager:9094']
     scrape_interval: 30s
