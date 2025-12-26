@@ -80,29 +80,29 @@ class WebhookRepository:
         # Filter by criteria (None or matching)
         if make:
             query = query.filter(
-                (WebhookSubscription.make is None) | (WebhookSubscription.make == make)
+                (WebhookSubscription.make == None) | (WebhookSubscription.make == make)
             )
         if model:
             query = query.filter(
-                (WebhookSubscription.model is None) | (WebhookSubscription.model == model)
+                (WebhookSubscription.model == None) | (WebhookSubscription.model == model)
             )
         if price:
             query = query.filter(
-                (WebhookSubscription.price_min is None) | (WebhookSubscription.price_min <= price)
+                (WebhookSubscription.price_min == None) | (WebhookSubscription.price_min <= price)
             )
             query = query.filter(
-                (WebhookSubscription.price_max is None) | (WebhookSubscription.price_max >= price)
+                (WebhookSubscription.price_max == None) | (WebhookSubscription.price_max >= price)
             )
         if year:
             query = query.filter(
-                (WebhookSubscription.year_min is None) | (WebhookSubscription.year_min <= year)
+                (WebhookSubscription.year_min == None) | (WebhookSubscription.year_min <= year)
             )
             query = query.filter(
-                (WebhookSubscription.year_max is None) | (WebhookSubscription.year_max >= year)
+                (WebhookSubscription.year_max == None) | (WebhookSubscription.year_max >= year)
             )
         if mileage:
             query = query.filter(
-                (WebhookSubscription.mileage_max is None)
+                (WebhookSubscription.mileage_max == None)
                 | (WebhookSubscription.mileage_max >= mileage)
             )
 
