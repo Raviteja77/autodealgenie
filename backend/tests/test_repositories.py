@@ -14,7 +14,7 @@ class TestUserRepository:
         user_in = UserCreate(
             email="test@example.com",
             username="testuser",
-            password="testpass123",
+            password="Testpass123!",
             full_name="Test User",
         )
 
@@ -23,12 +23,12 @@ class TestUserRepository:
         assert user.email == "test@example.com"
         assert user.username == "testuser"
         assert user.full_name == "Test User"
-        assert user.hashed_password != "testpass123"  # Should be hashed
+        assert user.hashed_password != "Testpass123!"  # Should be hashed
 
     def test_get_by_email(self, db):
         """Test getting user by email"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         created_user = repo.create(user_in)
         found_user = repo.get_by_email("test@example.com")
@@ -46,7 +46,7 @@ class TestUserRepository:
     def test_get_by_username(self, db):
         """Test getting user by username"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         created_user = repo.create(user_in)
         found_user = repo.get_by_username("testuser")
@@ -64,7 +64,7 @@ class TestUserRepository:
     def test_get_by_id(self, db):
         """Test getting user by ID"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         created_user = repo.create(user_in)
         found_user = repo.get_by_id(created_user.id)
@@ -81,10 +81,10 @@ class TestUserRepository:
     def test_authenticate_success(self, db):
         """Test successful authentication"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         repo.create(user_in)
-        authenticated_user = repo.authenticate("test@example.com", "testpass123")
+        authenticated_user = repo.authenticate("test@example.com", "Testpass123!")
 
         assert authenticated_user is not None
         assert authenticated_user.email == "test@example.com"
@@ -92,7 +92,7 @@ class TestUserRepository:
     def test_authenticate_wrong_password(self, db):
         """Test authentication with wrong password"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         repo.create(user_in)
         authenticated_user = repo.authenticate("test@example.com", "wrongpassword")
@@ -102,20 +102,20 @@ class TestUserRepository:
     def test_authenticate_nonexistent_user(self, db):
         """Test authentication with non-existent user"""
         repo = UserRepository(db)
-        authenticated_user = repo.authenticate("nonexistent@example.com", "testpass123")
+        authenticated_user = repo.authenticate("nonexistent@example.com", "Testpass123!")
         assert authenticated_user is None
 
     def test_authenticate_inactive_user(self, db):
         """Test authentication with inactive user"""
         repo = UserRepository(db)
-        user_in = UserCreate(email="test@example.com", username="testuser", password="testpass123")
+        user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         user = repo.create(user_in)
         # Manually set user as inactive
         user.is_active = False
         db.commit()
 
-        authenticated_user = repo.authenticate("test@example.com", "testpass123")
+        authenticated_user = repo.authenticate("test@example.com", "Testpass123!")
         assert authenticated_user is None
 
 
