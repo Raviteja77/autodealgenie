@@ -51,7 +51,7 @@ class LLMClient:
 
     def __init__(self):
         """
-        Initialize the LLM client with OpenAI API key
+        Initialize the LLM client with OpenRouter API key
 
         The client uses synchronous operations for simpler error handling
         and debugging compared to async alternatives.
@@ -98,7 +98,7 @@ class LLMClient:
         Generate structured JSON output using OpenAI and validate with Pydantic model
 
         This method supports multi-agent workflows by allowing specification of
-        agent roles (Research, Loan Analyzer, Negotiation, Evaluator, QA).
+        agent roles (Research, Loan Analyzer, Negotiation, Evaluator).
         The agent role influences the system prompt and response style.
 
         Args:

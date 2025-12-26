@@ -44,15 +44,17 @@ def client(db) -> Generator:
         yield test_client
     app.dependency_overrides.clear()
 
+
 @pytest.fixture
 def mock_current_user():
     """Mock current user for authentication-required tests"""
     from app.models.models import User
+
     user = User(
         id=1,
         email="testuser@example.com",
         username="testuser",
         hashed_password="$2b$12$test",  # Note: hashed_password, not password_hash
-        is_active=True
+        is_active=True,
     )
     return user

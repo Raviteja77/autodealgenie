@@ -87,8 +87,10 @@ class TestCalculateAIMetrics:
         )
 
         assert metrics["confidence_score"] >= 0.7
-        assert "good" in metrics["recommended_action"] or "accept" in metrics["recommended_action"].lower()
-
+        assert (
+            "good" in metrics["recommended_action"]
+            or "accept" in metrics["recommended_action"].lower()
+        )
 
     def test_fair_deal_2_to_5_percent_off(self, negotiation_service):
         """Test fair deal with 2-5% discount"""

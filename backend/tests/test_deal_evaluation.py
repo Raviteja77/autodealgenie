@@ -410,7 +410,7 @@ class TestDealEvaluationCaching:
 
         with patch("app.db.redis.redis_client") as mock_redis_client:
             mock_redis = AsyncMock()
-            mock_redis.get = AsyncMock(return_value=None) # Ensure get returns None
+            mock_redis.get = AsyncMock(return_value=None)  # Ensure get returns None
             mock_redis.setex = AsyncMock(return_value=True)
             mock_redis_client.get_client.return_value = mock_redis
 
