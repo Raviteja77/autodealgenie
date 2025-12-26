@@ -2,8 +2,6 @@
 # Monitoring Stack Validation Script
 # Tests that all monitoring components are working correctly
 
-set -e
-
 echo "========================================"
 echo "AutoDealGenie Monitoring Stack Validator"
 echo "========================================"

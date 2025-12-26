@@ -80,17 +80,24 @@ groups:
           description: "PostgreSQL has been unreachable for 2 minutes"
           runbook: "Check database container status, logs, and disk space"
 
-      # Slow Queries
-      - alert: SlowQueries
-        expr: rate(pg_stat_statements_mean_exec_time[5m]) > 1000
-        for: 10m
-        labels:
-          severity: warning
-          component: database
-        annotations:
-          summary: "Slow database queries detected"
-          description: "Average query execution time is {{ $value | humanize }}ms"
-          runbook: "Check slow query log, optimize queries, or add indexes"
+      # Slow Queries - Removed (requires pg_stat_statements extension)
+      # To enable this alert:
+      # 1. Install pg_stat_statements extension in PostgreSQL
+      # 2. Add to postgresql.conf: shared_preload_libraries = 'pg_stat_statements'
+      # 3. Restart PostgreSQL
+      # 4. Run: CREATE EXTENSION pg_stat_statements;
+      # 5. Uncomment the alert below
+      #
+      # - alert: SlowQueries
+      #   expr: rate(pg_stat_statements_mean_exec_time[5m]) > 1000
+      #   for: 10m
+      #   labels:
+      #     severity: warning
+      #     component: database
+      #   annotations:
+      #     summary: "Slow database queries detected"
+      #     description: "Average query execution time is {{ $value | humanize }}ms"
+      #     runbook: "Check slow query log, optimize queries, or add indexes"
 
   - name: autodealgenie_cache
     interval: 30s
@@ -134,17 +141,22 @@ groups:
   - name: autodealgenie_infrastructure
     interval: 30s
     rules:
-      # High Memory Usage
-      - alert: HighMemoryUsage
-        expr: (process_resident_memory_bytes / node_memory_MemTotal_bytes) > 0.8
-        for: 10m
-        labels:
-          severity: warning
-          component: infrastructure
-        annotations:
-          summary: "High memory usage detected"
-          description: "Memory usage is {{ $value | humanizePercentage }}"
-          runbook: "Check for memory leaks, optimize application, or increase memory allocation"
+      # High Memory Usage - Removed (requires node_exporter)
+      # To enable this alert:
+      # 1. Add node_exporter to docker-compose.yml
+      # 2. Add node_exporter target to prometheus.yml
+      # 3. Uncomment the alert below
+      #
+      # - alert: HighMemoryUsage
+      #   expr: (process_resident_memory_bytes / node_memory_MemTotal_bytes) > 0.8
+      #   for: 10m
+      #   labels:
+      #     severity: warning
+      #     component: infrastructure
+      #   annotations:
+      #     summary: "High memory usage detected"
+      #     description: "Memory usage is {{ $value | humanizePercentage }}"
+      #     runbook: "Check for memory leaks, optimize application, or increase memory allocation"
 
       # High CPU Usage
       - alert: HighCPUUsage
@@ -158,17 +170,22 @@ groups:
           description: "CPU usage is {{ $value | humanizePercentage }}"
           runbook: "Check for CPU-intensive operations, optimize code, or scale horizontally"
 
-      # Disk Space Low
-      - alert: DiskSpaceLow
-        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
-        for: 5m
-        labels:
-          severity: critical
-          component: infrastructure
-        annotations:
-          summary: "Disk space is running low"
-          description: "Only {{ $value | humanizePercentage }} disk space remaining"
-          runbook: "Clean up old logs, increase disk size, or archive old data"
+      # Disk Space Low - Removed (requires node_exporter)
+      # To enable this alert:
+      # 1. Add node_exporter to docker-compose.yml
+      # 2. Add node_exporter target to prometheus.yml
+      # 3. Uncomment the alert below
+      #
+      # - alert: DiskSpaceLow
+      #   expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+      #   for: 5m
+      #   labels:
+      #     severity: critical
+      #     component: infrastructure
+      #   annotations:
+      #     summary: "Disk space is running low"
+      #     description: "Only {{ $value | humanizePercentage }} disk space remaining"
+      #     runbook: "Clean up old logs, increase disk size, or archive old data"
 
   - name: autodealgenie_business
     interval: 60s

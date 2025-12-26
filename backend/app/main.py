@@ -85,10 +85,9 @@ if settings.USE_MOCK_SERVICES:
 instrumentator = Instrumentator(
     should_group_status_codes=True,
     should_ignore_untemplated=True,
-    should_respect_env_var=True,
+    should_respect_env_var=False,  # Always enable metrics
     should_instrument_requests_inprogress=True,
     excluded_handlers=["/metrics", "/health"],
-    env_var_name="ENABLE_METRICS",
     inprogress_name="autodealgenie_requests_inprogress",
     inprogress_labels=True,
 )
@@ -126,7 +125,6 @@ async def request_id_middleware(request: Request, call_next):
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "img-src 'self' data: https://cdn.jsdelivr.net;"
     )
-
 
     return response
 

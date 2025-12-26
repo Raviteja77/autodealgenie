@@ -182,7 +182,16 @@ def initialize_metrics():
     Initialize metrics with default values
     Should be called at application startup
     """
-    app_info.info({
-        "version": "1.0.0",
-        "environment": "development",
-    })
+    try:
+        app_info.info(
+            {
+                "version": "1.0.0",
+                "environment": "development",
+            }
+        )
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to initialize metrics: {e}")
+        # Don't raise - allow application to continue without metrics
