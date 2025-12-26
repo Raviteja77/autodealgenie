@@ -58,63 +58,63 @@ PROMPTS: dict[str, PromptTemplate] = {
     "research_vehicles": PromptTemplate(
         id="research_vehicles",
         template="""ROLE: Senior Vehicle Discovery Specialist
-GOAL: Research and identify the best vehicle options based on customer criteria
+      GOAL: Research and identify the best vehicle options based on customer criteria
 
-TASK DESCRIPTION:
-You will be given search parameters to find the top 3-5 vehicle listings.
-Use your expertise in market analysis, pricing trends, and vehicle reliability.
+      TASK DESCRIPTION:
+      You will be given search parameters to find the top 3-5 vehicle listings.
+      Use your expertise in market analysis, pricing trends, and vehicle reliability.
 
-SEARCH CRITERIA:
-- Make: {make}
-- Model: {model}
-- Minimum Price: ${price_min}
-- Maximum Price: ${price_max}
-- Condition: {condition}
-- Year Range: {year_min} to {year_max}
-- Maximum Mileage: {mileage_max} miles
-- Location: {location}
+      SEARCH CRITERIA:
+      - Make: {make}
+      - Model: {model}
+      - Minimum Price: ${price_min}
+      - Maximum Price: ${price_max}
+      - Condition: {condition}
+      - Year Range: {year_min} to {year_max}
+      - Maximum Mileage: {mileage_max} miles
+      - Location: {location}
 
-EVALUATION FACTORS:
-1. **Value**: Price relative to market value, features, and condition
-2. **Condition**: Mileage, age, ownership history (clean title, single owner)
-3. **Features**: Trim level, drivetrain, technology packages
-4. **Reliability**: Known reliability ratings for the make/model/year
-5. **Market Position**: Days on market, price trends, dealer reputation
+      EVALUATION FACTORS:
+      1. **Value**: Price relative to market value, features, and condition
+      2. **Condition**: Mileage, age, ownership history (clean title, single owner)
+      3. **Features**: Trim level, drivetrain, technology packages
+      4. **Reliability**: Known reliability ratings for the make/model/year
+      5. **Market Position**: Days on market, price trends, dealer reputation
 
-EXPECTED OUTPUT (JSON):
-{{
-  "search_criteria": {{
-    "make": string,
-    "model": string | null,
-    "price_min": number | null,
-    "price_max": number | null,
-    "condition": string | null,
-    "year_min": number | null,
-    "year_max": number | null,
-    "mileage_max": number | null,
-    "location": string | null
-  }},
-  "top_vehicles": [
-    {{
-      "vin": string,
-      "make": string,
-      "model": string,
-      "year": number,
-      "trim": string | null,
-      "mileage": number,
-      "price": number,
-      "location": string,
-      "dealer_name": string | null,
-      "dealer_contact": string | null,
-      "pros": [string],
-      "cons": [string],
-      "reliability_score": number | null,
-      "review_summary": string | null
-    }}
-  ]
-}}
+      EXPECTED OUTPUT (JSON):
+      {{
+        "search_criteria": {{
+          "make": string,
+          "model": string | null,
+          "price_min": number | null,
+          "price_max": number | null,
+          "condition": string | null,
+          "year_min": number | null,
+          "year_max": number | null,
+          "mileage_max": number | null,
+          "location": string | null
+        }},
+        "top_vehicles": [
+          {{
+            "vin": string,
+            "make": string,
+            "model": string,
+            "year": number,
+            "trim": string | null,
+            "mileage": number,
+            "price": number,
+            "location": string,
+            "dealer_name": string | null,
+            "dealer_contact": string | null,
+            "pros": [string],
+            "cons": [string],
+            "reliability_score": number | null,
+            "review_summary": string | null
+          }}
+        ]
+      }}
 
-Rank vehicles by overall score (highest first). Include reliability and review summaries.""",
+      Rank vehicles by overall score (highest first). Include reliability and review summaries.""",
     ),
     # ============================================================================
     # LOAN ANALYZER AGENT PROMPTS

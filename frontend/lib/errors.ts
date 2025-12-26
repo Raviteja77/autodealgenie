@@ -114,6 +114,14 @@ export function createErrorFromResponse(
           details
         );
       }
+      if (details && typeof details === 'object' && 'detail' in details && Array.isArray(details.detail)) {
+        const error = details.detail.map((e: any) => e.msg).join(", ");
+        return new ValidationError(
+          error,
+          undefined,
+          details.detail
+        );
+      }
       return new ValidationError(message, undefined, details);
     case 500:
     case 502:

@@ -282,7 +282,7 @@ AutoDealGenie includes a comprehensive monitoring stack with Prometheus, Grafana
 
 - **Prometheus**: http://localhost:9090 - Metrics and alert rules
 - **Grafana**: http://localhost:3001 - Dashboards (admin/admin)
-- **Alertmanager**: http://localhost:9093 - Alert management
+- **Alertmanager**: http://localhost:9094 - Alert management
 - **Backend Metrics**: http://localhost:8000/metrics - Application metrics
 
 ### Pre-configured Dashboards
