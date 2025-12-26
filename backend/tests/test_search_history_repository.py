@@ -86,7 +86,6 @@ async def test_get_user_history():
     mock_sort = MagicMock()
     mock_skip = MagicMock()
 
-
     mock_collection.find = MagicMock(return_value=mock_find)
     mock_find.sort = MagicMock(return_value=mock_sort)
     mock_sort.skip = MagicMock(return_value=mock_skip)
