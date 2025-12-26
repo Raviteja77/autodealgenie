@@ -60,15 +60,7 @@ export default function SignupPage() {
       await signup(formData.email, formData.username, formData.password);
       router.push("/");
     } catch (err: unknown) {
-      let errorMessage = "Failed to create account. Please try again.";
-
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'object' && err !== null && 'detail' in err && Array.isArray(err.detail)) {
-        // Assuming the error format you provided
-        errorMessage = err.detail.map((e: any) => e.msg).join(", ") || errorMessage;
-      }
-
+      const errorMessage = (err as Error).message || "Failed to create account. Please try again.";
       setError(errorMessage);
     } finally {
       setLoading(false);
