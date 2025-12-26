@@ -90,23 +90,40 @@ class TestLLMClient:
         """Test LLM client initialization with API key"""
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None  # Test fallback to OPENAI_API_KEY
             mock_settings.OPENAI_MODEL = "gpt-4"
             mock_settings.OPENAI_BASE_URL = None  # No custom base URL
 
             with patch("app.llm.llm_client.OpenAI") as mock_openai:
                 client = LLMClient()
                 assert client.is_available()
+                # When OPENAI_BASE_URL is None, base_url should not be passed
                 mock_openai.assert_called_once_with(api_key="test-api-key")
 
     def test_llm_client_initialization_without_api_key(self):
         """Test LLM client initialization without API key"""
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = None
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             client = LLMClient()
             assert not client.is_available()
             assert client.client is None
+
+    def test_llm_client_initialization_with_openrouter_api_key(self):
+        """Test LLM client initialization with OpenRouter API key (preferred)"""
+        with patch("app.llm.llm_client.settings") as mock_settings:
+            mock_settings.OPENAI_API_KEY = "openai-key"
+            mock_settings.OPENROUTER_API_KEY = "openrouter-key"  # This should be preferred
+            mock_settings.OPENAI_MODEL = "gpt-4"
+            mock_settings.OPENAI_BASE_URL = None
+
+            with patch("app.llm.llm_client.OpenAI") as mock_openai:
+                client = LLMClient()
+                assert client.is_available()
+                # OPENROUTER_API_KEY should be preferred over OPENAI_API_KEY
+                mock_openai.assert_called_once_with(api_key="openrouter-key")
 
     def test_generate_structured_json_success(self, mock_openai_client, mock_openai_response):
         """Test successful structured JSON generation"""
@@ -114,6 +131,7 @@ class TestLLMClient:
 
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
@@ -142,6 +160,7 @@ class TestLLMClient:
         """Test structured JSON generation when client is not available"""
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = None
+            mock_settings.OPENROUTER_API_KEY = None
 
             client = LLMClient()
 
@@ -159,6 +178,7 @@ class TestLLMClient:
         """Test structured JSON generation with invalid prompt ID"""
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
@@ -191,6 +211,7 @@ class TestLLMClient:
 
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
@@ -222,6 +243,7 @@ class TestLLMClient:
 
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "invalid-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
@@ -253,6 +275,7 @@ class TestLLMClient:
 
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
@@ -284,6 +307,7 @@ class TestLLMClient:
 
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
@@ -315,6 +339,7 @@ class TestLLMClient:
 
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
@@ -346,6 +371,7 @@ class TestLLMClient:
 
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
@@ -378,6 +404,7 @@ class TestLLMClient:
 
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
@@ -408,6 +435,7 @@ class TestLLMClient:
 
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
@@ -433,6 +461,7 @@ class TestLLMClient:
         """Test text generation when client is not available"""
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = None
+            mock_settings.OPENROUTER_API_KEY = None
 
             client = LLMClient()
 
@@ -449,6 +478,7 @@ class TestLLMClient:
         """Test text generation with invalid prompt ID"""
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):
@@ -470,6 +500,7 @@ class TestLLMClient:
 
         with patch("app.llm.llm_client.settings") as mock_settings:
             mock_settings.OPENAI_API_KEY = "test-api-key"
+            mock_settings.OPENROUTER_API_KEY = None
             mock_settings.OPENAI_MODEL = "gpt-4"
 
             with patch("app.llm.llm_client.OpenAI", return_value=mock_openai_client):

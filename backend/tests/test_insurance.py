@@ -13,6 +13,7 @@ VALID_INSURANCE_REQUEST = {
     "vehicle_value": 25000.0,
     "vehicle_age": 3,
     "vehicle_make": "Toyota",
+    "vehicle_vin": "1HGCM41JXMN109186",
     "vehicle_model": "Camry",
     "coverage_type": "full",
     "driver_age": 30,

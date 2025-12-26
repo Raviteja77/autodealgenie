@@ -11,7 +11,7 @@ def test_signup_success(client: TestClient):
         json={
             "email": "test@example.com",
             "username": "testuser",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
             "full_name": "Test User",
         },
     )
