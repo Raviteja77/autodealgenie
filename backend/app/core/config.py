@@ -54,6 +54,7 @@ class Settings(BaseSettings):
 
     # OpenAI / OpenRouter
     OPENAI_API_KEY: str | None = None
+    OPENROUTER_API_KEY: str | None = None  # OpenRouter API key (preferred if set)
     OPENAI_MODEL: str = "gpt-4"
     OPENAI_BASE_URL: str | None = None  # Optional: Use for OpenRouter or custom endpoints
 
