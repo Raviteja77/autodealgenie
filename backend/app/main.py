@@ -28,11 +28,21 @@ async def lifespan(app: FastAPI):
     configure_logging()
     initialize_metrics()
     print("Starting up AutoDealGenie backend...")
+    
+    # Initialize MongoDB connection
+    from app.db.mongodb import mongodb
+    await mongodb.connect_db()
+    print(f"MongoDB connected to {settings.MONGODB_DB_NAME} database")
+    
     if settings.USE_MOCK_SERVICES:
         print("Mock services are ENABLED - using mock endpoints for development")
     yield
     # Shutdown
     print("Shutting down AutoDealGenie backend...")
+    
+    # Close MongoDB connection
+    await mongodb.close_db()
+    print("MongoDB connection closed")
 
 
 app = FastAPI(
