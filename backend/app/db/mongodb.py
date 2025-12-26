@@ -40,18 +40,14 @@ class MongoDB:
     def get_database(cls):
         """Get database instance"""
         if cls.client is None:
-            raise RuntimeError(
-                "MongoDB client is not initialized. Call connect_db() first."
-            )
+            raise RuntimeError("MongoDB client is not initialized. Call connect_db() first.")
         return cls.client[settings.MONGODB_DB_NAME]
 
     @classmethod
     def get_collection(cls, collection_name: str):
         """Get collection from database"""
         if cls.client is None:
-            raise RuntimeError(
-                "MongoDB client is not initialized. Call connect_db() first."
-            )
+            raise RuntimeError("MongoDB client is not initialized. Call connect_db() first.")
         db = cls.get_database()
         return db[collection_name]
 
