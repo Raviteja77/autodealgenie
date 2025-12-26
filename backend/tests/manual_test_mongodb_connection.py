@@ -1,15 +1,17 @@
 """
-Test script to verify MongoDB connection and operations
-Run this to debug MongoDB data pipeline issues
+Manual test script to verify MongoDB connection and operations
+Run this to debug MongoDB data pipeline issues outside of pytest
 """
 
 import asyncio
 import sys
-from datetime import datetime
+from pathlib import Path
 
-# Add the backend directory to the Python path
-sys.path.insert(0, "/home/runner/work/autodealgenie/autodealgenie/backend")
+# Add the backend directory to the Python path in a portable way
+backend_dir = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(backend_dir))
 
+# ruff: noqa: E402
 from app.core.config import settings
 from app.db.mongodb import mongodb
 from app.repositories.ai_response_repository import ai_response_repository
@@ -21,30 +23,30 @@ async def test_mongodb_connection():
     print("=" * 80)
     print("MongoDB Connection Test")
     print("=" * 80)
-    
+
     # Test 1: Connect to MongoDB
     print("\n[Test 1] Connecting to MongoDB...")
     try:
         await mongodb.connect_db()
-        print(f"✓ Successfully connected to MongoDB at {settings.MONGODB_URL}")
+        print("✓ Successfully connected to MongoDB")
         print(f"✓ Using database: {settings.MONGODB_DB_NAME}")
     except Exception as e:
         print(f"✗ Failed to connect to MongoDB: {e}")
         return False
-    
+
     # Test 2: Verify database and collection access
     print("\n[Test 2] Verifying database access...")
     try:
         db = mongodb.get_database()
         print(f"✓ Database instance obtained: {db.name}")
-        
+
         collection = mongodb.get_collection("test_collection")
         print(f"✓ Collection instance obtained: {collection.name}")
     except Exception as e:
         print(f"✗ Failed to access database: {e}")
         return False
-    
-    # Test 3: Test search history repository
+
+    # Test 3: Test search history repository with guaranteed cleanup
     print("\n[Test 3] Testing search history repository...")
     try:
         # Create a test search record
@@ -67,7 +69,7 @@ async def test_mongodb_connection():
             ],
         )
         print(f"✓ Created search history record with ID: {search_id}")
-        
+
         # Retrieve the record
         history = await search_history_repository.get_user_history(user_id=999, limit=1)
         print(f"✓ Retrieved {len(history)} search history record(s)")
@@ -75,17 +77,21 @@ async def test_mongodb_connection():
             print(f"  - Record ID: {history[0].get('_id')}")
             print(f"  - Make: {history[0].get('search_criteria', {}).get('make')}")
             print(f"  - Timestamp: {history[0].get('timestamp')}")
-        
-        # Clean up test data
-        deleted = await search_history_repository.delete_user_history(user_id=999)
-        print(f"✓ Cleaned up {deleted} test record(s)")
     except Exception as e:
         print(f"✗ Search history test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
-    
-    # Test 4: Test AI response repository
+    finally:
+        # Guaranteed cleanup
+        try:
+            deleted = await search_history_repository.delete_user_history(user_id=999)
+            print(f"✓ Cleaned up {deleted} test record(s)")
+        except Exception as cleanup_error:
+            print(f"⚠ Cleanup failed: {cleanup_error}")
+
+    # Test 4: Test AI response repository with guaranteed cleanup
     print("\n[Test 4] Testing AI response repository...")
     try:
         # Create a test AI response record
@@ -100,7 +106,7 @@ async def test_mongodb_connection():
             llm_used=True,
         )
         print(f"✓ Created AI response record with ID: {response_id}")
-        
+
         # Retrieve by user ID
         responses = await ai_response_repository.get_by_user_id(user_id=999, limit=1)
         print(f"✓ Retrieved {len(responses)} AI response(s)")
@@ -109,28 +115,31 @@ async def test_mongodb_connection():
             print(f"  - Feature: {responses[0].get('feature')}")
             print(f"  - Prompt ID: {responses[0].get('prompt_id')}")
             print(f"  - LLM Used: {responses[0].get('llm_used')}")
-        
+
         # Retrieve by feature
         feature_responses = await ai_response_repository.get_by_feature(
             feature="car_recommendation", user_id=999, limit=10
         )
         print(f"✓ Retrieved {len(feature_responses)} response(s) for car_recommendation feature")
-        
+
         # Get analytics
         analytics = await ai_response_repository.get_analytics(days=1)
         print(f"✓ Retrieved analytics: {analytics}")
-        
-        # Clean up - delete by user (note: there's no direct delete_by_user_id, so we'll use deal_id cleanup)
-        # Since we used deal_id=None, we'll manually clean up via collection
-        collection = mongodb.get_collection("ai_responses")
-        result = await collection.delete_many({"user_id": 999})
-        print(f"✓ Cleaned up {result.deleted_count} test record(s)")
     except Exception as e:
         print(f"✗ AI response test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
-    
+    finally:
+        # Guaranteed cleanup
+        try:
+            collection = mongodb.get_collection("ai_responses")
+            result = await collection.delete_many({"user_id": 999})
+            print(f"✓ Cleaned up {result.deleted_count} test record(s)")
+        except Exception as cleanup_error:
+            print(f"⚠ Cleanup failed: {cleanup_error}")
+
     # Test 5: List all collections
     print("\n[Test 5] Listing MongoDB collections...")
     try:
@@ -143,7 +152,7 @@ async def test_mongodb_connection():
     except Exception as e:
         print(f"✗ Failed to list collections: {e}")
         return False
-    
+
     # Test 6: Close connection
     print("\n[Test 6] Closing MongoDB connection...")
     try:
@@ -152,7 +161,7 @@ async def test_mongodb_connection():
     except Exception as e:
         print(f"✗ Failed to close connection: {e}")
         return False
-    
+
     print("\n" + "=" * 80)
     print("✓ All tests passed! MongoDB data pipeline is working correctly.")
     print("=" * 80)
@@ -162,6 +171,6 @@ async def test_mongodb_connection():
 if __name__ == "__main__":
     print(f"\nMongoDB URL: {settings.MONGODB_URL}")
     print(f"MongoDB Database: {settings.MONGODB_DB_NAME}\n")
-    
+
     success = asyncio.run(test_mongodb_connection())
     sys.exit(0 if success else 1)

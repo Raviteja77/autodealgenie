@@ -40,7 +40,8 @@ async def connect_db(cls):
         cls.client = AsyncIOMotorClient(settings.MONGODB_URL)
         # Verify connection by pinging the database
         await cls.client.admin.command("ping")
-        logger.info(f"Successfully connected to MongoDB at {settings.MONGODB_URL}")
+        logger.info("Successfully connected to MongoDB")
+        logger.info(f"Using database: {settings.MONGODB_DB_NAME}")
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB: {str(e)}")
         raise
@@ -49,17 +50,19 @@ async def connect_db(cls):
 ### 3. Added Test Scripts
 Created comprehensive test scripts to verify MongoDB functionality:
 
-#### `test_mongodb_connection.py`
+#### `tests/manual_test_mongodb_connection.py`
 - Tests basic MongoDB connection
 - Tests search history repository operations
 - Tests AI response repository operations
 - Tests collection listing and document counts
+- Uses try-finally blocks for guaranteed cleanup
 - All tests pass ✅
 
-#### `test_mongodb_integration.py`
+#### `tests/manual_test_mongodb_integration.py`
 - Tests AI response logging through repositories
 - Tests search history integration with services
 - Tests with realistic data flows
+- Uses try-finally blocks for guaranteed cleanup
 - All tests pass ✅
 
 ## MongoDB Collections Used
@@ -105,13 +108,18 @@ The application uses the following MongoDB collections:
 ```
 
 ## Files Modified
-1. `backend/app/main.py` - Added MongoDB initialization to lifespan
-2. `backend/app/db/mongodb.py` - Enhanced error handling and logging
+1. `backend/app/main.py` - Added MongoDB and Redis initialization to lifespan with error handling
+2. `backend/app/db/mongodb.py` - Enhanced error handling and logging (removed credential exposure)
+3. `backend/app/db/redis.py` - Enhanced error handling and logging for consistency
 
 ## Files Added
-1. `backend/test_mongodb_connection.py` - Unit tests
-2. `backend/test_mongodb_integration.py` - Integration tests
+1. `backend/tests/manual_test_mongodb_connection.py` - Unit tests with guaranteed cleanup
+2. `backend/tests/manual_test_mongodb_integration.py` - Integration tests with guaranteed cleanup
 3. `backend/MONGODB_FIX_SUMMARY.md` - This summary document
+
+## Files Removed
+1. `backend/test_mongodb_connection.py` - Moved to tests/ directory
+2. `backend/test_mongodb_integration.py` - Moved to tests/ directory
 
 ## Configuration Required
 

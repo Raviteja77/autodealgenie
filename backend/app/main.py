@@ -29,11 +29,27 @@ async def lifespan(app: FastAPI):
     initialize_metrics()
     print("Starting up AutoDealGenie backend...")
 
-    # Initialize MongoDB connection
+    # Import here to avoid circular dependency issues during module initialization
     from app.db.mongodb import mongodb
+    from app.db.redis import redis_client
 
-    await mongodb.connect_db()
-    print(f"MongoDB connected to {settings.MONGODB_DB_NAME} database")
+    # Initialize MongoDB connection
+    try:
+        await mongodb.connect_db()
+        print(f"MongoDB connected to {settings.MONGODB_DB_NAME} database")
+    except Exception as e:
+        print(f"CRITICAL: Failed to initialize MongoDB: {e}")
+        print("Application cannot start without MongoDB. Please check your configuration.")
+        raise
+
+    # Initialize Redis connection
+    try:
+        await redis_client.connect_redis()
+        print("Redis connected successfully")
+    except Exception as e:
+        print(f"CRITICAL: Failed to initialize Redis: {e}")
+        print("Application cannot start without Redis. Please check your configuration.")
+        raise
 
     if settings.USE_MOCK_SERVICES:
         print("Mock services are ENABLED - using mock endpoints for development")
@@ -41,9 +57,12 @@ async def lifespan(app: FastAPI):
     # Shutdown
     print("Shutting down AutoDealGenie backend...")
 
-    # Close MongoDB connection
+    # Close connections
     await mongodb.close_db()
     print("MongoDB connection closed")
+
+    await redis_client.close_redis()
+    print("Redis connection closed")
 
 
 app = FastAPI(

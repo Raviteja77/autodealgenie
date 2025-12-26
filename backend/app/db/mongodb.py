@@ -23,7 +23,7 @@ class MongoDB:
             cls.client = AsyncIOMotorClient(settings.MONGODB_URL)
             # Verify connection by pinging the database
             await cls.client.admin.command("ping")
-            logger.info(f"Successfully connected to MongoDB at {settings.MONGODB_URL}")
+            logger.info("Successfully connected to MongoDB")
             logger.info(f"Using database: {settings.MONGODB_DB_NAME}")
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {str(e)}")
