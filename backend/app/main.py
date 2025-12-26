@@ -81,12 +81,17 @@ async def lifespan(app: FastAPI):
     print("Redis connection closed")
 
     # Stop Kafka consumers and producer
-    for task in consumer_tasks:
-        task.cancel()
-    await asyncio.gather(*consumer_tasks, return_exceptions=True)
-    await deals_consumer.stop()
-    await kafka_producer.stop()
-    print("Kafka services stopped")
+    try:
+        for task in consumer_tasks:
+            task.cancel()
+        await asyncio.gather(*consumer_tasks, return_exceptions=True)
+        if deals_consumer:
+            await deals_consumer.stop()
+        if kafka_producer:
+            await kafka_producer.stop()
+        print("Kafka services stopped")
+    except Exception as e:
+        print(f"WARNING: Error stopping Kafka services: {e}")
 
 
 app = FastAPI(

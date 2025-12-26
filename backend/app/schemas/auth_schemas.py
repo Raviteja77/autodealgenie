@@ -36,7 +36,7 @@ class LoginRequest(BaseModel):
 
     @field_validator("password")
     @classmethod
-    def validate_password_strength(cls, v: str) -> str:
+    def check_password_strength(cls, v: str) -> str:
         """Validate password strength"""
 
         return validate_password_strength(v)
