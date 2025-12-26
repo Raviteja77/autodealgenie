@@ -238,9 +238,7 @@ async def test_create_negotiation_endpoint(authenticated_client, mock_deal):
         "strategy": "moderate",
     }
 
-    with patch(
-        "app.llm.generate_text"
-    ) as mock_llm:
+    with patch("app.llm.generate_text") as mock_llm:
         mock_llm.return_value = "Thank you for your interest. Let's find a fair price."
 
         response = authenticated_client.post("/api/v1/negotiations/", json=request_data)
@@ -288,9 +286,7 @@ async def test_process_next_round_counter(authenticated_client, mock_deal, db):
 
     request_data = {"user_action": "counter", "counter_offer": 23000.00}
 
-    with patch(
-        "app.llm.generate_text"
-    ) as mock_llm:
+    with patch("app.llm.generate_text") as mock_llm:
         mock_llm.return_value = "I appreciate your offer. How about we meet in the middle?"
 
         response = authenticated_client.post(

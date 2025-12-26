@@ -68,10 +68,12 @@ def client(db) -> Generator:
 
     app.dependency_overrides[get_db] = override_get_db
 
-    with patch("app.db.mongodb.mongodb", mock_mongodb), \
-         patch("app.db.redis.redis_client", mock_redis), \
-         patch("app.services.kafka_producer.kafka_producer", mock_kafka_producer), \
-         patch("app.services.kafka_consumer.deals_consumer", mock_kafka_consumer):
+    with (
+        patch("app.db.mongodb.mongodb", mock_mongodb),
+        patch("app.db.redis.redis_client", mock_redis),
+        patch("app.services.kafka_producer.kafka_producer", mock_kafka_producer),
+        patch("app.services.kafka_consumer.deals_consumer", mock_kafka_consumer),
+    ):
         with TestClient(app) as test_client:
             yield test_client
 

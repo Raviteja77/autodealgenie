@@ -3,7 +3,7 @@ Health check endpoint
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import text
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 @router.get("/health", response_model=HealthCheck)
 async def health_check():
     """Health check endpoint"""
-    return HealthCheck(status="healthy", timestamp=datetime.now(timezone.utc))
+    return HealthCheck(status="healthy", timestamp=datetime.now(UTC))
 
 
 @router.get("/health/detailed")
@@ -31,7 +31,7 @@ async def detailed_health_check(response: Response, db: AsyncSession = Depends(g
     """
     health_status = {
         "status": "healthy",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "services": {
             "postgres": "unhealthy",
             "redis": "unhealthy",

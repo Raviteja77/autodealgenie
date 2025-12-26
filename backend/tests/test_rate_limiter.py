@@ -38,8 +38,9 @@ async def test_rate_limiter_blocks_requests_over_limit():
 
     # Mock Redis client - simulate 5 requests already made
     import time
+
     current_time = int(time.time())
-    
+
     mock_redis = MagicMock()
     mock_pipeline = MagicMock()
     mock_pipeline.zremrangebyscore = MagicMock(return_value=mock_pipeline)

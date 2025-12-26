@@ -16,10 +16,10 @@ from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
 from app.metrics import initialize_metrics
-from app.services.kafka_consumer import deals_consumer, handle_deal_message
-from app.services.kafka_producer import kafka_producer
 from app.middleware.error_middleware import ErrorHandlerMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.services.kafka_consumer import deals_consumer, handle_deal_message
+from app.services.kafka_producer import kafka_producer
 
 
 @asynccontextmanager

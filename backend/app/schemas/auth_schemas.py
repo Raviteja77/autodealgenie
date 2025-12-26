@@ -2,8 +2,9 @@
 Authentication-related Pydantic schemas
 """
 
-from app.utils.validators import validate_password_strength
 from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from app.utils.validators import validate_password_strength
 
 
 class Token(BaseModel):
