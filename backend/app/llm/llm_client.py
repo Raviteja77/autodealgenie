@@ -60,18 +60,22 @@ class LLMClient:
         """
         # Prefer OPENROUTER_API_KEY if set, otherwise fall back to OPENAI_API_KEY
         api_key = settings.OPENROUTER_API_KEY or settings.OPENAI_API_KEY
-        
+
         if not api_key:
-            logger.warning("Neither OPENROUTER_API_KEY nor OPENAI_API_KEY is set. LLM features will be disabled.")
+            logger.warning(
+                "Neither OPENROUTER_API_KEY nor OPENAI_API_KEY is set. LLM features will be disabled."
+            )
             self.client = None
         else:
             # Initialize with optional base_url for OpenRouter support
             client_kwargs = {"api_key": api_key}
-            
+
             # Only add base_url if it's explicitly set in settings
             if settings.OPENAI_BASE_URL:
                 client_kwargs["base_url"] = settings.OPENAI_BASE_URL
-                logger.info(f"LLM client initialized with custom endpoint: {settings.OPENAI_BASE_URL}")
+                logger.info(
+                    f"LLM client initialized with custom endpoint: {settings.OPENAI_BASE_URL}"
+                )
 
             self.client = OpenAI(**client_kwargs)
             logger.info(f"LLM client initialized with model: {settings.OPENAI_MODEL}")
@@ -124,7 +128,9 @@ class LLMClient:
             ... )
         """
         if not self.is_available():
-            logger.error("LLM client not available - neither OPENROUTER_API_KEY nor OPENAI_API_KEY configured")
+            logger.error(
+                "LLM client not available - neither OPENROUTER_API_KEY nor OPENAI_API_KEY configured"
+            )
             raise ApiError(
                 status_code=503,
                 message="LLM service is not available",
@@ -348,7 +354,9 @@ class LLMClient:
             ... )
         """
         if not self.is_available():
-            logger.error("LLM client not available - neither OPENROUTER_API_KEY nor OPENAI_API_KEY configured")
+            logger.error(
+                "LLM client not available - neither OPENROUTER_API_KEY nor OPENAI_API_KEY configured"
+            )
             raise ApiError(
                 status_code=503,
                 message="LLM service is not available",
