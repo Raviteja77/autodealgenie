@@ -202,9 +202,7 @@ async def test_search_with_retry_exhausted():
                 side_effect=mock_search_cars,
             ):
                 with pytest.raises(RetryError):
-                    await service.search_and_recommend(
-                        make="Toyota", model="RAV4", user_id=1
-                    )
+                    await service.search_and_recommend(make="Toyota", model="RAV4", user_id=1)
 
 
 @pytest.mark.asyncio
