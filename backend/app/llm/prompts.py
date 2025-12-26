@@ -56,8 +56,8 @@ PROMPTS: dict[str, PromptTemplate] = {
     # Goal: Find top 3-5 vehicle listings matching user criteria
     # ============================================================================
     "research_vehicles": PromptTemplate(
-      id="research_vehicles",
-      template="""ROLE: Senior Vehicle Discovery Specialist
+        id="research_vehicles",
+        template="""ROLE: Senior Vehicle Discovery Specialist
       GOAL: Research and identify the best vehicle options based on customer criteria
 
       TASK DESCRIPTION:
@@ -522,8 +522,8 @@ PROMPTS: dict[str, PromptTemplate] = {
       Conclude with a recommendation based on the user's specific needs.""",
     ),
     "car_selection_from_list": PromptTemplate(
-      id="car_selection_from_list",
-      template="""You are an expert automotive advisor helping customers find their ideal vehicle.
+        id="car_selection_from_list",
+        template="""You are an expert automotive advisor helping customers find their ideal vehicle.
 
       Your role is to:
       1. Analyze the provided vehicle listings.
@@ -547,8 +547,8 @@ PROMPTS: dict[str, PromptTemplate] = {
       Select exactly 5 vehicles and rank them by score (highest first). Be specific with highlights and summaries.""",
     ),
     "negotiation_initial": PromptTemplate(
-      id="negotiation_initial",
-      template="""You are an expert car buying advisor working exclusively for the USER to help them get the BEST POSSIBLE DEAL. Your role is to advocate for the user, not the dealer.
+        id="negotiation_initial",
+        template="""You are an expert car buying advisor working exclusively for the USER to help them get the BEST POSSIBLE DEAL. Your role is to advocate for the user, not the dealer.
 
       Vehicle Details:
       - Make: {make}
@@ -574,8 +574,8 @@ PROMPTS: dict[str, PromptTemplate] = {
       Keep your response conversational, supportive, and under 200 words. Always prioritize the user's financial benefit.""",
     ),
     "negotiation_counter": PromptTemplate(
-      id="negotiation_counter",
-      template="""You are an expert car buying advisor working exclusively for the USER. Your job is to help them negotiate DOWN from their counter offer, not up toward the asking price. You represent the BUYER, not the dealer.
+        id="negotiation_counter",
+        template="""You are an expert car buying advisor working exclusively for the USER. Your job is to help them negotiate DOWN from their counter offer, not up toward the asking price. You represent the BUYER, not the dealer.
 
       Vehicle Details:
       - Make: {make}
@@ -603,8 +603,8 @@ PROMPTS: dict[str, PromptTemplate] = {
       Keep your response conversational, strategic, and under 200 words. Always prioritize saving the user money.""",
     ),
     "negotiation_chat": PromptTemplate(
-      id="negotiation_chat",
-      template="""You are an expert car buying advisor and negotiation coach working exclusively for the USER. Your mission is to help them get the LOWEST possible price and the BEST possible deal. You represent the buyer, not the dealer.
+        id="negotiation_chat",
+        template="""You are an expert car buying advisor and negotiation coach working exclusively for the USER. Your mission is to help them get the LOWEST possible price and the BEST possible deal. You represent the buyer, not the dealer.
 
       Vehicle Details:
       - Make: {make}
@@ -640,8 +640,8 @@ PROMPTS: dict[str, PromptTemplate] = {
       Keep your response conversational, empowering, and under 250 words. Always prioritize the user's financial benefit over dealer satisfaction.""",
     ),
     "dealer_info_analysis": PromptTemplate(
-      id="dealer_info_analysis",
-      template="""You are an AI negotiation expert analyzing dealer-provided information during a car purchase negotiation.
+        id="dealer_info_analysis",
+        template="""You are an AI negotiation expert analyzing dealer-provided information during a car purchase negotiation.
 
       Vehicle Details:
       - Make: {make}

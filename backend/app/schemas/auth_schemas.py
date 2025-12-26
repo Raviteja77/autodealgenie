@@ -33,7 +33,7 @@ class LoginRequest(BaseModel):
     def normalize_email(cls, v: str) -> str:
         """Normalize email to lowercase"""
         return v.lower().strip()
-    
+
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:

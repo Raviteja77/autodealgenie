@@ -21,10 +21,9 @@ async def health_check():
     """Health check endpoint"""
     return HealthCheck(status="healthy", timestamp=datetime.utcnow())
 
+
 @router.get("/health/detailed")
-async def detailed_health_check(
-    response: Response, db: AsyncSession = Depends(get_async_db)
-):
+async def detailed_health_check(response: Response, db: AsyncSession = Depends(get_async_db)):
     """
     Detailed health check that verifies connectivity to all dependent services.
     """
