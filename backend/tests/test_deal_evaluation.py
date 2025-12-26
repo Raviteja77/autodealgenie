@@ -375,12 +375,14 @@ class TestDealEvaluationCaching:
         """Test that cached data is returned on cache hit without calling LLM"""
         service = DealEvaluationService()
 
-        with patch("app.db.redis.redis_client") as mock_redis_client:
+        with patch("app.services.deal_evaluation_service.redis_client") as mock_redis_client:
             mock_redis = AsyncMock()
-            mock_redis.get.return_value = '{"fair_value": 24000.0, "score": 8.0, "insights": ["Cached insight"], "talking_points": ["Cached point"]}'
+            mock_redis.get = AsyncMock(
+                return_value='{"fair_value": 24000.0, "score": 8.0, "insights": ["Cached insight"], "talking_points": ["Cached point"]}'
+            )
             mock_redis_client.get_client.return_value = mock_redis
 
-            with patch("app.llm.llm_client.llm_client") as mock_client:
+            with patch("app.services.deal_evaluation_service.llm_client") as mock_client:
                 mock_client.is_available.return_value = True
 
                 with patch(
@@ -408,19 +410,23 @@ class TestDealEvaluationCaching:
         """Test that LLM is called on cache miss and result is cached"""
         service = DealEvaluationService()
 
-        with patch("app.db.redis.redis_client") as mock_redis_client:
+        with patch("app.services.deal_evaluation_service.redis_client") as mock_redis_client:
             mock_redis = AsyncMock()
             mock_redis.get = AsyncMock(return_value=None)  # Ensure get returns None
             mock_redis.setex = AsyncMock(return_value=True)
             mock_redis_client.get_client.return_value = mock_redis
 
-            with patch("app.llm.llm_client.llm_client") as mock_client:
+            with patch("app.services.deal_evaluation_service.llm_client") as mock_client:
                 mock_client.is_available.return_value = True
 
                 with patch(
                     "app.services.deal_evaluation_service.generate_structured_json"
                 ) as mock_gen:
-                    mock_gen.return_value = mock_llm_evaluation
+
+                    async def mock_generate(*args, **kwargs):
+                        return mock_llm_evaluation
+
+                    mock_gen.side_effect = mock_generate
 
                     result = await service.evaluate_deal(
                         vehicle_vin="1HGBH41JXMN109186",
@@ -442,17 +448,21 @@ class TestDealEvaluationCaching:
         """Test graceful degradation when Redis is unavailable"""
         service = DealEvaluationService()
 
-        with patch("app.db.redis.redis_client") as mock_redis_client:
+        with patch("app.services.deal_evaluation_service.redis_client") as mock_redis_client:
             # Redis not available
             mock_redis_client.get_client.return_value = None
 
-            with patch("app.llm.llm_client.llm_client") as mock_client:
+            with patch("app.services.deal_evaluation_service.llm_client") as mock_client:
                 mock_client.is_available.return_value = True
 
                 with patch(
                     "app.services.deal_evaluation_service.generate_structured_json"
                 ) as mock_gen:
-                    mock_gen.return_value = mock_llm_evaluation
+
+                    async def mock_generate(*args, **kwargs):
+                        return mock_llm_evaluation
+
+                    mock_gen.side_effect = mock_generate
 
                     result = await service.evaluate_deal(
                         vehicle_vin="1HGBH41JXMN109186",
