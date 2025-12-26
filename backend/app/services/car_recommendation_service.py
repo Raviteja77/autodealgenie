@@ -137,7 +137,7 @@ class CarRecommendationService:
         try:
             file_path = self._get_file_cache_path(cache_key)
             if os.path.exists(file_path):
-                with open(file_path, "r") as f:
+                with open(file_path) as f:
                     logger.info(f"Loaded data from file cache: {file_path}")
                     return json.load(f)
         except Exception as e:

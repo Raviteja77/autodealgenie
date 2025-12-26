@@ -50,3 +50,7 @@ pre-commit==4.0.1
 
 # Type checking
 mypy==1.13.0
+
+# Monitoring
+prometheus-client==0.20.0
+prometheus-fastapi-instrumentator==7.0.0

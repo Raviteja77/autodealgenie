@@ -1,8 +1,6 @@
 """Test fixes for negotiation, lender, and deal evaluation services"""
 
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import Mock
 
 from app.models.negotiation import MessageRole, NegotiationMessage
 from app.services.negotiation_service import NegotiationService
@@ -46,8 +44,6 @@ def test_llm_json_parsing_with_markdown():
     """Test that LLM client handles markdown code blocks in JSON responses"""
     import json
 
-    from app.llm.llm_client import LLMClient
-
     # Test cases for different markdown formats
     test_cases = [
         ('```json\n{"test": "value"}\n```', {"test": "value"}),
@@ -86,7 +82,7 @@ def test_deal_evaluation_fallback():
     assert "score" in result
     assert "insights" in result
     assert "talking_points" in result
-    assert isinstance(result["score"], (int, float))
+    assert isinstance(result["score"], int | float)
     assert 1.0 <= result["score"] <= 10.0
 
     print("✓ Test passed: Deal evaluation service provides valid fallback")

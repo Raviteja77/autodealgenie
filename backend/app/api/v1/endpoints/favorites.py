@@ -3,14 +3,13 @@ Favorites endpoints with repository pattern and in-memory fallback
 """
 
 import threading
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
 from app.db.session import get_db
-from app.models.models import Favorite, User
+from app.models.models import User
 from app.repositories.favorite_repository import FavoriteRepository
 from app.schemas.schemas import FavoriteCreate, FavoriteResponse
 

@@ -8,7 +8,6 @@ Create Date: 2025-12-14
 """
 
 from collections.abc import Sequence
-from typing import Union
 
 import sqlalchemy as sa
 

@@ -135,7 +135,7 @@ async def main():
         print(f"✓ Status: {evaluation.status.value}")
         if result.get("assessment"):
             assessment = result["assessment"]
-            print(f"\n=== Final Results ===")
+            print("\n=== Final Results ===")
             print(f"Overall Score: {assessment.get('overall_score', 0)}/10")
             print(f"Recommendation: {assessment.get('recommendation', 'N/A')}")
             print(f"Estimated Total Cost: ${assessment.get('estimated_total_cost', 0):,.2f}")

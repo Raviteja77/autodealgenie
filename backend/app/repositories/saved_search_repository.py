@@ -2,8 +2,6 @@
 Repository for saved search operations in PostgreSQL
 """
 
-from typing import Optional
-
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
@@ -31,7 +29,7 @@ class SavedSearchRepository:
         db.refresh(saved_search)
         return saved_search
 
-    def get_by_id(self, db: Session, search_id: int, user_id: int) -> Optional[SavedSearch]:
+    def get_by_id(self, db: Session, search_id: int, user_id: int) -> SavedSearch | None:
         """
         Get a saved search by ID
 
@@ -88,7 +86,7 @@ class SavedSearchRepository:
 
     def update(
         self, db: Session, search_id: int, user_id: int, update_data: dict
-    ) -> Optional[SavedSearch]:
+    ) -> SavedSearch | None:
         """
         Update a saved search
 
@@ -135,7 +133,7 @@ class SavedSearchRepository:
 
     def update_new_matches_count(
         self, db: Session, search_id: int, count: int
-    ) -> Optional[SavedSearch]:
+    ) -> SavedSearch | None:
         """
         Update the new matches count for a saved search
 

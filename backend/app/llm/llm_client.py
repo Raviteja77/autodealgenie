@@ -58,7 +58,7 @@ class LLMClient:
 
         Supports custom base URLs for OpenRouter and other OpenAI-compatible endpoints.
         """
-        if not settings.OPENROUTER_API_KEY:
+        if not hasattr(settings, "OPENROUTER_API_KEY") or not settings.OPENROUTER_API_KEY:
             logger.warning("OPENROUTER_API_KEY not set. LLM features will be disabled.")
             self.client = None
         else:

@@ -81,7 +81,7 @@ class TestAgentSystemPrompts:
 
     def test_all_agent_prompts_have_personality(self):
         """Test that all agent prompts define personality and expertise"""
-        for role, prompt in AGENT_SYSTEM_PROMPTS.items():
+        for _role, prompt in AGENT_SYSTEM_PROMPTS.items():
             # Each prompt should define who they are
             assert "You are" in prompt
             # Each prompt should list expertise

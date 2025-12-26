@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "echo \"No tests configured yet\" && exit 0",
     "audit:api": "node scripts/audit-api-calls.js"
   },
   "dependencies": {

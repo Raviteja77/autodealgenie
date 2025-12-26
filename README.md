@@ -11,6 +11,7 @@ AI-powered automotive deal management platform built with Next.js 14 and Python 
 - **Redis**: Fast caching and session management
 - **Kafka**: Event streaming and messaging
 - **LangChain + OpenAI**: AI-powered insights and automation
+- **Prometheus + Grafana**: Comprehensive monitoring and alerting
 - **Docker**: Containerized development and deployment
 - **Alembic**: Database migration management
 - **Black + Ruff**: Code formatting and linting
@@ -267,6 +268,60 @@ The docker-compose setup includes:
 - **kafka**: Apache Kafka message broker
 - **backend**: FastAPI application
 - **frontend**: Next.js application
+- **prometheus**: Metrics collection and storage
+- **grafana**: Visualization and dashboards
+- **alertmanager**: Alert routing and notifications
+- **postgres-exporter**: PostgreSQL metrics exporter
+- **redis-exporter**: Redis metrics exporter
+
+## 📊 Monitoring and Observability
+
+AutoDealGenie includes a comprehensive monitoring stack with Prometheus, Grafana, and Alertmanager.
+
+### Quick Access
+
+- **Prometheus**: http://localhost:9090 - Metrics and alert rules
+- **Grafana**: http://localhost:3001 - Dashboards (admin/admin)
+- **Alertmanager**: http://localhost:9093 - Alert management
+- **Backend Metrics**: http://localhost:8000/metrics - Application metrics
+
+### Pre-configured Dashboards
+
+Three production-ready dashboards are included:
+
+1. **System Overview**: HTTP metrics, latency percentiles, error rates, resource usage
+2. **Business Metrics**: Deals created, user signups, authentication stats
+3. **Database Performance**: Connection pools, query performance, cache hit rates
+
+### Alert Rules
+
+Pre-configured alerts for:
+- **Critical**: Service down, high error rate, database unavailable
+- **Warning**: High latency, connection pool exhaustion, low cache hit rate
+- **Info**: Unusual traffic patterns, business metrics anomalies
+
+### Configuration
+
+Alert notifications can be configured for:
+- **Slack**: Real-time alerts in team channels
+- **PagerDuty**: On-call engineer pages for critical issues
+- **Email**: Alert summaries and reports
+
+To enable notifications, edit `monitoring/alertmanager/alertmanager.yml` and add your webhook URLs or API keys.
+
+### Testing Monitoring
+
+Run the validation script to verify everything is working:
+
+```bash
+./monitoring/test-monitoring.sh
+```
+
+### Documentation
+
+For complete monitoring documentation, see:
+- [MONITORING.md](MONITORING.md) - Comprehensive monitoring guide with runbooks
+- [monitoring/README.md](monitoring/README.md) - Quick reference and setup guide
 
 ## 🔄 Database Migrations
 

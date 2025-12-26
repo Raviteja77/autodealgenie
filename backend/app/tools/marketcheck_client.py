@@ -15,7 +15,9 @@ class MarketCheckAPIClient:
     BASE_URL = "https://api.marketcheck.com/v2"
 
     def __init__(self, api_key: str | None = None):
-        self.api_key = api_key or settings.MARKET_CHECK_API_KEY
+        self.api_key = (
+            api_key or hasattr(settings, "MARKET_CHECK_API_KEY") or settings.MARKET_CHECK_API_KEY
+        )
         if not self.api_key:
             raise ValueError("MARKET_CHECK_API_KEY is required")
 

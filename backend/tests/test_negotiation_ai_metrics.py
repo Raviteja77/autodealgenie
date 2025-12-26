@@ -1,7 +1,5 @@
 """Test AI metrics calculation in negotiation service"""
 
-from unittest.mock import MagicMock
-
 import pytest
 
 from app.services.negotiation_service import NegotiationService

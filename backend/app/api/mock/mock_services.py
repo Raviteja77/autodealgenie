@@ -205,7 +205,7 @@ async def mock_car_search(request_data: dict[str, Any] | None = None) -> dict[st
         vehicle["highlights"] = [
             f"Great value at ${vehicle['price']:,}",
             f"Low mileage: {vehicle['mileage']:,} miles",
-            f"Clean title and well-maintained",
+            "Clean title and well-maintained",
         ]
         vehicle["recommendation_summary"] = (
             f"Excellent choice! This {vehicle['year']} {vehicle['make']} {vehicle['model']} "

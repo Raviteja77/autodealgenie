@@ -9,10 +9,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.metrics import initialize_metrics
 from app.middleware.error_middleware import ErrorHandlerMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 
@@ -24,6 +26,7 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     configure_logging()
+    initialize_metrics()
     print("Starting up AutoDealGenie backend...")
     if settings.USE_MOCK_SERVICES:
         print("Mock services are ENABLED - using mock endpoints for development")
@@ -77,6 +80,19 @@ if settings.USE_MOCK_SERVICES:
     app.include_router(mock_router, prefix="/mock")
     print("Mock router registered at /mock")
 
+# Initialize Prometheus instrumentation
+# This should be done after all routes are registered
+instrumentator = Instrumentator(
+    should_group_status_codes=True,
+    should_ignore_untemplated=True,
+    should_respect_env_var=False,  # Always enable metrics
+    should_instrument_requests_inprogress=True,
+    excluded_handlers=["/metrics", "/health"],
+    inprogress_name="autodealgenie_requests_inprogress",
+    inprogress_labels=True,
+)
+instrumentator.instrument(app).expose(app, endpoint="/metrics", include_in_schema=True)
+
 
 # Request ID Middleware
 @app.middleware("http")
@@ -109,7 +125,6 @@ async def request_id_middleware(request: Request, call_next):
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "img-src 'self' data: https://cdn.jsdelivr.net;"
     )
-
 
     return response
 

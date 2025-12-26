@@ -1,0 +1,16 @@
+# Grafana Dashboard Provisioning Configuration
+# Automatically loads dashboard JSON files from the specified folder
+
+apiVersion: 1
+
+providers:
+  - name: 'AutoDealGenie Dashboards'
+    orgId: 1
+    folder: 'AutoDealGenie'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true
