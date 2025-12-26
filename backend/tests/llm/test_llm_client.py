@@ -96,6 +96,7 @@ class TestLLMClient:
             with patch("app.llm.llm_client.OpenAI") as mock_openai:
                 client = LLMClient()
                 assert client.is_available()
+                # When OPENAI_BASE_URL is None, base_url should not be passed
                 mock_openai.assert_called_once_with(api_key="test-api-key")
 
     def test_llm_client_initialization_without_api_key(self):
