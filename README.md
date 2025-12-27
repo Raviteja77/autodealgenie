@@ -377,9 +377,30 @@ For issues and questions:
 - Check existing documentation
 - Review API docs at `/docs`
 
+## ☁️ Cloud Deployment
+
+### GCP Free Tier Deployment
+
+Deploy AutoDealGenie to Google Cloud Platform Free Tier with minimal costs:
+
+```bash
+# Quick deployment
+./deploy-gcp.sh dev your-project-id
+./deploy-gcp.sh prod your-project-id
+```
+
+See [GCP_DEPLOYMENT.md](GCP_DEPLOYMENT.md) for comprehensive deployment guide including:
+- Supabase PostgreSQL setup (500MB free)
+- Cloud Run deployment (2M requests/month free)
+- In-memory caching and queuing for free tier
+- Secret Manager configuration
+- Monitoring and logging setup
+- Cost optimization strategies
+
 ## 🎯 Roadmap
 
 - [x] User authentication and authorization (JWT-based with HTTP-only cookies)
+- [x] GCP Free Tier deployment support
 - [ ] Advanced AI features (vehicle valuation, market analysis)
 - [ ] Real-time notifications via WebSockets
 - [ ] Mobile application
