@@ -57,7 +57,6 @@ import {
   ConnectionStatusIndicator, 
   FinancingComparisonModal 
 } from "@/components";
-import { CurrentOfferStatus } from "@/components/negotiation/CurrentOfferStatus";
 import { useNegotiationState } from "@/lib/hooks";
 import {
   apiClient,
@@ -103,7 +102,6 @@ function NegotiationContent() {
     state: negotiationState,
     financingOptions,
     cashSavings,
-    currentOfferStatus,
     setSessionId,
     setStatus,
     setMessages,
@@ -953,12 +951,12 @@ function NegotiationContent() {
           {vehicleData && negotiationState.messages.length > 0 && (
             <Grid container spacing={3}>
               {/* Current Offer Status - Top Banner */}
-              <Grid item xs={12}>
+              {/* <Grid item xs={12}>
                 <CurrentOfferStatus
                   offerStatus={currentOfferStatus}
                   vehiclePrice={vehicleData.price}
                 />
-              </Grid>
+              </Grid> */}
 
               {/* Price Tracking Panel - Left Sidebar */}
               <Grid item xs={12} md={3}>
