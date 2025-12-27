@@ -193,9 +193,7 @@ class AIResponseRepository:
         """
         # Get all responses for the deal
         result = await self.db.execute(
-            select(AIResponse)
-            .filter(AIResponse.deal_id == deal_id)
-            .order_by(AIResponse.timestamp)
+            select(AIResponse).filter(AIResponse.deal_id == deal_id).order_by(AIResponse.timestamp)
         )
         responses = result.scalars().all()
 
@@ -238,9 +236,7 @@ class AIResponseRepository:
                 AIResponse.feature,
                 func.count(AIResponse.id).label("count"),
                 func.sum(func.case((AIResponse.llm_used == 1, 1), else_=0)).label("llm_count"),
-                func.sum(func.case((AIResponse.llm_used == 0, 1), else_=0)).label(
-                    "fallback_count"
-                ),
+                func.sum(func.case((AIResponse.llm_used == 0, 1), else_=0)).label("fallback_count"),
                 func.sum(AIResponse.tokens_used).label("total_tokens"),
             )
             .filter(AIResponse.timestamp >= cutoff_date)
@@ -269,9 +265,7 @@ class AIResponseRepository:
         Returns:
             Number of records deleted
         """
-        result = await self.db.execute(
-            select(AIResponse).filter(AIResponse.deal_id == deal_id)
-        )
+        result = await self.db.execute(select(AIResponse).filter(AIResponse.deal_id == deal_id))
         responses_to_delete = result.scalars().all()
         for response in responses_to_delete:
             await self.db.delete(response)
