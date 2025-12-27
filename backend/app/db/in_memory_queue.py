@@ -63,7 +63,12 @@ class InMemoryQueue:
             try:
                 await callback(message)
             except Exception as e:
-                logger.error(f"Error in consumer callback: {str(e)}")
+                logger.error(
+                    f"Error in consumer callback for queue '{queue_name}': {str(e)}. "
+                    f"Message: {message}. "
+                    f"Note: In-memory queue does not implement retry or dead letter queue. "
+                    f"For production use, set USE_RABBITMQ=true."
+                )
 
     async def consume(
         self, queue_name: str, callback: Callable[[dict[str, Any]], None]

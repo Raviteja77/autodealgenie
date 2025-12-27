@@ -41,10 +41,16 @@ class InMemoryCache:
         Args:
             key: Cache key
             value: Value to cache
-            ex: Expiry in seconds (ignored - uses default TTL)
+            ex: Expiry in seconds (Note: Uses cache default TTL, not per-key expiry.
+                For per-key TTL support, use Redis with USE_REDIS=true)
         """
         self.cache[key] = value
         logger.debug(f"Cache set: {key}")
+        if ex is not None:
+            logger.debug(
+                f"Note: In-memory cache uses default TTL. Per-key expiry "
+                f"requires USE_REDIS=true"
+            )
 
     async def delete(self, key: str) -> None:
         """Delete key from cache"""
