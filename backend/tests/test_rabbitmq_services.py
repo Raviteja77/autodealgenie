@@ -2,9 +2,7 @@
 Tests for RabbitMQ producer and consumer services
 """
 
-import asyncio
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 

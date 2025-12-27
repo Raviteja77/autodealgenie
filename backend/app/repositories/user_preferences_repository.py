@@ -4,7 +4,6 @@ Replaces MongoDB-based user_preferences_service.py
 """
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 from sqlalchemy import desc
 from sqlalchemy.orm import Session

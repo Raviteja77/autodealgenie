@@ -6,10 +6,10 @@ Create Date: 2024-12-27
 
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "009_add_jsonb_tables"

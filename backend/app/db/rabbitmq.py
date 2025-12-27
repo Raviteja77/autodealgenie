@@ -3,10 +3,9 @@ RabbitMQ connection setup with aio-pika
 """
 
 import logging
-from typing import Any
 
 import aio_pika
-from aio_pika import Connection, Channel
+from aio_pika import Channel
 from aio_pika.abc import AbstractRobustConnection
 
 from app.core.config import settings

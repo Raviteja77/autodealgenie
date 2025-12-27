@@ -6,7 +6,6 @@ import json
 import logging
 from typing import Any
 
-import aio_pika
 from aio_pika import DeliveryMode, Message
 
 from app.core.config import settings

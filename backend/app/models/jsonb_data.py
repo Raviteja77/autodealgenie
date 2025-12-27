@@ -3,9 +3,7 @@ SQLAlchemy models for data previously stored in MongoDB
 Now using PostgreSQL with JSONB columns for flexible schema
 """
 
-from datetime import datetime
-
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 

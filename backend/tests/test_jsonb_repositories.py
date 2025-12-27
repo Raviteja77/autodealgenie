@@ -2,13 +2,10 @@
 Tests for PostgreSQL JSONB repositories
 """
 
-from datetime import datetime
-
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.models.jsonb_data import AIResponse, SearchHistory, UserPreference
 from app.repositories.ai_response_repository import AIResponseRepository
 from app.repositories.search_history_repository import SearchHistoryRepository
 from app.repositories.user_preferences_repository import UserPreferencesRepository
