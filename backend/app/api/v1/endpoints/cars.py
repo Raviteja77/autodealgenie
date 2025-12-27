@@ -3,11 +3,11 @@ Car search and recommendation endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.core.rate_limiter import car_search_rate_limiter
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.models import User
 from app.schemas.car_schemas import CarSearchRequest, CarSearchResponse
 from app.services.car_recommendation_service import car_recommendation_service
@@ -19,7 +19,7 @@ router = APIRouter()
 async def search_cars(
     search_request: CarSearchRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Search for cars and get AI-powered recommendations

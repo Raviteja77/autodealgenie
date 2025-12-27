@@ -5,20 +5,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import JSON, create_engine
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.types import TypeDecorator, TEXT
 
 from app.db.session import Base, get_db
 from app.main import app
 
 
-# Add a compiler for JSONB on SQLite
+# Add a compiler for JSONB on SQLite - render as TEXT
 @compiles(JSONB, "sqlite")
-def compile_jsonb_sqlite(element, compiler, **kw):
-    """Render JSONB as JSON for SQLite."""
-    return compiler.visit_json(element, **kw)
+def compile_jsonb_sqlite(type_, compiler, **kw):
+    """Render JSONB as TEXT for SQLite compatibility."""
+    return "TEXT"
 
 
 # Use in-memory SQLite for testing
