@@ -86,9 +86,7 @@ class AIResponseRepository:
         )
         return record
 
-    def get_by_deal_id(
-        self, deal_id: int, limit: int = 100, skip: int = 0
-    ) -> list[AIResponse]:
+    def get_by_deal_id(self, deal_id: int, limit: int = 100, skip: int = 0) -> list[AIResponse]:
         """
         Get all AI responses for a deal
 
@@ -113,9 +111,7 @@ class AIResponseRepository:
             .all()
         )
 
-    def get_by_user_id(
-        self, user_id: int, limit: int = 100, skip: int = 0
-    ) -> list[AIResponse]:
+    def get_by_user_id(self, user_id: int, limit: int = 100, skip: int = 0) -> list[AIResponse]:
         """
         Get all AI responses for a user
 
@@ -236,9 +232,7 @@ class AIResponseRepository:
                 AIResponse.feature,
                 func.count(AIResponse.id).label("count"),
                 func.sum(func.case((AIResponse.llm_used == 1, 1), else_=0)).label("llm_count"),
-                func.sum(func.case((AIResponse.llm_used == 0, 1), else_=0)).label(
-                    "fallback_count"
-                ),
+                func.sum(func.case((AIResponse.llm_used == 0, 1), else_=0)).label("fallback_count"),
                 func.sum(AIResponse.tokens_used).label("total_tokens"),
             )
             .filter(AIResponse.timestamp >= cutoff_date)

@@ -165,10 +165,7 @@ class UserPreferencesRepository:
         """
         cutoff_date = datetime.now(UTC) - timedelta(days=days)
         result = (
-            self.db.query(UserPreference)
-            .filter(UserPreference.created_at < cutoff_date)
-            .delete()
+            self.db.query(UserPreference).filter(UserPreference.created_at < cutoff_date).delete()
         )
         self.db.commit()
         return result
-

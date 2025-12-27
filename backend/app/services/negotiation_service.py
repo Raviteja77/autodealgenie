@@ -587,7 +587,7 @@ class NegotiationService:
             #     ai_response_repo.create_response(...)
             # except Exception as e:
             #     logger.error(f"[{request_id}] Failed to log AI response: {str(e)}")
-                # Don't fail the main operation if logging fails
+            # Don't fail the main operation if logging fails
 
             return {
                 "content": response_content,

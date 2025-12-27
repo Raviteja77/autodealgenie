@@ -58,11 +58,11 @@ class RabbitMQ:
     async def declare_queue(cls, queue_name: str, durable: bool = True) -> aio_pika.Queue:
         """
         Declare a queue
-        
+
         Args:
             queue_name: Name of the queue
             durable: Whether the queue should survive broker restart
-            
+
         Returns:
             Declared queue
         """
@@ -80,12 +80,12 @@ class RabbitMQ:
     ) -> aio_pika.Exchange:
         """
         Declare an exchange
-        
+
         Args:
             exchange_name: Name of the exchange
             exchange_type: Type of exchange (direct, fanout, topic, headers)
             durable: Whether the exchange should survive broker restart
-            
+
         Returns:
             Declared exchange
         """

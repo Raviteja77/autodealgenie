@@ -60,26 +60,26 @@ class RabbitMQProducerService:
 
         try:
             channel = await rabbitmq.get_channel()
-            
+
             # Serialize message to JSON
             message_body = json.dumps(message).encode("utf-8")
-            
+
             # Create message with appropriate delivery mode
             delivery_mode = DeliveryMode.PERSISTENT if persistent else DeliveryMode.NOT_PERSISTENT
-            
+
             aio_message = Message(
                 body=message_body,
                 delivery_mode=delivery_mode,
                 priority=priority,
                 content_type="application/json",
             )
-            
+
             # Publish to queue (using default exchange with routing_key = queue_name)
             await channel.default_exchange.publish(
                 aio_message,
                 routing_key=queue_name,
             )
-            
+
             logger.info(f"Message sent to queue {queue_name}: {message}")
         except Exception as e:
             logger.error(f"Failed to send message to {queue_name}: {str(e)}")
@@ -88,7 +88,7 @@ class RabbitMQProducerService:
     async def send_deal_event(self, deal_data: dict[str, Any], priority: int = 0):
         """
         Send deal event to deals queue
-        
+
         Args:
             deal_data: Deal data payload
             priority: Message priority (0-9)
@@ -102,7 +102,7 @@ class RabbitMQProducerService:
     async def send_notification(self, notification_data: dict[str, Any], priority: int = 5):
         """
         Send notification to notifications queue
-        
+
         Args:
             notification_data: Notification data payload
             priority: Message priority (0-9, default 5 for normal priority)

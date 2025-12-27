@@ -41,12 +41,16 @@ class SearchHistory(Base):
     __tablename__ = "search_history"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # Nullable for anonymous
+    user_id = Column(
+        Integer, ForeignKey("users.id"), nullable=True, index=True
+    )  # Nullable for anonymous
     search_criteria = Column(JSONB, nullable=False)  # Search parameters
     result_count = Column(Integer, nullable=False, default=0)
     top_vehicles = Column(JSONB, nullable=True)  # Top vehicle recommendations
     session_id = Column(String(255), nullable=True, index=True)  # Session tracking
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    timestamp = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
 
     __table_args__ = (Index("idx_search_history_timestamp", "timestamp"),)
 
@@ -74,7 +78,9 @@ class AIResponse(Base):
     tokens_used = Column(Integer, nullable=True)  # Tokens consumed
     temperature = Column(Integer, nullable=True)  # Temperature parameter (stored as int * 100)
     llm_used = Column(Integer, nullable=False, default=1)  # 1 for True, 0 for False
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    timestamp = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
 
     __table_args__ = (
         Index("idx_ai_responses_feature", "feature", "timestamp"),

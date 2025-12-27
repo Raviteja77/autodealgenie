@@ -66,10 +66,10 @@ class RabbitMQConsumerService:
                     # Deserialize message
                     body = json.loads(message.body.decode("utf-8"))
                     logger.info(f"Received message from queue {self.queue_name}: {body}")
-                    
+
                     # Call the callback
                     await callback(body)
-                    
+
                     # Message is automatically acknowledged due to async with message.process()
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to decode message: {str(e)}")
@@ -83,11 +83,11 @@ class RabbitMQConsumerService:
             # Start consuming
             self.consumer_tag = await self.queue.consume(process_message)
             logger.info(f"Started consuming from queue {self.queue_name}")
-            
+
             # Keep running until stopped
             while self.running:
                 await asyncio.sleep(1)
-                
+
         except asyncio.CancelledError:
             logger.info(f"Consumer task cancelled for queue {self.queue_name}")
         except Exception as e:

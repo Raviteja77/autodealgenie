@@ -52,9 +52,7 @@ class SearchHistoryRepository:
         self.db.refresh(record)
         return record
 
-    def get_user_history(
-        self, user_id: int, limit: int = 50, skip: int = 0
-    ) -> list[SearchHistory]:
+    def get_user_history(self, user_id: int, limit: int = 50, skip: int = 0) -> list[SearchHistory]:
         """
         Get search history for a user
 
