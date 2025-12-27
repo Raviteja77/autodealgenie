@@ -1,5 +1,7 @@
+
+import React from "react";
 import { render, screen, fireEvent } from '@testing-library/react';
-import { PaymentMethodSelector } from '../../search/PaymentMethodSelector';
+import { PaymentMethodSelector } from '../PaymentMethodSelector';
 
 describe('PaymentMethodSelector', () => {
   it('renders all payment method options', () => {

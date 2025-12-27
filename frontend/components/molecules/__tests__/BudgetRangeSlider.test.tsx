@@ -1,5 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { BudgetRangeSlider } from '../../search/BudgetRangeSlider';
+import React from "react";
+
+import { render, screen } from '@testing-library/react';
+import { BudgetRangeSlider } from '../BudgetRangeSlider';
 
 describe('BudgetRangeSlider', () => {
   it('renders with cash payment method title', () => {

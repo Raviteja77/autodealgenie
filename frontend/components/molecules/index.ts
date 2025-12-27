@@ -12,11 +12,9 @@ export { ConnectionStatusIndicator } from './ConnectionStatusIndicator';
 export { SaveSearchModal } from './SaveSearchModal';
 
 // Search-related molecules
-export { 
-  PaymentMethodSelector,
-  BudgetRangeSlider,
-  SearchSidebar
-} from './search';
+export { PaymentMethodSelector } from './PaymentMethodSelector';
+export { BudgetRangeSlider } from './BudgetRangeSlider';
+export { SearchSidebar } from './SearchSidebar';
 
 export type {
   PriceDisplayProps,

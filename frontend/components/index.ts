@@ -24,6 +24,9 @@ export {
   SavedSearchesDropdown,
   ConnectionStatusIndicator,
   SaveSearchModal,
+  PaymentMethodSelector,
+  BudgetRangeSlider,
+  SearchSidebar,
 } from './molecules';
 export type { SortOption } from './molecules';
 
@@ -37,6 +40,9 @@ export {
   FinancingComparisonModal,
   InsuranceRecommendations,
   LenderRecommendations,
+  BasicVehicleFilters,
+  AdvancedFilters,
+  FinancingOptionsForm,
 } from './organisms';
 
 // Export common components

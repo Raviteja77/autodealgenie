@@ -1,5 +1,6 @@
+import React from "react";
 import { render, screen } from '@testing-library/react';
-import { SearchSidebar } from '../../search/SearchSidebar';
+import { SearchSidebar } from '../SearchSidebar';
 
 describe('SearchSidebar', () => {
   it('renders financing tips section', () => {

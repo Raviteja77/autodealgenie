@@ -13,11 +13,9 @@ export { InsuranceRecommendations } from './InsuranceRecommendations';
 export { LenderRecommendations } from './LenderRecommendations';
 
 // Search-related organisms
-export {
-  BasicVehicleFilters,
-  AdvancedFilters,
-  FinancingOptionsForm
-} from './search';
+export { BasicVehicleFilters } from './BasicVehicleFilters';
+export { AdvancedFilters } from './AdvancedFilters';
+export { FinancingOptionsForm } from './FinancingOptionsForm';
 
 // Export types that are explicitly exported from components
 export type { VehicleDisplayProps } from './VehicleCard';
