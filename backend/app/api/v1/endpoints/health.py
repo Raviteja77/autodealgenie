@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.mongodb import mongodb
+from app.db.rabbitmq import rabbitmq
 from app.db.redis import redis_client
 from app.db.session import get_async_db
 from app.schemas.schemas import HealthCheck
@@ -35,7 +35,7 @@ async def detailed_health_check(response: Response, db: AsyncSession = Depends(g
         "services": {
             "postgres": "unhealthy",
             "redis": "unhealthy",
-            "mongodb": "unhealthy",
+            "rabbitmq": "unhealthy",
         },
     }
     is_degraded = False
@@ -56,12 +56,12 @@ async def detailed_health_check(response: Response, db: AsyncSession = Depends(g
         logger.warning(f"Redis health check failed: {e}")
         is_degraded = True
 
-    # Check MongoDB
+    # Check RabbitMQ
     try:
-        if mongodb.client and await mongodb.client.admin.command("ping"):
-            health_status["services"]["mongodb"] = "healthy"
+        if rabbitmq.connection and not rabbitmq.connection.is_closed:
+            health_status["services"]["rabbitmq"] = "healthy"
     except Exception as e:
-        logger.warning(f"MongoDB health check failed: {e}")
+        logger.warning(f"RabbitMQ health check failed: {e}")
         is_degraded = True
 
     if is_degraded:

@@ -1,27 +1,28 @@
 """
-Repository for AI response logging in MongoDB
+Repository for AI response logging in PostgreSQL
 Stores comprehensive AI interactions across all features for analytics and traceability
+Previously used MongoDB, now using PostgreSQL JSONB
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
-from app.db.mongodb import mongodb
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session
+
+from app.models.jsonb_data import AIResponse
 
 logger = logging.getLogger(__name__)
 
 
 class AIResponseRepository:
-    """Repository for managing AI responses in MongoDB"""
+    """Repository for managing AI responses in PostgreSQL"""
 
-    COLLECTION_NAME = "ai_responses"
+    def __init__(self, db: Session):
+        self.db = db
 
-    def __init__(self):
-        """Initialize repository"""
-        pass
-
-    async def create_response(
+    def create_response(
         self,
         feature: str,
         user_id: int | None,
@@ -34,7 +35,7 @@ class AIResponseRepository:
         tokens_used: int | None = None,
         temperature: float | None = None,
         llm_used: bool = True,
-    ) -> str:
+    ) -> AIResponse:
         """
         Create an AI response record
 
@@ -52,35 +53,42 @@ class AIResponseRepository:
             llm_used: Whether LLM was actually used (False for fallback)
 
         Returns:
-            str: Inserted document ID
+            AIResponse: Created record
         """
-        collection = mongodb.get_collection(self.COLLECTION_NAME)
+        # Convert string response to dict if needed
+        if isinstance(response_content, str):
+            response_content = {"text": response_content}
 
-        document = {
-            "feature": feature,
-            "user_id": user_id,
-            "deal_id": deal_id,
-            "prompt_id": prompt_id,
-            "prompt_variables": prompt_variables,
-            "response_content": response_content,
-            "response_metadata": response_metadata or {},
-            "model_used": model_used,
-            "tokens_used": tokens_used,
-            "temperature": temperature,
-            "llm_used": llm_used,
-            "timestamp": datetime.utcnow(),
-        }
+        # Store temperature as integer (multiplied by 100) for database storage
+        temperature_int = int(temperature * 100) if temperature is not None else None
 
-        result = await collection.insert_one(document)
+        record = AIResponse(
+            feature=feature,
+            user_id=user_id,
+            deal_id=deal_id,
+            prompt_id=prompt_id,
+            prompt_variables=prompt_variables,
+            response_content=response_content,
+            response_metadata=response_metadata or {},
+            model_used=model_used,
+            tokens_used=tokens_used,
+            temperature=temperature_int,
+            llm_used=1 if llm_used else 0,
+        )
+
+        self.db.add(record)
+        self.db.commit()
+        self.db.refresh(record)
+
         logger.info(
             f"Logged AI response for feature={feature}, "
             f"deal_id={deal_id}, prompt_id={prompt_id}, llm_used={llm_used}"
         )
-        return str(result.inserted_id)
+        return record
 
-    async def get_by_deal_id(
+    def get_by_deal_id(
         self, deal_id: int, limit: int = 100, skip: int = 0
-    ) -> list[dict[str, Any]]:
+    ) -> list[AIResponse]:
         """
         Get all AI responses for a deal
 
@@ -96,20 +104,18 @@ class AIResponseRepository:
         if not isinstance(deal_id, int) or deal_id <= 0:
             raise ValueError(f"Invalid deal_id: {deal_id}")
 
-        collection = mongodb.get_collection(self.COLLECTION_NAME)
+        return (
+            self.db.query(AIResponse)
+            .filter(AIResponse.deal_id == deal_id)
+            .order_by(desc(AIResponse.timestamp))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
-        cursor = collection.find({"deal_id": deal_id}).sort("timestamp", -1).skip(skip).limit(limit)
-
-        records = []
-        async for doc in cursor:
-            doc["_id"] = str(doc["_id"])
-            records.append(doc)
-
-        return records
-
-    async def get_by_user_id(
+    def get_by_user_id(
         self, user_id: int, limit: int = 100, skip: int = 0
-    ) -> list[dict[str, Any]]:
+    ) -> list[AIResponse]:
         """
         Get all AI responses for a user
 
@@ -125,24 +131,22 @@ class AIResponseRepository:
         if not isinstance(user_id, int) or user_id <= 0:
             raise ValueError(f"Invalid user_id: {user_id}")
 
-        collection = mongodb.get_collection(self.COLLECTION_NAME)
+        return (
+            self.db.query(AIResponse)
+            .filter(AIResponse.user_id == user_id)
+            .order_by(desc(AIResponse.timestamp))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
-        cursor = collection.find({"user_id": user_id}).sort("timestamp", -1).skip(skip).limit(limit)
-
-        records = []
-        async for doc in cursor:
-            doc["_id"] = str(doc["_id"])
-            records.append(doc)
-
-        return records
-
-    async def get_by_feature(
+    def get_by_feature(
         self,
         feature: str,
         user_id: int | None = None,
         limit: int = 100,
         skip: int = 0,
-    ) -> list[dict[str, Any]]:
+    ) -> list[AIResponse]:
         """
         Get AI responses for a specific feature
 
@@ -166,24 +170,16 @@ class AIResponseRepository:
         if feature not in ALLOWED_FEATURES:
             raise ValueError(f"Invalid feature: {feature}. Must be one of {ALLOWED_FEATURES}")
 
-        collection = mongodb.get_collection(self.COLLECTION_NAME)
+        query = self.db.query(AIResponse).filter(AIResponse.feature == feature)
 
-        query = {"feature": feature}
         if user_id is not None:
             if not isinstance(user_id, int) or user_id <= 0:
                 raise ValueError(f"Invalid user_id: {user_id}")
-            query["user_id"] = user_id
+            query = query.filter(AIResponse.user_id == user_id)
 
-        cursor = collection.find(query).sort("timestamp", -1).skip(skip).limit(limit)
+        return query.order_by(desc(AIResponse.timestamp)).offset(skip).limit(limit).all()
 
-        records = []
-        async for doc in cursor:
-            doc["_id"] = str(doc["_id"])
-            records.append(doc)
-
-        return records
-
-    async def get_deal_lifecycle(self, deal_id: int) -> dict[str, Any]:
+    def get_deal_lifecycle(self, deal_id: int) -> dict[str, Any]:
         """
         Get comprehensive lifecycle of AI interactions for a deal
 
@@ -193,40 +189,36 @@ class AIResponseRepository:
         Returns:
             Dictionary with all AI responses grouped by feature
         """
-        collection = mongodb.get_collection(self.COLLECTION_NAME)
+        # Get all responses for the deal
+        responses = (
+            self.db.query(AIResponse)
+            .filter(AIResponse.deal_id == deal_id)
+            .order_by(AIResponse.timestamp)
+            .all()
+        )
 
-        # Aggregate AI responses by feature
-        pipeline = [
-            {"$match": {"deal_id": deal_id}},
-            {"$sort": {"timestamp": 1}},
-            {
-                "$group": {
-                    "_id": "$feature",
-                    "responses": {
-                        "$push": {
-                            "prompt_id": "$prompt_id",
-                            "response_content": "$response_content",
-                            "response_metadata": "$response_metadata",
-                            "timestamp": "$timestamp",
-                            "llm_used": "$llm_used",
-                        }
-                    },
-                    "count": {"$sum": 1},
-                }
-            },
-        ]
-
+        # Group by feature
         lifecycle = {"deal_id": deal_id, "features": {}}
-        async for doc in collection.aggregate(pipeline):
-            feature = doc["_id"]
-            lifecycle["features"][feature] = {
-                "count": doc["count"],
-                "responses": doc["responses"],
-            }
+
+        for response in responses:
+            feature = response.feature
+            if feature not in lifecycle["features"]:
+                lifecycle["features"][feature] = {"count": 0, "responses": []}
+
+            lifecycle["features"][feature]["count"] += 1
+            lifecycle["features"][feature]["responses"].append(
+                {
+                    "prompt_id": response.prompt_id,
+                    "response_content": response.response_content,
+                    "response_metadata": response.response_metadata,
+                    "timestamp": response.timestamp.isoformat(),
+                    "llm_used": bool(response.llm_used),
+                }
+            )
 
         return lifecycle
 
-    async def get_analytics(self, days: int = 30) -> dict[str, Any]:
+    def get_analytics(self, days: int = 30) -> dict[str, Any]:
         """
         Get analytics about AI usage
 
@@ -236,38 +228,36 @@ class AIResponseRepository:
         Returns:
             Analytics data
         """
-        from datetime import timedelta
-
-        collection = mongodb.get_collection(self.COLLECTION_NAME)
-
         cutoff_date = datetime.utcnow() - timedelta(days=days)
 
-        pipeline = [
-            {"$match": {"timestamp": {"$gte": cutoff_date}}},
-            {
-                "$group": {
-                    "_id": "$feature",
-                    "count": {"$sum": 1},
-                    "llm_count": {"$sum": {"$cond": [{"$eq": ["$llm_used", True]}, 1, 0]}},
-                    "fallback_count": {"$sum": {"$cond": [{"$eq": ["$llm_used", False]}, 1, 0]}},
-                    "total_tokens": {"$sum": "$tokens_used"},
-                }
-            },
-        ]
+        # Aggregate by feature
+        results = (
+            self.db.query(
+                AIResponse.feature,
+                func.count(AIResponse.id).label("count"),
+                func.sum(func.case((AIResponse.llm_used == 1, 1), else_=0)).label("llm_count"),
+                func.sum(func.case((AIResponse.llm_used == 0, 1), else_=0)).label(
+                    "fallback_count"
+                ),
+                func.sum(AIResponse.tokens_used).label("total_tokens"),
+            )
+            .filter(AIResponse.timestamp >= cutoff_date)
+            .group_by(AIResponse.feature)
+            .all()
+        )
 
         analytics = {"period_days": days, "features": {}}
-        async for doc in collection.aggregate(pipeline):
-            feature = doc["_id"]
-            analytics["features"][feature] = {
-                "total_calls": doc["count"],
-                "llm_calls": doc["llm_count"],
-                "fallback_calls": doc["fallback_count"],
-                "total_tokens": doc["total_tokens"] or 0,
+        for result in results:
+            analytics["features"][result.feature] = {
+                "total_calls": result.count,
+                "llm_calls": result.llm_count or 0,
+                "fallback_calls": result.fallback_count or 0,
+                "total_tokens": result.total_tokens or 0,
             }
 
         return analytics
 
-    async def delete_by_deal_id(self, deal_id: int) -> int:
+    def delete_by_deal_id(self, deal_id: int) -> int:
         """
         Delete all AI responses for a deal
 
@@ -277,11 +267,13 @@ class AIResponseRepository:
         Returns:
             Number of records deleted
         """
-        collection = mongodb.get_collection(self.COLLECTION_NAME)
-        result = await collection.delete_many({"deal_id": deal_id})
-        logger.info(f"Deleted {result.deleted_count} AI responses for deal {deal_id}")
-        return result.deleted_count
+        count = self.db.query(AIResponse).filter(AIResponse.deal_id == deal_id).delete()
+        self.db.commit()
+        logger.info(f"Deleted {count} AI responses for deal {deal_id}")
+        return count
 
 
-# Singleton instance
-ai_response_repository = AIResponseRepository()
+# Factory function to create repository with db session
+def get_ai_response_repository(db: Session) -> AIResponseRepository:
+    """Factory function to create repository with db session"""
+    return AIResponseRepository(db)
