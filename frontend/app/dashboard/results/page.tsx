@@ -32,14 +32,17 @@ import {
   SavedSearchCreate,
 } from "@/lib/api";
 import { useStepper } from "@/app/context";
-import { FilterPanel } from "@/components/FilterPanel";
-import { SortDropdown, SortOption } from "@/components/SortDropdown";
-import { ViewModeToggle } from "@/components/ViewModeToggle";
-import { ComparisonBar } from "@/components/ComparisonBar";
-import { ComparisonModal } from "@/components/ComparisonModal";
-import { SaveSearchModal } from "@/components/SaveSearchModal";
-import { SavedSearchesDropdown } from "@/components/SavedSearchesDropdown";
-import { LenderRecommendations } from "@/components/LenderRecommendations";
+import {
+  FilterPanel,
+  ComparisonBar,
+  ComparisonModal,
+  LenderRecommendations,
+  SortDropdown,
+  ViewModeToggle,
+  SaveSearchModal,
+  SavedSearchesDropdown,
+} from "@/components";
+import type { SortOption } from "@/components";
 import { useComparison, ComparisonVehicle } from "@/lib/hooks/useComparison";
 import { useViewMode } from "@/lib/hooks/useViewMode";
 import { useSavedSearches } from "@/lib/hooks/useSavedSearches";

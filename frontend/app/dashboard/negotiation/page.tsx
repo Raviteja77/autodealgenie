@@ -51,14 +51,12 @@ import {
   NegotiationChatProvider,
 } from "@/app/context";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { Modal } from "@/components/ui/Modal";
-import { Spinner } from "@/components/ui/Spinner";
-import { ChatInput } from "@/components/ChatInput";
-import { ConnectionStatusIndicator } from "@/components/ConnectionStatusIndicator";
-import { FinancingComparisonModal } from "@/components/FinancingComparisonModal";
-import { CurrentOfferStatus } from "@/components/negotiation/CurrentOfferStatus";
+import { Button, Card, Modal, Spinner } from "@/components";
+import { 
+  ChatInput, 
+  ConnectionStatusIndicator, 
+  FinancingComparisonModal 
+} from "@/components";
 import { useNegotiationState } from "@/lib/hooks";
 import {
   apiClient,
@@ -104,7 +102,6 @@ function NegotiationContent() {
     state: negotiationState,
     financingOptions,
     cashSavings,
-    currentOfferStatus,
     setSessionId,
     setStatus,
     setMessages,
@@ -954,12 +951,12 @@ function NegotiationContent() {
           {vehicleData && negotiationState.messages.length > 0 && (
             <Grid container spacing={3}>
               {/* Current Offer Status - Top Banner */}
-              <Grid item xs={12}>
+              {/* <Grid item xs={12}>
                 <CurrentOfferStatus
                   offerStatus={currentOfferStatus}
                   vehiclePrice={vehicleData.price}
                 />
-              </Grid>
+              </Grid> */}
 
               {/* Price Tracking Panel - Left Sidebar */}
               <Grid item xs={12} md={3}>

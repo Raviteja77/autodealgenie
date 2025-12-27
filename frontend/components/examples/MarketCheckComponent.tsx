@@ -8,7 +8,7 @@
 import React, { useState } from "react";
 import { Box, Typography, CircularProgress, Alert } from "@mui/material";
 import { apiClient, CarSearchRequest, CarSearchResponse } from "@/lib/api";
-import { Button, Input, Card } from "../ui";
+import { Button, Input, Card } from "@/components";
 
 function MarketCheckComponent() {
   const [loading, setLoading] = useState(false);

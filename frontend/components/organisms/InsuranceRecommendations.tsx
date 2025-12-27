@@ -26,9 +26,7 @@ import {
   ExpandLess,
   Star,
 } from "@mui/icons-material";
-import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { Spinner } from "@/components/ui/Spinner";
+import { Card, Button, Spinner } from "@/components";
 import {
   apiClient,
   type InsuranceMatch,

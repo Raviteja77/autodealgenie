@@ -28,10 +28,7 @@ import {
   AccountBalance,
   Info,
 } from '@mui/icons-material';
-import { Modal } from '@/components/ui/Modal';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Modal, Button, Card, Input } from '@/components';
 import type { FinancingOption } from '@/lib/api';
 
 interface FinancingComparisonModalProps {
