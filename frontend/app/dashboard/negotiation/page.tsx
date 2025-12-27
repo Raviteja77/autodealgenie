@@ -55,9 +55,11 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/Spinner";
-import { ChatInput } from "@/components/ChatInput";
-import { ConnectionStatusIndicator } from "@/components/ConnectionStatusIndicator";
-import { FinancingComparisonModal } from "@/components/FinancingComparisonModal";
+import { 
+  ChatInput, 
+  ConnectionStatusIndicator, 
+  FinancingComparisonModal 
+} from "@/components";
 import { CurrentOfferStatus } from "@/components/negotiation/CurrentOfferStatus";
 import { useNegotiationState } from "@/lib/hooks";
 import {
