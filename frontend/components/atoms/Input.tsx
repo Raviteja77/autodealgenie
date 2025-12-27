@@ -1,7 +1,7 @@
-import React from "react";
-import TextField from "@mui/material/TextField";
-import InputAdornment from "@mui/material/InputAdornment";
-import { InputProps } from "./Input.types";
+import React from 'react';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import { InputProps } from './Input.types';
 
 /**
  * Reusable Input component with label, error, and helper text support using MUI

@@ -61,13 +61,8 @@ CardComponent.displayName = 'Card';
  */
 const CardHeaderComponent = React.forwardRef<HTMLDivElement, CardHeaderComponentProps>(
   ({ children, ...props }, ref) => {
-    // If children is a string or number, wrap in span for proper rendering
-    const content = typeof children === 'string' || typeof children === 'number' 
-      ? children 
-      : children;
-      
     return (
-      <CardHeader ref={ref} title={content} {...props} />
+      <CardHeader ref={ref} title={children} {...props} />
     );
   }
 );

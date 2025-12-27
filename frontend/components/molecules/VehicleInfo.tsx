@@ -148,7 +148,7 @@ export const VehicleImage: React.FC<VehicleImageProps> = ({
         <>
           {badges.map((badge, index) => (
             <Box
-              key={index}
+              key={`badge-${index}`}
               sx={{
                 position: 'absolute',
                 ...(index === 0 ? { top: 8, left: 8 } : { bottom: 8, left: 8 }),
