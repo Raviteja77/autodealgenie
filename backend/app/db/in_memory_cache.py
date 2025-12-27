@@ -8,8 +8,6 @@ from typing import Any
 
 from cachetools import TTLCache
 
-from app.core.config import settings
-
 logger = logging.getLogger(__name__)
 
 
