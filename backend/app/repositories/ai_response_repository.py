@@ -8,8 +8,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import desc, func
-from sqlalchemy.orm import Session
+from sqlalchemy import desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.jsonb_data import AIResponse
 
@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 class AIResponseRepository:
     """Repository for managing AI responses in PostgreSQL"""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def create_response(
+    async def create_response(
         self,
         feature: str,
         user_id: int | None,
@@ -77,8 +77,8 @@ class AIResponseRepository:
         )
 
         self.db.add(record)
-        self.db.commit()
-        self.db.refresh(record)
+        await self.db.commit()
+        await self.db.refresh(record)
 
         logger.info(
             f"Logged AI response for feature={feature}, "
@@ -86,7 +86,9 @@ class AIResponseRepository:
         )
         return record
 
-    def get_by_deal_id(self, deal_id: int, limit: int = 100, skip: int = 0) -> list[AIResponse]:
+    async def get_by_deal_id(
+        self, deal_id: int, limit: int = 100, skip: int = 0
+    ) -> list[AIResponse]:
         """
         Get all AI responses for a deal
 
@@ -102,16 +104,18 @@ class AIResponseRepository:
         if not isinstance(deal_id, int) or deal_id <= 0:
             raise ValueError(f"Invalid deal_id: {deal_id}")
 
-        return (
-            self.db.query(AIResponse)
+        result = await self.db.execute(
+            select(AIResponse)
             .filter(AIResponse.deal_id == deal_id)
             .order_by(desc(AIResponse.timestamp))
             .offset(skip)
             .limit(limit)
-            .all()
         )
+        return result.scalars().all()
 
-    def get_by_user_id(self, user_id: int, limit: int = 100, skip: int = 0) -> list[AIResponse]:
+    async def get_by_user_id(
+        self, user_id: int, limit: int = 100, skip: int = 0
+    ) -> list[AIResponse]:
         """
         Get all AI responses for a user
 
@@ -127,16 +131,16 @@ class AIResponseRepository:
         if not isinstance(user_id, int) or user_id <= 0:
             raise ValueError(f"Invalid user_id: {user_id}")
 
-        return (
-            self.db.query(AIResponse)
+        result = await self.db.execute(
+            select(AIResponse)
             .filter(AIResponse.user_id == user_id)
             .order_by(desc(AIResponse.timestamp))
             .offset(skip)
             .limit(limit)
-            .all()
         )
+        return result.scalars().all()
 
-    def get_by_feature(
+    async def get_by_feature(
         self,
         feature: str,
         user_id: int | None = None,
@@ -166,16 +170,18 @@ class AIResponseRepository:
         if feature not in ALLOWED_FEATURES:
             raise ValueError(f"Invalid feature: {feature}. Must be one of {ALLOWED_FEATURES}")
 
-        query = self.db.query(AIResponse).filter(AIResponse.feature == feature)
+        query = select(AIResponse).filter(AIResponse.feature == feature)
 
         if user_id is not None:
             if not isinstance(user_id, int) or user_id <= 0:
                 raise ValueError(f"Invalid user_id: {user_id}")
             query = query.filter(AIResponse.user_id == user_id)
 
-        return query.order_by(desc(AIResponse.timestamp)).offset(skip).limit(limit).all()
+        query = query.order_by(desc(AIResponse.timestamp)).offset(skip).limit(limit)
+        result = await self.db.execute(query)
+        return result.scalars().all()
 
-    def get_deal_lifecycle(self, deal_id: int) -> dict[str, Any]:
+    async def get_deal_lifecycle(self, deal_id: int) -> dict[str, Any]:
         """
         Get comprehensive lifecycle of AI interactions for a deal
 
@@ -186,12 +192,12 @@ class AIResponseRepository:
             Dictionary with all AI responses grouped by feature
         """
         # Get all responses for the deal
-        responses = (
-            self.db.query(AIResponse)
+        result = await self.db.execute(
+            select(AIResponse)
             .filter(AIResponse.deal_id == deal_id)
             .order_by(AIResponse.timestamp)
-            .all()
         )
+        responses = result.scalars().all()
 
         # Group by feature
         lifecycle = {"deal_id": deal_id, "features": {}}
@@ -214,7 +220,7 @@ class AIResponseRepository:
 
         return lifecycle
 
-    def get_analytics(self, days: int = 30) -> dict[str, Any]:
+    async def get_analytics(self, days: int = 30) -> dict[str, Any]:
         """
         Get analytics about AI usage
 
@@ -227,31 +233,33 @@ class AIResponseRepository:
         cutoff_date = datetime.utcnow() - timedelta(days=days)
 
         # Aggregate by feature
-        results = (
-            self.db.query(
+        result = await self.db.execute(
+            select(
                 AIResponse.feature,
                 func.count(AIResponse.id).label("count"),
                 func.sum(func.case((AIResponse.llm_used == 1, 1), else_=0)).label("llm_count"),
-                func.sum(func.case((AIResponse.llm_used == 0, 1), else_=0)).label("fallback_count"),
+                func.sum(func.case((AIResponse.llm_used == 0, 1), else_=0)).label(
+                    "fallback_count"
+                ),
                 func.sum(AIResponse.tokens_used).label("total_tokens"),
             )
             .filter(AIResponse.timestamp >= cutoff_date)
             .group_by(AIResponse.feature)
-            .all()
         )
+        results = result.all()
 
         analytics = {"period_days": days, "features": {}}
-        for result in results:
-            analytics["features"][result.feature] = {
-                "total_calls": result.count,
-                "llm_calls": result.llm_count or 0,
-                "fallback_calls": result.fallback_count or 0,
-                "total_tokens": result.total_tokens or 0,
+        for row in results:
+            analytics["features"][row.feature] = {
+                "total_calls": row.count,
+                "llm_calls": row.llm_count or 0,
+                "fallback_calls": row.fallback_count or 0,
+                "total_tokens": row.total_tokens or 0,
             }
 
         return analytics
 
-    def delete_by_deal_id(self, deal_id: int) -> int:
+    async def delete_by_deal_id(self, deal_id: int) -> int:
         """
         Delete all AI responses for a deal
 
@@ -261,13 +269,19 @@ class AIResponseRepository:
         Returns:
             Number of records deleted
         """
-        count = self.db.query(AIResponse).filter(AIResponse.deal_id == deal_id).delete()
-        self.db.commit()
+        result = await self.db.execute(
+            select(AIResponse).filter(AIResponse.deal_id == deal_id)
+        )
+        responses_to_delete = result.scalars().all()
+        for response in responses_to_delete:
+            await self.db.delete(response)
+        await self.db.commit()
+        count = len(responses_to_delete)
         logger.info(f"Deleted {count} AI responses for deal {deal_id}")
         return count
 
 
 # Factory function to create repository with db session
-def get_ai_response_repository(db: Session) -> AIResponseRepository:
+def get_ai_response_repository(db: AsyncSession) -> AIResponseRepository:
     """Factory function to create repository with db session"""
     return AIResponseRepository(db)

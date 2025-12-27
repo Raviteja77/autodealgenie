@@ -14,7 +14,9 @@ from app.repositories.user_preferences_repository import UserPreferencesReposito
 @pytest.fixture
 def db_session():
     """Create a test database session"""
-    # Use in-memory SQLite for testing
+    # NOTE: These tests use SQLite for simplicity, but production uses PostgreSQL with JSONB
+    # SQLite doesn't support JSONB natively, so some functionality may differ
+    # For full testing, use PostgreSQL test database or testcontainers
     engine = create_engine("sqlite:///:memory:")
     # Import Base and create all tables
     from app.db.session import Base

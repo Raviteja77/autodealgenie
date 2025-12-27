@@ -39,17 +39,9 @@ This guide helps you migrate from Kafka+MongoDB to RabbitMQ+PostgreSQL JSONB inf
 
 **Migration steps:**
 
-1. **Update environment variables:**
-   - Remove: `MONGODB_URL`, `MONGODB_DB_NAME`
-
-2. **Run database migrations:**
-   ```bash
-   docker-compose exec backend alembic upgrade head
-   ```
-
-3. **Data migration (optional):**
+1. **Export existing MongoDB data (optional, do this FIRST if you want to preserve data):**
    
-   If you have existing MongoDB data you want to preserve, follow these steps:
+   If you have existing MongoDB data you want to preserve, export it before removing MongoDB:
 
    a. **Export MongoDB data:**
    ```bash
@@ -79,7 +71,24 @@ This guide helps you migrate from Kafka+MongoDB to RabbitMQ+PostgreSQL JSONB inf
    docker cp autodealgenie-mongodb:/tmp/ai_responses.json ./
    ```
 
-   c. **Create migration script** (Python example):
+2. **Update environment variables:**
+   - Remove: `MONGODB_URL`, `MONGODB_DB_NAME`
+
+3. **Deploy new code and restart services:**
+   ```bash
+   git pull
+   docker-compose down
+   docker-compose up -d
+   ```
+
+4. **Run database migrations:**
+   ```bash
+   docker-compose exec backend alembic upgrade head
+   ```
+
+5. **Import MongoDB data into PostgreSQL (optional):**
+   
+   If you exported MongoDB data in step 1, import it now:
    ```python
    import json
    from sqlalchemy import create_engine
@@ -105,9 +114,8 @@ This guide helps you migrate from Kafka+MongoDB to RabbitMQ+PostgreSQL JSONB inf
        session.commit()
    ```
 
-4. **Remove MongoDB containers:**
+6. **Clean up MongoDB volume (optional):**
    ```bash
-   docker-compose down mongodb
    docker volume rm autodealgenie_mongodb_data
    ```
 

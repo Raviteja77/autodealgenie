@@ -580,13 +580,8 @@ class NegotiationService:
                 messages=None,  # Will fetch messages inside the method
             )
 
-            # TODO: Log AI response to PostgreSQL for analytics and traceability
-            # Requires refactoring to use synchronous repository with db session
-            # try:
-            #     ai_response_repo = get_ai_response_repository(self.db)
-            #     ai_response_repo.create_response(...)
-            # except Exception as e:
-            #     logger.error(f"[{request_id}] Failed to log AI response: {str(e)}")
+            # TODO: Re-enable AI response logging with async repository
+            # This feature requires refactoring the repository to work with async sessions
             # Don't fail the main operation if logging fails
 
             return {
@@ -639,13 +634,8 @@ class NegotiationService:
                 messages=None,  # Will fetch messages inside the method
             )
 
-            # TODO: Log fallback response to PostgreSQL
-            # Requires refactoring to use synchronous repository with db session
-            # try:
-            #     ai_response_repo = get_ai_response_repository(self.db)
-            #     ai_response_repo.create_response(...)
-            # except Exception as log_error:
-            #     logger.error(f"[{request_id}] Failed to log fallback AI response: {str(log_error)}")
+            # TODO: Re-enable AI fallback response logging with async repository
+            # This feature requires refactoring the repository to work with async sessions
 
             return {
                 "content": fallback_content,

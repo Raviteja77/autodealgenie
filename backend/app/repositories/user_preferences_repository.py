@@ -5,8 +5,8 @@ Replaces MongoDB-based user_preferences_service.py
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import desc
-from sqlalchemy.orm import Session
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.jsonb_data import UserPreference
 
@@ -14,10 +14,10 @@ from app.models.jsonb_data import UserPreference
 class UserPreferencesRepository:
     """Repository for managing user car preferences in PostgreSQL"""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def save_user_preferences(
+    async def save_user_preferences(
         self,
         user_id: str,
         makes: list[str] | None = None,
@@ -54,11 +54,11 @@ class UserPreferencesRepository:
         )
 
         self.db.add(user_pref)
-        self.db.commit()
-        self.db.refresh(user_pref)
+        await self.db.commit()
+        await self.db.refresh(user_pref)
         return user_pref
 
-    def get_user_preferences(self, user_id: str) -> list[UserPreference]:
+    async def get_user_preferences(self, user_id: str) -> list[UserPreference]:
         """
         Retrieve all saved preferences for a specific user
 
@@ -68,14 +68,14 @@ class UserPreferencesRepository:
         Returns:
             List of UserPreference instances
         """
-        return (
-            self.db.query(UserPreference)
+        result = await self.db.execute(
+            select(UserPreference)
             .filter(UserPreference.user_id == user_id)
             .order_by(desc(UserPreference.created_at))
-            .all()
         )
+        return result.scalars().all()
 
-    def get_latest_user_preference(self, user_id: str) -> UserPreference | None:
+    async def get_latest_user_preference(self, user_id: str) -> UserPreference | None:
         """
         Get the most recent preference for a user
 
@@ -85,14 +85,15 @@ class UserPreferencesRepository:
         Returns:
             Latest UserPreference or None
         """
-        return (
-            self.db.query(UserPreference)
+        result = await self.db.execute(
+            select(UserPreference)
             .filter(UserPreference.user_id == user_id)
             .order_by(desc(UserPreference.created_at))
-            .first()
+            .limit(1)
         )
+        return result.scalar_one_or_none()
 
-    def update_user_preferences(
+    async def update_user_preferences(
         self,
         user_id: str,
         makes: list[str] | None = None,
@@ -116,7 +117,7 @@ class UserPreferencesRepository:
             New UserPreference instance
         """
         # Get the most recent preference to merge with new data
-        existing = self.get_latest_user_preference(user_id)
+        existing = await self.get_latest_user_preference(user_id)
 
         # Prepare updated preferences
         if existing and existing.preferences:
@@ -143,7 +144,7 @@ class UserPreferencesRepository:
             updated_preferences["features"] = features
 
         # Create new record with updated data
-        return self.save_user_preferences(
+        return await self.save_user_preferences(
             user_id=user_id,
             makes=updated_preferences.get("makes"),
             budget_range=updated_preferences.get("budget_range"),
@@ -152,7 +153,7 @@ class UserPreferencesRepository:
             features=updated_preferences.get("features"),
         )
 
-    def delete_older_preferences(self, days: int = 30) -> int:
+    async def delete_older_preferences(self, days: int = 30) -> int:
         """
         Delete preferences older than specified number of days
 
@@ -163,8 +164,11 @@ class UserPreferencesRepository:
             Number of records deleted
         """
         cutoff_date = datetime.now(UTC) - timedelta(days=days)
-        result = (
-            self.db.query(UserPreference).filter(UserPreference.created_at < cutoff_date).delete()
+        result = await self.db.execute(
+            select(UserPreference).filter(UserPreference.created_at < cutoff_date)
         )
-        self.db.commit()
-        return result
+        preferences_to_delete = result.scalars().all()
+        for pref in preferences_to_delete:
+            await self.db.delete(pref)
+        await self.db.commit()
+        return len(preferences_to_delete)

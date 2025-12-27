@@ -59,7 +59,6 @@ def upgrade():
     op.create_index("ix_search_history_id", "search_history", ["id"])
     op.create_index("ix_search_history_user_id", "search_history", ["user_id"])
     op.create_index("ix_search_history_session_id", "search_history", ["session_id"])
-    op.create_index("ix_search_history_timestamp", "search_history", ["timestamp"])
     op.create_index("idx_search_history_timestamp", "search_history", ["timestamp"])
 
     # Create ai_responses table
@@ -114,7 +113,6 @@ def downgrade():
 
     # Drop search_history table
     op.drop_index("idx_search_history_timestamp", table_name="search_history")
-    op.drop_index("ix_search_history_timestamp", table_name="search_history")
     op.drop_index("ix_search_history_session_id", table_name="search_history")
     op.drop_index("ix_search_history_user_id", table_name="search_history")
     op.drop_index("ix_search_history_id", table_name="search_history")

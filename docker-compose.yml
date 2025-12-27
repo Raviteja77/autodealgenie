@@ -32,12 +32,14 @@ services:
       retries: 5
 
   # RabbitMQ Message Broker
+  # SECURITY WARNING: Default credentials are used below - CHANGE THESE IN PRODUCTION!
+  # For production, use environment variable files with restricted permissions or Docker secrets
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: autodealgenie-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: autodealgenie
-      RABBITMQ_DEFAULT_PASS: autodealgenie_password
+      RABBITMQ_DEFAULT_PASS: autodealgenie_password  # WARNING: Change in production
       RABBITMQ_DEFAULT_VHOST: /
     ports:
       - "5672:5672"    # AMQP port

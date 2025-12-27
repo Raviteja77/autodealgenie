@@ -2,6 +2,8 @@
 Core configuration settings for AutoDealGenie
 """
 
+from urllib.parse import quote_plus
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -53,7 +55,10 @@ class Settings(BaseSettings):
 
     @property
     def RABBITMQ_URL(self) -> str:
-        return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}{self.RABBITMQ_VHOST}"
+        # Encode username and password to handle special characters
+        encoded_user = quote_plus(self.RABBITMQ_USER)
+        encoded_password = quote_plus(self.RABBITMQ_PASSWORD)
+        return f"amqp://{encoded_user}:{encoded_password}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}{self.RABBITMQ_VHOST}"
 
     # OpenAI / OpenRouter
     OPENAI_API_KEY: str | None = None

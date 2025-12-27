@@ -31,7 +31,9 @@ class RabbitMQ:
             # Set QoS for fair dispatch
             await cls.channel.set_qos(prefetch_count=1)
             logger.info("Successfully connected to RabbitMQ")
-            logger.info(f"Using URL: {settings.RABBITMQ_URL.split('@')[-1]}")  # Hide credentials
+            logger.info(
+                f"Connected to: {settings.RABBITMQ_HOST}:{settings.RABBITMQ_PORT}{settings.RABBITMQ_VHOST}"
+            )
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
             raise

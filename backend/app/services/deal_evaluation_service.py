@@ -222,13 +222,8 @@ class DealEvaluationService:
             # Cache the successful result
             await self._set_cached_evaluation(cache_key, result)
 
-            # TODO: Log AI response to PostgreSQL for analytics and traceability
-            # Requires refactoring to use synchronous repository with db session
-            # try:
-            #     ai_response_repo = get_ai_response_repository(self.db)
-            #     ai_response_repo.create_response(...)
-            # except Exception as log_error:
-            #     logger.error(f"Failed to log evaluation AI response: {str(log_error)}")
+            # TODO: Re-enable AI response logging with async repository
+            # This feature requires refactoring the repository to work with async sessions
 
             return result
 
