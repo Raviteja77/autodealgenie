@@ -26,7 +26,7 @@ class TestRabbitMQProducer:
             mock_channel = AsyncMock()
             mock_exchange = AsyncMock()
             mock_channel.default_exchange = mock_exchange
-            mock_rabbitmq.get_channel.return_value = mock_channel
+            mock_rabbitmq.get_channel = AsyncMock(return_value=mock_channel)
 
             await producer.send_message("test_queue", test_message)
 
@@ -91,7 +91,6 @@ class TestRabbitMQIntegration:
     """Integration tests for RabbitMQ services"""
 
     @pytest.mark.asyncio
-    @pytest.mark.integration
     @pytest.mark.skip(reason="Requires live RabbitMQ instance - run manually with RabbitMQ running")
     async def test_producer_consumer_integration(self):
         """Test that producer can send and consumer can receive messages"""

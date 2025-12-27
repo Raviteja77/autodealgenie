@@ -22,6 +22,7 @@ from app.db.redis import redis_client
 from app.llm import generate_structured_json
 from app.llm.llm_client import llm_client
 from app.llm.schemas import CarSelectionResponse
+
 # Note: Repository imports commented out - they require database session dependency injection
 # from app.repositories.ai_response_repository import AIResponseRepository
 # from app.repositories.search_history_repository import SearchHistoryRepository
