@@ -170,7 +170,7 @@ def test_get_car_recommendations_success(
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
-            return_value=mock_service_response,
+            new=AsyncMock(return_value=mock_service_response),
         ):
             response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
@@ -211,7 +211,7 @@ def test_get_car_recommendations_minimal_input(
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
-            return_value=mock_service_response,
+            new=AsyncMock(return_value=mock_service_response),
         ):
             response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
@@ -242,7 +242,7 @@ def test_get_car_recommendations_no_results(authenticated_client, mock_rate_limi
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
-            return_value=empty_response,
+            new=AsyncMock(return_value=empty_response),
         ):
             response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
@@ -286,7 +286,7 @@ def test_get_car_recommendations_validation_error(authenticated_client, mock_rat
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
-            side_effect=ValueError("Invalid budget range"),
+            new=AsyncMock(side_effect=ValueError("Invalid budget range")),
         ):
             response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
@@ -308,7 +308,7 @@ def test_get_car_recommendations_connection_error(authenticated_client, mock_rat
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
-            side_effect=ConnectionError("MarketCheck API unavailable"),
+            new=AsyncMock(side_effect=ConnectionError("MarketCheck API unavailable")),
         ):
             response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
@@ -329,7 +329,7 @@ def test_get_car_recommendations_internal_error(authenticated_client, mock_rate_
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
-            side_effect=Exception("Unexpected error"),
+            new=AsyncMock(side_effect=Exception("Unexpected error")),
         ):
             response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
@@ -376,7 +376,7 @@ def test_get_car_recommendations_with_all_preferences(
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
-            return_value=mock_service_response,
+            new=AsyncMock(return_value=mock_service_response),
         ) as mock_search:
             response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
@@ -459,7 +459,7 @@ def test_must_have_features_integration(
     ):
         with patch(
             "app.services.car_recommendation_service.car_recommendation_service.search_and_recommend",
-            return_value=mock_service_response,
+            new=AsyncMock(return_value=mock_service_response),
         ) as mock_search:
             response = authenticated_client.post("/api/v1/recommendations/cars", json=request_data)
 
