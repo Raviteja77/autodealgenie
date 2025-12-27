@@ -89,7 +89,7 @@ describe('SaveSearchModal', () => {
     const input = screen.getByLabelText(/search name/i);
     await user.type(input, 'Test Search');
 
-    const saveButton = screen.getByText('Save');
+    const saveButton = screen.getByRole('button', { name: /save/i });
     fireEvent.click(saveButton);
 
     await waitFor(() => {
@@ -116,7 +116,7 @@ describe('SaveSearchModal', () => {
     const input = screen.getByLabelText(/search name/i);
     await user.type(input, 'Test Search');
 
-    const saveButton = screen.getByText('Save');
+    const saveButton = screen.getByRole('button', { name: /save/i });
     fireEvent.click(saveButton);
 
     await waitFor(() => {
@@ -140,11 +140,11 @@ describe('SaveSearchModal', () => {
     const input = screen.getByLabelText(/search name/i);
     await user.type(input, 'Test Search');
 
-    const saveButton = screen.getByText('Save');
+    const saveButton = screen.getByRole('button', { name: /save/i });
     fireEvent.click(saveButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/failed to save search/i)).toBeInTheDocument();
+      expect(screen.getByText(/save failed/i)).toBeInTheDocument();
     });
   });
 
@@ -165,7 +165,7 @@ describe('SaveSearchModal', () => {
     const input = screen.getByLabelText(/search name/i);
     await user.type(input, 'Test Search');
 
-    const saveButton = screen.getByText('Save');
+    const saveButton = screen.getByRole('button', { name: /save/i });
     fireEvent.click(saveButton);
 
     // Button should be disabled while saving
@@ -182,7 +182,7 @@ describe('SaveSearchModal', () => {
       />
     );
 
-    const cancelButton = screen.getByText('Cancel');
+    const cancelButton = screen.getByRole('button', { name: /cancel/i });
     fireEvent.click(cancelButton);
 
     expect(mockOnClose).toHaveBeenCalled();
