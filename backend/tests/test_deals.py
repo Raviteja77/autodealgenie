@@ -174,3 +174,105 @@ def test_delete_nonexistent_deal(authenticated_client):
     """Test deleting a non-existent deal"""
     response = authenticated_client.delete("/api/v1/deals/99999")
     assert response.status_code == 404
+
+
+def test_search_deal_by_email_and_vin(authenticated_client, mock_user):
+    """Test searching for a deal by customer email and vehicle VIN"""
+    # First create a deal
+    deal_data = {
+        "customer_name": "Search Test",
+        "customer_email": mock_user.email,  # Use authenticated user's email
+        "vehicle_make": "Tesla",
+        "vehicle_model": "Model 3",
+        "vehicle_vin": "5YJ3E1EA1KF123456",
+        "vehicle_year": 2023,
+        "vehicle_mileage": 5000,
+        "asking_price": 45000.00,
+        "status": "pending",
+    }
+
+    create_response = authenticated_client.post("/api/v1/deals/", json=deal_data)
+    assert create_response.status_code == 201
+    created_deal = create_response.json()
+
+    # Search for the deal using email and VIN
+    response = authenticated_client.get(
+        f"/api/v1/deals/search?customer_email={deal_data['customer_email']}&vehicle_vin={deal_data['vehicle_vin']}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == created_deal["id"]
+    assert data["customer_email"] == deal_data["customer_email"]
+    assert data["vehicle_vin"] == deal_data["vehicle_vin"]
+
+
+def test_search_nonexistent_deal(authenticated_client, mock_user):
+    """Test searching for a non-existent deal returns 404"""
+    response = authenticated_client.get(
+        f"/api/v1/deals/search?customer_email={mock_user.email}&vehicle_vin=NONEXISTENT12345"
+    )
+    assert response.status_code == 404
+    data = response.json()
+    assert "not found" in data["detail"].lower()
+
+
+def test_search_deal_unauthorized_access(authenticated_client, mock_user):
+    """Test that users cannot search deals for other users' emails"""
+    # Create a deal with a different email
+    deal_data = {
+        "customer_name": "Other User",
+        "customer_email": "otheruser@example.com",  # Different from mock_user.email
+        "vehicle_make": "BMW",
+        "vehicle_model": "X5",
+        "vehicle_vin": "WBAJW7C51HG456789",
+        "vehicle_year": 2022,
+        "vehicle_mileage": 10000,
+        "asking_price": 55000.00,
+        "status": "pending",
+    }
+
+    create_response = authenticated_client.post("/api/v1/deals/", json=deal_data)
+    assert create_response.status_code == 201
+
+    # Try to search for it with authenticated user (should be forbidden)
+    response = authenticated_client.get(
+        f"/api/v1/deals/search?customer_email={deal_data['customer_email']}&vehicle_vin={deal_data['vehicle_vin']}"
+    )
+    assert response.status_code == 403
+    data = response.json()
+    assert "permission" in data["detail"].lower()
+
+
+def test_search_deal_filters_correctly(authenticated_client, mock_user):
+    """Test that the search correctly filters by both email and VIN"""
+    # Create two deals with same VIN but different emails
+    deal1_data = {
+        "customer_name": "User One",
+        "customer_email": mock_user.email,
+        "vehicle_make": "Honda",
+        "vehicle_model": "Civic",
+        "vehicle_vin": "2HGFC2F59MH123456",
+        "vehicle_year": 2021,
+        "vehicle_mileage": 15000,
+        "asking_price": 22000.00,
+        "status": "pending",
+    }
+
+    # Create first deal
+    create_response1 = authenticated_client.post("/api/v1/deals/", json=deal1_data)
+    assert create_response1.status_code == 201
+    deal1 = create_response1.json()
+
+    # Search with correct email and VIN should find the deal
+    response = authenticated_client.get(
+        f"/api/v1/deals/search?customer_email={deal1_data['customer_email']}&vehicle_vin={deal1_data['vehicle_vin']}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == deal1["id"]
+
+    # Search with correct email but wrong VIN should return 404
+    response = authenticated_client.get(
+        f"/api/v1/deals/search?customer_email={deal1_data['customer_email']}&vehicle_vin=WRONGVIN123456"
+    )
+    assert response.status_code == 404

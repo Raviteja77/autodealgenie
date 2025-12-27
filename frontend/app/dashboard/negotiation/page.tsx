@@ -294,8 +294,25 @@ function NegotiationContent() {
             vehicleVin
           );
           dealId = existingDeal.id;
-        } catch {
-          // Deal not found, create new one
+        } catch (error: unknown) {
+          // Check if this is a legitimate 404 (deal not found) or another error
+          const isNotFound = 
+            error && 
+            typeof error === 'object' && 
+            'status' in error && 
+            error.status === 404;
+          
+          if (!isNotFound) {
+            // This is not a "deal not found" error - it could be network, auth, etc.
+            console.error("Unexpected error checking for existing deal:", error);
+            throw new Error(
+              error instanceof Error 
+                ? error.message 
+                : "Failed to check for existing deal"
+            );
+          }
+          
+          // Deal not found (404), create new one
           const dealData: DealCreate = {
             customer_name: user?.full_name || user?.username || "Guest User",
             customer_email: customerEmail,
