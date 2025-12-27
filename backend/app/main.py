@@ -34,10 +34,10 @@ async def lifespan(app: FastAPI):
     print("Starting up AutoDealGenie backend...")
 
     # Import here to avoid circular dependency issues during module initialization
-    from app.db.redis import redis_client
     from app.db.in_memory_cache import in_memory_cache
-    from app.db.rabbitmq import rabbitmq
     from app.db.in_memory_queue import in_memory_queue
+    from app.db.rabbitmq import rabbitmq
+    from app.db.redis import redis_client
 
     # Track which services are actually being used (for cleanup)
     using_redis = settings.USE_REDIS
@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
             print(f"WARNING: Failed to initialize Redis: {e}")
             print("Falling back to in-memory cache")
             using_redis = False
-    
+
     if not using_redis:
         print("Using in-memory cache (Redis disabled)")
 

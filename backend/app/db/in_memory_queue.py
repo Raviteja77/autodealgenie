@@ -6,7 +6,8 @@ Used as a fallback when RabbitMQ is not available (e.g., GCP Free Tier)
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +71,7 @@ class InMemoryQueue:
                     f"For production use, set USE_RABBITMQ=true."
                 )
 
-    async def consume(
-        self, queue_name: str, callback: Callable[[dict[str, Any]], None]
-    ) -> None:
+    async def consume(self, queue_name: str, callback: Callable[[dict[str, Any]], None]) -> None:
         """
         Consume messages from queue
 
@@ -87,11 +86,9 @@ class InMemoryQueue:
         # Start consuming existing messages
         while self.running:
             try:
-                message = await asyncio.wait_for(
-                    self.queues[queue_name].get(), timeout=1.0
-                )
+                message = await asyncio.wait_for(self.queues[queue_name].get(), timeout=1.0)
                 await callback(message)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except Exception as e:
                 logger.error(f"Error consuming message: {str(e)}")
