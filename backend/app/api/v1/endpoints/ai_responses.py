@@ -4,10 +4,12 @@ Provides access to comprehensive AI interaction logs and analytics
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
+from app.db.session import get_async_db
 from app.models.models import User
-from app.repositories.ai_response_repository import ai_response_repository
+from app.repositories.ai_response_repository import AIResponseRepository
 
 router = APIRouter()
 
@@ -18,6 +20,7 @@ async def get_deal_ai_history(
     current_user: User = Depends(get_current_user),
     limit: int = Query(100, ge=1, le=500),
     skip: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get all AI responses for a specific deal.
@@ -40,11 +43,25 @@ async def get_deal_ai_history(
     # In a production system, deals should have a user_id foreign key
 
     try:
-        responses = await ai_response_repository.get_by_deal_id(deal_id, limit=limit, skip=skip)
+        repo = AIResponseRepository(db)
+        responses = await repo.get_by_deal_id(deal_id, limit=limit, skip=skip)
         return {
             "deal_id": deal_id,
             "count": len(responses),
-            "responses": responses,
+            "responses": [
+                {
+                    "id": r.id,
+                    "feature": r.feature,
+                    "prompt_id": r.prompt_id,
+                    "response_content": r.response_content,
+                    "response_metadata": r.response_metadata,
+                    "model_used": r.model_used,
+                    "tokens_used": r.tokens_used,
+                    "llm_used": bool(r.llm_used),
+                    "timestamp": r.timestamp.isoformat(),
+                }
+                for r in responses
+            ],
         }
     except Exception as e:
         raise HTTPException(
@@ -58,6 +75,7 @@ async def get_user_ai_history(
     current_user: User = Depends(get_current_user),
     limit: int = Query(100, ge=1, le=500),
     skip: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get all AI responses for a specific user.
@@ -81,11 +99,25 @@ async def get_user_ai_history(
         raise HTTPException(status_code=403, detail="Not authorized to view this user's history")
 
     try:
-        responses = await ai_response_repository.get_by_user_id(user_id, limit=limit, skip=skip)
+        repo = AIResponseRepository(db)
+        responses = await repo.get_by_user_id(user_id, limit=limit, skip=skip)
         return {
             "user_id": user_id,
             "count": len(responses),
-            "responses": responses,
+            "responses": [
+                {
+                    "id": r.id,
+                    "feature": r.feature,
+                    "prompt_id": r.prompt_id,
+                    "response_content": r.response_content,
+                    "response_metadata": r.response_metadata,
+                    "model_used": r.model_used,
+                    "tokens_used": r.tokens_used,
+                    "llm_used": bool(r.llm_used),
+                    "timestamp": r.timestamp.isoformat(),
+                }
+                for r in responses
+            ],
         }
     except Exception as e:
         raise HTTPException(
@@ -100,6 +132,7 @@ async def get_feature_ai_history(
     user_id: int | None = Query(None),
     limit: int = Query(100, ge=1, le=500),
     skip: int = Query(0, ge=0),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get AI responses for a specific feature.
@@ -124,7 +157,8 @@ async def get_feature_ai_history(
         raise HTTPException(status_code=403, detail="Not authorized to view this user's history")
 
     try:
-        responses = await ai_response_repository.get_by_feature(
+        repo = AIResponseRepository(db)
+        responses = await repo.get_by_feature(
             feature=feature,
             user_id=user_id,
             limit=limit,
@@ -134,7 +168,20 @@ async def get_feature_ai_history(
             "feature": feature,
             "user_id": user_id,
             "count": len(responses),
-            "responses": responses,
+            "responses": [
+                {
+                    "id": r.id,
+                    "feature": r.feature,
+                    "prompt_id": r.prompt_id,
+                    "response_content": r.response_content,
+                    "response_metadata": r.response_metadata,
+                    "model_used": r.model_used,
+                    "tokens_used": r.tokens_used,
+                    "llm_used": bool(r.llm_used),
+                    "timestamp": r.timestamp.isoformat(),
+                }
+                for r in responses
+            ],
         }
     except Exception as e:
         raise HTTPException(
@@ -146,6 +193,7 @@ async def get_feature_ai_history(
 async def get_deal_lifecycle(
     deal_id: int,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get comprehensive lifecycle of AI interactions for a deal.
@@ -164,7 +212,8 @@ async def get_deal_lifecycle(
     # For now, we rely on the fact that deal_id is in the AI responses with user_id
 
     try:
-        lifecycle = await ai_response_repository.get_deal_lifecycle(deal_id)
+        repo = AIResponseRepository(db)
+        lifecycle = await repo.get_deal_lifecycle(deal_id)
         return lifecycle
     except Exception as e:
         raise HTTPException(
@@ -176,6 +225,7 @@ async def get_deal_lifecycle(
 async def get_ai_analytics(
     current_user: User = Depends(get_current_user),
     days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get analytics about AI usage across the platform.
@@ -198,7 +248,8 @@ async def get_ai_analytics(
         raise HTTPException(status_code=403, detail="Superuser access required for analytics")
 
     try:
-        analytics = await ai_response_repository.get_analytics(days=days)
+        repo = AIResponseRepository(db)
+        analytics = await repo.get_analytics(days=days)
         return analytics
     except Exception as e:
         raise HTTPException(

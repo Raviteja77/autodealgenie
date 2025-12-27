@@ -3,11 +3,11 @@ Car recommendation endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.core.rate_limiter import car_search_rate_limiter
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.models import User
 from app.schemas.car_recommendation import (
     CarRecommendationItem,
@@ -23,7 +23,7 @@ router = APIRouter()
 async def get_car_recommendations(
     user_preferences: UserPreferenceInput,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get car recommendations based on user preferences

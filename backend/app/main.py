@@ -18,8 +18,8 @@ from app.core.logging import configure_logging
 from app.metrics import initialize_metrics
 from app.middleware.error_middleware import ErrorHandlerMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
-from app.services.kafka_consumer import deals_consumer, handle_deal_message
-from app.services.kafka_producer import kafka_producer
+from app.services.rabbitmq_consumer import deals_consumer, handle_deal_message
+from app.services.rabbitmq_producer import rabbitmq_producer
 
 
 @asynccontextmanager
@@ -34,16 +34,16 @@ async def lifespan(app: FastAPI):
     print("Starting up AutoDealGenie backend...")
 
     # Import here to avoid circular dependency issues during module initialization
-    from app.db.mongodb import mongodb
+    from app.db.rabbitmq import rabbitmq
     from app.db.redis import redis_client
 
-    # Initialize MongoDB connection
+    # Initialize RabbitMQ connection
     try:
-        await mongodb.connect_db()
-        print(f"MongoDB connected to {settings.MONGODB_DB_NAME} database")
+        await rabbitmq.connect()
+        print("RabbitMQ connected successfully")
     except Exception as e:
-        print(f"CRITICAL: Failed to initialize MongoDB: {e}")
-        print("Application cannot start without MongoDB. Please check your configuration.")
+        print(f"CRITICAL: Failed to initialize RabbitMQ: {e}")
+        print("Application cannot start without RabbitMQ. Please check your configuration.")
         raise
 
     # Initialize Redis connection
@@ -55,17 +55,17 @@ async def lifespan(app: FastAPI):
         print("Application cannot start without Redis. Please check your configuration.")
         raise
 
-    # Initialize Kafka producer and consumers
+    # Initialize RabbitMQ producer and consumers
     try:
-        await kafka_producer.start()
+        await rabbitmq_producer.start()
         await deals_consumer.start()
         # Start consumer in background task
         deals_task = asyncio.create_task(deals_consumer.consume_messages(handle_deal_message))
         consumer_tasks.append(deals_task)
-        print("Kafka services initialized successfully")
+        print("RabbitMQ services initialized successfully")
     except Exception as e:
-        print(f"WARNING: Failed to initialize Kafka: {e}")
-        print("Application will continue without Kafka features.")
+        print(f"WARNING: Failed to initialize RabbitMQ services: {e}")
+        print("Application will continue without messaging features.")
 
     if settings.USE_MOCK_SERVICES:
         print("Mock services are ENABLED - using mock endpoints for development")
@@ -74,24 +74,24 @@ async def lifespan(app: FastAPI):
     print("Shutting down AutoDealGenie backend...")
 
     # Close connections
-    await mongodb.close_db()
-    print("MongoDB connection closed")
+    await rabbitmq.close()
+    print("RabbitMQ connection closed")
 
     await redis_client.close_redis()
     print("Redis connection closed")
 
-    # Stop Kafka consumers and producer
+    # Stop RabbitMQ consumers and producer
     try:
         for task in consumer_tasks:
             task.cancel()
         await asyncio.gather(*consumer_tasks, return_exceptions=True)
         if deals_consumer:
             await deals_consumer.stop()
-        if kafka_producer:
-            await kafka_producer.stop()
-        print("Kafka services stopped")
+        if rabbitmq_producer:
+            await rabbitmq_producer.stop()
+        print("RabbitMQ services stopped")
     except Exception as e:
-        print(f"WARNING: Error stopping Kafka services: {e}")
+        print(f"WARNING: Error stopping RabbitMQ services: {e}")
 
 
 app = FastAPI(
