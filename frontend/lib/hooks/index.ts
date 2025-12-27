@@ -13,4 +13,11 @@ export { useComparison } from './useComparison';
 export { useViewMode } from './useViewMode';
 export { useSavedSearches } from './useSavedSearches';
 export { useNegotiationState } from './useNegotiationState';
+export { useFinancingCalculation, useAffordability } from './useFinancing';
+export { useDisplayMode } from './useDisplayMode';
+
 export type { CurrentOfferStatus, OfferInfo, NegotiationStateData } from './useNegotiationState';
+export type { FilterState } from './useFilters';
+export type { ComparisonVehicle } from './useComparison';
+export type { FinancingParams, PaymentCalculation } from './useFinancing';
+export type { DisplayMode, UseDisplayModeOptions } from './useDisplayMode';

@@ -76,7 +76,7 @@ describe('Formatting Utilities', () => {
 
   describe('truncateText', () => {
     it('should truncate long text', () => {
-      expect(truncateText('This is a long message', 10)).toBe('This is a...');
+      expect(truncateText('This is a long message', 10)).toBe('This is a ...');
     });
 
     it('should not truncate short text', () => {
