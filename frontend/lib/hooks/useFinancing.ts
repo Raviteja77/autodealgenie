@@ -109,7 +109,9 @@ export function useAffordability(
   return useMemo(() => {
     const isAffordable = budgetMax ? vehiclePrice <= budgetMax : true;
     const monthlyAffordable =
-      monthlyBudget && monthlyPayment ? monthlyPayment <= monthlyBudget : true;
+      monthlyBudget && monthlyPayment 
+        ? monthlyPayment <= monthlyBudget 
+        : monthlyBudget === undefined || monthlyPayment === undefined;
     
     const overBudgetAmount = budgetMax && !isAffordable 
       ? vehiclePrice - budgetMax 

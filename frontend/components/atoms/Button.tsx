@@ -30,6 +30,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       variant = 'primary',
       size = 'md',
       isLoading = false,
+      loadingText = 'Loading...',
       leftIcon,
       rightIcon,
       fullWidth = false,
@@ -83,7 +84,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         endIcon={rightIcon}
         {...props}
       >
-        {isLoading ? 'Loading...' : children}
+        {isLoading ? loadingText : children}
       </StyledButton>
     );
   }

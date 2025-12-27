@@ -8,6 +8,7 @@ export interface ButtonProps extends Omit<MuiButtonProps, 'variant' | 'size' | '
   variant?: ButtonVariant;
   size?: ButtonSize;
   isLoading?: boolean;
+  loadingText?: string;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   fullWidth?: boolean;

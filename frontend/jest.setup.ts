@@ -22,7 +22,20 @@ jest.mock('next/navigation', () => ({
 // Mock Next.js Image component
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: Record<string, unknown>) => {
+  default: (props: {
+    src: string;
+    alt: string;
+    width?: number;
+    height?: number;
+    fill?: boolean;
+    quality?: number;
+    priority?: boolean;
+    loading?: 'lazy' | 'eager';
+    placeholder?: 'blur' | 'empty';
+    style?: React.CSSProperties;
+    sizes?: string;
+    [key: string]: unknown;
+  }) => {
     // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
     return React.createElement('img', props);
   },

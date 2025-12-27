@@ -101,6 +101,14 @@ describe('useAffordability', () => {
     expect(result.current.monthlyAffordable).toBe(true);
   });
 
+  it('returns true for monthlyAffordable when values not provided', () => {
+    const { result } = renderHook(() => 
+      useAffordability(25000, undefined, undefined, undefined)
+    );
+    
+    expect(result.current.monthlyAffordable).toBe(true);
+  });
+
   it('detects over monthly budget', () => {
     const { result } = renderHook(() => 
       useAffordability(25000, undefined, 700, 600)

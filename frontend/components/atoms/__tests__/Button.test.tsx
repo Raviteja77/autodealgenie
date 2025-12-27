@@ -35,6 +35,12 @@ describe('Button', () => {
     expect(screen.getByRole('button')).toBeDisabled();
   });
 
+  it('shows custom loading text', () => {
+    render(<Button isLoading loadingText="Submitting...">Submit</Button>);
+    expect(screen.getByText('Submitting...')).toBeInTheDocument();
+    expect(screen.getByRole('button')).toBeDisabled();
+  });
+
   it('is disabled when disabled prop is true', () => {
     render(<Button disabled>Disabled</Button>);
     expect(screen.getByRole('button')).toBeDisabled();

@@ -143,21 +143,22 @@ export const VehicleImage: React.FC<VehicleImageProps> = ({
         </Box>
       )}
 
-      {/* Badges (bottom left and top left) */}
+      {/* Badges (stacked top left) - supports multiple badges */}
       {badges.length > 0 && (
-        <>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+          }}
+        >
           {badges.map((badge, index) => (
-            <Box
-              key={`badge-${index}`}
-              sx={{
-                position: 'absolute',
-                ...(index === 0 ? { top: 8, left: 8 } : { bottom: 8, left: 8 }),
-              }}
-            >
-              {badge}
-            </Box>
+            <Box key={`badge-${index}`}>{badge}</Box>
           ))}
-        </>
+        </Box>
       )}
     </Box>
   );

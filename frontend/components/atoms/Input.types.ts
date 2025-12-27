@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
-import { TextFieldProps } from "@mui/material/TextField";
+import { ReactNode } from 'react';
+import { TextFieldProps } from '@mui/material/TextField';
 
 export interface InputProps extends Omit<TextFieldProps, "error"> {
   label?: string;
