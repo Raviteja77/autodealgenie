@@ -533,7 +533,9 @@ class CarRecommendationService:
                             llm_used=True,
                         )
                     except Exception as log_error:
-                        logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
+                        logger.error(
+                            f"Failed to log car recommendation AI response: {str(log_error)}"
+                        )
 
                 return top_vehicles
 
@@ -582,7 +584,9 @@ class CarRecommendationService:
                             llm_used=True,
                         )
                     except Exception as log_error:
-                        logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
+                        logger.error(
+                            f"Failed to log car recommendation AI response: {str(log_error)}"
+                        )
 
                 return top_vehicles
             else:
