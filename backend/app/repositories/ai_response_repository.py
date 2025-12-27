@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.jsonb_data import AIResponse
@@ -229,20 +229,21 @@ class AIResponseRepository:
             Analytics data
         """
         cutoff_date = datetime.utcnow() - timedelta(days=days)
-
+        print("DEBUG: Cutoff date:", cutoff_date)
         # Aggregate by feature
         result = await self.db.execute(
             select(
                 AIResponse.feature,
                 func.count(AIResponse.id).label("count"),
-                func.sum(func.case((AIResponse.llm_used == 1, 1), else_=0)).label("llm_count"),
-                func.sum(func.case((AIResponse.llm_used == 0, 1), else_=0)).label("fallback_count"),
+                func.sum(case((AIResponse.llm_used == 1, 1), else_=0)).label("llm_count"),
+                func.sum(case((AIResponse.llm_used == 0, 1), else_=0)).label("fallback_count"),
                 func.sum(AIResponse.tokens_used).label("total_tokens"),
             )
             .filter(AIResponse.timestamp >= cutoff_date)
             .group_by(AIResponse.feature)
         )
         results = result.all()
+        print("DEBUG:", results)
 
         analytics = {"period_days": days, "features": {}}
         for row in results:
@@ -252,7 +253,7 @@ class AIResponseRepository:
                 "fallback_calls": row.fallback_count or 0,
                 "total_tokens": row.total_tokens or 0,
             }
-
+        print("DEBUG:", analytics)
         return analytics
 
     async def delete_by_deal_id(self, deal_id: int) -> int:
