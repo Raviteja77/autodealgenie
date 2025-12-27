@@ -6,10 +6,9 @@ AI-powered automotive deal management platform built with Next.js 14 and Python 
 
 - **Next.js 14 Frontend**: Modern React framework with TypeScript, Tailwind CSS, and Server Components
 - **FastAPI Backend**: High-performance Python API with async support
-- **PostgreSQL + SQLAlchemy**: Robust relational database with ORM
-- **MongoDB + Motor**: Document database for flexible data storage
+- **PostgreSQL + SQLAlchemy**: Robust relational database with ORM and JSONB for flexible data
+- **RabbitMQ**: Reliable message broker for event streaming and task queuing
 - **Redis**: Fast caching and session management
-- **Kafka**: Event streaming and messaging
 - **LangChain + OpenAI**: AI-powered insights and automation
 - **Prometheus + Grafana**: Comprehensive monitoring and alerting
 - **Docker**: Containerized development and deployment
@@ -25,9 +24,8 @@ AI-powered automotive deal management platform built with Next.js 14 and Python 
   - Python 3.11+
   - Node.js 20+
   - PostgreSQL 16+
-  - MongoDB 7+
+  - RabbitMQ 3.13+
   - Redis 7+
-  - Kafka 3.5+
 
 ## 🏃 Quick Start with Docker
 

@@ -79,17 +79,17 @@ POSTGRES_PASSWORD=<strong-password>
 POSTGRES_DB=autodealgenie
 POSTGRES_PORT=5432
 
-# MongoDB
-MONGODB_URL=mongodb://<user>:<password>@<host>:27017
-MONGODB_DB_NAME=autodealgenie
-
 # Redis
 REDIS_HOST=<redis-host>
 REDIS_PORT=6379
 REDIS_DB=0
 
-# Kafka
-KAFKA_BOOTSTRAP_SERVERS=<kafka-host>:9092
+# RabbitMQ
+RABBITMQ_HOST=<rabbitmq-host>
+RABBITMQ_PORT=5672
+RABBITMQ_USER=<rabbitmq-user>
+RABBITMQ_PASSWORD=<strong-password>
+RABBITMQ_VHOST=/
 
 # OpenAI
 OPENAI_API_KEY=<your-api-key>

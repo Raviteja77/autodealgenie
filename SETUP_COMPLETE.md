@@ -107,6 +107,14 @@ pytest --cov=app --cov-report=term
 # Run specific file
 pytest tests/test_auth.py
 
+# backend format
+black .
+
+ruff check --fix .
+
+# frontend format
+npm run linter
+
 
 # Set environment variables (Make sure DB hosts point to localhost now)
 # You might need to edit .env to set POSTGRES_SERVER=localhost instead of 'postgres'

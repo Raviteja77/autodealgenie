@@ -1,11 +1,13 @@
 """
 User preferences API endpoints
-Demonstrates how to use the user_preferences_service
+Uses UserPreferencesRepository with database session dependency injection
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.user_preferences_service import user_preferences_service
+from app.db.session import get_async_db
+from app.repositories.user_preferences_repository import UserPreferencesRepository
 
 router = APIRouter()
 
@@ -18,6 +20,7 @@ async def save_preferences(
     year_range: dict[str, int] | None = None,
     body_types: list[str] | None = None,
     features: list[str] | None = None,
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Save user car preferences
@@ -34,7 +37,8 @@ async def save_preferences(
     ```
     """
     try:
-        await user_preferences_service.save_user_preferences(
+        repo = UserPreferencesRepository(db)
+        await repo.save_user_preferences(
             user_id=user_id,
             makes=makes,
             budget_range=budget_range,
@@ -51,17 +55,26 @@ async def save_preferences(
 
 
 @router.get("/preferences/{user_id}")
-async def get_preferences(user_id: str):
+async def get_preferences(user_id: str, db: AsyncSession = Depends(get_async_db)):
     """
     Retrieve all saved preferences for a user
 
     Returns a list of preference documents sorted by creation date (newest first)
     """
     try:
-        preferences = await user_preferences_service.get_user_preferences(user_id)
+        repo = UserPreferencesRepository(db)
+        preferences = await repo.get_user_preferences(user_id)
         return {
             "user_id": user_id,
-            "preferences": preferences,
+            "preferences": [
+                {
+                    "id": pref.id,
+                    "preferences": pref.preferences,
+                    "created_at": pref.created_at.isoformat(),
+                    "updated_at": pref.updated_at.isoformat() if pref.updated_at else None,
+                }
+                for pref in preferences
+            ],
             "count": len(preferences),
         }
     except Exception as e:
@@ -79,6 +92,7 @@ async def update_preferences(
     year_range: dict[str, int] | None = None,
     body_types: list[str] | None = None,
     features: list[str] | None = None,
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Update user car preferences
@@ -86,7 +100,8 @@ async def update_preferences(
     Creates a new preference document with merged data from the most recent preference
     """
     try:
-        await user_preferences_service.update_user_preferences(
+        repo = UserPreferencesRepository(db)
+        await repo.update_user_preferences(
             user_id=user_id,
             makes=makes,
             budget_range=budget_range,
@@ -103,7 +118,7 @@ async def update_preferences(
 
 
 @router.delete("/preferences/cleanup")
-async def cleanup_old_preferences(days: int = 30):
+async def cleanup_old_preferences(days: int = 30, db: AsyncSession = Depends(get_async_db)):
     """
     Delete preferences older than specified number of days
 
@@ -114,7 +129,8 @@ async def cleanup_old_preferences(days: int = 30):
         Number of documents deleted
     """
     try:
-        deleted_count = await user_preferences_service.delete_older_preferences(days=days)
+        repo = UserPreferencesRepository(db)
+        deleted_count = await repo.delete_older_preferences(days=days)
         return {
             "message": "Cleanup completed",
             "deleted_count": deleted_count,

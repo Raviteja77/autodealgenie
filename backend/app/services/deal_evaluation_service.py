@@ -16,7 +16,6 @@ from app.llm import generate_structured_json, llm_client
 from app.llm.schemas import DealEvaluation, VehicleConditionAssessment
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import Deal
-from app.repositories.ai_response_repository import ai_response_repository
 from app.repositories.evaluation_repository import EvaluationRepository
 from app.utils.error_handler import ApiError
 
@@ -223,32 +222,8 @@ class DealEvaluationService:
             # Cache the successful result
             await self._set_cached_evaluation(cache_key, result)
 
-            # Log AI response to MongoDB for analytics and traceability
-            try:
-                await ai_response_repository.create_response(
-                    feature="deal_evaluation",
-                    user_id=None,  # Deal evaluation is often anonymous
-                    deal_id=None,  # May not be associated with a deal yet
-                    prompt_id="evaluation",
-                    prompt_variables={
-                        "vin": vehicle_vin,
-                        "make": make or "Unknown",
-                        "model": model or "Unknown",
-                        "year": year,
-                        "asking_price": asking_price,
-                        "mileage": mileage,
-                        "condition": condition,
-                    },
-                    response_content=result,
-                    response_metadata={
-                        "score": evaluation.score,
-                        "fair_value": evaluation.fair_value,
-                    },
-                    llm_used=True,
-                )
-            except Exception as log_error:
-                logger.error(f"Failed to log evaluation AI response to MongoDB: {str(log_error)}")
-                # Don't fail the main operation if logging fails
+            # TODO: Re-enable AI response logging with async repository
+            # This feature requires refactoring the repository to work with async sessions
 
             return result
 
