@@ -48,6 +48,18 @@ class DealRepository:
         """Get deals by customer email"""
         return self.db.query(Deal).filter(Deal.customer_email == email).all()
 
+    def get_deal_by_vehicle_and_customer(
+        self, vehicle_vin: str, customer_email: str
+    ) -> Deal | None:
+        """
+        Get a deal by vehicle VIN and customer email.
+        """
+        return (
+            self.db.query(Deal)
+            .filter(Deal.vehicle_vin == vehicle_vin, Deal.customer_email == customer_email)
+            .first()
+        )
+
     def update(self, deal_id: int, deal_in: DealUpdate) -> Deal | None:
         """Update a deal"""
         deal = self.get(deal_id)

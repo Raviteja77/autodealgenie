@@ -191,7 +191,7 @@ services:
 
   # RabbitMQ Exporter - RabbitMQ metrics for Prometheus
   rabbitmq-exporter:
-    image: kbudde/rabbitmq-exporter:v1.0.0-RC19
+    image: kbudde/rabbitmq-exporter:latest
     container_name: autodealgenie-rabbitmq-exporter
     ports:
       - "9419:9419"

@@ -283,25 +283,38 @@ function NegotiationContent() {
         setLoading(true);
         setError(null);
 
-        // Sequential API calls (create deal, then negotiation)
-        // These MUST be sequential, not parallel
-        const dealData: DealCreate = {
-          customer_name: user?.full_name || user?.username || "Guest User",
-          customer_email: user?.email || "guest@autodealgenie.com",
-          vehicle_make: vehicleData.make,
-          vehicle_model: vehicleData.model,
-          vehicle_year: vehicleData.year,
-          vehicle_mileage: vehicleData.mileage,
-          vehicle_vin: vehicleData.vin || DEFAULT_VIN,
-          asking_price: vehicleData.price,
-          status: "in_progress",
-          notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
-        };
+        // Check if deal already exists
+        let dealId: number;
+        const customerEmail = user?.email || "guest@autodealgenie.com";
+        const vehicleVin = vehicleData.vin || DEFAULT_VIN;
 
-        const deal = await apiClient.createDeal(dealData);
+        try {
+          const existingDeal = await apiClient.getDealByEmailAndVin(
+            customerEmail,
+            vehicleVin
+          );
+          dealId = existingDeal.id;
+        } catch (error) {
+          // Deal not found, create new one
+          const dealData: DealCreate = {
+            customer_name: user?.full_name || user?.username || "Guest User",
+            customer_email: customerEmail,
+            vehicle_make: vehicleData.make,
+            vehicle_model: vehicleData.model,
+            vehicle_year: vehicleData.year,
+            vehicle_mileage: vehicleData.mileage,
+            vehicle_vin: vehicleVin,
+            asking_price: vehicleData.price,
+            status: "in_progress",
+            notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
+          };
+
+          const newDeal = await apiClient.createDeal(dealData);
+          dealId = newDeal.id;
+        }
 
         const response = await apiClient.createNegotiation({
-          deal_id: deal.id,
+          deal_id: dealId,
           user_target_price: targetPrice,
           strategy: "moderate",
         });
