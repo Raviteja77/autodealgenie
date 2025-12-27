@@ -193,6 +193,7 @@ async def get_feature_ai_history(
 async def get_deal_lifecycle(
     deal_id: int,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get comprehensive lifecycle of AI interactions for a deal.
@@ -211,7 +212,8 @@ async def get_deal_lifecycle(
     # For now, we rely on the fact that deal_id is in the AI responses with user_id
 
     try:
-        lifecycle = await ai_response_repository.get_deal_lifecycle(deal_id)
+        repo = AIResponseRepository(db)
+        lifecycle = await repo.get_deal_lifecycle(deal_id)
         return lifecycle
     except Exception as e:
         raise HTTPException(
@@ -223,6 +225,7 @@ async def get_deal_lifecycle(
 async def get_ai_analytics(
     current_user: User = Depends(get_current_user),
     days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get analytics about AI usage across the platform.
@@ -245,7 +248,8 @@ async def get_ai_analytics(
         raise HTTPException(status_code=403, detail="Superuser access required for analytics")
 
     try:
-        analytics = await ai_response_repository.get_analytics(days=days)
+        repo = AIResponseRepository(db)
+        analytics = await repo.get_analytics(days=days)
         return analytics
     except Exception as e:
         raise HTTPException(
