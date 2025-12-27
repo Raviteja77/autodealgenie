@@ -1,8 +1,6 @@
 """Services package initialization"""
 
-from app.services.user_preferences_service import (
-    UserPreferencesService,
-    user_preferences_service,
-)
+# Note: user_preferences_service has been removed and replaced with
+# UserPreferencesRepository that requires database session injection
 
-__all__ = ["UserPreferencesService", "user_preferences_service"]
+__all__: list[str] = []

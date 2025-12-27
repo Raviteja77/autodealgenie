@@ -22,8 +22,9 @@ from app.db.redis import redis_client
 from app.llm import generate_structured_json
 from app.llm.llm_client import llm_client
 from app.llm.schemas import CarSelectionResponse
-from app.repositories.ai_response_repository import ai_response_repository
-from app.repositories.search_history_repository import search_history_repository
+# Note: Repository imports commented out - they require database session dependency injection
+# from app.repositories.ai_response_repository import AIResponseRepository
+# from app.repositories.search_history_repository import SearchHistoryRepository
 from app.repositories.webhook_repository import WebhookRepository
 from app.services.webhook_service import webhook_service
 from app.tools.marketcheck_client import marketcheck_client
@@ -296,16 +297,18 @@ class CarRecommendationService:
         cached_result = await self._get_cached_result(cache_key)
         if cached_result:
             logger.info("Cache hit from Redis")
+            # TODO: Re-enable search history logging with database session dependency injection
             # Still log to search history even for cached results
-            try:
-                await search_history_repository.create_search_record(
-                    user_id=user_id,
-                    search_criteria=cached_result.get("search_criteria", {}),
-                    result_count=cached_result.get("total_found", 0),
-                    top_vehicles=cached_result.get("top_vehicles", []),
-                )
-            except Exception as e:
-                logger.error(f"Error logging cached search to history: {e}")
+            # try:
+            #     repo = SearchHistoryRepository(db)
+            #     await repo.create_search_record(
+            #         user_id=user_id,
+            #         search_criteria=cached_result.get("search_criteria", {}),
+            #         result_count=cached_result.get("total_found", 0),
+            #         top_vehicles=cached_result.get("top_vehicles", []),
+            #     )
+            # except Exception as e:
+            #     logger.error(f"Error logging cached search to history: {e}")
 
             return cached_result
 
@@ -316,16 +319,18 @@ class CarRecommendationService:
             # Update Redis cache for faster subsequent access
             await self._set_cached_result(cache_key, file_cached_result)
 
+            # TODO: Re-enable search history logging with database session dependency injection
             # Log to history even for file cached results
-            try:
-                await search_history_repository.create_search_record(
-                    user_id=user_id,
-                    search_criteria=file_cached_result.get("search_criteria", {}),
-                    result_count=file_cached_result.get("total_found", 0),
-                    top_vehicles=file_cached_result.get("top_vehicles", []),
-                )
-            except Exception as e:
-                logger.error(f"Error logging file cached search to history: {e}")
+            # try:
+            #     repo = SearchHistoryRepository(db)
+            #     await repo.create_search_record(
+            #         user_id=user_id,
+            #         search_criteria=file_cached_result.get("search_criteria", {}),
+            #         result_count=file_cached_result.get("total_found", 0),
+            #         top_vehicles=file_cached_result.get("top_vehicles", []),
+            #     )
+            # except Exception as e:
+            #     logger.error(f"Error logging file cached search to history: {e}")
             return file_cached_result
 
         # Search MarketCheck API with retry logic
@@ -372,16 +377,18 @@ class CarRecommendationService:
             await self._set_cached_result(cache_key, result)
             self._save_to_file_cache(cache_key, result)
 
+            # TODO: Re-enable search history logging with database session dependency injection
             # Log to history
-            try:
-                await search_history_repository.create_search_record(
-                    user_id=user_id,
-                    search_criteria=search_criteria,
-                    result_count=0,
-                    top_vehicles=[],
-                )
-            except Exception as e:
-                logger.error(f"Error logging search to history: {e}")
+            # try:
+            #     repo = SearchHistoryRepository(db)
+            #     await repo.create_search_record(
+            #         user_id=user_id,
+            #         search_criteria=search_criteria,
+            #         result_count=0,
+            #         top_vehicles=[],
+            #     )
+            # except Exception as e:
+            #     logger.error(f"Error logging search to history: {e}")
 
             return result
 
@@ -408,16 +415,18 @@ class CarRecommendationService:
         await self._set_cached_result(cache_key, result)
         self._save_to_file_cache(cache_key, result)
 
+        # TODO: Re-enable search history logging with database session dependency injection
         # Log to search history
-        try:
-            await search_history_repository.create_search_record(
-                user_id=user_id,
-                search_criteria=search_criteria,
-                result_count=num_found,
-                top_vehicles=top_vehicles[:5],
-            )
-        except Exception as e:
-            logger.error(f"Error logging search to history: {e}")
+        # try:
+        #     repo = SearchHistoryRepository(db)
+        #     await repo.create_search_record(
+        #         user_id=user_id,
+        #         search_criteria=search_criteria,
+        #         result_count=num_found,
+        #         top_vehicles=top_vehicles[:5],
+        #     )
+        # except Exception as e:
+        #     logger.error(f"Error logging search to history: {e}")
 
         # Trigger webhooks for new vehicles
         try:
@@ -494,35 +503,37 @@ class CarRecommendationService:
                         vehicle["recommendation_summary"] = rec.summary
                         top_vehicles.append(vehicle)
 
-                # Log AI response to MongoDB
-                try:
-                    await ai_response_repository.create_response(
-                        feature="car_recommendation",
-                        user_id=user_id,
-                        deal_id=None,
-                        prompt_id="car_selection_from_list",
-                        prompt_variables={
-                            "user_criteria": user_criteria,
-                            "listings_count": len(listings),
-                        },
-                        response_content={
-                            "top_vehicles": [
-                                {
-                                    "vin": v["vin"],
-                                    "score": v["recommendation_score"],
-                                    "summary": v["recommendation_summary"],
-                                }
-                                for v in top_vehicles
-                            ]
-                        },
-                        response_metadata={
-                            "total_listings_analyzed": len(listings),
-                            "recommendations_count": len(top_vehicles),
-                        },
-                        llm_used=True,
-                    )
-                except Exception as log_error:
-                    logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
+                # TODO: Re-enable AI response logging with database session dependency injection
+                # Log AI response to PostgreSQL
+                # try:
+                #     repo = AIResponseRepository(db)
+                #     await repo.create_response(
+                #         feature="car_recommendation",
+                #         user_id=user_id,
+                #         deal_id=None,
+                #         prompt_id="car_selection_from_list",
+                #         prompt_variables={
+                #             "user_criteria": user_criteria,
+                #             "listings_count": len(listings),
+                #         },
+                #         response_content={
+                #             "top_vehicles": [
+                #                 {
+                #                     "vin": v["vin"],
+                #                     "score": v["recommendation_score"],
+                #                     "summary": v["recommendation_summary"],
+                #                 }
+                #                 for v in top_vehicles
+                #             ]
+                #         },
+                #         response_metadata={
+                #             "total_listings_analyzed": len(listings),
+                #             "recommendations_count": len(top_vehicles),
+                #         },
+                #         llm_used=True,
+                #     )
+                # except Exception as log_error:
+                #     logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
 
                 return top_vehicles
 
@@ -541,35 +552,37 @@ class CarRecommendationService:
                         vehicle_data["recommendation_summary"] = vehicle.summary
                         top_vehicles.append(vehicle_data)
 
-                # Log AI response to MongoDB
-                try:
-                    await ai_response_repository.create_response(
-                        feature="car_recommendation",
-                        user_id=user_id,
-                        deal_id=None,
-                        prompt_id="car_selection_from_list",
-                        prompt_variables={
-                            "user_criteria": user_criteria,
-                            "listings_count": len(listings),
-                        },
-                        response_content={
-                            "top_vehicles": [
-                                {
-                                    "vin": v["vin"],
-                                    "score": v["recommendation_score"],
-                                    "summary": v["recommendation_summary"],
-                                }
-                                for v in top_vehicles
-                            ]
-                        },
-                        response_metadata={
-                            "total_listings_analyzed": len(listings),
-                            "recommendations_count": len(top_vehicles),
-                        },
-                        llm_used=True,
-                    )
-                except Exception as log_error:
-                    logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
+                # TODO: Re-enable AI response logging with database session dependency injection
+                # Log AI response to PostgreSQL
+                # try:
+                #     repo = AIResponseRepository(db)
+                #     await repo.create_response(
+                #         feature="car_recommendation",
+                #         user_id=user_id,
+                #         deal_id=None,
+                #         prompt_id="car_selection_from_list",
+                #         prompt_variables={
+                #             "user_criteria": user_criteria,
+                #             "listings_count": len(listings),
+                #         },
+                #         response_content={
+                #             "top_vehicles": [
+                #                 {
+                #                     "vin": v["vin"],
+                #                     "score": v["recommendation_score"],
+                #                     "summary": v["recommendation_summary"],
+                #                 }
+                #                 for v in top_vehicles
+                #             ]
+                #         },
+                #         response_metadata={
+                #             "total_listings_analyzed": len(listings),
+                #             "recommendations_count": len(top_vehicles),
+                #         },
+                #         llm_used=True,
+                #     )
+                # except Exception as log_error:
+                #     logger.error(f"Failed to log car recommendation AI response: {str(log_error)}")
 
                 return top_vehicles
             else:
