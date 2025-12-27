@@ -17,7 +17,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-import { Button, Card } from "../ui";
+import { Button, Card } from "@/components";
 
 interface LLMResponse {
   content: string | Record<string, unknown>;

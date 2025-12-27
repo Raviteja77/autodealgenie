@@ -25,8 +25,7 @@ import {
 } from "@mui/icons-material";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
-import { Button, Card, Spinner } from "@/components";
-import { InsuranceRecommendations } from "@/components/InsuranceRecommendations";
+import { Button, Card, Spinner, InsuranceRecommendations } from "@/components";
 import { apiClient } from "@/lib/api";
 
 interface VehicleInfo {

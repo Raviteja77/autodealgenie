@@ -96,7 +96,7 @@ describe('ConnectionStatusIndicator', () => {
   });
 
   it('applies correct chip color for each status', () => {
-    const statuses: Array<{ status: any; color: string }> = [
+    const statuses: Array<{ status: 'connected' | 'connecting' | 'reconnecting' | 'disconnected' | 'error'; color: string }> = [
       { status: 'connected', color: 'success' },
       { status: 'connecting', color: 'info' },
       { status: 'reconnecting', color: 'warning' },
