@@ -48,8 +48,7 @@ class InMemoryCache:
         logger.debug(f"Cache set: {key}")
         if ex is not None:
             logger.debug(
-                "Note: In-memory cache uses default TTL. Per-key expiry "
-                "requires USE_REDIS=true"
+                "Note: In-memory cache uses default TTL. Per-key expiry " "requires USE_REDIS=true"
             )
 
     async def delete(self, key: str) -> None:
