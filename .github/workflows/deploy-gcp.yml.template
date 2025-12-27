@@ -1,0 +1,151 @@
+# GitHub Actions workflow for deploying to GCP Cloud Run
+# This is a template - configure your GCP project details before using
+
+name: Deploy to GCP Cloud Run
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      
+  # Automatic deployment on push to specific branches (optional)
+  # push:
+  #   branches:
+  #     - main  # Deploy prod on main branch
+  #     - develop  # Deploy dev on develop branch
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: us-central1
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend to Cloud Run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker
+
+      - name: Deploy Backend
+        run: |
+          gcloud builds submit \
+            --config=backend/cloudbuild.yaml \
+            --substitutions=_ENVIRONMENT=${{ env.ENVIRONMENT }},_REGION=${{ env.GCP_REGION }} \
+            --project=${{ env.GCP_PROJECT_ID }}
+
+      - name: Get Backend URL
+        id: backend-url
+        run: |
+          BACKEND_URL=$(gcloud run services describe autodealgenie-backend-${{ env.ENVIRONMENT }} \
+            --region ${{ env.GCP_REGION }} \
+            --format="value(status.url)" \
+            --project=${{ env.GCP_PROJECT_ID }})
+          echo "url=$BACKEND_URL" >> $GITHUB_OUTPUT
+          echo "Backend deployed to: $BACKEND_URL"
+
+    outputs:
+      backend-url: ${{ steps.backend-url.outputs.url }}
+      environment: ${{ env.ENVIRONMENT }}
+
+  deploy-frontend:
+    name: Deploy Frontend to Cloud Run
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker
+
+      - name: Deploy Frontend
+        run: |
+          gcloud builds submit \
+            --config=frontend/cloudbuild.yaml \
+            --substitutions=_ENVIRONMENT=${{ needs.deploy-backend.outputs.environment }},_REGION=${{ env.GCP_REGION }},_API_URL=${{ needs.deploy-backend.outputs.backend-url }} \
+            --project=${{ env.GCP_PROJECT_ID }}
+
+      - name: Get Frontend URL
+        id: frontend-url
+        run: |
+          FRONTEND_URL=$(gcloud run services describe autodealgenie-frontend-${{ needs.deploy-backend.outputs.environment }} \
+            --region ${{ env.GCP_REGION }} \
+            --format="value(status.url)" \
+            --project=${{ env.GCP_PROJECT_ID }})
+          echo "url=$FRONTEND_URL" >> $GITHUB_OUTPUT
+          echo "Frontend deployed to: $FRONTEND_URL"
+
+      - name: Update Backend CORS
+        run: |
+          gcloud run services update autodealgenie-backend-${{ needs.deploy-backend.outputs.environment }} \
+            --region ${{ env.GCP_REGION }} \
+            --update-env-vars BACKEND_CORS_ORIGINS="[\"${{ steps.frontend-url.outputs.url }}\"]" \
+            --project=${{ env.GCP_PROJECT_ID }}
+
+  verify-deployment:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    
+    steps:
+      - name: Test Backend Health
+        run: |
+          curl -f ${{ needs.deploy-backend.outputs.backend-url }}/health || exit 1
+          echo "✓ Backend health check passed"
+
+      - name: Create Deployment Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.deploy-backend.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Backend URL:** ${{ needs.deploy-backend.outputs.backend-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**API Docs:** ${{ needs.deploy-backend.outputs.backend-url }}/docs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployment completed successfully!"

@@ -1,0 +1,68 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+.vercel
+
+# Testing
+coverage/
+.nyc_output
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+
+# CI/CD
+.github/
+cloudbuild.yaml
+Dockerfile
+Dockerfile.*
+!Dockerfile.cloudrun
+
+# Editor backup files
+*~
+\#*\#
+.\#*
+*.backup
+
+# Build artifacts (these will be regenerated)
+dist/
+build/
+
+# TypeScript
+*.tsbuildinfo
