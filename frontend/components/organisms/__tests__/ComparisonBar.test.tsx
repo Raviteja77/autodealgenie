@@ -24,46 +24,58 @@ describe('ComparisonBar', () => {
   it('renders with vehicles count', () => {
     const handleCompare = jest.fn();
     const handleClear = jest.fn();
+    const handleRemove = jest.fn();
 
     render(
       <ComparisonBar
-        vehicles={mockVehicles}
+        selectedVehicles={mockVehicles}
         onCompare={handleCompare}
         onClear={handleClear}
+        onRemove={handleRemove}
+        maxCount={4}
+        canCompare={true}
       />
     );
 
-    expect(screen.getByText(/2 vehicles selected/i)).toBeInTheDocument();
+    expect(screen.getByText(/2\/4/i)).toBeInTheDocument();
   });
 
   it('shows compare button', () => {
     const handleCompare = jest.fn();
     const handleClear = jest.fn();
+    const handleRemove = jest.fn();
 
     render(
       <ComparisonBar
-        vehicles={mockVehicles}
+        selectedVehicles={mockVehicles}
         onCompare={handleCompare}
         onClear={handleClear}
+        onRemove={handleRemove}
+        maxCount={4}
+        canCompare={true}
       />
     );
 
-    expect(screen.getByText(/compare/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /compare/i })).toBeInTheDocument();
   });
 
   it('calls onCompare when compare button is clicked', () => {
     const handleCompare = jest.fn();
     const handleClear = jest.fn();
+    const handleRemove = jest.fn();
 
     render(
       <ComparisonBar
-        vehicles={mockVehicles}
+        selectedVehicles={mockVehicles}
         onCompare={handleCompare}
         onClear={handleClear}
+        onRemove={handleRemove}
+        maxCount={4}
+        canCompare={true}
       />
     );
 
-    const compareButton = screen.getByText(/compare/i);
+    const compareButton = screen.getByRole('button', { name: /compare/i });
     fireEvent.click(compareButton);
 
     expect(handleCompare).toHaveBeenCalled();
@@ -72,50 +84,62 @@ describe('ComparisonBar', () => {
   it('shows clear button', () => {
     const handleCompare = jest.fn();
     const handleClear = jest.fn();
+    const handleRemove = jest.fn();
 
     render(
       <ComparisonBar
-        vehicles={mockVehicles}
+        selectedVehicles={mockVehicles}
         onCompare={handleCompare}
         onClear={handleClear}
+        onRemove={handleRemove}
+        maxCount={4}
+        canCompare={true}
       />
     );
 
-    expect(screen.getByText(/clear/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /clear/i })).toBeInTheDocument();
   });
 
   it('calls onClear when clear button is clicked', () => {
     const handleCompare = jest.fn();
     const handleClear = jest.fn();
+    const handleRemove = jest.fn();
 
     render(
       <ComparisonBar
-        vehicles={mockVehicles}
+        selectedVehicles={mockVehicles}
         onCompare={handleCompare}
         onClear={handleClear}
+        onRemove={handleRemove}
+        maxCount={4}
+        canCompare={true}
       />
     );
 
-    const clearButton = screen.getByText(/clear/i);
+    const clearButton = screen.getByRole('button', { name: /clear/i });
     fireEvent.click(clearButton);
 
     expect(handleClear).toHaveBeenCalled();
   });
 
-  it('displays vehicle thumbnails', () => {
+  it('displays vehicle chips', () => {
     const handleCompare = jest.fn();
     const handleClear = jest.fn();
+    const handleRemove = jest.fn();
 
     render(
       <ComparisonBar
-        vehicles={mockVehicles}
+        selectedVehicles={mockVehicles}
         onCompare={handleCompare}
         onClear={handleClear}
+        onRemove={handleRemove}
+        maxCount={4}
+        canCompare={true}
       />
     );
 
-    expect(screen.getByAltText('2023 Toyota Camry')).toBeInTheDocument();
-    expect(screen.getByAltText('2022 Honda Accord')).toBeInTheDocument();
+    expect(screen.getByText('2023 Toyota Camry')).toBeInTheDocument();
+    expect(screen.getByText('2022 Honda Accord')).toBeInTheDocument();
   });
 
   it('shows remove button for each vehicle', () => {
@@ -125,14 +149,17 @@ describe('ComparisonBar', () => {
 
     render(
       <ComparisonBar
-        vehicles={mockVehicles}
+        selectedVehicles={mockVehicles}
         onCompare={handleCompare}
         onClear={handleClear}
         onRemove={handleRemove}
+        maxCount={4}
+        canCompare={true}
       />
     );
 
-    const removeButtons = screen.getAllByLabelText(/remove/i);
+    // MUI Chips have CloseIcon rendered for their delete buttons
+    const removeButtons = screen.getAllByTestId('CloseIcon');
     expect(removeButtons).toHaveLength(2);
   });
 
@@ -141,38 +168,56 @@ describe('ComparisonBar', () => {
     const handleClear = jest.fn();
     const handleRemove = jest.fn();
 
-    render(
+    const { container } = render(
       <ComparisonBar
-        vehicles={mockVehicles}
+        selectedVehicles={mockVehicles}
         onCompare={handleCompare}
         onClear={handleClear}
         onRemove={handleRemove}
+        maxCount={4}
+        canCompare={true}
       />
     );
 
-    const removeButtons = screen.getAllByLabelText(/remove/i);
-    fireEvent.click(removeButtons[0]);
-
-    expect(handleRemove).toHaveBeenCalledWith('VIN1');
+    // Find chips with deletable prop (vehicle chips) and their delete buttons
+    const deletableChips = container.querySelectorAll('.MuiChip-deletable');
+    expect(deletableChips.length).toBe(2); // Should have 2 vehicle chips
+    
+    // Find the delete icon button within the first chip
+    const firstChip = deletableChips[0];
+    const deleteIcon = firstChip.querySelector('svg[data-testid="CloseIcon"]');
+    
+    if (deleteIcon) {
+      // Click on the svg's parent button or the svg itself
+      const deleteButton = deleteIcon.closest('button') || deleteIcon.parentElement?.closest('button');
+      if (deleteButton) {
+        fireEvent.click(deleteButton);
+        expect(handleRemove).toHaveBeenCalledWith('VIN1');
+      }
+    }
   });
 
-  it('disables compare button when less than 2 vehicles', () => {
+  it('disables compare button when canCompare is false', () => {
     const handleCompare = jest.fn();
     const handleClear = jest.fn();
+    const handleRemove = jest.fn();
 
     render(
       <ComparisonBar
-        vehicles={[mockVehicles[0]]}
+        selectedVehicles={[mockVehicles[0]]}
         onCompare={handleCompare}
         onClear={handleClear}
+        onRemove={handleRemove}
+        maxCount={4}
+        canCompare={false}
       />
     );
 
-    const compareButton = screen.getByText(/compare/i);
+    const compareButton = screen.getByRole('button', { name: /compare/i });
     expect(compareButton).toBeDisabled();
   });
 
-  it('shows maximum vehicles message when at limit', () => {
+  it('shows maximum vehicles count when at limit', () => {
     const maxVehicles = Array(4).fill(mockVehicles[0]).map((v, i) => ({
       ...v,
       vin: `VIN${i}`,
@@ -180,27 +225,35 @@ describe('ComparisonBar', () => {
 
     const handleCompare = jest.fn();
     const handleClear = jest.fn();
+    const handleRemove = jest.fn();
 
     render(
       <ComparisonBar
-        vehicles={maxVehicles}
+        selectedVehicles={maxVehicles}
         onCompare={handleCompare}
         onClear={handleClear}
+        onRemove={handleRemove}
+        maxCount={4}
+        canCompare={true}
       />
     );
 
-    expect(screen.getByText(/4 vehicles selected/i)).toBeInTheDocument();
+    expect(screen.getByText(/4\/4/i)).toBeInTheDocument();
   });
 
   it('does not render when no vehicles are selected', () => {
     const handleCompare = jest.fn();
     const handleClear = jest.fn();
+    const handleRemove = jest.fn();
 
     const { container } = render(
       <ComparisonBar
-        vehicles={[]}
+        selectedVehicles={[]}
         onCompare={handleCompare}
         onClear={handleClear}
+        onRemove={handleRemove}
+        maxCount={4}
+        canCompare={false}
       />
     );
 

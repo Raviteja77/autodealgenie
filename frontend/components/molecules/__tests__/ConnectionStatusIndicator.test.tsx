@@ -5,22 +5,25 @@ describe('ConnectionStatusIndicator', () => {
   it('shows connected status', () => {
     render(<ConnectionStatusIndicator status="connected" />);
     
-    expect(screen.getByText('Connected')).toBeInTheDocument();
-    expect(screen.getByTestId('WifiIcon')).toBeInTheDocument();
+    expect(screen.getByText(/connected/i)).toBeInTheDocument();
+    const icon = screen.getByTestId('WifiIcon');
+    expect(icon).toBeInTheDocument();
   });
 
   it('shows disconnected status', () => {
     render(<ConnectionStatusIndicator status="disconnected" />);
     
-    expect(screen.getByText('Disconnected')).toBeInTheDocument();
-    expect(screen.getByTestId('WifiOffIcon')).toBeInTheDocument();
+    expect(screen.getByText(/disconnected/i)).toBeInTheDocument();
+    const icon = screen.getByTestId('WifiOffIcon');
+    expect(icon).toBeInTheDocument();
   });
 
   it('shows connecting status', () => {
     render(<ConnectionStatusIndicator status="connecting" />);
     
-    expect(screen.getByText('Connecting')).toBeInTheDocument();
-    expect(screen.getByTestId('SyncIcon')).toBeInTheDocument();
+    expect(screen.getByText(/connecting/i)).toBeInTheDocument();
+    const icon = screen.getByTestId('SyncIcon');
+    expect(icon).toBeInTheDocument();
   });
 
   it('shows reconnecting status with attempt count', () => {
@@ -32,14 +35,16 @@ describe('ConnectionStatusIndicator', () => {
       />
     );
     
-    expect(screen.getByText('Reconnecting')).toBeInTheDocument();
+    expect(screen.getByText(/reconnecting/i)).toBeInTheDocument();
+    expect(screen.getByText(/2\/5/)).toBeInTheDocument();
   });
 
   it('shows error status', () => {
     render(<ConnectionStatusIndicator status="error" />);
     
-    expect(screen.getByText('Error')).toBeInTheDocument();
-    expect(screen.getByTestId('ErrorIcon')).toBeInTheDocument();
+    expect(screen.getByText(/error/i)).toBeInTheDocument();
+    const icon = screen.getByTestId('ErrorIcon');
+    expect(icon).toBeInTheDocument();
   });
 
   it('displays manual reconnect button when provided', () => {
@@ -91,8 +96,8 @@ describe('ConnectionStatusIndicator', () => {
     );
     
     // The component should indicate HTTP fallback is being used
-    const tooltip = screen.getByText('Connected');
-    expect(tooltip).toBeInTheDocument();
+    const text = screen.getByText(/connected/i);
+    expect(text).toBeInTheDocument();
   });
 
   it('applies correct chip color for each status', () => {

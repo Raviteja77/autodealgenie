@@ -18,13 +18,13 @@ describe('SortDropdown', () => {
     const select = screen.getByRole('combobox');
     fireEvent.mouseDown(select);
     
-    // Check all options are present
-    expect(screen.getByText('Price: Low to High')).toBeInTheDocument();
-    expect(screen.getByText('Price: High to Low')).toBeInTheDocument();
-    expect(screen.getByText('Mileage: Low to High')).toBeInTheDocument();
-    expect(screen.getByText('Year: Newest First')).toBeInTheDocument();
-    expect(screen.getByText('Recommendation Score')).toBeInTheDocument();
-    expect(screen.getByText('Recently Added')).toBeInTheDocument();
+    // Check all options are present using getAllByText since text appears in both select and menu
+    expect(screen.getAllByText('Price: Low to High').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Price: High to Low').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Mileage: Low to High').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Year: Newest First').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Recommendation Score').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Recently Added').length).toBeGreaterThan(0);
   });
 
   it('calls onChange when selecting a different option', () => {
@@ -35,9 +35,9 @@ describe('SortDropdown', () => {
     const select = screen.getByRole('combobox');
     fireEvent.mouseDown(select);
     
-    // Select a different option
-    const option = screen.getByText('Mileage: Low to High');
-    fireEvent.click(option);
+    // Select a different option using getAllByText and click the last one (in the menu)
+    const options = screen.getAllByText('Mileage: Low to High');
+    fireEvent.click(options[options.length - 1]);
     
     expect(handleChange).toHaveBeenCalledWith('mileage_low');
   });
