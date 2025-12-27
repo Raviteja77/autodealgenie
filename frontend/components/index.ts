@@ -8,11 +8,8 @@
  * - Common: Shared layout components
  */
 
-// Re-export UI components from atoms (for backward compatibility)
+// Export atoms - basic building blocks
 export { Button, Input, Card, Spinner, Modal } from './atoms';
-
-// Also maintain backward compatibility with './ui' exports
-export * from './ui';
 
 // Export molecules
 export {
