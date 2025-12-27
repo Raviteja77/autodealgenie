@@ -294,7 +294,7 @@ function NegotiationContent() {
             vehicleVin
           );
           dealId = existingDeal.id;
-        } catch (error) {
+        } catch {
           // Deal not found, create new one
           const dealData: DealCreate = {
             customer_name: user?.full_name || user?.username || "Guest User",
