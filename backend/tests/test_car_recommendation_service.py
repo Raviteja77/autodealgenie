@@ -159,24 +159,29 @@ async def test_search_with_retry_logic():
         "app.services.car_recommendation_service.redis_client.get_client",
         return_value=mock_redis,
     ):
-        with patch(
-            "app.repositories.search_history_repository.mongodb.get_collection",
-            return_value=mock_collection,
-        ):
+        with patch.object(service, "_get_from_file_cache", return_value=None):
             with patch(
-                "app.tools.marketcheck_client.marketcheck_client.search_cars",
-                side_effect=mock_search_cars,
+                "app.repositories.search_history_repository.mongodb.get_collection",
+                return_value=mock_collection,
             ):
-                result = await service.search_and_recommend(make="Toyota", model="RAV4", user_id=1)
+                with patch(
+                    "app.tools.marketcheck_client.marketcheck_client.search_cars",
+                    side_effect=mock_search_cars,
+                ):
+                    result = await service.search_and_recommend(
+                        make="Toyota", model="RAV4", user_id=1
+                    )
 
-                # Should have retried and succeeded on 3rd attempt
-                assert call_count == 3
-                assert result["total_found"] == 0
+                    # Should have retried and succeeded on 3rd attempt
+                    assert call_count == 3
+                    assert result["total_found"] == 0
 
 
 @pytest.mark.asyncio
 async def test_search_with_retry_exhausted():
     """Test that search fails after retry attempts are exhausted"""
+    from tenacity import RetryError
+
     service = CarRecommendationService()
 
     # Mock MarketCheck client to always fail
@@ -191,12 +196,13 @@ async def test_search_with_retry_exhausted():
         "app.services.car_recommendation_service.redis_client.get_client",
         return_value=mock_redis,
     ):
-        with patch(
-            "app.tools.marketcheck_client.marketcheck_client.search_cars",
-            side_effect=mock_search_cars,
-        ):
-            with pytest.raises(ConnectionError):
-                await service.search_and_recommend(make="Toyota", model="RAV4", user_id=1)
+        with patch.object(service, "_get_from_file_cache", return_value=None):
+            with patch(
+                "app.tools.marketcheck_client.marketcheck_client.search_cars",
+                side_effect=mock_search_cars,
+            ):
+                with pytest.raises(RetryError):
+                    await service.search_and_recommend(make="Toyota", model="RAV4", user_id=1)
 
 
 @pytest.mark.asyncio

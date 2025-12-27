@@ -31,7 +31,7 @@ def test_signup_duplicate_email(client: TestClient):
         json={
             "email": "test@example.com",
             "username": "testuser1",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
 
@@ -41,7 +41,7 @@ def test_signup_duplicate_email(client: TestClient):
         json={
             "email": "test@example.com",
             "username": "testuser2",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
     assert response.status_code == 400
@@ -56,7 +56,7 @@ def test_signup_duplicate_username(client: TestClient):
         json={
             "email": "test1@example.com",
             "username": "testuser",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
 
@@ -66,7 +66,7 @@ def test_signup_duplicate_username(client: TestClient):
         json={
             "email": "test2@example.com",
             "username": "testuser",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
     assert response.status_code == 400
@@ -81,7 +81,7 @@ def test_login_success(client: TestClient):
         json={
             "email": "test@example.com",
             "username": "testuser",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
 
@@ -90,7 +90,7 @@ def test_login_success(client: TestClient):
         "/api/v1/auth/login",
         json={
             "email": "test@example.com",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
     assert response.status_code == 200
@@ -112,7 +112,7 @@ def test_login_wrong_password(client: TestClient):
         json={
             "email": "test@example.com",
             "username": "testuser",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
 
@@ -121,7 +121,7 @@ def test_login_wrong_password(client: TestClient):
         "/api/v1/auth/login",
         json={
             "email": "test@example.com",
-            "password": "wrongpassword",
+            "password": "Wrongpassword123!",
         },
     )
     assert response.status_code == 401
@@ -134,7 +134,7 @@ def test_login_nonexistent_user(client: TestClient):
         "/api/v1/auth/login",
         json={
             "email": "nonexistent@example.com",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
     assert response.status_code == 401
@@ -149,7 +149,7 @@ def test_get_current_user(client: TestClient):
         json={
             "email": "test@example.com",
             "username": "testuser",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
             "full_name": "Test User",
         },
     )
@@ -158,7 +158,7 @@ def test_get_current_user(client: TestClient):
         "/api/v1/auth/login",
         json={
             "email": "test@example.com",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
 
@@ -188,7 +188,7 @@ def test_logout(client: TestClient):
         json={
             "email": "test@example.com",
             "username": "testuser",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
 
@@ -196,7 +196,7 @@ def test_logout(client: TestClient):
         "/api/v1/auth/login",
         json={
             "email": "test@example.com",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
 
@@ -216,7 +216,7 @@ def test_refresh_token(client: TestClient):
         json={
             "email": "test@example.com",
             "username": "testuser",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
 
@@ -224,7 +224,7 @@ def test_refresh_token(client: TestClient):
         "/api/v1/auth/login",
         json={
             "email": "test@example.com",
-            "password": "testpassword123",
+            "password": "Testpassword123!",
         },
     )
 

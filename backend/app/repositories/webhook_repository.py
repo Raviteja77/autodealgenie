@@ -2,6 +2,7 @@
 Repository for webhook subscription operations
 """
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.models import WebhookStatus, WebhookSubscription
@@ -80,30 +81,38 @@ class WebhookRepository:
         # Filter by criteria (None or matching)
         if make:
             query = query.filter(
-                (WebhookSubscription.make is None) | (WebhookSubscription.make == make)
+                or_(WebhookSubscription.make.is_(None), WebhookSubscription.make == make)
             )
         if model:
             query = query.filter(
-                (WebhookSubscription.model is None) | (WebhookSubscription.model == model)
+                or_(WebhookSubscription.model.is_(None), WebhookSubscription.model == model)
             )
         if price:
             query = query.filter(
-                (WebhookSubscription.price_min is None) | (WebhookSubscription.price_min <= price)
+                or_(
+                    WebhookSubscription.price_min.is_(None),
+                    WebhookSubscription.price_min <= price,
+                )
             )
             query = query.filter(
-                (WebhookSubscription.price_max is None) | (WebhookSubscription.price_max >= price)
+                or_(
+                    WebhookSubscription.price_max.is_(None),
+                    WebhookSubscription.price_max >= price,
+                )
             )
         if year:
             query = query.filter(
-                (WebhookSubscription.year_min is None) | (WebhookSubscription.year_min <= year)
+                or_(WebhookSubscription.year_min.is_(None), WebhookSubscription.year_min <= year)
             )
             query = query.filter(
-                (WebhookSubscription.year_max is None) | (WebhookSubscription.year_max >= year)
+                or_(WebhookSubscription.year_max.is_(None), WebhookSubscription.year_max >= year)
             )
         if mileage:
             query = query.filter(
-                (WebhookSubscription.mileage_max is None)
-                | (WebhookSubscription.mileage_max >= mileage)
+                or_(
+                    WebhookSubscription.mileage_max.is_(None),
+                    WebhookSubscription.mileage_max >= mileage,
+                )
             )
 
         return query.all()

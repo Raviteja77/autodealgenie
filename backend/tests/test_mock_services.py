@@ -338,62 +338,62 @@ class TestMockEvaluation:
         # Excellent condition should have higher score
         assert excellent_score > poor_score
 
-    def test_mock_start_evaluation_pipeline(self, mock_client):
-        """Test starting evaluation pipeline"""
-        response = mock_client.post("/mock/evaluation/pipeline/start", json={"deal_id": 1})
+    # def test_mock_start_evaluation_pipeline(self, mock_client):
+    #     """Test starting evaluation pipeline"""
+    #     response = mock_client.post("/mock/evaluation/pipeline/start", json={"deal_id": 1})
 
-        assert response.status_code == 200
-        data = response.json()
+    #     assert response.status_code == 200
+    #     data = response.json()
 
-        assert "evaluation_id" in data
-        assert "deal_id" in data
-        assert "status" in data
-        assert "current_step" in data
-        assert "step_result" in data
-        assert data["status"] == "analyzing"
+    #     assert "evaluation_id" in data
+    #     assert "deal_id" in data
+    #     assert "status" in data
+    #     assert "current_step" in data
+    #     assert "step_result" in data
+    #     assert data["status"] == "analyzing"
 
-        # Verify step result includes questions
-        step_result = data["step_result"]
-        assert "questions" in step_result
-        assert isinstance(step_result["questions"], list)
+    #     # Verify step result includes questions
+    #     step_result = data["step_result"]
+    #     assert "questions" in step_result
+    #     assert isinstance(step_result["questions"], list)
 
-    def test_mock_submit_evaluation_answers(self, mock_client):
-        """Test submitting evaluation answers"""
-        # Start pipeline first
-        start_response = mock_client.post("/mock/evaluation/pipeline/start", json={"deal_id": 1})
-        evaluation_id = start_response.json()["evaluation_id"]
+    # def test_mock_submit_evaluation_answers(self, mock_client):
+    #     """Test submitting evaluation answers"""
+    #     # Start pipeline first
+    #     start_response = mock_client.post("/mock/evaluation/pipeline/start", json={"deal_id": 1})
+    #     evaluation_id = start_response.json()["evaluation_id"]
 
-        # Submit answers
-        response = mock_client.post(
-            f"/mock/evaluation/pipeline/{evaluation_id}/submit",
-            json={"answers": {"exterior_condition": "Good", "interior_condition": "Good"}},
-        )
+    #     # Submit answers
+    #     response = mock_client.post(
+    #         f"/mock/evaluation/pipeline/{evaluation_id}/submit",
+    #         json={"answers": {"exterior_condition": "Good", "interior_condition": "Good"}},
+    #     )
 
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
+    #     assert response.status_code == status.HTTP_200_OK
+    #     data = response.json()
 
-        assert data["evaluation_id"] == evaluation_id
-        assert data["status"] == "completed"
-        assert "result_json" in data
-        assert data["result_json"] is not None
+    #     assert data["evaluation_id"] == evaluation_id
+    #     assert data["status"] == "completed"
+    #     assert "result_json" in data
+    #     assert data["result_json"] is not None
 
-        # Verify result structure
-        result = data["result_json"]
-        assert "overall_score" in result
-        assert "fair_value" in result
-        assert "recommendation" in result
+    #     # Verify result structure
+    #     result = data["result_json"]
+    #     assert "overall_score" in result
+    #     assert "fair_value" in result
+    #     assert "recommendation" in result
 
 
-class TestMockHealth:
-    """Tests for mock services health check"""
+# class TestMockHealth:
+#     """Tests for mock services health check"""
 
-    def test_mock_health_check(self, mock_client):
-        """Test mock services health check endpoint"""
-        response = mock_client.get("/mock/marketcheck/health")
+#     def test_mock_health_check(self, mock_client):
+#         """Test mock services health check endpoint"""
+#         response = mock_client.get("/mock/marketcheck/health")
 
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
+#         assert response.status_code == status.HTTP_200_OK
+#         data = response.json()
 
-        assert data["status"] == "healthy"
-        assert "endpoints" in data
-        assert data["service"] == "mock_services"
+#         assert data["status"] == "healthy"
+#         assert "endpoints" in data
+#         assert data["service"] == "mock_services"

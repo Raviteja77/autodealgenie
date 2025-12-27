@@ -54,7 +54,7 @@ async def test_get_user_history():
     repo = SearchHistoryRepository()
 
     # Mock MongoDB collection
-    mock_collection = AsyncMock()
+    mock_collection = MagicMock()
     mock_cursor = MagicMock()
 
     # Mock async iteration
@@ -80,9 +80,16 @@ async def test_get_user_history():
             yield record
 
     mock_cursor.__aiter__ = lambda self: async_iterator()
-    mock_collection.find.return_value.sort.return_value.skip.return_value.limit.return_value = (
-        mock_cursor
-    )
+
+    # Chain the mock methods properly
+    mock_find = MagicMock()
+    mock_sort = MagicMock()
+    mock_skip = MagicMock()
+
+    mock_collection.find = MagicMock(return_value=mock_find)
+    mock_find.sort = MagicMock(return_value=mock_sort)
+    mock_sort.skip = MagicMock(return_value=mock_skip)
+    mock_skip.limit = MagicMock(return_value=mock_cursor)
 
     with patch(
         "app.repositories.search_history_repository.mongodb.get_collection",
@@ -101,7 +108,7 @@ async def test_get_popular_searches():
     repo = SearchHistoryRepository()
 
     # Mock MongoDB collection
-    mock_collection = AsyncMock()
+    mock_collection = MagicMock()
 
     # Mock aggregation results
     mock_results = [
@@ -109,11 +116,13 @@ async def test_get_popular_searches():
         {"_id": {"make": "Honda", "model": "Civic"}, "count": 10},
     ]
 
-    async def async_aggregation_iterator():
+    async def async_aggregation_iterator(self):
         for result in mock_results:
             yield result
 
-    mock_collection.aggregate.return_value.__aiter__ = async_aggregation_iterator
+    mock_aggregate = MagicMock()
+    mock_aggregate.__aiter__ = async_aggregation_iterator
+    mock_collection.aggregate = MagicMock(return_value=mock_aggregate)
 
     with patch(
         "app.repositories.search_history_repository.mongodb.get_collection",

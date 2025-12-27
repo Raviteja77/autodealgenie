@@ -238,9 +238,7 @@ async def test_create_negotiation_endpoint(authenticated_client, mock_deal):
         "strategy": "moderate",
     }
 
-    with patch(
-        "app.services.negotiation_service.langchain_service.generate_customer_response"
-    ) as mock_llm:
+    with patch("app.llm.generate_text") as mock_llm:
         mock_llm.return_value = "Thank you for your interest. Let's find a fair price."
 
         response = authenticated_client.post("/api/v1/negotiations/", json=request_data)
@@ -288,9 +286,7 @@ async def test_process_next_round_counter(authenticated_client, mock_deal, db):
 
     request_data = {"user_action": "counter", "counter_offer": 23000.00}
 
-    with patch(
-        "app.services.negotiation_service.langchain_service.generate_customer_response"
-    ) as mock_llm:
+    with patch("app.llm.generate_text") as mock_llm:
         mock_llm.return_value = "I appreciate your offer. How about we meet in the middle?"
 
         response = authenticated_client.post(
@@ -451,7 +447,7 @@ async def test_send_chat_message(authenticated_client, mock_deal, db):
         "message_type": "question",
     }
 
-    with patch("app.llm.llm_client.async_openai_client.chat.completions.create") as mock_llm:
+    with patch("app.llm.generate_text") as mock_llm:
         # Mock LLM response
         mock_response = type(
             "MockResponse",
@@ -553,7 +549,7 @@ async def test_submit_dealer_info(authenticated_client, mock_deal, db):
         "metadata": {"financing_required": True},
     }
 
-    with patch("app.llm.llm_client.async_openai_client.chat.completions.create") as mock_llm:
+    with patch("app.llm.generate_text") as mock_llm:
         # Mock LLM response
         mock_response = type(
             "MockResponse",

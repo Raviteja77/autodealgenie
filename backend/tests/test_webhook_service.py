@@ -97,7 +97,7 @@ async def test_send_webhook_timeout():
 
     mock_client = AsyncMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock()
+    mock_client.__aexit__ = AsyncMock(return_value=False)  # Allow exceptions to propagate
     mock_client.post = AsyncMock(side_effect=TimeoutException("Timeout"))
 
     with patch("httpx.AsyncClient", return_value=mock_client):
