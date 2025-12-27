@@ -11,6 +11,13 @@ export { SavedSearchesDropdown } from './SavedSearchesDropdown';
 export { ConnectionStatusIndicator } from './ConnectionStatusIndicator';
 export { SaveSearchModal } from './SaveSearchModal';
 
+// Search-related molecules
+export { 
+  PaymentMethodSelector,
+  BudgetRangeSlider,
+  SearchSidebar
+} from './search';
+
 export type {
   PriceDisplayProps,
   MonthlyPaymentDisplayProps,

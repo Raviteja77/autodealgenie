@@ -30,11 +30,11 @@ import { z } from "zod";
 import {
   PaymentMethodSelector,
   BudgetRangeSlider,
-  FinancingOptionsForm,
+  SearchSidebar,
   BasicVehicleFilters,
   AdvancedFilters,
-  SearchSidebar,
-} from "./components";
+  FinancingOptionsForm,
+} from "@/components";
 
 interface SearchFormData {
   // Vehicle criteria

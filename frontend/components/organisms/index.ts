@@ -12,5 +12,12 @@ export { FinancingComparisonModal } from './FinancingComparisonModal';
 export { InsuranceRecommendations } from './InsuranceRecommendations';
 export { LenderRecommendations } from './LenderRecommendations';
 
+// Search-related organisms
+export {
+  BasicVehicleFilters,
+  AdvancedFilters,
+  FinancingOptionsForm
+} from './search';
+
 // Export types that are explicitly exported from components
 export type { VehicleDisplayProps } from './VehicleCard';

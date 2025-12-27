@@ -62,12 +62,12 @@ describe('VehicleCard', () => {
   it('displays recommendation score when provided', () => {
     const vehicleWithScore = {
       ...mockVehicle,
-      recommendation_score: 85,
+      recommendation_score: 0.85, // Component multiplies by 100 to display as "85% Match"
     };
 
     render(<VehicleCard vehicle={vehicleWithScore} />);
 
-    expect(screen.getByText(/85/)).toBeInTheDocument();
+    expect(screen.getByText(/85.*Match/i)).toBeInTheDocument();
   });
 
   it('shows view details button', () => {
