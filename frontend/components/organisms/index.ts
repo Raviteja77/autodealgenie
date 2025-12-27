@@ -12,12 +12,5 @@ export { FinancingComparisonModal } from './FinancingComparisonModal';
 export { InsuranceRecommendations } from './InsuranceRecommendations';
 export { LenderRecommendations } from './LenderRecommendations';
 
-// Export types
+// Export types that are explicitly exported from components
 export type { VehicleDisplayProps } from './VehicleCard';
-export type { FilterPanelProps } from './FilterPanel';
-export type { ComparisonModalProps } from './ComparisonModal';
-export type { ComparisonBarProps } from './ComparisonBar';
-export type { ChatInputProps } from './ChatInput';
-export type { FinancingComparisonModalProps } from './FinancingComparisonModal';
-export type { InsuranceRecommendationsProps } from './InsuranceRecommendations';
-export type { LenderRecommendationsProps } from './LenderRecommendations';

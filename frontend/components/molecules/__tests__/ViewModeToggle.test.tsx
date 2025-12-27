@@ -1,6 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ViewModeToggle } from '../ViewModeToggle';
-import { ViewMode } from '@/lib/hooks/useViewMode';
 
 describe('ViewModeToggle', () => {
   it('renders with grid view selected by default', () => {

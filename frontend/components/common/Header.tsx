@@ -18,7 +18,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
-import { Button } from "../ui/Button";
+import { Button } from "@/components";
 
 interface HeaderProps {
   noButton?: boolean;
