@@ -51,10 +51,7 @@ import {
   NegotiationChatProvider,
 } from "@/app/context";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { Modal } from "@/components/ui/Modal";
-import { Spinner } from "@/components/ui/Spinner";
+import { Button, Card, Modal, Spinner } from "@/components";
 import { 
   ChatInput, 
   ConnectionStatusIndicator, 

@@ -8,7 +8,7 @@
 import { useState, KeyboardEvent, ChangeEvent } from "react";
 import { Box, TextField, InputAdornment, IconButton, CircularProgress, Typography, FormHelperText } from "@mui/material";
 import { Send, AttachFile } from "@mui/icons-material";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components";
 
 interface ChatInputProps {
   onSendMessage: (message: string, type?: string) => Promise<void>;

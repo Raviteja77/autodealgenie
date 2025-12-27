@@ -26,7 +26,7 @@ import {
   Cancel,
   AttachMoney,
 } from "@mui/icons-material";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components";
 import type { CurrentOfferStatus as CurrentOfferStatusType } from "@/lib/hooks/useNegotiationState";
 
 interface CurrentOfferStatusProps {
