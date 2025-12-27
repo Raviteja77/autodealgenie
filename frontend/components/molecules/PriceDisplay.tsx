@@ -131,7 +131,7 @@ export const PriceSwitcher: React.FC<PriceSwitcherProps> = ({
           monthlyPayment={monthlyPayment}
           cashPrice={cashPrice}
           loanTerm={loanTerm}
-          totalCost={totalCost}
+          totalCost={totalCost ?? undefined}
         />
       )}
     </Box>
