@@ -33,10 +33,6 @@ class Settings(BaseSettings):
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
-    # MongoDB
-    MONGODB_URL: str = "mongodb://localhost:27017"
-    MONGODB_DB_NAME: str = "autodealgenie"
-
     # Redis
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
@@ -46,11 +42,18 @@ class Settings(BaseSettings):
     def REDIS_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
-    # Kafka
-    KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
-    KAFKA_CONSUMER_GROUP: str = "autodealgenie-consumer"
-    KAFKA_TOPIC_DEALS: str = "deals"
-    KAFKA_TOPIC_NOTIFICATIONS: str = "notifications"
+    # RabbitMQ
+    RABBITMQ_HOST: str = "localhost"
+    RABBITMQ_PORT: int = 5672
+    RABBITMQ_USER: str = "autodealgenie"
+    RABBITMQ_PASSWORD: str = "autodealgenie_password"
+    RABBITMQ_VHOST: str = "/"
+    RABBITMQ_QUEUE_DEALS: str = "deals"
+    RABBITMQ_QUEUE_NOTIFICATIONS: str = "notifications"
+
+    @property
+    def RABBITMQ_URL(self) -> str:
+        return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}{self.RABBITMQ_VHOST}"
 
     # OpenAI / OpenRouter
     OPENAI_API_KEY: str | None = None
