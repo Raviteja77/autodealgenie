@@ -266,5 +266,5 @@ This document should be updated whenever:
 
 ---
 
-**Last Updated:** December 2024  
+**Last Updated:** December 27, 2025  
 **Maintainers:** AutoDealGenie Development Team
