@@ -39,6 +39,10 @@ async def lifespan(app: FastAPI):
     from app.db.rabbitmq import rabbitmq
     from app.db.in_memory_queue import in_memory_queue
 
+    # Track which services are actually being used (for cleanup)
+    using_redis = settings.USE_REDIS
+    using_rabbitmq = settings.USE_RABBITMQ
+
     # Initialize Redis/Cache connection
     if settings.USE_REDIS:
         try:
@@ -47,9 +51,9 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"WARNING: Failed to initialize Redis: {e}")
             print("Falling back to in-memory cache")
-            settings.USE_REDIS = False
+            using_redis = False
     
-    if not settings.USE_REDIS:
+    if not using_redis:
         print("Using in-memory cache (Redis disabled)")
 
     # Initialize RabbitMQ/Queue connection
@@ -60,14 +64,14 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"WARNING: Failed to initialize RabbitMQ: {e}")
             print("Falling back to in-memory queue")
-            settings.USE_RABBITMQ = False
+            using_rabbitmq = False
 
-    if not settings.USE_RABBITMQ:
+    if not using_rabbitmq:
         await in_memory_queue.connect()
         print("Using in-memory queue (RabbitMQ disabled)")
 
     # Initialize RabbitMQ producer and consumers (only if RabbitMQ is enabled)
-    if settings.USE_RABBITMQ:
+    if using_rabbitmq:
         try:
             await rabbitmq_producer.start()
             await deals_consumer.start()
@@ -86,14 +90,14 @@ async def lifespan(app: FastAPI):
     print("Shutting down AutoDealGenie backend...")
 
     # Close connections
-    if settings.USE_RABBITMQ:
+    if using_rabbitmq:
         await rabbitmq.close()
         print("RabbitMQ connection closed")
     else:
         await in_memory_queue.close()
         print("In-memory queue closed")
 
-    if settings.USE_REDIS:
+    if using_redis:
         await redis_client.close_redis()
         print("Redis connection closed")
     else:
@@ -101,7 +105,7 @@ async def lifespan(app: FastAPI):
         print("In-memory cache closed")
 
     # Stop RabbitMQ consumers and producer (only if RabbitMQ is enabled)
-    if settings.USE_RABBITMQ:
+    if using_rabbitmq:
         try:
             for task in consumer_tasks:
                 task.cancel()
