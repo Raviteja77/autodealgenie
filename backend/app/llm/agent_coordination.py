@@ -13,11 +13,13 @@ Key Concepts:
 
 import json
 import logging
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel
 
-from app.llm import AgentRole
+# Import directly from llm_client to avoid circular import
+# (since __init__.py imports from this module)
+AgentRole = Literal["research", "loan", "negotiation", "evaluator", "qa"]
 
 logger = logging.getLogger(__name__)
 

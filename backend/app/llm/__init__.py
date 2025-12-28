@@ -2,12 +2,6 @@
 LLM module for OpenAI integration
 """
 
-from app.llm.agent_coordination import (
-    AgentContext,
-    AgentPipeline,
-    DataEnricher,
-    create_vehicle_research_pipeline,
-)
 from app.llm.llm_client import (
     AgentRole,
     generate_structured_json,
@@ -37,6 +31,10 @@ from app.llm.schemas import (
     VehicleReport,
 )
 
+# Note: Agent coordination classes are available via:
+#   from app.llm.agent_coordination import AgentContext, AgentPipeline, DataEnricher
+# These are not imported here to avoid circular dependencies and keep imports lightweight
+
 __all__ = [
     "llm_client",
     "generate_structured_json",
@@ -63,9 +61,4 @@ __all__ = [
     "DealerFinancingOffer",
     "QAReport",
     "QAIssue",
-    # Agent coordination
-    "AgentContext",
-    "AgentPipeline",
-    "DataEnricher",
-    "create_vehicle_research_pipeline",
 ]
