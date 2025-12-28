@@ -69,14 +69,54 @@ class TestDealEvaluationService:
             mock_client.is_available.return_value = True
             mock_client.generate_structured_json.return_value = mock_llm_evaluation
 
-            with patch("app.services.deal_evaluation_service.generate_structured_json") as mock_gen:
-                mock_gen.return_value = mock_llm_evaluation
+            with patch(
+                "app.services.deal_evaluation_service.marketcheck_service"
+            ) as mock_marketcheck:
+                mock_marketcheck.is_available.return_value = False
+
+                with patch(
+                    "app.services.deal_evaluation_service.generate_structured_json"
+                ) as mock_gen:
+                    mock_gen.return_value = mock_llm_evaluation
+
+                    result = await service.evaluate_deal(
+                        vehicle_vin="1HGBH41JXMN109186",
+                        asking_price=25000.00,
+                        condition="good",
+                        mileage=45000,
+                    )
+
+                    assert "fair_value" in result
+                    assert "score" in result
+                    assert "insights" in result
+                    assert "talking_points" in result
+
+                    assert isinstance(result["fair_value"], float)
+                    assert 1.0 <= result["score"] <= 10.0
+                    assert isinstance(result["insights"], list)
+                    assert isinstance(result["talking_points"], list)
+                    assert len(result["insights"]) > 0
+                    assert len(result["talking_points"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_evaluate_deal_fallback(self):
+        """Test deal evaluation fallback when LLM is not available"""
+        service = DealEvaluationService()
+
+        with patch("app.services.deal_evaluation_service.llm_client") as mock_client:
+            mock_client.is_available.return_value = False
+
+            with patch(
+                "app.services.deal_evaluation_service.marketcheck_service"
+            ) as mock_marketcheck:
+                # Make sure the mock returns False for is_available
+                mock_marketcheck.is_available.return_value = False
 
                 result = await service.evaluate_deal(
                     vehicle_vin="1HGBH41JXMN109186",
                     asking_price=25000.00,
-                    condition="good",
-                    mileage=45000,
+                    condition="excellent",
+                    mileage=15000,
                 )
 
                 assert "fair_value" in result
@@ -84,37 +124,11 @@ class TestDealEvaluationService:
                 assert "insights" in result
                 assert "talking_points" in result
 
-                assert isinstance(result["fair_value"], float)
-                assert 1.0 <= result["score"] <= 10.0
+                # Check that score is reasonable for excellent condition and low mileage
+                assert isinstance(result["score"], int | float)
+                assert result["score"] >= 6.0
                 assert isinstance(result["insights"], list)
-                assert isinstance(result["talking_points"], list)
                 assert len(result["insights"]) > 0
-                assert len(result["talking_points"]) > 0
-
-    @pytest.mark.asyncio
-    async def test_evaluate_deal_fallback(self):
-        """Test deal evaluation fallback when LLM is not available"""
-        service = DealEvaluationService()
-
-        with patch("app.llm.llm_client.llm_client") as mock_client:
-            mock_client.is_available.return_value = False
-
-            result = await service.evaluate_deal(
-                vehicle_vin="1HGBH41JXMN109186",
-                asking_price=25000.00,
-                condition="excellent",
-                mileage=15000,
-            )
-
-            assert "fair_value" in result
-            assert "score" in result
-            assert "insights" in result
-            assert "talking_points" in result
-
-            # Check that score is reasonable for excellent condition and low mileage
-            assert result["score"] >= 6.0
-            assert isinstance(result["insights"], list)
-            assert len(result["insights"]) > 0
 
     @pytest.mark.asyncio
     async def test_fallback_evaluation_excellent_condition(self):
@@ -165,17 +179,22 @@ class TestDealEvaluationService:
             with patch("app.llm.llm_client.llm_client") as mock_client:
                 mock_client.is_available.return_value = True
 
-                result = await service.evaluate_deal(
-                    vehicle_vin="1HGBH41JXMN109186",
-                    asking_price=25000.00,
-                    condition="good",
-                    mileage=50000,
-                )
+                with patch(
+                    "app.services.deal_evaluation_service.marketcheck_service"
+                ) as mock_marketcheck:
+                    mock_marketcheck.is_available.return_value = False
 
-                # Should fall back to basic evaluation
-                assert "fair_value" in result
-                assert "score" in result
-                assert 1.0 <= result["score"] <= 10.0
+                    result = await service.evaluate_deal(
+                        vehicle_vin="1HGBH41JXMN109186",
+                        asking_price=25000.00,
+                        condition="good",
+                        mileage=50000,
+                    )
+
+                    # Should fall back to basic evaluation
+                    assert "fair_value" in result
+                    assert "score" in result
+                    assert 1.0 <= result["score"] <= 10.0
 
     @pytest.mark.asyncio
     async def test_evaluate_deal_with_invalid_json(self):
@@ -189,15 +208,20 @@ class TestDealEvaluationService:
             with patch("app.llm.llm_client.llm_client") as mock_client:
                 mock_client.is_available.return_value = True
 
-                result = await service.evaluate_deal(
-                    vehicle_vin="1HGBH41JXMN109186",
-                    asking_price=25000.00,
-                    condition="good",
-                    mileage=50000,
-                )
+                with patch(
+                    "app.services.deal_evaluation_service.marketcheck_service"
+                ) as mock_marketcheck:
+                    mock_marketcheck.is_available.return_value = False
 
-                # Should fall back to basic evaluation
-                assert "fair_value" in result
+                    result = await service.evaluate_deal(
+                        vehicle_vin="1HGBH41JXMN109186",
+                        asking_price=25000.00,
+                        condition="good",
+                        mileage=50000,
+                    )
+
+                    # Should fall back to basic evaluation
+                    assert "fair_value" in result
                 assert "score" in result
                 assert 1.0 <= result["score"] <= 10.0
 
@@ -217,20 +241,25 @@ class TestDealEvaluationEndpoint:
         with patch("app.llm.llm_client.llm_client") as mock_client:
             mock_client.is_available.return_value = False  # Use fallback for predictable results
 
-            response = authenticated_client.post("/api/v1/deals/evaluate", json=evaluation_data)
+            with patch(
+                "app.services.deal_evaluation_service.marketcheck_service"
+            ) as mock_marketcheck:
+                mock_marketcheck.is_available.return_value = False
 
-            assert response.status_code == 200
-            data = response.json()
+                response = authenticated_client.post("/api/v1/deals/evaluate", json=evaluation_data)
 
-            assert "fair_value" in data
-            assert "score" in data
-            assert "insights" in data
-            assert "talking_points" in data
+                assert response.status_code == 200
+                data = response.json()
 
-            assert data["fair_value"] > 0
-            assert 1.0 <= data["score"] <= 10.0
-            assert isinstance(data["insights"], list)
-            assert isinstance(data["talking_points"], list)
+                assert "fair_value" in data
+                assert "score" in data
+                assert "insights" in data
+                assert "talking_points" in data
+
+                assert data["fair_value"] > 0
+                assert 1.0 <= data["score"] <= 10.0
+                assert isinstance(data["insights"], list)
+                assert isinstance(data["talking_points"], list)
 
     def test_evaluate_deal_endpoint_requires_auth(self, client):
         """Test that evaluation endpoint requires authentication"""
@@ -386,24 +415,29 @@ class TestDealEvaluationCaching:
                 mock_client.is_available.return_value = True
 
                 with patch(
-                    "app.services.deal_evaluation_service.generate_structured_json"
-                ) as mock_gen:
-                    # LLM should NOT be called on cache hit
-                    mock_gen.return_value = mock_llm_evaluation
+                    "app.services.deal_evaluation_service.marketcheck_service"
+                ) as mock_marketcheck:
+                    mock_marketcheck.is_available.return_value = False
 
-                    result = await service.evaluate_deal(
-                        vehicle_vin="1HGBH41JXMN109186",
-                        asking_price=25000.00,
-                        condition="good",
-                        mileage=45000,
-                    )
+                    with patch(
+                        "app.services.deal_evaluation_service.generate_structured_json"
+                    ) as mock_gen:
+                        # LLM should NOT be called on cache hit
+                        mock_gen.return_value = mock_llm_evaluation
 
-                    # Should return cached data
-                    assert result["fair_value"] == 24000.0
-                    assert result["score"] == 8.0
+                        result = await service.evaluate_deal(
+                            vehicle_vin="1HGBH41JXMN109186",
+                            asking_price=25000.00,
+                            condition="good",
+                            mileage=45000,
+                        )
 
-                    # LLM should NOT have been called
-                    mock_gen.assert_not_called()
+                        # Should return cached data
+                        assert result["fair_value"] == 24000.0
+                        assert result["score"] == 8.0
+
+                        # LLM should NOT have been called
+                        mock_gen.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_cache_miss_calls_llm_and_caches(self, mock_llm_evaluation):
@@ -420,28 +454,30 @@ class TestDealEvaluationCaching:
                 mock_client.is_available.return_value = True
 
                 with patch(
-                    "app.services.deal_evaluation_service.generate_structured_json"
-                ) as mock_gen:
+                    "app.services.deal_evaluation_service.marketcheck_service"
+                ) as mock_marketcheck:
+                    mock_marketcheck.is_available.return_value = False
 
-                    async def mock_generate(*args, **kwargs):
-                        return mock_llm_evaluation
+                    with patch(
+                        "app.services.deal_evaluation_service.generate_structured_json"
+                    ) as mock_gen:
+                        # Generate_structured_json is synchronous, not async
+                        mock_gen.return_value = mock_llm_evaluation
 
-                    mock_gen.side_effect = mock_generate
+                        result = await service.evaluate_deal(
+                            vehicle_vin="1HGBH41JXMN109186",
+                            asking_price=25000.00,
+                            condition="good",
+                            mileage=45000,
+                        )
 
-                    result = await service.evaluate_deal(
-                        vehicle_vin="1HGBH41JXMN109186",
-                        asking_price=25000.00,
-                        condition="good",
-                        mileage=45000,
-                    )
+                        # LLM should have been called
+                        mock_gen.assert_called_once()
 
-                    # LLM should have been called
-                    mock_gen.assert_called_once()
-
-                    # Result should be cached
-                    mock_redis.setex.assert_called_once()
-                    assert result["fair_value"] == 24500.00
-                    assert result["score"] == 7.5
+                        # Result should be cached
+                        mock_redis.setex.assert_called_once()
+                        assert result["fair_value"] == 24500.00
+                        assert result["score"] == 7.5
 
     @pytest.mark.asyncio
     async def test_cache_unavailable_graceful_degradation(self, mock_llm_evaluation):
@@ -456,21 +492,23 @@ class TestDealEvaluationCaching:
                 mock_client.is_available.return_value = True
 
                 with patch(
-                    "app.services.deal_evaluation_service.generate_structured_json"
-                ) as mock_gen:
+                    "app.services.deal_evaluation_service.marketcheck_service"
+                ) as mock_marketcheck:
+                    mock_marketcheck.is_available.return_value = False
 
-                    async def mock_generate(*args, **kwargs):
-                        return mock_llm_evaluation
+                    with patch(
+                        "app.services.deal_evaluation_service.generate_structured_json"
+                    ) as mock_gen:
+                        # Generate_structured_json is synchronous, not async
+                        mock_gen.return_value = mock_llm_evaluation
 
-                    mock_gen.side_effect = mock_generate
+                        result = await service.evaluate_deal(
+                            vehicle_vin="1HGBH41JXMN109186",
+                            asking_price=25000.00,
+                            condition="good",
+                            mileage=45000,
+                        )
 
-                    result = await service.evaluate_deal(
-                        vehicle_vin="1HGBH41JXMN109186",
-                        asking_price=25000.00,
-                        condition="good",
-                        mileage=45000,
-                    )
-
-                    # LLM should still be called
-                    mock_gen.assert_called_once()
-                    assert result["fair_value"] == 24500.00
+                        # LLM should still be called
+                        mock_gen.assert_called_once()
+                        assert result["fair_value"] == 24500.00

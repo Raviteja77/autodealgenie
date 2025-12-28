@@ -1,6 +1,9 @@
 """
 Deal Evaluation Service
 Provides fair market value analysis and negotiation insights for vehicle deals
+
+This service uses MarketCheck ML Price API for accurate price predictions
+and combines it with LLM-powered insights for comprehensive deal evaluation.
 """
 
 import hashlib
@@ -17,6 +20,7 @@ from app.llm.schemas import DealEvaluation, VehicleConditionAssessment
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import Deal
 from app.repositories.evaluation_repository import EvaluationRepository
+from app.services.marketcheck_service import marketcheck_service
 from app.utils.error_handler import ApiError
 
 logger = logging.getLogger(__name__)
@@ -150,12 +154,14 @@ class DealEvaluationService:
         make: str | None = None,
         model: str | None = None,
         year: int | None = None,
+        zip_code: str | None = None,
     ) -> dict[str, Any]:
         """
         Evaluate a car deal and provide comprehensive analysis
 
-        This method implements Redis caching to avoid redundant LLM calls for
-        deals that have already been evaluated with the same VIN and price.
+        This method uses MarketCheck ML Price API for accurate price predictions
+        and combines it with LLM-powered insights. Redis caching is implemented
+        to avoid redundant API calls for deals with the same parameters.
 
         Args:
             vehicle_vin: 17-character Vehicle Identification Number
@@ -165,6 +171,7 @@ class DealEvaluationService:
             make: Vehicle make (optional, improves evaluation accuracy)
             model: Vehicle model (optional, improves evaluation accuracy)
             year: Vehicle year (optional, improves evaluation accuracy)
+            zip_code: Optional ZIP code for location-based pricing
 
         Returns:
             Dictionary containing fair_value, score, insights, and talking_points
@@ -181,10 +188,40 @@ class DealEvaluationService:
             logger.info(f"Returning cached evaluation for VIN: {vehicle_vin}")
             return cached_result
 
+        # Try to get ML-based price prediction from MarketCheck
+        market_price_data = None
+        if marketcheck_service.is_available():
+            try:
+                logger.info(f"Getting ML price prediction from MarketCheck for VIN: {vehicle_vin}")
+                market_price_data = await marketcheck_service.get_price_prediction(
+                    vin=vehicle_vin, mileage=mileage, zip_code=zip_code, use_cache=True
+                )
+                logger.info(
+                    f"MarketCheck price prediction: ${market_price_data['predicted_price']:,.2f} "
+                    f"(confidence: {market_price_data['confidence']})"
+                )
+            except ApiError as e:
+                logger.warning(
+                    f"MarketCheck API unavailable or failed: {e.message}. "
+                    "Continuing with LLM-only evaluation."
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Unexpected error getting MarketCheck price: {e}. "
+                    "Continuing with LLM-only evaluation."
+                )
+
         # Check if LLM client is available
         if not llm_client.is_available():
-            logger.warning("LLM client not available, using fallback evaluation")
-            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+            logger.warning("LLM client not available")
+            if market_price_data:
+                # Use MarketCheck data for evaluation without LLM
+                return self._marketcheck_evaluation(
+                    vehicle_vin, asking_price, condition, mileage, market_price_data
+                )
+            else:
+                # Fall back to heuristic evaluation
+                return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
 
         try:
             logger.debug(
@@ -193,20 +230,37 @@ class DealEvaluationService:
                 f"Year: {year or 'Unknown'}, Condition: {condition}"
             )
 
+            # Prepare LLM prompt variables with MarketCheck data if available
+            variables = {
+                "vin": vehicle_vin,
+                "make": make or "Unknown",
+                "model": model or "Unknown",
+                "year": str(year) if year else "Unknown",
+                "asking_price": asking_price,
+                "mileage": mileage,
+                "condition": condition,
+            }
+
+            # Add MarketCheck data to context if available
+            if market_price_data:
+                variables["market_predicted_price"] = market_price_data["predicted_price"]
+                variables["market_confidence"] = market_price_data["confidence"]
+                variables["market_price_range"] = (
+                    f"${market_price_data['price_range']['min']:,.0f} - "
+                    f"${market_price_data['price_range']['max']:,.0f}"
+                )
+                # Use evaluation_with_market prompt if available
+                prompt_id = "evaluation_with_market"
+            else:
+                prompt_id = "evaluation"
+
             # Use centralized LLM client with the evaluation prompt
-            evaluation = await generate_structured_json(
-                prompt_id="evaluation",
-                variables={
-                    "vin": vehicle_vin,
-                    "make": make or "Unknown",
-                    "model": model or "Unknown",
-                    "year": str(year) if year else "Unknown",
-                    "asking_price": asking_price,
-                    "mileage": mileage,
-                    "condition": condition,
-                },
+            evaluation = generate_structured_json(
+                prompt_id=prompt_id,
+                variables=variables,
                 response_model=DealEvaluation,
                 temperature=0.7,
+                agent_role="evaluator",
             )
 
             logger.info(f"LLM evaluation successful - Score: {evaluation.score}/10")
@@ -219,26 +273,34 @@ class DealEvaluationService:
                 "talking_points": evaluation.talking_points[: self.MAX_INSIGHTS],
             }
 
+            # Add MarketCheck data to result if available
+            if market_price_data:
+                result["market_data"] = {
+                    "predicted_price": market_price_data["predicted_price"],
+                    "confidence": market_price_data["confidence"],
+                    "price_range": market_price_data["price_range"],
+                }
+
             # Cache the successful result
             await self._set_cached_evaluation(cache_key, result)
 
-            # TODO: Re-enable AI response logging with async repository
-            # This feature requires refactoring the repository to work with async sessions
-
             return result
 
-        # Note: The JSONDecodeError and ValueError handlers below are primarily for
-        # catching errors from the caching logic (json.loads in _get_cached_evaluation).
-        # The generate_structured_json function wraps LLM JSON/validation errors in ApiError,
-        # which are caught by the ApiError handler below.
         except ApiError as e:
             logger.error(
                 f"ApiError during deal evaluation: {e.message}. "
                 f"Status: {e.status_code}, VIN: {vehicle_vin}, Price: ${asking_price:,.2f}"
             )
             logger.error(f"ApiError details: {e.details}")
-            # For LLM-related ApiErrors, use fallback evaluation
-            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+
+            # Try using MarketCheck data as fallback
+            if market_price_data:
+                return self._marketcheck_evaluation(
+                    vehicle_vin, asking_price, condition, mileage, market_price_data
+                )
+            else:
+                return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+
         except json.JSONDecodeError as e:
             logger.error(
                 f"JSON parsing error during deal evaluation: {e}. "
@@ -246,27 +308,196 @@ class DealEvaluationService:
                 "This may indicate a cache corruption issue."
             )
             logger.debug(f"JSON decode error details: line {e.lineno}, column {e.colno}")
-            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+
+            if market_price_data:
+                return self._marketcheck_evaluation(
+                    vehicle_vin, asking_price, condition, mileage, market_price_data
+                )
+            else:
+                return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+
         except ValueError as e:
             logger.error(
                 f"Validation error during deal evaluation: {e}. "
-                f"VIN: {vehicle_vin}, Price: ${asking_price:,.2f}. "
-                "This may indicate a data validation issue."
+                f"VIN: {vehicle_vin}, Price: ${asking_price:,.2f}"
             )
-            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+
+            if market_price_data:
+                return self._marketcheck_evaluation(
+                    vehicle_vin, asking_price, condition, mileage, market_price_data
+                )
+            else:
+                return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+
         except Exception as e:
             logger.error(
                 f"Unexpected error during deal evaluation: {type(e).__name__}: {e}. "
                 f"VIN: {vehicle_vin}, Price: ${asking_price:,.2f}"
             )
             logger.exception("Full traceback for debugging:")
-            return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+
+            if market_price_data:
+                return self._marketcheck_evaluation(
+                    vehicle_vin, asking_price, condition, mileage, market_price_data
+                )
+            else:
+                return self._fallback_evaluation(vehicle_vin, asking_price, condition, mileage)
+
+    def _marketcheck_evaluation(
+        self,
+        vehicle_vin: str,
+        asking_price: float,
+        condition: str,
+        mileage: int,
+        market_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        Evaluation based on MarketCheck ML price prediction
+
+        This method is used when MarketCheck API is available but LLM is not,
+        or as a fallback when LLM fails but MarketCheck data is available.
+
+        Args:
+            vehicle_vin: Vehicle Identification Number
+            asking_price: Asking price in USD
+            condition: Vehicle condition
+            mileage: Current mileage
+            market_data: MarketCheck price prediction data
+
+        Returns:
+            Dictionary with evaluation results
+        """
+        logger.info(
+            f"Using MarketCheck-based evaluation for VIN: {vehicle_vin}, "
+            f"Price: ${asking_price:,.2f}"
+        )
+
+        predicted_price = market_data["predicted_price"]
+        confidence = market_data["confidence"]
+        price_range = market_data["price_range"]
+
+        # Calculate price difference
+        price_diff = asking_price - predicted_price
+        price_diff_pct = (price_diff / predicted_price) * 100 if predicted_price > 0 else 0
+
+        # Calculate score based on price comparison (1-10 scale)
+        # Better deals (lower asking price) get higher scores
+        if price_diff_pct <= -15:  # 15% or more below market
+            score = 9.5
+        elif price_diff_pct <= -10:  # 10-15% below market
+            score = 9.0
+        elif price_diff_pct <= -5:  # 5-10% below market
+            score = 8.0
+        elif price_diff_pct <= 0:  # At or slightly below market
+            score = 7.0
+        elif price_diff_pct <= 5:  # 0-5% above market
+            score = 6.0
+        elif price_diff_pct <= 10:  # 5-10% above market
+            score = 5.0
+        elif price_diff_pct <= 15:  # 10-15% above market
+            score = 4.0
+        else:  # More than 15% above market
+            score = 3.0
+
+        # Adjust score based on condition
+        condition_lower = condition.lower()
+        if "excellent" in condition_lower or "like new" in condition_lower:
+            score += 0.5
+        elif "good" in condition_lower:
+            score += 0.2
+        elif "fair" in condition_lower:
+            score -= 0.3
+        elif "poor" in condition_lower:
+            score -= 0.7
+
+        # Adjust based on MarketCheck confidence
+        if confidence == "low":
+            score -= 0.3
+
+        # Clamp score
+        score = max(1.0, min(10.0, score))
+
+        # Generate insights
+        insights = []
+        insights.append(
+            f"MarketCheck ML model predicts fair value at ${predicted_price:,.2f} "
+            f"(confidence: {confidence})"
+        )
+        insights.append(
+            f"Market price range: ${price_range['min']:,.2f} - ${price_range['max']:,.2f}"
+        )
+
+        if abs(price_diff) > 500:
+            if price_diff > 0:
+                insights.append(
+                    f"Asking price is ${price_diff:,.0f} ({price_diff_pct:+.1f}%) "
+                    f"above market prediction"
+                )
+            else:
+                insights.append(
+                    f"Asking price is ${abs(price_diff):,.0f} ({abs(price_diff_pct):.1f}%) "
+                    f"below market prediction - excellent value!"
+                )
+
+        # Mileage assessment
+        if mileage < 30000:
+            insights.append(f"Exceptionally low mileage at {mileage:,} miles")
+        elif mileage < 60000:
+            insights.append(f"Low mileage at {mileage:,} miles")
+        elif mileage > 100000:
+            insights.append(f"High mileage at {mileage:,} miles - factor into negotiations")
+
+        insights.append(f"Condition reported as '{condition}'")
+
+        # Generate talking points
+        talking_points = []
+
+        if price_diff > 1000:
+            talking_points.append(
+                f"Reference MarketCheck data showing fair value around ${predicted_price:,.0f}"
+            )
+            talking_points.append(
+                f"Ask for justification of ${price_diff:,.0f} premium over market prediction"
+            )
+        elif price_diff < -1000:
+            talking_points.append(
+                "This is priced below market - verify condition and history carefully"
+            )
+
+        talking_points.append("Request complete vehicle history report (Carfax/AutoCheck)")
+        talking_points.append("Verify all maintenance records match condition claims")
+
+        if mileage > 75000:
+            talking_points.append(f"Use {mileage:,}-mile reading as negotiation leverage")
+
+        talking_points.append("Schedule pre-purchase inspection by certified mechanic")
+
+        # Limit to MAX_INSIGHTS
+        insights = insights[: self.MAX_INSIGHTS]
+        talking_points = talking_points[: self.MAX_INSIGHTS]
+
+        logger.info(
+            f"MarketCheck evaluation completed - VIN: {vehicle_vin}, "
+            f"Score: {score:.1f}/10, Market Price: ${predicted_price:,.2f}"
+        )
+
+        return {
+            "fair_value": round(predicted_price, 2),
+            "score": round(score, 1),
+            "insights": insights,
+            "talking_points": talking_points,
+            "market_data": {
+                "predicted_price": predicted_price,
+                "confidence": confidence,
+                "price_range": price_range,
+            },
+        }
 
     def _fallback_evaluation(
         self, vehicle_vin: str, asking_price: float, condition: str, mileage: int
     ) -> dict[str, Any]:
         """
-        Fallback evaluation logic when LLM is not available or fails
+        Fallback evaluation logic when both LLM and MarketCheck are unavailable
 
         Uses simple heuristics to provide basic evaluation
         """
