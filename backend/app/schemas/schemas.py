@@ -233,6 +233,7 @@ class DealEvaluationRequest(BaseModel):
     make: str | None = Field(None, min_length=1, max_length=100, description="Vehicle make (optional but recommended for MarketCheck data)")
     model: str | None = Field(None, min_length=1, max_length=100, description="Vehicle model (optional but recommended for MarketCheck data)")
     year: int | None = Field(None, ge=1900, le=2100, description="Vehicle year (optional but recommended for MarketCheck data)")
+    zip_code: str | None = Field(None, min_length=5, max_length=10, description="ZIP code for location-based pricing (optional)")
 
 
 class DealEvaluationResponse(BaseModel):

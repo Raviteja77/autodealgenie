@@ -10,24 +10,30 @@ from app.llm.llm_client import (
 )
 from app.llm.prompts import get_prompt, list_prompts
 from app.llm.schemas import (
-    AddOn,
+    AddOnRecommendation,
+    AffordabilityAssessment,
     CarSelectionItem,
     CarSelectionResponse,
-    DealerFinancing,
+    DealerFinancingOffer,
     DealEvaluation,
-    Fee,
+    FeeDetail,
     FinancingReport,
     LLMError,
     LLMRequest,
     LLMResponse,
     LoanOption,
     NegotiatedDeal,
+    QAIssue,
     QAReport,
     SearchCriteria,
     VehicleConditionAssessment,
     VehicleInfo,
     VehicleReport,
 )
+
+# Note: Agent coordination classes are available via:
+#   from app.llm.agent_coordination import AgentContext, AgentPipeline, DataEnricher
+# These are not imported here to avoid circular dependencies and keep imports lightweight
 
 __all__ = [
     "llm_client",
@@ -48,9 +54,11 @@ __all__ = [
     "SearchCriteria",
     "FinancingReport",
     "LoanOption",
+    "AffordabilityAssessment",
     "NegotiatedDeal",
-    "AddOn",
-    "Fee",
-    "DealerFinancing",
+    "AddOnRecommendation",
+    "FeeDetail",
+    "DealerFinancingOffer",
     "QAReport",
+    "QAIssue",
 ]
