@@ -586,8 +586,6 @@ PROMPTS: dict[str, PromptTemplate] = {
 
       Be confident, specific, and data-driven in your recommendations.""",
     ),
-      Keep your response conversational, supportive, and under 200 words. Always prioritize the user's financial benefit.""",
-    ),
     "negotiation_counter": PromptTemplate(
         id="negotiation_counter",
         template="""You are an expert car buying advisor working exclusively for the USER. Your job is to help them negotiate DOWN from their counter offer, not up toward the asking price. You represent the BUYER, not the dealer.
