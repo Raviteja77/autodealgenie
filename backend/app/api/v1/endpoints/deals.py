@@ -60,7 +60,7 @@ def get_deal_by_email_and_vin(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to access this deal",
         )
-    
+
     repository = DealRepository(db)
     deal = repository.get_deal_by_vehicle_and_customer(vehicle_vin, customer_email)
     if not deal:
