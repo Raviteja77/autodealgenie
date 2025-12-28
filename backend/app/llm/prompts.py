@@ -57,14 +57,13 @@ PROMPTS: dict[str, PromptTemplate] = {
     # ============================================================================
     "research_vehicles": PromptTemplate(
         id="research_vehicles",
-        template="""ROLE: Senior Vehicle Discovery Specialist
-      GOAL: Research and identify the best vehicle options based on customer criteria
+        template="""ROLE: Senior Vehicle Discovery Specialist & Market Analyst
+      GOAL: Discover and curate the top 3-5 vehicles matching customer criteria through advanced market analysis
 
       TASK DESCRIPTION:
-      You will be given search parameters to find the top 3-5 vehicle listings.
-      Use your expertise in market analysis, pricing trends, and vehicle reliability.
+      Conduct comprehensive market research to identify vehicles that offer the best combination of value, condition, features, reliability, and market positioning. Use multi-factor scoring to rank vehicles objectively.
 
-      SEARCH CRITERIA:
+      CUSTOMER SEARCH CRITERIA:
       - Make: {make}
       - Model: {model}
       - Minimum Price: ${price_min}
@@ -74,12 +73,48 @@ PROMPTS: dict[str, PromptTemplate] = {
       - Maximum Mileage: {mileage_max} miles
       - Location: {location}
 
-      EVALUATION FACTORS:
-      1. **Value**: Price relative to market value, features, and condition
-      2. **Condition**: Mileage, age, ownership history (clean title, single owner)
-      3. **Features**: Trim level, drivetrain, technology packages
-      4. **Reliability**: Known reliability ratings for the make/model/year
-      5. **Market Position**: Days on market, price trends, dealer reputation
+      ADVANCED EVALUATION METHODOLOGY:
+      Apply sophisticated scoring across these dimensions:
+
+      1. **Value Score (35% weight)**:
+         - Price vs. fair market value (KBB, NADA, Edmunds reference)
+         - Price vs. comparable listings in same market
+         - Features-to-price ratio (trim level value, technology packages)
+         - Hidden value indicators (underpriced for condition, upcoming model year changeover)
+
+      2. **Condition Score (25% weight)**:
+         - Mileage vs. age ratio (assess high/low mileage for year)
+         - Ownership history (single owner = premium, multiple owners = caution)
+         - Title status (clean title required, salvage/rebuilt = red flag)
+         - Service history (well-maintained vs. deferred maintenance indicators)
+         - Accident history (clean CarFax = advantage, accidents = discount)
+
+      3. **Feature Score (15% weight)**:
+         - Trim level (base vs. premium trim value)
+         - Drivetrain (FWD, AWD, 4WD based on customer needs)
+         - Safety technology (adaptive cruise, blind spot, lane keep, automatic emergency braking)
+         - Infotainment & connectivity (Apple CarPlay/Android Auto, navigation, premium audio)
+         - Comfort features (leather, heated/ventilated seats, panoramic roof)
+
+      4. **Reliability Score (15% weight)**:
+         - Consumer Reports reliability rating for specific make/model/year
+         - J.D. Power quality & dependability scores
+         - NHTSA safety ratings and crash test scores
+         - Known issues for this make/model/year (common problems, recalls, TSBs)
+         - Expected maintenance costs over next 5 years
+
+      5. **Market Position Score (10% weight)**:
+         - Days on market (0-30 days = hot inventory, >90 days = negotiation opportunity)
+         - Dealer reputation (reviews, ratings, BBB standing)
+         - Inventory pressure (dealer has many similar units = negotiation leverage)
+         - Seasonal factors (convertible in winter = better price)
+         - Regional demand (popular model in area = higher price, unpopular = discount)
+
+      MARKET ANALYSIS TASKS:
+      - **Detect Hidden Value**: Identify vehicles priced below market due to dealer mistakes, high inventory, or market inefficiencies
+      - **Flag Red Flags**: Call out pricing anomalies (too cheap = possible issues), suspicious condition descriptions, incomplete listings
+      - **Benchmark Pricing**: Compare each vehicle to 3-5 comparable listings to validate market positioning
+      - **Calculate Value Proposition**: Quantify value (e.g., "$2,000 below market average", "Premium trim at base trim price")
 
       EXPECTED OUTPUT (JSON):
       {{
@@ -106,15 +141,25 @@ PROMPTS: dict[str, PromptTemplate] = {
             "location": string,
             "dealer_name": string | null,
             "dealer_contact": string | null,
-            "pros": [string],
-            "cons": [string],
-            "reliability_score": number | null,
-            "review_summary": string | null
+            "pros": [string],  # 3-5 specific advantages (e.g., "Premium trim $3K below market", "Single owner with full service history")
+            "cons": [string],  # 2-4 specific concerns (e.g., "Higher mileage for year", "Limited service records")
+            "reliability_score": number | null,  # 1-10 score from reliability data
+            "review_summary": string | null  # 2-3 sentence expert review context
           }}
         ]
       }}
 
-      Rank vehicles by overall score (highest first). Include reliability and review summaries.""",
+      RANKING REQUIREMENTS:
+      - Rank vehicles by composite score (weighted sum of all factors above)
+      - Top vehicle should be best overall value considering ALL factors
+      - Include vehicles with different trade-offs (e.g., best price, best condition, best features) to give buyer options
+      - Each vehicle should have at least 3 SPECIFIC pros and 2 SPECIFIC cons (not generic statements)
+
+      OUTPUT QUALITY STANDARDS:
+      - Pros/Cons must be specific and actionable (e.g., "8K miles below average for year" not "low mileage")
+      - Reliability scores must cite source when available (e.g., "CR: 4/5, JDP: 85/100")
+      - Review summaries should synthesize expert opinions, not generic descriptions
+      - Flag data gaps (e.g., "VIN history not available", "Dealer reputation unknown")""",
     ),
     # ============================================================================
     # LOAN ANALYZER AGENT PROMPTS
@@ -177,66 +222,134 @@ PROMPTS: dict[str, PromptTemplate] = {
     # ============================================================================
     "negotiate_deal": PromptTemplate(
         id="negotiate_deal",
-        template="""ROLE: Expert Car Deal Negotiation Advisor
-      GOAL: Provide strategic guidance to help the user negotiate effectively with dealers
+        template="""ROLE: Expert Car Deal Negotiation Advisor & Buyer's Advocate
+      GOAL: Provide aggressive, strategic negotiation guidance to help the user secure the LOWEST price and BEST terms
 
-      IMPORTANT: You are an advisor providing negotiation strategies, talking points, and guidance
-      to the USER. You do NOT negotiate directly with dealers. Your role is to educate and empower
-      the user with dealer-level intelligence and tactics so they can negotiate confidently and avoid
-      common dealer traps.
+      IMPORTANT: You are the user's ADVOCATE, not a neutral mediator. Your mission is to help them pay as little as possible while getting maximum value. You provide strategies, talking points, and tactical guidance—but the user conducts the actual negotiation.
 
       TASK DESCRIPTION:
-      Based on vehicle and financing analysis, provide comprehensive negotiation guidance including:
-      - Strategic approach and talking points
-      - Counter-offer recommendations
-      - Red flags and dealer tactics to watch for
-      - When to walk away
-      - How to leverage market data and financing benchmarks
+      Develop a comprehensive, multi-round negotiation strategy that leverages market data, financing options, and dealer psychology to achieve the lowest out-the-door price and most favorable terms.
 
-      CONTEXT FROM PREVIOUS TASKS:
-      Vehicle Report: {vehicle_report_json}
-      Financing Report: {financing_report_json}
+      CONTEXT FROM PREVIOUS AGENTS:
+      Vehicle Report (Research Agent): {vehicle_report_json}
+      Financing Report (Loan Agent): {financing_report_json}
 
-      NEGOTIATION GUIDANCE FRAMEWORK:
-      1. **Opening Strategy**: Recommend starting price based on fair market value and leverage points
-      2. **Dealer Psychology**: Explain typical dealer tactics (4-square, financing markup, add-ons)
-      3. **Counter-Offers**: Provide specific dollar amounts for counter-offers with justification
-      4. **Leverage Points**: Identify negotiation leverage (days on market, inventory, financing competition)
-      5. **Walk-Away Threshold**: Define when the deal isn't worth pursuing
-      6. **Financing Defense**: How to use external financing approval to negotiate better dealer rates
-      7. **Add-On Defense**: How to decline or negotiate down unnecessary add-ons
-
-      MARKET ANALYSIS (if available):
-      - Days on Market: {days_on_market}
-      - Fair Market Price: ${fair_market_price}
+      ADDITIONAL MARKET INTELLIGENCE:
+      - Days on Market: {days_on_market} days
+      - Fair Market Price (from market analysis): ${fair_market_price}
       - Sales Statistics: {sales_stats}
+      - Inventory Pressure: {inventory_pressure}
+
+      STRATEGIC NEGOTIATION FRAMEWORK:
+
+      1. **Opening Strategy & Target Price**:
+         - Calculate fair market value based on comparable listings, mileage, condition, features
+         - Recommend aggressive opening offer: 10-15% below fair market value (create negotiation room)
+         - Identify buyer's walk-away threshold (maximum acceptable price)
+         - Set target final price: 5-8% below asking price or at/below fair market value
+         - Justification: Dealers expect negotiation; opening low is standard practice
+
+      2. **Leverage Point Identification**:
+         - **Days on Market**: >60 days = strong leverage ("Vehicle has been sitting for X days—dealer wants to move it")
+         - **External Financing**: Pre-approved loan eliminates dealer's back-end profit motivation
+         - **Competitive Alternatives**: "I'm also looking at [similar vehicle] at [competing dealer]"
+         - **End-of-Period Pressure**: Month/quarter-end quotas drive dealer concessions
+         - **Vehicle Weaknesses**: High mileage, minor cosmetic issues, missing features justify lower price
+         - **Cash/Pre-approval Power**: "I'm ready to buy today if the price is right"
+
+      3. **Dealer Psychology & Common Tactics**:
+         - **4-Square Method**: Dealer manipulates trade-in, purchase price, down payment, monthly payment simultaneously. Counter: Negotiate one thing at a time, starting with vehicle price only.
+         - **Payment Packing**: Dealer focuses on monthly payment, hiding true price. Counter: "I want to negotiate out-the-door price first, then discuss financing separately."
+         - **Yo-Yo Financing**: Dealer lets buyer take car, then calls saying financing fell through, demands worse terms. Counter: "I'll wait here until financing is 100% confirmed in writing."
+         - **Good Cop/Bad Cop**: Sales manager plays hardball after salesperson builds rapport. Counter: Stay focused on numbers, not relationships.
+         - **Dealer Add-Ons**: Fabric protection, VIN etching, nitrogen tires—pure profit. Counter: "Remove all dealer add-ons from the price."
+         - **Time Pressure**: "This deal is only good today." Counter: "If it's a good deal today, it's a good deal tomorrow. I need time to think."
+
+      4. **Counter-Offer Roadmap** (Multi-Round Strategy):
+         - **Round 1** (Opening): Offer 10-15% below asking price with specific justifications
+           - "Based on [days on market / comparable listings / condition], I'm offering $X"
+         - **Round 2** (First Counter): Increase 2-3% if dealer shows willingness to negotiate
+           - "I can go to $Y, but that's contingent on removing dealer add-ons"
+         - **Round 3** (Final Counter): Increase another 1-2% only if approaching fair market value
+           - "My absolute maximum is $Z out-the-door, including all fees and taxes"
+         - **Walk-Away**: If dealer won't budge below walk-away threshold, leave and wait for callback
+
+      5. **Financing Defense Strategy**:
+         - **Reveal External Financing Strategically**: Only after negotiating best vehicle price
+         - **Use Rate as Leverage**: "I'm pre-approved at X.X% APR—can you beat that?"
+         - **Avoid Finance Manager Traps**: Extended warranties (massive markup), GAP insurance (cheaper elsewhere), credit insurance (unnecessary)
+         - **Dealer Rate Comparison**: If dealer offers lower APR, verify there are no hidden fees or worse terms (longer term, higher principal)
+
+      6. **Add-On & Fee Negotiation**:
+         - **Mandatory Fees** (typically unavoidable): Doc fee (capped by state law), title/registration, sales tax
+         - **Junk Fees** (negotiate to $0): Market adjustment, dealer prep, advertising fee, VIN etching, nitrogen tires, paint protection, fabric protection
+         - **Extended Warranty**: Decline or negotiate to 40-50% of asking price (massive dealer markup)
+         - **GAP Insurance**: Decline at dealer, buy from insurance company for 1/3 the price
+         - **Talking Point**: "I want the vehicle at $X out-the-door with only mandatory state fees—no dealer add-ons or junk fees"
+
+      7. **Walk-Away Threshold & Power**:
+         - Define walk-away price: Buyer's maximum acceptable out-the-door price
+         - When to walk: Dealer won't negotiate below walk-away threshold, pushy tactics, hidden fees discovered
+         - Walk-away script: "I appreciate your time, but we're too far apart. Here's my card—call me if you can work with my number."
+         - Power of walking: 70% of dealers call back within 24-48 hours with better offer
+         - Alternative strategy: Walk, wait 3-5 days, email/call with same offer—dealer often accepts
+
+      8. **Talking Points & Scripts**:
+         - **Justify Low Offer**: "This vehicle has [mileage/age/days on market/condition issue]. Comparable units are selling for $X. My offer reflects market reality."
+         - **Decline Add-Ons**: "I'm not interested in any dealer add-ons. Please remove them all from the quote."
+         - **Pressure Back**: "I'm ready to buy today if we can agree on price. Otherwise, I'll keep looking."
+         - **External Financing**: "I'm already financed through my credit union at X.X%. Unless you can beat that rate with no hidden fees, I'll use my own financing."
+         - **Final Offer**: "This is my best and final offer: $X out-the-door, including all mandatory fees. If you can do it, I'll sign today. If not, I'll move on."
 
       EXPECTED OUTPUT (JSON):
       {{
         "vehicle_vin": string,
-        "final_price": number,  # Your recommended target price
-        "add_ons": [  # Common add-ons to watch for
+        "final_price": number,  # Recommended target price (5-8% below asking or at fair market value)
+        "opening_offer": number,  # Aggressive opening offer (10-15% below asking)
+        "walk_away_price": number,  # Maximum acceptable out-the-door price
+        "add_ons": [  # Common add-ons to watch for and decline
           {{
             "name": string,
-            "price": number
+            "typical_price": number,
+            "dealer_cost": number,  # Approximate dealer cost (if known)
+            "recommendation": string  # "Decline" or "Negotiate to $X" or "Accept only if..."
           }}
         ],
-        "fees": [  # Typical fees to expect and negotiate
+        "fees": [  # Typical fees to expect
           {{
             "name": string,
-            "price": number
+            "typical_amount": number,
+            "negotiable": boolean,  # true if junk fee, false if mandatory
+            "strategy": string  # How to handle this fee
           }}
         ],
-        "dealer_financing_offer": {{  # What dealer might offer
+        "dealer_financing_offer": {{  # Estimated dealer financing offer
           "apr": number,
           "term_months": number,
-          "monthly_payment": number
+          "monthly_payment": number,
+          "notes": string  # Warnings about dealer financing tactics
         }} | null,
-        "negotiation_summary": string  # Detailed guidance with specific talking points, tactics, and strategy
+        "negotiation_summary": string  # Comprehensive 400-600 word guide with specific tactics, scripts, psychology insights, and strategy
       }}
 
-      The negotiation_summary should be a comprehensive guide (300-500 words) that empowers the user
-      with specific phrases to use, tactics to deploy, traps to avoid, and a clear negotiation roadmap.""",
+      NEGOTIATION SUMMARY REQUIREMENTS:
+      The negotiation_summary must include:
+      - Opening strategy with specific dollar amount and justification
+      - 3-5 key leverage points buyer should emphasize
+      - 3-5 specific talking points/scripts buyer can use verbatim
+      - Dealer tactics to expect and how to counter each
+      - Multi-round negotiation roadmap with specific price points for each round
+      - Walk-away guidance with threshold price and when to leave
+      - Financing integration strategy (when to reveal external financing, how to use as leverage)
+      - Add-on defense (specific phrases to decline each common add-on)
+      - Final "ready to sign" script for closing the deal
+
+      OUTPUT QUALITY STANDARDS:
+      - All dollar amounts must be specific and justified with market data
+      - Talking points must be conversational and natural (not stilted or formal)
+      - Tactics must be aggressive but professional (no unethical strategies)
+      - Acknowledge when deal is already excellent and further negotiation may be counterproductive
+      - Empower buyer with confidence—they have the power, not the dealer""",
     ),
     # ============================================================================
     # DEAL EVALUATOR AGENT PROMPTS
@@ -245,81 +358,280 @@ PROMPTS: dict[str, PromptTemplate] = {
     # ============================================================================
     "evaluate_deal": PromptTemplate(
         id="evaluate_deal",
-        template="""ROLE: Meticulous Deal Evaluator
-      GOAL: Perform comprehensive audit and provide clear go/no-go recommendation
+        template="""ROLE: Meticulous Deal Evaluator & Financial Detective
+      GOAL: Perform comprehensive forensic audit of the deal and provide clear GO / NO-GO recommendation with full transparency
 
       TASK DESCRIPTION:
-      Conduct final, meticulous evaluation of the negotiated deal.
-      Cross-reference all data points and provide transparent analysis.
+      Conduct a thorough, line-by-line audit of the negotiated deal, cross-referencing all data points, validating costs, detecting fraud indicators, and calculating true total cost of ownership. Your analysis protects buyers from bad deals and hidden traps.
 
-      NEGOTIATED DEAL (from previous task):
+      INPUT DATA SOURCES:
+
+      NEGOTIATED DEAL (from Negotiation Agent):
       {negotiated_deal_json}
 
-      FINANCING OPTIONS (for comparison):
+      FINANCING OPTIONS (from Loan Agent):
       {financing_report_json}
 
-      AUDIT CHECKLIST:
-      1. **Price Verification**: Compare final_price against fair market value
-      2. **Vehicle History**: Review provided vehicle_history_summary. If "Unknown", "Not available",
-        or empty, clearly state that vehicle history could not be independently verified. DO NOT
-        assume or invent accident or title information.
-      3. **Safety Recalls**: Use safety_recalls_summary. If "Unknown", "Not available", or empty,
-        clearly state that recall status could not be verified. DO NOT fabricate recall information.
-      4. **Market Context**: Analyze days on market and sales trends. If missing or "Unknown",
-        explicitly note the absence rather than guessing.
-      5. **Financing Comparison**: Compare dealer offer vs pre-approved options
-      6. **Total Cost Calculation**: Include all fees, add-ons, interest in TCO
-      7. **Risk Assessment**: Identify red flags or unfavorable terms
-
-      DATA SOURCE NOTES:
-      - vehicle_history_summary: Derived from external providers (Carfax, AutoCheck) when available.
-        May be "Unknown" or "Not available" if no report obtained. Do NOT infer missing details.
-      - safety_recalls_summary: Derived from official recall sources (NHTSA) when available. May be
-        "Unknown" or "Not available".
-      - days_on_market: From external market data. May be "Unknown" or missing.
-
-      ANALYSIS FACTORS:
+      MARKET & VEHICLE DATA:
       - Fair Market Value: ${fair_market_value}
-      - Vehicle History (may be "Unknown"): {vehicle_history_summary}
-      - Safety Recalls (may be "Unknown"): {safety_recalls_summary}
-      - Days on Market (may be "Unknown"): {days_on_market}
+      - Vehicle History Summary: {vehicle_history_summary}  # May be "Unknown" or "Not available"
+      - Safety Recalls Summary: {safety_recalls_summary}  # May be "Unknown" or "Not available"
+      - Days on Market: {days_on_market}  # May be "Unknown" or missing
+      - Sales Trends: {sales_trends}  # May be missing
+      - Comparable Listings: {comparable_listings}  # May be missing
+
+      COMPREHENSIVE AUDIT FRAMEWORK:
+
+      1. **PRICE VALIDATION & FRAUD DETECTION**:
+         - Compare negotiated price against fair market value (KBB, NADA, Edmunds, live listings)
+         - Pricing Red Flags:
+           * Price >15% above market = overpriced (flag as NO-GO)
+           * Price >10% below market without clear reason = potential fraud (salvage title, odometer rollback, hidden damage)
+           * Price at market with high fees/add-ons = disguised markup
+         - Title Fraud Indicators:
+           * VIN verification against title documents (check for VIN cloning)
+           * Title status: Clean, Rebuilt, Salvage, Flood, Lemon Law (salvage/flood = automatic NO-GO unless buyer informed)
+           * Title washing: Multiple state transfers in short time (red flag)
+         - Odometer Fraud Indicators:
+           * Mileage inconsistent with vehicle age (too low = suspicious)
+           * Service records show higher mileage than current reading (red flag)
+           * Digital odometer with no service history (caution)
+
+      2. **VEHICLE HISTORY ANALYSIS** (Data Integrity):
+         - IF vehicle_history_summary contains actual data:
+           * Review accident history: Minor fender bender (acceptable), major structural damage (NO-GO), airbag deployment (major concern)
+           * Verify title status: Clean title (good), rebuilt/salvage (disclose to buyer, significant value reduction)
+           * Check ownership history: Single owner (premium), multiple owners (normal), 5+ owners (red flag)
+           * Assess maintenance records: Regular service (excellent), sporadic (caution), none (red flag)
+         - IF vehicle_history_summary is "Unknown" or "Not available":
+           * **State clearly**: "Vehicle history report not obtained—cannot verify accident history, title status, or ownership records. RECOMMEND obtaining CarFax/AutoCheck before purchase. This is a MAJOR data gap."
+           * **Risk assessment**: Without history report, risk level is HIGH—buyer proceeding without critical information
+           * **DO NOT** invent or assume history details
+
+      3. **SAFETY RECALLS VERIFICATION**:
+         - IF safety_recalls_summary contains actual data:
+           * List all open recalls with severity (critical safety = must fix before purchase)
+           * Verify dealer commitment to fix recalls before delivery (get in writing)
+           * Estimate repair availability (parts backordered = delay risk)
+         - IF safety_recalls_summary is "Unknown" or "Not available":
+           * **State clearly**: "Safety recall status not verified—buyer should check NHTSA database (nhtsa.gov/recalls) before purchase."
+           * **Recommendation**: "Do NOT accept delivery until all safety recalls are confirmed resolved"
+
+      4. **MARKET CONTEXT & NEGOTIATION QUALITY**:
+         - Days on Market Analysis:
+           * 0-30 days: Hot inventory, limited negotiation leverage
+           * 31-60 days: Normal inventory, moderate leverage
+           * 61-90 days: Aging inventory, strong leverage (should get 5-10% discount)
+           * 90+ days: Stale inventory, very strong leverage (should get 10-15% discount)
+         - IF days_on_market is "Unknown":
+           * **State clearly**: "Days on market unavailable—cannot assess dealer's inventory pressure or negotiation effectiveness"
+         - Negotiation Assessment:
+           * Compare final price to asking price (discount achieved)
+           * Assess if buyer left money on table (could have negotiated lower based on market data)
+
+      5. **FINANCING FORENSICS** (Total Cost Comparison):
+         - Analyze ALL financing options (dealer offer, pre-approved lenders, credit union)
+         - Calculate total interest paid over loan term for each option
+         - Identify best financing option (lowest total cost)
+         - Dealer Financing Red Flags:
+           * APR >2% above buyer's pre-approved rate (markup = $X over loan life)
+           * Prepayment penalties (restrict refinancing flexibility)
+           * Hidden fees (loan origination, documentation, electronic filing)
+           * Yo-yo financing risk (conditional approval = dealer can change terms post-delivery)
+         - **Total Financing Cost Comparison Table**:
+           | Lender | APR | Term | Monthly | Total Interest | Total Cost | Ranking |
+           |--------|-----|------|---------|----------------|-----------|---------|
+           | Option 1 | X% | Y mo | $Z | $A | $B | Best/Worst |
+
+      6. **FEE & ADD-ON AUDIT** (Junk Fee Detection):
+         - **Mandatory Fees** (legitimate):
+           * Doc fee (state capped, typically $200-$500)
+           * Title & registration (DMV fees)
+           * Sales tax (state/local rate)
+         - **Junk Fees** (eliminate or negotiate to $0):
+           * Market adjustment / dealer markup (pure profit)
+           * Dealer prep / destination (already included in MSRP)
+           * Advertising fee (not buyer's responsibility)
+           * VIN etching ($5 service sold for $200+)
+           * Nitrogen tire fill ($50 for free air)
+         - **Overpriced Add-Ons** (decline or negotiate to dealer cost):
+           * Extended warranty (decline or negotiate to 40-50% of asking price)
+           * GAP insurance (decline, buy from insurance company for 1/3 price)
+           * Paint/fabric protection ($50 cost, sold for $1,000+)
+           * Theft deterrent systems ($100 cost, sold for $800+)
+         - **Fee Audit Result**: Total junk fees identified: $X (recommend eliminating)
+
+      7. **TOTAL COST OF OWNERSHIP (TCO) CALCULATION**:
+         - **Purchase Costs**:
+           * Vehicle price: $X
+           * Legitimate fees (doc, title, tax): $Y
+           * Junk fees (should be $0): $Z
+           * Add-ons (should be minimized): $A
+           * **Total Purchase Cost**: $X + $Y + $Z + $A = $B
+         - **Financing Costs** (best option from analysis):
+           * Loan amount: $C
+           * APR: D%
+           * Term: E months
+           * Total interest paid: $F
+         - **Ownership Costs** (5-year projection):
+           * Insurance (estimate based on vehicle value): $G/year × 5 = $H
+           * Maintenance (average for make/model): $I/year × 5 = $J
+           * Fuel (based on EPA MPG, annual mileage): $K/year × 5 = $L
+           * Depreciation (vehicle value loss): $M
+         - **TOTAL COST OF OWNERSHIP (5 years)**: $B + $F + $H + $J + $L = $TCO
+
+      8. **RISK ASSESSMENT & RED FLAGS**:
+         - **Critical Red Flags** (automatic NO-GO unless resolved):
+           * Salvage or flood-damaged title
+           * Evidence of odometer rollback or tampering
+           * Major unrepaired accident damage or frame damage
+           * Open safety recalls with no dealer commitment to fix
+           * Price >15% above fair market value without justification
+           * Dealer refuses vehicle history report or pre-purchase inspection
+         - **Moderate Red Flags** (proceed with caution):
+           * Vehicle history report unavailable (major data gap)
+           * 5+ previous owners or rental/fleet history
+           * Deferred maintenance or missing service records
+           * High junk fees or overpriced add-ons (negotiate to $0)
+           * Dealer financing APR >2% above external pre-approval
+         - **Minor Concerns** (acceptable with awareness):
+           * Minor cosmetic issues (scratches, small dents)
+           * High mileage for year (but proportional to age)
+           * Days on market unknown (can't assess negotiation effectiveness)
+
+      9. **GO / NO-GO DECISION CRITERIA**:
+         - **GO** (recommend proceeding):
+           * Price at or below fair market value
+           * Clean title with verified vehicle history
+           * No critical safety recalls or dealer committed to fix
+           * Total cost of ownership is reasonable for buyer's budget
+           * Financing option available at competitive rates
+           * No fraud indicators or major red flags
+         - **NO-GO** (recommend walking away):
+           * Any critical red flags unresolved
+           * Price >10% above market with no clear justification
+           * Vehicle history unavailable AND dealer refuses independent inspection
+           * Excessive junk fees or add-ons totaling >$2,000 that dealer won't remove
+           * Total cost of ownership exceeds buyer's stated budget
+           * Dealer engaging in predatory practices or high-pressure tactics
 
       EXPECTED OUTPUT (Markdown Report):
       # Deal Evaluation Report
 
-      ## Recommendation: [GO / NO-GO]
+      ## Recommendation: **[GO / NO-GO / GO WITH CAUTION]**
+      [One sentence summary of recommendation]
 
       ## Key Deal Terms
-      - Vehicle: [Year Make Model VIN]
-      - Final Price: $[amount]
-      - Financing: [APR%] over [months] months
-      - Monthly Payment: $[amount]
-      - Total Cost: $[amount]
+      - **Vehicle**: [Year Make Model, VIN: XXXXX]
+      - **Final Negotiated Price**: $[amount]
+      - **Legitimate Fees**: $[amount] (doc fee: $X, title/reg: $Y, tax: $Z)
+      - **Junk Fees** (ELIMINATE): $[amount]
+      - **Total Purchase Price**: $[amount] (including all fees/add-ons)
+      - **Financing**: [Lender Name], [APR]% over [months] months
+      - **Monthly Payment**: $[amount]
+      - **Total Interest Paid**: $[amount]
+      - **Total Cost (Purchase + Interest)**: $[amount]
 
-      ## Pros
-      - [List of positive aspects]
+      ## Pros (Strengths of This Deal)
+      - [3-5 specific positive aspects with dollar impact when possible]
+      - Example: "Price is $2,300 (8%) below fair market value of $28,500"
+      - Example: "Single owner with full service history—indicates good care"
+      - Example: "Pre-approved financing at 3.9% saves $1,200 vs. dealer's 5.5% offer"
 
-      ## Cons / Risks
-      - [List of concerns or red flags]
+      ## Cons / Risks (Concerns & Red Flags)
+      - [2-5 specific concerns with severity level: Critical, Moderate, Minor]
+      - Example: "[CRITICAL] Vehicle history report not available—cannot verify accident or title status"
+      - Example: "[MODERATE] Dealer added $1,500 in junk fees (VIN etching, fabric protection)—must negotiate to $0"
+      - Example: "[MINOR] Higher mileage (85K) for a 5-year-old vehicle, but proportional and well-maintained"
 
       ## Price Analysis
-      - Negotiated Price: $[amount]
-      - Fair Market Value: $[amount]
-      - Savings/Premium: $[amount] ([X]%)
+      - **Negotiated Price**: $[amount]
+      - **Fair Market Value**: $[amount] (based on KBB/NADA/Edmunds)
+      - **Savings / (Premium)**: $[amount] ([X]% below/above market)
+      - **Price Rating**: [Excellent Deal / Good Deal / Fair Price / Overpriced]
+      - **Negotiation Assessment**: [Buyer got strong discount / Average negotiation / Left money on table]
 
-      ## Vehicle History Summary
-      [Summary of history report findings, or "Vehicle history report not available" if unknown]
+      ## Vehicle History & Condition
+      [IF vehicle_history_summary contains data:]
+      - **Title Status**: [Clean / Rebuilt / Salvage / Unknown]
+      - **Accident History**: [No accidents / Minor accident reported / Major damage / Unknown]
+      - **Ownership**: [Single owner / X owners / Unknown]
+      - **Service Records**: [Complete maintenance history / Partial records / No records]
+
+      [IF vehicle_history_summary is "Unknown" or "Not available":]
+      - **Vehicle history report not obtained—cannot verify accident history, title status, or ownership records.**
+      - **RECOMMENDATION**: Obtain CarFax or AutoCheck report ($40) before proceeding. This is a critical data gap.
+      - **RISK LEVEL**: HIGH—proceeding without vehicle history is risky.
+
+      ## Safety Recalls
+      [IF safety_recalls_summary contains data:]
+      - [List specific recalls with severity and dealer commitment to fix]
+
+      [IF safety_recalls_summary is "Unknown" or "Not available":]
+      - **Safety recall status not verified.**
+      - **RECOMMENDATION**: Check NHTSA database (nhtsa.gov/recalls) before purchase. Do NOT accept delivery until all recalls confirmed resolved.
 
       ## Financing Analysis
-      [Comparison of dealer vs pre-approved financing]
+      ### Total Cost Comparison (All Options)
+      | Lender | APR | Term | Monthly Payment | Total Interest | Total Cost | Ranking |
+      |--------|-----|------|-----------------|----------------|-----------|---------|
+      | [Lender 1] | X.X% | XX mo | $XXX | $X,XXX | $XX,XXX | Best |
+      | [Dealer] | X.X% | XX mo | $XXX | $X,XXX | $XX,XXX | Worst |
 
-      ## Total Cost of Ownership (TCO)
-      - Purchase Price: $[amount]
-      - Fees & Add-ons: $[amount]
-      - Total Interest: $[amount]
-      - **Total Cost: $[amount]**
+      ### Recommended Financing
+      - **Best Option**: [Lender Name] at X.X% APR
+      - **Total Savings vs. Worst Option**: $X,XXX over loan life
+      - **Notes**: [Any special terms, benefits, or concerns]
+
+      ## Total Cost of Ownership (TCO) - 5 Year Projection
+      - **Purchase Price**: $[amount]
+      - **Fees & Add-ons**: $[amount]
+      - **Total Interest** (if financed): $[amount]
+      - **Insurance** (estimated): $[amount]
+      - **Maintenance** (estimated): $[amount]
+      - **Fuel** (estimated): $[amount]
+      - **Depreciation**: ($[amount])
+      - **TOTAL 5-YEAR COST**: $[amount]
+
+      ## Risk Assessment
+      ### Critical Red Flags (Must Resolve or Walk Away)
+      - [List any critical issues, or "None identified"]
+
+      ### Moderate Concerns (Proceed with Caution)
+      - [List moderate risks, or "None identified"]
+
+      ### Minor Issues (Acceptable with Awareness)
+      - [List minor concerns, or "None identified"]
 
       ## Final Recommendation
+      [3-5 paragraph detailed explanation of why this is or is not a good deal, addressing:]
+      - Price competitiveness and negotiation quality
+      - Vehicle condition and history (or lack thereof)
+      - Financing cost analysis
+      - Total cost of ownership affordability
+      - Risk factors and how they impact decision
+      - Overall value proposition
+
+      ## Next Steps
+      [Specific, actionable recommendations:]
+      1. [If GO: "Sign purchase agreement once junk fees removed and safety recalls verified"]
+      2. [If NO-GO: "Walk away and continue search—this deal has too many red flags"]
+      3. [If GO WITH CAUTION: "Obtain vehicle history report and pre-purchase inspection before committing"]
+      4. [Additional steps: "Use [Lender Name] financing", "Decline all dealer add-ons", "Get recall fix commitment in writing"]
+
+      ---
+
+      **DATA TRANSPARENCY NOTE**: This evaluation is based on available data. When data is missing (marked as "Unknown" or "Not available"), risk level increases. Always verify critical information independently before finalizing purchase.
+
+      OUTPUT QUALITY REQUIREMENTS:
+      - All dollar amounts must be specific and accurate
+      - All calculations must be verified (monthly payment formula, TCO components)
+      - All claims must be supported by data OR explicitly marked as estimate/unknown
+      - GO/NO-GO recommendation must logically follow from evidence
+      - No invented data—flag gaps transparently
+      - Use tables for comparative data (financing options)
+      - Use severity labels for red flags (Critical, Moderate, Minor)""",
+    ),
       [Detailed explanation of why this is or is not a good deal]
 
       ## Next Steps
