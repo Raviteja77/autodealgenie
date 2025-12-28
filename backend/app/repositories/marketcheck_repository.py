@@ -2,21 +2,25 @@
 Repository for MarketCheck query history and cached data
 
 This repository manages persistent storage of MarketCheck API queries
-and responses in MongoDB for analytics and caching purposes.
+and responses in PostgreSQL JSONB for analytics and caching purposes.
+Previously used MongoDB, now using PostgreSQL for consistency.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from sqlalchemy import desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.jsonb_data import MarketCheckQuery
 
 logger = logging.getLogger(__name__)
 
 
 class MarketCheckQueryRepository:
     """
-    Repository for storing MarketCheck API query history in MongoDB
+    Repository for storing MarketCheck API query history in PostgreSQL
 
     This stores:
     - Search queries and their parameters
@@ -24,15 +28,14 @@ class MarketCheckQueryRepository:
     - Query performance metrics
     """
 
-    def __init__(self, db: AsyncIOMotorDatabase):
+    def __init__(self, db: AsyncSession):
         """
-        Initialize repository with MongoDB database
+        Initialize repository with PostgreSQL AsyncSession
 
         Args:
-            db: MongoDB database instance
+            db: AsyncSession database instance
         """
         self.db = db
-        self.collection = db.marketcheck_queries
 
     async def save_query(
         self,
@@ -40,7 +43,7 @@ class MarketCheckQueryRepository:
         params: dict[str, Any],
         response_summary: dict[str, Any],
         user_id: int | None = None,
-    ) -> str:
+    ) -> int:
         """
         Save a MarketCheck query to the database
 
@@ -51,23 +54,24 @@ class MarketCheckQueryRepository:
             user_id: Optional user ID who made the query
 
         Returns:
-            Query document ID
+            Query record ID
         """
         try:
-            document = {
-                "query_type": query_type,
-                "params": params,
-                "response_summary": response_summary,
-                "user_id": user_id,
-                "timestamp": datetime.utcnow(),
-                "created_at": datetime.utcnow(),
-            }
+            record = MarketCheckQuery(
+                query_type=query_type,
+                params=params,
+                response_summary=response_summary,
+                user_id=user_id,
+            )
 
-            result = await self.collection.insert_one(document)
-            logger.debug(f"Saved MarketCheck query: {query_type} -> {result.inserted_id}")
-            return str(result.inserted_id)
+            self.db.add(record)
+            await self.db.commit()
+            await self.db.refresh(record)
+            logger.debug(f"Saved MarketCheck query: {query_type} -> {record.id}")
+            return record.id
 
         except Exception as e:
+            await self.db.rollback()
             logger.error(f"Error saving MarketCheck query: {e}", exc_info=True)
             raise
 
@@ -76,140 +80,104 @@ class MarketCheckQueryRepository:
         user_id: int | None = None,
         query_type: str | None = None,
         limit: int = 50,
-    ) -> list[dict[str, Any]]:
+        skip: int = 0,
+    ) -> list[MarketCheckQuery]:
         """
-        Get query history with optional filtering
+        Get query history with optional filters
 
         Args:
             user_id: Filter by user ID
             query_type: Filter by query type
-            limit: Maximum number of results
+            limit: Maximum number of records
+            skip: Number of records to skip (pagination)
 
         Returns:
-            List of query documents
+            List of query records
         """
         try:
-            query: dict[str, Any] = {}
+            query = select(MarketCheckQuery)
 
             if user_id is not None:
-                query["user_id"] = user_id
+                query = query.filter(MarketCheckQuery.user_id == user_id)
             if query_type:
-                query["query_type"] = query_type
+                query = query.filter(MarketCheckQuery.query_type == query_type)
 
-            cursor = self.collection.find(query).sort("timestamp", -1).limit(limit)
+            query = query.order_by(desc(MarketCheckQuery.timestamp)).offset(skip).limit(limit)
 
-            results = []
-            async for doc in cursor:
-                doc["_id"] = str(doc["_id"])
-                results.append(doc)
-
-            logger.debug(
-                f"Retrieved {len(results)} MarketCheck queries "
-                f"(user_id={user_id}, type={query_type})"
-            )
-            return results
+            result = await self.db.execute(query)
+            return result.scalars().all()
 
         except Exception as e:
             logger.error(f"Error getting query history: {e}", exc_info=True)
             raise
 
-    async def get_query_stats(self, query_type: str | None = None) -> dict[str, Any]:
+    async def get_recent_searches(
+        self, user_id: int | None = None, hours: int = 24, limit: int = 10
+    ) -> list[MarketCheckQuery]:
         """
-        Get aggregate statistics for MarketCheck queries
+        Get recent search queries
 
         Args:
-            query_type: Optional filter by query type
+            user_id: Optional user ID filter
+            hours: Number of hours to look back
+            limit: Maximum number of records
 
         Returns:
-            Dictionary with statistics (total_queries, queries_by_type, etc.)
+            List of recent search queries
         """
         try:
-            match_stage: dict[str, Any] = {}
-            if query_type:
-                match_stage["query_type"] = query_type
+            cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+            query = (
+                select(MarketCheckQuery)
+                .filter(MarketCheckQuery.query_type == "search")
+                .filter(MarketCheckQuery.timestamp >= cutoff_time)
+            )
 
-            pipeline = [
-                {"$match": match_stage} if match_stage else {"$match": {}},
-                {
-                    "$group": {
-                        "_id": "$query_type",
-                        "count": {"$sum": 1},
-                        "latest": {"$max": "$timestamp"},
-                    }
-                },
-            ]
+            if user_id is not None:
+                query = query.filter(MarketCheckQuery.user_id == user_id)
 
-            cursor = self.collection.aggregate(pipeline)
-            stats_by_type = {}
-            total = 0
+            query = query.order_by(desc(MarketCheckQuery.timestamp)).limit(limit)
 
-            async for doc in cursor:
-                stats_by_type[doc["_id"]] = {
-                    "count": doc["count"],
-                    "latest": doc["latest"],
-                }
-                total += doc["count"]
+            result = await self.db.execute(query)
+            return result.scalars().all()
+
+        except Exception as e:
+            logger.error(f"Error getting recent searches: {e}", exc_info=True)
+            raise
+
+    async def get_query_stats(
+        self, user_id: int | None = None, days: int = 7
+    ) -> dict[str, Any]:
+        """
+        Get query statistics
+
+        Args:
+            user_id: Optional user ID filter
+            days: Number of days to analyze
+
+        Returns:
+            Dictionary with query statistics
+        """
+        try:
+            cutoff_time = datetime.utcnow() - timedelta(days=days)
+            query = select(
+                MarketCheckQuery.query_type, func.count(MarketCheckQuery.id).label("count")
+            ).filter(MarketCheckQuery.timestamp >= cutoff_time)
+
+            if user_id is not None:
+                query = query.filter(MarketCheckQuery.user_id == user_id)
+
+            query = query.group_by(MarketCheckQuery.query_type)
+
+            result = await self.db.execute(query)
+            stats = {row[0]: row[1] for row in result.all()}
 
             return {
-                "total_queries": total,
-                "queries_by_type": stats_by_type,
+                "period_days": days,
+                "query_counts": stats,
+                "total_queries": sum(stats.values()),
             }
 
         except Exception as e:
             logger.error(f"Error getting query stats: {e}", exc_info=True)
             raise
-
-
-class VINHistoryRepository:
-    """
-    Repository for storing VIN lookup history in PostgreSQL
-
-    This stores comprehensive VIN details and lookup history
-    for analytics and caching purposes.
-    """
-
-    def __init__(self, db):
-        """
-        Initialize repository with database session
-
-        Args:
-            db: SQLAlchemy database session
-        """
-        self.db = db
-        # TODO: Create VINHistory model if needed
-
-    def save_vin_lookup(
-        self,
-        vin: str,
-        details: dict[str, Any],
-        user_id: int | None = None,
-    ) -> int:
-        """
-        Save VIN lookup to database
-
-        Args:
-            vin: Vehicle Identification Number
-            details: VIN details from MarketCheck
-            user_id: Optional user ID who requested the lookup
-
-        Returns:
-            Record ID
-        """
-        # TODO: Implement once VINHistory model is created
-        logger.debug(f"VIN lookup saved: {vin} (user_id={user_id})")
-        return 0
-
-    def get_vin_history(self, vin: str, limit: int = 10) -> list[dict[str, Any]]:
-        """
-        Get lookup history for a VIN
-
-        Args:
-            vin: Vehicle Identification Number
-            limit: Maximum number of records
-
-        Returns:
-            List of VIN lookup records
-        """
-        # TODO: Implement once VINHistory model is created
-        logger.debug(f"Retrieved VIN history: {vin}")
-        return []
