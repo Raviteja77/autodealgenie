@@ -50,7 +50,7 @@ steps:
       - '--max-instances'
       - '5'
       - '--set-env-vars'
-      - 'NODE_ENV=production,NEXT_PUBLIC_API_URL=${_API_URL},PORT=8080'
+      - 'NODE_ENV=production,PORT=8080'
 
 # Substitution variables
 substitutions:

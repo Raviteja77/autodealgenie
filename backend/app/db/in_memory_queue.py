@@ -59,17 +59,21 @@ class InMemoryQueue:
         await self.queues[queue_name].put(message)
         logger.debug(f"Published message to queue: {queue_name}")
 
-        # Notify consumers
+        # Notify consumers without blocking the publish call
         for callback in self.consumers.get(queue_name, []):
-            try:
-                await callback(message)
-            except Exception as e:
-                logger.error(
-                    f"Error in consumer callback for queue '{queue_name}': {str(e)}. "
-                    f"Message: {message}. "
-                    f"Note: In-memory queue does not implement retry or dead letter queue. "
-                    f"For production use, set USE_RABBITMQ=true."
-                )
+
+            async def _run_callback(cb: Callable, msg: dict[str, Any]) -> None:
+                try:
+                    await cb(msg)
+                except Exception as e:
+                    logger.error(
+                        f"Error in consumer callback for queue '{queue_name}': {str(e)}. "
+                        f"Message: {msg}. "
+                        "Note: In-memory queue does not implement retry or dead letter queue. "
+                        "For production use, set USE_RABBITMQ=true."
+                    )
+
+            asyncio.create_task(_run_callback(callback, message))
 
     async def consume(self, queue_name: str, callback: Callable[[dict[str, Any]], None]) -> None:
         """

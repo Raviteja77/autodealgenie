@@ -123,12 +123,17 @@ echo ""
 
 # Update CORS
 echo -e "${YELLOW}Updating backend CORS settings...${NC}"
-# Note: This replaces existing CORS origins. For development environments,
-# you may want to preserve localhost origins by manually configuring CORS.
-# For production, ensure only the frontend URL is allowed.
+# Configure CORS origins per environment.
+# - In prod, only allow the deployed frontend URL.
+# - In dev, also allow common localhost origins for local development.
+if [ "${ENVIRONMENT}" = "dev" ]; then
+    CORS_ORIGINS="[\"${FRONTEND_URL}\",\"http://localhost:3000\",\"http://127.0.0.1:3000\"]"
+else
+    CORS_ORIGINS="[\"${FRONTEND_URL}\"]"
+fi
 gcloud run services update autodealgenie-backend-${ENVIRONMENT} \
   --region ${REGION} \
-  --update-env-vars BACKEND_CORS_ORIGINS="[\"${FRONTEND_URL}\"]" \
+  --update-env-vars BACKEND_CORS_ORIGINS="${CORS_ORIGINS}" \
   --quiet
 
 echo -e "${GREEN}✓ CORS updated${NC}"
