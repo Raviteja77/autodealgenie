@@ -36,14 +36,31 @@ class Settings(BaseSettings):
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # Redis (optional for GCP Free Tier - will use in-memory cache if not available)
+    # For Upstash Redis, set REDIS_TLS=true and REDIS_PASSWORD
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
+    REDIS_PASSWORD: str | None = None  # Required for Upstash Redis
+    REDIS_TLS: bool = False  # Set to True for Upstash Redis (requires TLS)
     USE_REDIS: bool = True  # Set to False to use in-memory caching
 
     @property
     def REDIS_URL(self) -> str:
-        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+        """Build Redis connection URL with support for TLS and authentication"""
+        if self.REDIS_TLS:
+            # Use rediss:// for TLS connection (Upstash)
+            protocol = "rediss"
+        else:
+            protocol = "redis"
+
+        if self.REDIS_PASSWORD:
+            # Include username and encoded password in URL if provided
+            # Use 'default' as the standard Redis username
+            encoded_password = quote_plus(self.REDIS_PASSWORD)
+            return f"{protocol}://default:{encoded_password}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+        else:
+            # No password (local Redis)
+            return f"{protocol}://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     # RabbitMQ (optional for GCP Free Tier - will use in-memory queue if not available)
     RABBITMQ_HOST: str = "localhost"

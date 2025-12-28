@@ -215,17 +215,31 @@ autodealgenie/
 ### Environment Variables
 
 #### Backend (.env)
-- `POSTGRES_SERVER`: PostgreSQL host
+- `POSTGRES_SERVER`: PostgreSQL host (e.g., Supabase: `db.xxxxx.supabase.co`)
 - `POSTGRES_USER`: PostgreSQL username
 - `POSTGRES_PASSWORD`: PostgreSQL password
 - `POSTGRES_DB`: PostgreSQL database name
-- `MONGODB_URL`: MongoDB connection string
-- `REDIS_HOST`: Redis host
-- `KAFKA_BOOTSTRAP_SERVERS`: Kafka servers
+- `POSTGRES_PORT`: PostgreSQL port (default: 5432, Supabase pooling: 6543)
+- `MONGODB_URL`: MongoDB connection string (e.g., MongoDB Atlas: `mongodb+srv://...`)
+- `REDIS_HOST`: Redis host (e.g., Upstash: `xxxxx.upstash.io`)
+- `REDIS_PORT`: Redis port
+- `REDIS_PASSWORD`: Redis password (required for Upstash)
+- `REDIS_TLS`: Set to `true` for Upstash Redis
+- `KAFKA_BOOTSTRAP_SERVERS`: Kafka servers (optional, can use in-memory queue)
 - `OPENAI_API_KEY`: OpenAI API key (required for AI features)
+- `SECRET_KEY`: JWT signing key (generate with `openssl rand -hex 32`)
+- `BACKEND_CORS_ORIGINS`: Allowed frontend origins (JSON array format)
 
 #### Frontend (.env.local)
-- `NEXT_PUBLIC_API_URL`: Backend API URL
+- `NEXT_PUBLIC_API_URL`: Backend API URL (e.g., `https://your-backend.onrender.com`)
+- `NEXT_PUBLIC_API_VERSION`: API version (default: `v1`)
+
+### Free Tier Service Configuration
+
+For free tier deployment, see:
+- `backend/.env.render.example` - Render backend configuration
+- `frontend/.env.vercel.example` - Vercel frontend configuration
+- [FREE_TIER_DEPLOYMENT.md](FREE_TIER_DEPLOYMENT.md) - Complete setup guide
 
 ## 📚 API Documentation
 
@@ -379,9 +393,69 @@ For issues and questions:
 
 ## ☁️ Cloud Deployment
 
-### GCP Free Tier Deployment
+AutoDealGenie supports multiple deployment options, with a focus on free-tier services for cost-effective development and production environments.
 
-Deploy AutoDealGenie to Google Cloud Platform Free Tier with minimal costs:
+### 🆓 Free Tier Deployment (Recommended)
+
+Deploy AutoDealGenie using free services from Vercel, Render, Supabase, and Upstash:
+
+**Services:**
+- **Frontend**: Vercel (unlimited deployments, 100GB bandwidth/month)
+- **Backend**: Render (750 hours/month free tier)
+- **Database**: Supabase PostgreSQL (500MB free)
+- **Cache**: Upstash Redis (10k commands/day free)
+- **Documents**: MongoDB Atlas (512MB free tier)
+
+**Quick Start:**
+
+1. **Deploy Backend to Render:**
+   ```bash
+   # 1. Create accounts: Render, Supabase, Upstash, MongoDB Atlas
+   # 2. Configure environment variables (see backend/.env.render.example)
+   # 3. Deploy using Render Blueprint or manually:
+   #    - Connect GitHub repository
+   #    - Select "Blueprint" and use render.yaml
+   #    - Or create Web Service manually
+   ```
+
+2. **Deploy Frontend to Vercel:**
+   ```bash
+   # 1. Go to https://vercel.com and import your GitHub repository
+   # 2. Configure:
+   #    - Framework: Next.js
+   #    - Root Directory: frontend
+   # 3. Add environment variables (see frontend/.env.vercel.example):
+   #    - NEXT_PUBLIC_API_URL (your Render backend URL)
+   #    - NEXT_PUBLIC_API_VERSION=v1
+   # 4. Deploy main (production) and dev (development) branches
+   ```
+
+3. **Update CORS Settings:**
+   ```bash
+   # Add your Vercel frontend URL to backend CORS origins
+   # In Render dashboard: Environment → BACKEND_CORS_ORIGINS
+   # Example: ["https://your-app.vercel.app","https://your-app-dev.vercel.app"]
+   ```
+
+**Environment Setup:**
+- **Development**: `dev` branch → Vercel Preview + Render Dev Service
+- **Production**: `main` branch → Vercel Production + Render Prod Service
+
+**Important Notes:**
+- Render free tier services spin down after 15 minutes of inactivity
+- First request after spindown may take 30-60 seconds
+- Configure branch protection for main branch
+- Use preview deployments for testing before merging to main
+
+See configuration files:
+- `render.yaml` - Render Blueprint configuration
+- `vercel.json` - Vercel deployment configuration
+- `backend/.env.render.example` - Render environment variables template
+- `frontend/.env.vercel.example` - Vercel environment variables template
+
+### 🔧 GCP Free Tier Deployment (Alternative)
+
+Deploy AutoDealGenie to Google Cloud Platform Free Tier:
 
 ```bash
 # Quick deployment
@@ -397,10 +471,26 @@ See [GCP_DEPLOYMENT.md](GCP_DEPLOYMENT.md) for comprehensive deployment guide in
 - Monitoring and logging setup
 - Cost optimization strategies
 
+### 📊 Deployment Comparison
+
+| Feature | Free Tier (Vercel + Render) | GCP Free Tier |
+|---------|----------------------------|---------------|
+| Frontend Hosting | Vercel (Unlimited) | Cloud Run (2M requests/month) |
+| Backend Hosting | Render (750 hours/month) | Cloud Run (2M requests/month) |
+| Database | Supabase (500MB) | Supabase (500MB) |
+| Cache | Upstash Redis (10k commands/day) | In-memory cache |
+| CDN | Built-in | Cloud CDN |
+| Auto-scaling | ✅ | ✅ |
+| Custom Domains | ✅ (both) | ✅ |
+| SSL/TLS | ✅ Automatic | ✅ Automatic |
+| Cold Start | ~30-60s (backend) | ~5-10s |
+| Setup Complexity | ⭐⭐ Easy | ⭐⭐⭐ Moderate |
+
 ## 🎯 Roadmap
 
 - [x] User authentication and authorization (JWT-based with HTTP-only cookies)
 - [x] GCP Free Tier deployment support
+- [x] Alternative free tier deployment (Vercel + Render + Supabase + Upstash)
 - [ ] Advanced AI features (vehicle valuation, market analysis)
 - [ ] Real-time notifications via WebSockets
 - [ ] Mobile application
