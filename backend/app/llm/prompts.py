@@ -814,7 +814,7 @@ PROMPTS: dict[str, PromptTemplate] = {
       COMPREHENSIVE QUALITY ASSURANCE FRAMEWORK:
 
       1. **CONSISTENCY VALIDATION** (Cross-Reference Check):
-         
+
          A. **Recommendation Alignment**:
             - Does the GO/NO-GO/GO WITH CAUTION recommendation logically follow from the evidence?
             - If recommendation is GO:
@@ -829,7 +829,7 @@ PROMPTS: dict[str, PromptTemplate] = {
             - If recommendation is GO WITH CAUTION:
               * Are moderate concerns present but manageable?
               * Are next steps provided to mitigate concerns?
-         
+
          B. **Numeric Value Consistency**:
             - **Vehicle Details**: VIN, make, model, year, mileage match across all sections
             - **Pricing**: Final negotiated price consistent in all references
@@ -839,7 +839,7 @@ PROMPTS: dict[str, PromptTemplate] = {
               * Total Cost = Total Purchase + Total Interest
               * Verify monthly payment calculation: P × [r(1+r)^n] / [(1+r)^n - 1]
             - **Percentages & Comparisons**: Savings/premium percentage calculated correctly
-         
+
          C. **Logical Contradictions**:
             - Check for statements that contradict each other:
               * "Excellent deal" but "Overpriced by $3,000"
@@ -847,7 +847,7 @@ PROMPTS: dict[str, PromptTemplate] = {
               * "Affordable monthly payment" but "Exceeds 25% DTI"
               * "GO recommendation" but "Critical safety recalls unresolved"
             - Verify that cons/risks are appropriately addressed in recommendation
-         
+
          D. **Data Source Integrity**:
             - When vehicle_history_summary = "Unknown" or "Not available":
               * Report MUST state "Vehicle history not available"
@@ -862,7 +862,7 @@ PROMPTS: dict[str, PromptTemplate] = {
               * Report SHOULD note data gap
 
       2. **CLARITY & READABILITY ASSESSMENT**:
-         
+
          A. **Language Accessibility**:
             - Is language clear and understandable for non-expert car buyers?
             - Are technical terms explained on first use?
@@ -872,14 +872,14 @@ PROMPTS: dict[str, PromptTemplate] = {
               * GAP insurance → Guaranteed Asset Protection (covers loan balance if totaled)
             - Are dollar amounts formatted consistently ($25,000 not 25000)?
             - Are percentages clear (e.g., "8% below market" not "0.92 ratio")?
-         
+
          B. **Structure & Organization**:
             - Are sections properly headinged with clear hierarchy (H2, H3)?
             - Is information logically ordered (recommendation first, then details)?
             - Are bullet points used for lists (pros, cons, next steps)?
             - Are tables used for comparative data (financing options, TCO breakdown)?
             - Is the report scannable (reader can quickly find key info)?
-         
+
          C. **Tone & Communication**:
             - Is tone respectful and buyer-focused (not condescending)?
             - Are warnings serious but not alarmist?
@@ -887,7 +887,7 @@ PROMPTS: dict[str, PromptTemplate] = {
             - Is language direct and actionable ("Do X" not "Consider possibly doing X")?
 
       3. **COMPLETENESS AUDIT**:
-         
+
          A. **Required Sections Present**:
             - [ ] Recommendation (GO/NO-GO/GO WITH CAUTION)
             - [ ] Key Deal Terms (vehicle, price, financing, payments)
@@ -901,14 +901,14 @@ PROMPTS: dict[str, PromptTemplate] = {
             - [ ] Risk Assessment (red flags categorized by severity)
             - [ ] Final Recommendation (3-5 paragraph justification)
             - [ ] Next Steps (specific, actionable recommendations)
-         
+
          B. **Evidence-Based Claims**:
             - Every claim supported by data or explicitly marked as estimate?
             - Price analysis shows fair market value comparison?
             - Financing analysis shows total cost comparison across options?
             - TCO calculation shows component breakdown?
             - Recommendation justification cites specific evidence?
-         
+
          C. **Actionable Next Steps**:
             - Are next steps specific? ("Counter-offer at $X" not "Try to negotiate")
             - Are steps prioritized? (1, 2, 3 or "First...Then...Finally")
@@ -916,57 +916,57 @@ PROMPTS: dict[str, PromptTemplate] = {
             - Are external actions included? ("Obtain CarFax", "Check NHTSA recalls")
 
       4. **MATHEMATICAL VERIFICATION**:
-         
+
          A. **Loan Payment Calculation**:
             - Formula: Monthly Payment = P × [r(1+r)^n] / [(1+r)^n - 1]
             - where P = loan amount, r = monthly rate (APR/12/100), n = months
             - Verify calculation is within $5 of stated monthly payment
-         
+
          B. **Total Interest Calculation**:
             - Total Interest = (Monthly Payment × Term in Months) - Loan Amount
             - Verify calculation is within $50 of stated total interest
-         
+
          C. **TCO Component Sum**:
             - Verify: Total TCO = Purchase + Interest + Insurance + Maintenance + Fuel
             - Check that all components are reasonable estimates for vehicle type
-         
+
          D. **Percentage Calculations**:
             - Savings/Premium % = [(Market Value - Price) / Market Value] × 100
             - DTI % = (Monthly Payment / Gross Monthly Income) × 100
             - Down Payment % = (Down Payment / Vehicle Price) × 100
 
       5. **EVIDENCE & LOGIC VALIDATION**:
-         
+
          A. **Risk-Recommendation Alignment**:
             - If CRITICAL red flags present → Must be NO-GO or address resolution
             - If MODERATE red flags present → Must be GO WITH CAUTION or explain mitigation
             - If MINOR concerns only → Can be GO with acknowledgment
-         
+
          B. **Price-Recommendation Alignment**:
             - Price >10% above market → Should be NO-GO or justify premium
             - Price 0-10% above market → Should explain why acceptable
             - Price at market → Should be GO or explain concerns
             - Price 5-10% below market → Should be GO (good deal)
             - Price >10% below market → Should verify why (potential issues?)
-         
+
          C. **Data Gap Transparency**:
             - When data unavailable, is limitation clearly stated?
             - Are recommendations appropriately cautious given data gaps?
             - Are alternative verification steps recommended?
 
       6. **BUYER ADVOCACY CHECK**:
-         
+
          A. **Buyer-Centric Focus**:
             - Does report serve buyer's best financial interests?
             - Are warnings about risks clear and prominent?
             - Are cost-saving opportunities highlighted?
             - Is buyer empowered with actionable information?
-         
+
          B. **Balanced Analysis**:
             - Are both pros and cons fairly presented?
             - Is the report honest about deal quality (not overselling)?
             - Are limitations and uncertainties acknowledged?
-         
+
          C. **Ethical Considerations**:
             - No financial conflicts of interest introduced?
             - No steering toward specific dealers/lenders without justification?

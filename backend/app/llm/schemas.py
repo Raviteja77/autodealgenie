@@ -148,7 +148,9 @@ class AffordabilityAssessment(BaseModel):
     """Assessment of financing affordability"""
 
     monthly_payment: float = Field(..., description="Recommended option's monthly payment")
-    monthly_income: float | None = Field(None, description="Buyer's gross monthly income if provided")
+    monthly_income: float | None = Field(
+        None, description="Buyer's gross monthly income if provided"
+    )
     debt_to_income_ratio: float | None = Field(
         None, description="DTI ratio as percentage if income provided"
     )
@@ -167,7 +169,9 @@ class FinancingReport(BaseModel):
     vehicle_price: float = Field(..., description="Vehicle purchase price")
     loan_amount: float = Field(..., description="Total loan amount needed")
     down_payment: float = Field(..., description="Down payment amount")
-    down_payment_ratio: float = Field(..., description="Down payment as percentage (e.g., 20 for 20%)")
+    down_payment_ratio: float = Field(
+        ..., description="Down payment as percentage (e.g., 20 for 20%)"
+    )
     down_payment_assessment: str = Field(
         ..., description="Assessment: Excellent (≥20%), Acceptable (10-19%), or Risky (<10%)"
     )
@@ -184,7 +188,8 @@ class FinancingReport(BaseModel):
         default_factory=list, description="Warnings about risky loan options or predatory terms"
     )
     data_source: str = Field(
-        ..., description="Lender recommendation data or Educational guidance on typical market rates"
+        ...,
+        description="Lender recommendation data or Educational guidance on typical market rates",
     )
 
 
@@ -194,9 +199,7 @@ class AddOnRecommendation(BaseModel):
     name: str = Field(..., description="Name of add-on")
     typical_price: float = Field(..., description="Typical retail price")
     dealer_cost: float | None = Field(None, description="Approximate dealer cost if known")
-    recommendation: str = Field(
-        ..., description="Decline, Negotiate to $X, or Accept only if..."
-    )
+    recommendation: str = Field(..., description="Decline, Negotiate to $X, or Accept only if...")
 
 
 class FeeDetail(BaseModel):
@@ -227,7 +230,9 @@ class NegotiatedDeal(BaseModel):
     add_ons: list[AddOnRecommendation] = Field(
         default_factory=list, description="Add-ons with recommendations"
     )
-    fees: list[FeeDetail] = Field(default_factory=list, description="Fees with negotiation strategy")
+    fees: list[FeeDetail] = Field(
+        default_factory=list, description="Fees with negotiation strategy"
+    )
     dealer_financing_offer: DealerFinancingOffer | None = Field(
         None, description="Estimated dealer financing offer with warnings"
     )

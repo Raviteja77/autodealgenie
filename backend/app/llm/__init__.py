@@ -2,6 +2,12 @@
 LLM module for OpenAI integration
 """
 
+from app.llm.agent_coordination import (
+    AgentContext,
+    AgentPipeline,
+    DataEnricher,
+    create_vehicle_research_pipeline,
+)
 from app.llm.llm_client import (
     AgentRole,
     generate_structured_json,
@@ -29,12 +35,6 @@ from app.llm.schemas import (
     VehicleConditionAssessment,
     VehicleInfo,
     VehicleReport,
-)
-from app.llm.agent_coordination import (
-    AgentContext,
-    AgentPipeline,
-    DataEnricher,
-    create_vehicle_research_pipeline,
 )
 
 __all__ = [
