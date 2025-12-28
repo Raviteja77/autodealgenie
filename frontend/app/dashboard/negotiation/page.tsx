@@ -69,6 +69,7 @@ import {
   getLatestNegotiatedPrice,
   validateNegotiatedPrice,
 } from "@/lib/utils/negotiation";
+import { NotFoundError } from "@/lib/errors";
 
 // Fallback VIN when actual VIN is not available
 const DEFAULT_VIN = "UNKNOWN00000000000";
@@ -283,25 +284,46 @@ function NegotiationContent() {
         setLoading(true);
         setError(null);
 
-        // Sequential API calls (create deal, then negotiation)
-        // These MUST be sequential, not parallel
-        const dealData: DealCreate = {
-          customer_name: user?.full_name || user?.username || "Guest User",
-          customer_email: user?.email || "guest@autodealgenie.com",
-          vehicle_make: vehicleData.make,
-          vehicle_model: vehicleData.model,
-          vehicle_year: vehicleData.year,
-          vehicle_mileage: vehicleData.mileage,
-          vehicle_vin: vehicleData.vin || DEFAULT_VIN,
-          asking_price: vehicleData.price,
-          status: "in_progress",
-          notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
-        };
+        // Check if deal already exists
+        let dealId: number;
+        const customerEmail = user?.email || "guest@autodealgenie.com";
+        const vehicleVin = vehicleData.vin || DEFAULT_VIN;
 
-        const deal = await apiClient.createDeal(dealData);
+        try {
+          const existingDeal = await apiClient.getDealByEmailAndVin(
+            customerEmail,
+            vehicleVin
+          );
+          dealId = existingDeal.id;
+        } catch (error: unknown) {
+          // Check if this is a legitimate 404 (deal not found) or another error
+          // Use the proper type guard from the errors module
+          if (error instanceof NotFoundError) {
+            // Deal not found (404), create new one
+            const dealData: DealCreate = {
+              customer_name: user?.full_name || user?.username || "Guest User",
+              customer_email: customerEmail,
+              vehicle_make: vehicleData.make,
+              vehicle_model: vehicleData.model,
+              vehicle_year: vehicleData.year,
+              vehicle_mileage: vehicleData.mileage,
+              vehicle_vin: vehicleVin,
+              asking_price: vehicleData.price,
+              status: "in_progress",
+              notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
+            };
+
+            const newDeal = await apiClient.createDeal(dealData);
+            dealId = newDeal.id;
+          } else {
+            // This is not a "deal not found" error - it could be network, auth, etc.
+            console.error("Unexpected error checking for existing deal:", error);
+            throw error; // Re-throw to be caught by outer catch
+          }
+        }
 
         const response = await apiClient.createNegotiation({
-          deal_id: deal.id,
+          deal_id: dealId,
           user_target_price: targetPrice,
           strategy: "moderate",
         });

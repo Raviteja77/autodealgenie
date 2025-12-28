@@ -608,6 +608,14 @@ class ApiClient {
     });
   }
 
+  async getDealByEmailAndVin(email: string, vin: string): Promise<Deal> {
+    return this.request<Deal>(
+      `/api/v1/deals/search?customer_email=${encodeURIComponent(
+        email
+      )}&vehicle_vin=${encodeURIComponent(vin)}`
+    );
+  }
+
   /**
    * Evaluate a deal with AI analysis
    */

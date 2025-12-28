@@ -46,6 +46,31 @@ def get_deals(
     return deals
 
 
+@router.get("/search", response_model=DealResponse)
+def get_deal_by_email_and_vin(
+    customer_email: str,
+    vehicle_vin: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get deals by customer email and vehicle VIN (requires authentication)"""
+    # Authorization check: verify user owns the resource or is a superuser
+    if current_user.email != customer_email and current_user.is_superuser != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to access this deal",
+        )
+
+    repository = DealRepository(db)
+    deal = repository.get_deal_by_vehicle_and_customer(vehicle_vin, customer_email)
+    if not deal:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Deal with vehicle VIN {vehicle_vin} and customer email {customer_email} not found",
+        )
+    return deal
+
+
 @router.get("/{deal_id}", response_model=DealResponse)
 def get_deal(
     deal_id: int,
