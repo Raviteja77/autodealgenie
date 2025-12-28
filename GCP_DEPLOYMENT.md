@@ -246,30 +246,59 @@ BACKEND_URL=$(gcloud run services describe autodealgenie-backend-${ENVIRONMENT} 
 echo "Backend URL: $BACKEND_URL"
 ```
 
-### 5. Run Database Migrations
+### 5. Set Up Database Migrations (One-Time Setup)
+
+**Important**: Database migrations should NOT run during container startup as they can cause deployment failures. Instead, use Cloud Run Jobs to run migrations separately before deploying the application.
+
+#### Option 1: Create Migration Job (Recommended for CI/CD)
+
+Create a Cloud Run Job that will automatically run migrations before each deployment:
 
 ```bash
-# Option 1: Run migrations locally
-export POSTGRES_SERVER=db.xxxxxxxxxxxx.supabase.co
-export POSTGRES_USER=postgres
-export POSTGRES_PASSWORD=your-supabase-password
-export POSTGRES_DB=postgres
-
-cd backend
-alembic upgrade head
-
-# Option 2: Run migrations in Cloud Run (one-off job)
+# Create the migration job (one-time setup)
 gcloud run jobs create autodealgenie-migration-${ENVIRONMENT} \
   --image gcr.io/$PROJECT_ID/autodealgenie-backend:latest \
   --region us-central1 \
   --set-env-vars ENVIRONMENT=${ENVIRONMENT} \
   --set-secrets SECRET_KEY=autodealgenie-secret-key-${ENVIRONMENT}:latest,POSTGRES_PASSWORD=autodealgenie-postgres-password-${ENVIRONMENT}:latest \
   --command alembic \
-  --args upgrade,head
+  --args upgrade,head \
+  --max-retries 2 \
+  --task-timeout 300s
 
-gcloud run jobs execute autodealgenie-migration-${ENVIRONMENT} \
-  --region us-central1
+# The Cloud Build pipeline (cloudbuild.yaml) will automatically:
+# 1. Update the job with the new image
+# 2. Execute migrations before deploying the service
+# 3. Only deploy if migrations succeed
 ```
+
+#### Option 2: Run Migrations Manually
+
+For one-off migrations or when not using the Cloud Build pipeline:
+
+```bash
+# Execute the migration job
+gcloud run jobs execute autodealgenie-migration-${ENVIRONMENT} \
+  --region us-central1 \
+  --wait
+
+# Or run migrations locally (requires database access)
+export POSTGRES_SERVER=db.xxxxxxxxxxxx.supabase.co
+export POSTGRES_USER=postgres
+export POSTGRES_PASSWORD=your-supabase-password
+export POSTGRES_DB=postgres
+export SECRET_KEY=$(openssl rand -hex 32)
+
+cd backend
+alembic upgrade head
+```
+
+**Benefits of Cloud Run Jobs for migrations:**
+- ✅ Migrations run in isolated environment before deployment
+- ✅ Deployment only proceeds if migrations succeed
+- ✅ Automatic retry on transient failures
+- ✅ Timeout protection (won't block deployments indefinitely)
+- ✅ No risk of multiple containers running migrations simultaneously
 
 ---
 

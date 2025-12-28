@@ -23,6 +23,40 @@ steps:
       - 'push'
       - 'gcr.io/$PROJECT_ID/autodealgenie-backend:latest'
 
+  # Run database migrations using Cloud Run Jobs (if job exists)
+  # This ensures migrations complete successfully before the new version goes live
+  # Note: The migration job must be created manually first (see GCP_DEPLOYMENT.md)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        # Check if migration job exists and run it
+        if gcloud run jobs describe autodealgenie-migration-${_ENVIRONMENT} \
+          --region ${_REGION} &>/dev/null; then
+          echo "Migration job exists. Updating image and running migrations..."
+          
+          # Update job with new image
+          gcloud run jobs update autodealgenie-migration-${_ENVIRONMENT} \
+            --image gcr.io/$PROJECT_ID/autodealgenie-backend:$COMMIT_SHA \
+            --region ${_REGION}
+
+          # Execute the migration job and wait for completion
+          gcloud run jobs execute autodealgenie-migration-${_ENVIRONMENT} \
+            --region ${_REGION} \
+            --wait
+          
+          echo "✓ Migrations completed successfully"
+        else
+          echo "⚠ Migration job not found. Skipping migrations."
+          echo "To enable automatic migrations, create the job using:"
+          echo "gcloud run jobs create autodealgenie-migration-${_ENVIRONMENT} \\"
+          echo "  --image gcr.io/$PROJECT_ID/autodealgenie-backend:latest \\"
+          echo "  --region ${_REGION} \\"
+          echo "  --set-secrets SECRET_KEY=autodealgenie-secret-key-${_ENVIRONMENT}:latest,POSTGRES_PASSWORD=autodealgenie-postgres-password-${_ENVIRONMENT}:latest \\"
+          echo "  --command alembic --args upgrade,head"
+        fi
+
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
