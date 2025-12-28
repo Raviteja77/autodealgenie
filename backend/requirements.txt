@@ -19,8 +19,9 @@ motor==3.6.0
 # pymongo is automatically installed as a motor dependency
 
 
-# Cache - Redis
+# Cache - Redis (optional) and in-memory fallback
 redis==5.2.0
+cachetools==5.3.2  # In-memory caching for GCP Free Tier
 
 # Message Queue - RabbitMQ
 aio-pika==9.4.3

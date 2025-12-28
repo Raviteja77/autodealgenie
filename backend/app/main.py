@@ -34,38 +34,54 @@ async def lifespan(app: FastAPI):
     print("Starting up AutoDealGenie backend...")
 
     # Import here to avoid circular dependency issues during module initialization
+    from app.db.in_memory_cache import in_memory_cache
+    from app.db.in_memory_queue import in_memory_queue
     from app.db.rabbitmq import rabbitmq
     from app.db.redis import redis_client
 
-    # Initialize RabbitMQ connection
-    try:
-        await rabbitmq.connect()
-        print("RabbitMQ connected successfully")
-    except Exception as e:
-        print(f"CRITICAL: Failed to initialize RabbitMQ: {e}")
-        print("Application cannot start without RabbitMQ. Please check your configuration.")
-        raise
+    # Track which services are actually being used (for cleanup)
+    using_redis = settings.USE_REDIS
+    using_rabbitmq = settings.USE_RABBITMQ
 
-    # Initialize Redis connection
-    try:
-        await redis_client.connect_redis()
-        print("Redis connected successfully")
-    except Exception as e:
-        print(f"CRITICAL: Failed to initialize Redis: {e}")
-        print("Application cannot start without Redis. Please check your configuration.")
-        raise
+    # Initialize Redis/Cache connection
+    if settings.USE_REDIS:
+        try:
+            await redis_client.connect_redis()
+            print("Redis connected successfully")
+        except Exception as e:
+            print(f"WARNING: Failed to initialize Redis: {e}")
+            print("Falling back to in-memory cache")
+            using_redis = False
 
-    # Initialize RabbitMQ producer and consumers
-    try:
-        await rabbitmq_producer.start()
-        await deals_consumer.start()
-        # Start consumer in background task
-        deals_task = asyncio.create_task(deals_consumer.consume_messages(handle_deal_message))
-        consumer_tasks.append(deals_task)
-        print("RabbitMQ services initialized successfully")
-    except Exception as e:
-        print(f"WARNING: Failed to initialize RabbitMQ services: {e}")
-        print("Application will continue without messaging features.")
+    if not using_redis:
+        print("Using in-memory cache (Redis disabled)")
+
+    # Initialize RabbitMQ/Queue connection
+    if settings.USE_RABBITMQ:
+        try:
+            await rabbitmq.connect()
+            print("RabbitMQ connected successfully")
+        except Exception as e:
+            print(f"WARNING: Failed to initialize RabbitMQ: {e}")
+            print("Falling back to in-memory queue")
+            using_rabbitmq = False
+
+    if not using_rabbitmq:
+        await in_memory_queue.connect()
+        print("Using in-memory queue (RabbitMQ disabled)")
+
+    # Initialize RabbitMQ producer and consumers (only if RabbitMQ is enabled)
+    if using_rabbitmq:
+        try:
+            await rabbitmq_producer.start()
+            await deals_consumer.start()
+            # Start consumer in background task
+            deals_task = asyncio.create_task(deals_consumer.consume_messages(handle_deal_message))
+            consumer_tasks.append(deals_task)
+            print("RabbitMQ services initialized successfully")
+        except Exception as e:
+            print(f"WARNING: Failed to initialize RabbitMQ services: {e}")
+            print("Application will continue without messaging features.")
 
     if settings.USE_MOCK_SERVICES:
         print("Mock services are ENABLED - using mock endpoints for development")
@@ -74,24 +90,33 @@ async def lifespan(app: FastAPI):
     print("Shutting down AutoDealGenie backend...")
 
     # Close connections
-    await rabbitmq.close()
-    print("RabbitMQ connection closed")
+    if using_rabbitmq:
+        await rabbitmq.close()
+        print("RabbitMQ connection closed")
+    else:
+        await in_memory_queue.close()
+        print("In-memory queue closed")
 
-    await redis_client.close_redis()
-    print("Redis connection closed")
+    if using_redis:
+        await redis_client.close_redis()
+        print("Redis connection closed")
+    else:
+        await in_memory_cache.close()
+        print("In-memory cache closed")
 
-    # Stop RabbitMQ consumers and producer
-    try:
-        for task in consumer_tasks:
-            task.cancel()
-        await asyncio.gather(*consumer_tasks, return_exceptions=True)
-        if deals_consumer:
-            await deals_consumer.stop()
-        if rabbitmq_producer:
-            await rabbitmq_producer.stop()
-        print("RabbitMQ services stopped")
-    except Exception as e:
-        print(f"WARNING: Error stopping RabbitMQ services: {e}")
+    # Stop RabbitMQ consumers and producer (only if RabbitMQ is enabled)
+    if using_rabbitmq:
+        try:
+            for task in consumer_tasks:
+                task.cancel()
+            await asyncio.gather(*consumer_tasks, return_exceptions=True)
+            if deals_consumer:
+                await deals_consumer.stop()
+            if rabbitmq_producer:
+                await rabbitmq_producer.stop()
+            print("RabbitMQ services stopped")
+        except Exception as e:
+            print(f"WARNING: Error stopping RabbitMQ services: {e}")
 
 
 app = FastAPI(

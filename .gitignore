@@ -42,6 +42,12 @@ venv.bak/
 .env
 .env.local
 .env.*.local
+.env.dev
+.env.prod
+backend/.env.dev
+backend/.env.prod
+frontend/.env.dev.local
+frontend/.env.prod.local
 
 # Testing
 .pytest_cache/

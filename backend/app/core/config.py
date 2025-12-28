@@ -35,16 +35,17 @@ class Settings(BaseSettings):
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
-    # Redis
+    # Redis (optional for GCP Free Tier - will use in-memory cache if not available)
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
+    USE_REDIS: bool = True  # Set to False to use in-memory caching
 
     @property
     def REDIS_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
-    # RabbitMQ
+    # RabbitMQ (optional for GCP Free Tier - will use in-memory queue if not available)
     RABBITMQ_HOST: str = "localhost"
     RABBITMQ_PORT: int = 5672
     RABBITMQ_USER: str = "autodealgenie"
@@ -52,6 +53,7 @@ class Settings(BaseSettings):
     RABBITMQ_VHOST: str = "/"
     RABBITMQ_QUEUE_DEALS: str = "deals"
     RABBITMQ_QUEUE_NOTIFICATIONS: str = "notifications"
+    USE_RABBITMQ: bool = True  # Set to False to use in-memory queue
 
     @property
     def RABBITMQ_URL(self) -> str:
