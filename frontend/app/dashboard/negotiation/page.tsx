@@ -87,7 +87,7 @@ interface VehicleInfo {
 function NegotiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeStep, canNavigateToStep } = useStepper();
+  const { completeStep, canNavigateToStep, getStepData } = useStepper();
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContext = useNegotiationChat();
@@ -97,6 +97,21 @@ function NegotiationContent() {
   // Local state for vehicle data and target price (derived from URL)
   const [vehicleData, setVehicleData] = useState<VehicleInfo | null>(null);
   const [targetPrice, setTargetPrice] = useState<number | null>(null);
+  
+  // Get evaluation data from stepper context (step 3)
+  const evaluationStepData = getStepData<{
+    evaluation?: {
+      fair_value?: number;
+      score?: number;
+      insights?: string[];
+      talking_points?: string[];
+      market_data?: {
+        comparables_found?: number;
+        summary?: string;
+        comparables?: any[];
+      };
+    };
+  }>(3);
 
   // Use centralized negotiation state hook
   const {
@@ -326,6 +341,7 @@ function NegotiationContent() {
           deal_id: dealId,
           user_target_price: targetPrice,
           strategy: "moderate",
+          evaluation_data: evaluationStepData?.evaluation,
         });
 
         const session = await apiClient.getNegotiationSession(

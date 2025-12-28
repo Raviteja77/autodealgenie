@@ -114,6 +114,9 @@ function EvaluationContent() {
         asking_price: vehicleData.price,
         condition: vehicleData.condition || "good",
         mileage: vehicleData.mileage,
+        make: vehicleData.make,
+        model: vehicleData.model,
+        year: vehicleData.year,
       });
 
       setEvaluation(data);
