@@ -17,6 +17,7 @@ from app.llm.schemas import DealEvaluation, VehicleConditionAssessment
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import Deal
 from app.repositories.evaluation_repository import EvaluationRepository
+from app.tools.marketcheck_client import marketcheck_client
 from app.utils.error_handler import ApiError
 
 logger = logging.getLogger(__name__)
@@ -141,6 +142,92 @@ class DealEvaluationService:
         except Exception as e:
             logger.warning(f"Error storing to cache: {e}")
 
+    async def _fetch_marketcheck_comparables(
+        self,
+        make: str,
+        model: str,
+        year: int,
+        asking_price: float,
+        mileage: int,
+    ) -> list[dict[str, Any]]:
+        """
+        Fetch comparable vehicles from MarketCheck API for market analysis
+
+        Args:
+            make: Vehicle make
+            model: Vehicle model
+            year: Vehicle year
+            asking_price: Current asking price (for price range)
+            mileage: Current mileage (for mileage range)
+
+        Returns:
+            List of comparable vehicles with parsed data
+        """
+        try:
+            # Define search parameters for comparables
+            # Price range: ±20% of asking price
+            price_margin = 0.20
+            min_price = int(asking_price * (1 - price_margin))
+            max_price = int(asking_price * (1 + price_margin))
+
+            # Year range: ±2 years
+            min_year = max(2000, year - 2)
+            max_year = year + 2
+
+            # Mileage range: up to 1.5x the current mileage
+            max_mileage = int(mileage * 1.5)
+
+            logger.info(
+                f"Fetching MarketCheck comparables: {make} {model} "
+                f"{min_year}-{max_year}, ${min_price:,}-${max_price:,}, "
+                f"mileage ≤ {max_mileage:,}"
+            )
+
+            # Fetch from MarketCheck API
+            response = await marketcheck_client.search_cars(
+                make=make,
+                model=model,
+                min_price=min_price,
+                max_price=max_price,
+                min_year=min_year,
+                max_year=max_year,
+                max_mileage=max_mileage,
+                rows=10,  # Fetch up to 10 comparables
+            )
+
+            # Parse listings
+            listings = response.get("listings", [])
+            if not listings:
+                logger.warning("No comparable vehicles found on MarketCheck")
+                return []
+
+            # Parse and return comparable data
+            comparables = []
+            for listing in listings:
+                parsed = marketcheck_client.parse_listing(listing)
+                # Add only essential fields for evaluation
+                comparables.append({
+                    "vin": parsed.get("vin"),
+                    "year": parsed.get("year"),
+                    "make": parsed.get("make"),
+                    "model": parsed.get("model"),
+                    "trim": parsed.get("trim"),
+                    "price": parsed.get("price"),
+                    "mileage": parsed.get("mileage"),
+                    "location": parsed.get("location"),
+                    "days_on_market": parsed.get("days_on_market"),
+                    "carfax_clean_title": parsed.get("carfax_clean_title"),
+                    "carfax_1_owner": parsed.get("carfax_1_owner"),
+                })
+
+            logger.info(f"Found {len(comparables)} comparable vehicles from MarketCheck")
+            return comparables
+
+        except Exception as e:
+            logger.error(f"Error fetching MarketCheck comparables: {e}")
+            # Return empty list on error - evaluation will continue without comparables
+            return []
+
     async def evaluate_deal(
         self,
         vehicle_vin: str,
@@ -193,6 +280,33 @@ class DealEvaluationService:
                 f"Year: {year or 'Unknown'}, Condition: {condition}"
             )
 
+            # Fetch comparable vehicles from MarketCheck if make, model, and year are available
+            comparables = []
+            comparables_summary = "No comparable data available"
+            if make and model and year:
+                comparables = await self._fetch_marketcheck_comparables(
+                    make=make,
+                    model=model,
+                    year=year,
+                    asking_price=asking_price,
+                    mileage=mileage,
+                )
+                
+                if comparables:
+                    # Generate summary of comparables for LLM context
+                    avg_price = sum(c.get("price", 0) for c in comparables) / len(comparables)
+                    avg_mileage = sum(c.get("mileage", 0) for c in comparables) / len(comparables)
+                    avg_days_on_market = sum(c.get("days_on_market", 0) for c in comparables if c.get("days_on_market")) / max(1, len([c for c in comparables if c.get("days_on_market")]))
+                    
+                    comparables_summary = (
+                        f"Found {len(comparables)} comparable {make} {model} vehicles. "
+                        f"Average price: ${avg_price:,.0f}, Average mileage: {avg_mileage:,.0f} miles, "
+                        f"Average days on market: {avg_days_on_market:.0f} days. "
+                        f"Price range: ${min(c.get('price', 0) for c in comparables):,.0f} - "
+                        f"${max(c.get('price', 0) for c in comparables):,.0f}"
+                    )
+                    logger.info(f"MarketCheck data: {comparables_summary}")
+
             # Use centralized LLM client with the evaluation prompt
             evaluation = await generate_structured_json(
                 prompt_id="evaluation",
@@ -204,6 +318,8 @@ class DealEvaluationService:
                     "asking_price": asking_price,
                     "mileage": mileage,
                     "condition": condition,
+                    "market_data": comparables_summary,
+                    "comparables_count": len(comparables),
                 },
                 response_model=DealEvaluation,
                 temperature=0.7,
@@ -217,6 +333,11 @@ class DealEvaluationService:
                 "score": evaluation.score,
                 "insights": evaluation.insights[: self.MAX_INSIGHTS],
                 "talking_points": evaluation.talking_points[: self.MAX_INSIGHTS],
+                "market_data": {
+                    "comparables_found": len(comparables),
+                    "summary": comparables_summary,
+                    "comparables": comparables[:5],  # Include top 5 for reference
+                },
             }
 
             # Cache the successful result

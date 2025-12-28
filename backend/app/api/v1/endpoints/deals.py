@@ -129,18 +129,24 @@ async def evaluate_deal(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Evaluate a car deal and get fair market value analysis
+    Evaluate a car deal and get fair market value analysis using real-time MarketCheck data
+
+    For best results, provide make, model, and year to enable MarketCheck comparable search.
 
     Returns:
-        - fair_value: Estimated fair market value
+        - fair_value: Estimated fair market value based on comparable vehicles
         - score: Deal quality score (1-10)
-        - insights: AI-powered analysis insights
-        - talking_points: Negotiation recommendations
+        - insights: AI-powered analysis insights incorporating market data
+        - talking_points: Data-driven negotiation recommendations
+        - market_data: Real-time comparable vehicle data from MarketCheck
     """
     result = await deal_evaluation_service.evaluate_deal(
         vehicle_vin=evaluation_request.vehicle_vin,
         asking_price=evaluation_request.asking_price,
         condition=evaluation_request.condition,
         mileage=evaluation_request.mileage,
+        make=evaluation_request.make,
+        model=evaluation_request.model,
+        year=evaluation_request.year,
     )
     return result

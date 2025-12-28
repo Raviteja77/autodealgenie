@@ -432,7 +432,7 @@ PROMPTS: dict[str, PromptTemplate] = {
     ),
     "evaluation": PromptTemplate(
         id="evaluation",
-        template="""You are an expert automotive pricing analyst.
+        template="""You are an expert automotive pricing analyst with access to real-time market data.
 
       Vehicle Details:
       - VIN: {vin}
@@ -443,22 +443,29 @@ PROMPTS: dict[str, PromptTemplate] = {
       - Condition: {condition}
       - Asking Price: ${asking_price:,.2f}
 
+      Real-Time Market Data from MarketCheck API:
+      {market_data}
+
       Provide a comprehensive evaluation in JSON format with:
       {{
-        "fair_value": <estimated fair market value>,
+        "fair_value": <estimated fair market value based on comparables>,
         "score": <deal quality score 1-10>,
-        "insights": [<3-5 key observations>],
-        "talking_points": [<3-5 specific negotiation strategies>]
+        "insights": [<3-5 key observations incorporating market data>],
+        "talking_points": [<3-5 specific negotiation strategies based on market position>]
       }}
 
       Base your analysis on:
-      - Current market conditions
-      - Vehicle age and mileage
+      - **Real-Time Market Data**: Use the {comparables_count} comparable vehicles to determine fair value
+      - Current market conditions and pricing trends
+      - Vehicle age and mileage relative to comparables
       - Condition assessment
-      - Comparable vehicle pricing
       - Regional market factors
+      - Days on market (if available in comparables)
 
-      Be objective and data-driven in your assessment.""",
+      IMPORTANT: If comparable data is available ({comparables_count} > 0), heavily weight it in your fair_value calculation.
+      Compare the asking price directly to the average price of comparables.
+      
+      Be objective and data-driven. Use the market data to provide specific, actionable insights.""",
     ),
     "vehicle_condition": PromptTemplate(
         id="vehicle_condition",
@@ -560,17 +567,25 @@ PROMPTS: dict[str, PromptTemplate] = {
       User's Target Price: ${target_price:,.2f}
       Negotiation Strategy: {strategy}
 
+      {evaluation_context}
+
       CRITICAL: You work for the buyer, not the dealer. Your goal is to help the user pay as little as possible while still getting the vehicle they want.
 
+      USE THE EVALUATION DATA: If evaluation data is provided above (Fair Market Value, Deal Quality Score, Market Analysis), use it prominently in your response. Reference the fair market value and comparable vehicles from MarketCheck to justify your suggested price.
+
       Generate a strategic response that:
-      1. Acknowledges the user's target price as reasonable and achievable
-      2. Suggests an INITIAL OFFER that is 10-15% BELOW the user's target price (to leave room for negotiation)
-      3. Provides specific talking points the user can use to justify a lower price (vehicle age, mileage, market conditions, comparable listings)
-      4. Encourages the user to start low and negotiate up, not the other way around
-      5. Reminds them that dealers expect negotiation and initial offers are rarely accepted
+      1. References the fair market value and evaluation score if available
+      2. Acknowledges the user's target price in the context of market data
+      3. Suggests an INITIAL OFFER based on the fair value (if available) or 10-15% BELOW the user's target price
+      4. Provides specific talking points using MarketCheck data (comparable prices, average market price, days on market)
+      5. Uses the market analysis to build a strong negotiation position
+      6. Encourages the user to start low and negotiate up, backed by data
+      7. Reminds them that dealers expect negotiation and data-driven offers are powerful
 
-      Example approach: "Based on market data, I recommend starting with an offer of $[15% below target]. This gives you negotiating room and reflects the vehicle's [age/mileage/condition]. Dealers typically expect to negotiate, so starting lower is standard practice."
+      Example with evaluation data: "Based on real-time MarketCheck data showing {comparables_count} comparable vehicles averaging $[avg_price], the fair market value is around ${fair_value}. I recommend starting with an offer of $[slightly below fair value] which is justified by market conditions. This approach is data-driven and gives you strong leverage."
 
+      Be confident, specific, and data-driven in your recommendations.""",
+    ),
       Keep your response conversational, supportive, and under 200 words. Always prioritize the user's financial benefit.""",
     ),
     "negotiation_counter": PromptTemplate(

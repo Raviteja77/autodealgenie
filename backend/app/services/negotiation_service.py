@@ -99,6 +99,7 @@ class NegotiationService:
         deal_id: int,
         user_target_price: float,
         strategy: str | None = None,
+        evaluation_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Create a new negotiation session and seed the first round
@@ -108,6 +109,7 @@ class NegotiationService:
             deal_id: ID of the deal being negotiated
             user_target_price: User's target price
             strategy: Optional negotiation strategy
+            evaluation_data: Optional evaluation results from deal evaluation (recommended)
 
         Returns:
             Dictionary with session details and initial response
@@ -126,7 +128,15 @@ class NegotiationService:
             logger.error(f"[{request_id}] Deal {deal_id} not found")
             raise ApiError(status_code=404, message=f"Deal with id {deal_id} not found")
 
-        # Create session
+        # Log if evaluation data is provided
+        if evaluation_data:
+            logger.info(
+                f"[{request_id}] Negotiation using evaluation data: "
+                f"Fair value: ${evaluation_data.get('fair_value', 'N/A')}, "
+                f"Score: {evaluation_data.get('score', 'N/A')}"
+            )
+
+        # Create session with evaluation data in metadata
         session = self.negotiation_repo.create_session(user_id=user_id, deal_id=deal_id)
         logger.info(f"[{request_id}] Created session {session.id}")
 
@@ -139,18 +149,30 @@ class NegotiationService:
         if strategy:
             user_message += f" My negotiation approach is {strategy}."
 
+        # Include evaluation context in metadata
+        message_metadata = {
+            "target_price": user_target_price,
+            "strategy": strategy,
+        }
+        if evaluation_data:
+            message_metadata["evaluation_data"] = {
+                "fair_value": evaluation_data.get("fair_value"),
+                "score": evaluation_data.get("score"),
+                "has_market_data": evaluation_data.get("market_data", {}).get("comparables_found", 0) > 0,
+            }
+
         user_msg = self.negotiation_repo.add_message(
             session_id=session.id,
             role=MessageRole.USER,
             content=user_message,
             round_number=1,
-            metadata={"target_price": user_target_price, "strategy": strategy},
+            metadata=message_metadata,
         )
 
         # Broadcast user message via WebSocket
         await self._broadcast_message(session.id, user_msg)
 
-        # Generate agent's initial response using LLM
+        # Generate agent's initial response using LLM with evaluation data
         try:
             # Show typing indicator
             await self.ws_manager.broadcast_typing_indicator(session.id, True)
@@ -161,6 +183,7 @@ class NegotiationService:
                 user_target_price=user_target_price,
                 strategy=strategy,
                 request_id=request_id,
+                evaluation_data=evaluation_data,
             )
 
             # Hide typing indicator
@@ -532,11 +555,34 @@ class NegotiationService:
         user_target_price: float,
         strategy: str | None,
         request_id: str,
+        evaluation_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Generate agent's initial response using LLM"""
+        """Generate agent's initial response using LLM with evaluation context"""
         logger.info(f"[{request_id}] Generating agent response for session {session.id}")
 
+        # Extract evaluation insights if available
+        fair_value = evaluation_data.get("fair_value") if evaluation_data else None
+        eval_score = evaluation_data.get("score") if evaluation_data else None
+        market_data_summary = ""
+        if evaluation_data and evaluation_data.get("market_data"):
+            market_data_summary = evaluation_data["market_data"].get("summary", "")
+
         try:
+            # Prepare evaluation context for the prompt
+            evaluation_context = "No evaluation data available."
+            if evaluation_data:
+                evaluation_context = (
+                    f"Deal Evaluation Results:\n"
+                    f"- Fair Market Value: ${fair_value:,.2f} (based on real-time MarketCheck data)\n"
+                    f"- Deal Quality Score: {eval_score}/10\n"
+                )
+                if market_data_summary:
+                    evaluation_context += f"- Market Analysis: {market_data_summary}\n"
+                
+                insights = evaluation_data.get("insights", [])
+                if insights:
+                    evaluation_context += f"- Key Insights: {'; '.join(insights[:3])}"
+
             # Use centralized LLM client
             response_content = generate_text(
                 prompt_id="negotiation_initial",
@@ -548,13 +594,24 @@ class NegotiationService:
                     "asking_price": deal.asking_price,
                     "target_price": user_target_price,
                     "strategy": strategy or "Not specified",
+                    "evaluation_context": evaluation_context,
+                    "fair_value": fair_value or deal.asking_price,
                 },
                 temperature=0.7,
             )
 
-            # Generate suggested counter offer - start BELOW user's target to leave negotiating room
-            # User-centric approach: suggest 10-15% below target price for initial offer
-            suggested_price = user_target_price * self.INITIAL_OFFER_MULTIPLIER
+            # Use fair value from evaluation if available, otherwise use user target
+            # This ensures negotiation suggestions are data-driven
+            base_price_for_suggestion = fair_value if fair_value else user_target_price
+            
+            # Generate suggested counter offer - start BELOW fair value to leave negotiating room
+            # If fair value is significantly below asking price, be more aggressive
+            if fair_value and fair_value < deal.asking_price * 0.9:
+                # Fair value suggests asking price is high - start even lower
+                suggested_price = base_price_for_suggestion * 0.95
+            else:
+                # Standard approach: suggest 10-15% below target
+                suggested_price = base_price_for_suggestion * self.INITIAL_OFFER_MULTIPLIER
 
             # Calculate financing options for the suggested price
             financing_options = self._calculate_financing_options(suggested_price)
@@ -590,6 +647,9 @@ class NegotiationService:
                     "suggested_price": round(suggested_price, 2),
                     "asking_price": deal.asking_price,
                     "user_target_price": user_target_price,
+                    "fair_value": fair_value,
+                    "evaluation_score": eval_score,
+                    "has_evaluation_data": evaluation_data is not None,
                     "financing_options": financing_options,
                     "cash_savings": round(cash_savings, 2) if cash_savings else None,
                     "llm_used": True,
@@ -600,15 +660,20 @@ class NegotiationService:
         except Exception as e:
             logger.error(f"[{request_id}] LLM call failed: {str(e)}")
             # Fallback response if LLM fails
+            fair_value_context = ""
+            if fair_value:
+                fair_value_context = f" Based on market data, the fair value is around ${fair_value:,.2f}."
+            
             fallback_content = (
                 f"Thank you for your interest in the {deal.vehicle_year} "
                 f"{deal.vehicle_make} {deal.vehicle_model}. "
-                f"Your target of ${user_target_price:,.2f} is realistic given the asking price of ${deal.asking_price:,.2f}. "
+                f"Your target of ${user_target_price:,.2f} is realistic given the asking price of ${deal.asking_price:,.2f}."
+                f"{fair_value_context} "
                 f"I recommend starting with a lower initial offer to give you negotiating room. "
                 f"This is a smart strategy that maximizes your chances of getting the best deal."
             )
 
-            # Start BELOW user's target price
+            # Start BELOW user's target price or fair value
             suggested_price = user_target_price * self.INITIAL_OFFER_MULTIPLIER
 
             # Calculate financing options even for fallback
@@ -643,6 +708,9 @@ class NegotiationService:
                     "suggested_price": round(suggested_price, 2),
                     "asking_price": deal.asking_price,
                     "user_target_price": user_target_price,
+                    "fair_value": fair_value,
+                    "evaluation_score": eval_score,
+                    "has_evaluation_data": evaluation_data is not None,
                     "financing_options": financing_options,
                     "cash_savings": round(cash_savings, 2) if cash_savings else None,
                     "llm_used": False,

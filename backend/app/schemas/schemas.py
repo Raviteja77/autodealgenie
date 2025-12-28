@@ -230,6 +230,9 @@ class DealEvaluationRequest(BaseModel):
         description="Vehicle condition (e.g., excellent, good)",
     )
     mileage: int = Field(..., ge=0, description="Current mileage in miles")
+    make: str | None = Field(None, min_length=1, max_length=100, description="Vehicle make (optional but recommended for MarketCheck data)")
+    model: str | None = Field(None, min_length=1, max_length=100, description="Vehicle model (optional but recommended for MarketCheck data)")
+    year: int | None = Field(None, ge=1900, le=2100, description="Vehicle year (optional but recommended for MarketCheck data)")
 
 
 class DealEvaluationResponse(BaseModel):
@@ -240,6 +243,9 @@ class DealEvaluationResponse(BaseModel):
     insights: list[str] = Field(default_factory=list, description="AI-powered insights")
     talking_points: list[str] = Field(
         default_factory=list, description="Negotiation talking points"
+    )
+    market_data: dict | None = Field(
+        None, description="MarketCheck market data (comparables_found, summary, comparables)"
     )
 
 
