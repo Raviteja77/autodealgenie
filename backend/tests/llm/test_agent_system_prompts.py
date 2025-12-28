@@ -69,7 +69,7 @@ class TestAgentSystemPrompts:
         prompt = get_agent_system_prompt("negotiation", "text")
 
         assert "Expert Car Deal Negotiation Advisor" in prompt
-        assert "JSON" not in prompt
+        assert "IMPORTANT: You must provide your response in valid JSON format" not in prompt
         assert "financing" in prompt.lower()
 
     def test_get_agent_system_prompt_unknown_role(self):
