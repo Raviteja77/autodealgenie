@@ -122,68 +122,147 @@ class VehicleReport(BaseModel):
 
 
 class LoanOption(BaseModel):
-    """A single financing option"""
+    """A single financing option with enhanced details"""
 
     lender_name: str = Field(..., description="Name of lending institution")
+    lender_type: str = Field(
+        ..., description="Type of lender (Credit Union, Bank, Online Lender, Dealer Financing)"
+    )
     apr: float = Field(..., description="Annual Percentage Rate")
     term_months: int = Field(..., description="Loan term in months")
     monthly_payment: float = Field(..., description="Estimated monthly payment")
     total_interest: float = Field(..., description="Total interest paid over loan term")
-    notes: str | None = Field(None, description="Additional notes about this option")
+    total_cost: float = Field(..., description="Total cost (loan_amount + total_interest)")
+    features: list[str] = Field(
+        default_factory=list,
+        description="Lender features (e.g., 'No prepayment penalty', 'Autopay discount')",
+    )
+    match_score: float | None = Field(
+        None, description="Match score if lender recommendation data available"
+    )
+    eligibility_notes: str | None = Field(None, description="Approval likelihood and requirements")
+    notes: str = Field(..., description="Additional considerations, warnings, or benefits")
+
+
+class AffordabilityAssessment(BaseModel):
+    """Assessment of financing affordability"""
+
+    monthly_payment: float = Field(..., description="Recommended option's monthly payment")
+    monthly_income: float | None = Field(None, description="Buyer's gross monthly income if provided")
+    debt_to_income_ratio: float | None = Field(
+        None, description="DTI ratio as percentage if income provided"
+    )
+    affordability_rating: str = Field(
+        ..., description="Rating: Excellent, Good, Moderate, or Concerning"
+    )
+    budget_fit: str = Field(
+        ..., description="Within budget, Tight fit, Exceeds budget, or Budget not provided"
+    )
 
 
 class FinancingReport(BaseModel):
-    """Schema for loan analyzer agent financing report"""
+    """Enhanced schema for loan analyzer agent financing report"""
 
     vehicle_vin: str = Field(..., description="VIN of the vehicle being financed")
+    vehicle_price: float = Field(..., description="Vehicle purchase price")
     loan_amount: float = Field(..., description="Total loan amount needed")
     down_payment: float = Field(..., description="Down payment amount")
+    down_payment_ratio: float = Field(..., description="Down payment as percentage (e.g., 20 for 20%)")
+    down_payment_assessment: str = Field(
+        ..., description="Assessment: Excellent (≥20%), Acceptable (10-19%), or Risky (<10%)"
+    )
     options: list[LoanOption] = Field(..., description="Available financing options")
     recommended_option_index: int = Field(..., description="Zero-based index of recommended option")
+    recommendation_rationale: str = Field(
+        ..., description="Why this option is best (200-300 words)"
+    )
+    affordability_assessment: AffordabilityAssessment = Field(
+        ..., description="Affordability analysis"
+    )
+    financing_strategy: str = Field(..., description="Guidance on next steps (300-400 words)")
+    red_flags: list[str] = Field(
+        default_factory=list, description="Warnings about risky loan options or predatory terms"
+    )
+    data_source: str = Field(
+        ..., description="Lender recommendation data or Educational guidance on typical market rates"
+    )
 
 
-class AddOn(BaseModel):
-    """Vehicle add-on or accessory"""
+class AddOnRecommendation(BaseModel):
+    """Enhanced add-on with recommendation"""
 
     name: str = Field(..., description="Name of add-on")
-    price: float = Field(..., description="Price in USD")
+    typical_price: float = Field(..., description="Typical retail price")
+    dealer_cost: float | None = Field(None, description="Approximate dealer cost if known")
+    recommendation: str = Field(
+        ..., description="Decline, Negotiate to $X, or Accept only if..."
+    )
 
 
-class Fee(BaseModel):
-    """Dealership fee"""
+class FeeDetail(BaseModel):
+    """Enhanced fee with negotiation guidance"""
 
     name: str = Field(..., description="Fee name")
-    price: float = Field(..., description="Fee amount in USD")
+    typical_amount: float = Field(..., description="Typical amount")
+    negotiable: bool = Field(..., description="True if junk fee, false if mandatory")
+    strategy: str = Field(..., description="How to handle this fee")
 
 
-class DealerFinancing(BaseModel):
-    """Dealer financing offer"""
+class DealerFinancingOffer(BaseModel):
+    """Enhanced dealer financing offer with warnings"""
 
     apr: float = Field(..., description="Dealer's APR offer")
     term_months: int = Field(..., description="Loan term in months")
     monthly_payment: float = Field(..., description="Monthly payment amount")
+    notes: str = Field(..., description="Warnings about dealer financing tactics")
 
 
 class NegotiatedDeal(BaseModel):
-    """Schema for negotiation agent deal summary"""
+    """Enhanced schema for negotiation agent deal summary"""
 
     vehicle_vin: str = Field(..., description="VIN of negotiated vehicle")
-    final_price: float = Field(..., description="Final negotiated price")
-    add_ons: list[AddOn] = Field(default_factory=list, description="Add-ons included")
-    fees: list[Fee] = Field(default_factory=list, description="Fees included")
-    dealer_financing_offer: DealerFinancing | None = Field(
-        None, description="Dealer financing offer if available"
+    final_price: float = Field(..., description="Recommended target price")
+    opening_offer: float = Field(..., description="Aggressive opening offer (10-15% below asking)")
+    walk_away_price: float = Field(..., description="Maximum acceptable out-the-door price")
+    add_ons: list[AddOnRecommendation] = Field(
+        default_factory=list, description="Add-ons with recommendations"
     )
-    negotiation_summary: str = Field(..., description="Summary of negotiation process")
+    fees: list[FeeDetail] = Field(default_factory=list, description="Fees with negotiation strategy")
+    dealer_financing_offer: DealerFinancingOffer | None = Field(
+        None, description="Estimated dealer financing offer with warnings"
+    )
+    negotiation_summary: str = Field(
+        ..., description="Comprehensive 400-600 word negotiation guide"
+    )
+
+
+class QAIssue(BaseModel):
+    """Quality assurance issue found in report"""
+
+    severity: str = Field(..., description="Critical, Moderate, or Minor")
+    category: str = Field(
+        ...,
+        description="Consistency, Clarity, Completeness, Math, Logic, or Buyer Advocacy",
+    )
+    description: str = Field(..., description="Specific problem found")
+    location: str = Field(..., description="Where in report (section name or Throughout)")
 
 
 class QAReport(BaseModel):
-    """Schema for quality assurance agent review"""
+    """Enhanced schema for quality assurance agent review"""
 
-    is_valid: bool = Field(..., description="Whether report is valid and complete")
-    issues: list[str] = Field(
+    is_valid: bool = Field(
+        ..., description="True if report passes all quality checks with no critical issues"
+    )
+    validation_summary: str = Field(..., description="One sentence overall assessment")
+    issues: list[QAIssue] = Field(
         default_factory=list, description="List of issues found (empty if none)"
     )
     suggested_revision: str = Field(
-        default="", description="Revised report text or empty if no changes needed"
+        default="",
+        description="Fully edited report with all issues corrected, or empty if no changes needed",
+    )
+    quality_score: float = Field(..., ge=1.0, le=10.0, description="1-10 score for report quality")
+    recommendations: list[str] = Field(
+        default_factory=list, description="Suggestions for improvement even if valid"
     )

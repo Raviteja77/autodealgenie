@@ -10,23 +10,31 @@ from app.llm.llm_client import (
 )
 from app.llm.prompts import get_prompt, list_prompts
 from app.llm.schemas import (
-    AddOn,
+    AddOnRecommendation,
+    AffordabilityAssessment,
     CarSelectionItem,
     CarSelectionResponse,
-    DealerFinancing,
+    DealerFinancingOffer,
     DealEvaluation,
-    Fee,
+    FeeDetail,
     FinancingReport,
     LLMError,
     LLMRequest,
     LLMResponse,
     LoanOption,
     NegotiatedDeal,
+    QAIssue,
     QAReport,
     SearchCriteria,
     VehicleConditionAssessment,
     VehicleInfo,
     VehicleReport,
+)
+from app.llm.agent_coordination import (
+    AgentContext,
+    AgentPipeline,
+    DataEnricher,
+    create_vehicle_research_pipeline,
 )
 
 __all__ = [
@@ -48,9 +56,16 @@ __all__ = [
     "SearchCriteria",
     "FinancingReport",
     "LoanOption",
+    "AffordabilityAssessment",
     "NegotiatedDeal",
-    "AddOn",
-    "Fee",
-    "DealerFinancing",
+    "AddOnRecommendation",
+    "FeeDetail",
+    "DealerFinancingOffer",
     "QAReport",
+    "QAIssue",
+    # Agent coordination
+    "AgentContext",
+    "AgentPipeline",
+    "DataEnricher",
+    "create_vehicle_research_pipeline",
 ]

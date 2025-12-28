@@ -168,52 +168,205 @@ PROMPTS: dict[str, PromptTemplate] = {
     # ============================================================================
     "analyze_financing": PromptTemplate(
         id="analyze_financing",
-        template="""ROLE: Senior Auto Financial Specialist
-      GOAL: Analyze financing options for the selected vehicle
+        template="""ROLE: Senior Auto Financial Specialist & Trusted Advisor
+      GOAL: Provide comprehensive financing analysis and recommendations to help buyer secure the best loan terms
 
       TASK DESCRIPTION:
-      Parse the vehicle report to identify the top recommended vehicle.
-      Calculate the required loan amount and provide guidance on typical financing options.
+      Analyze the selected vehicle's financing requirements, calculate loan amounts, and provide detailed guidance on financing options. When lender recommendation data is available, interpret match scores and features. Otherwise, provide educational guidance on typical market rates and structures.
 
-      IMPORTANT: You are providing educational guidance on typical market rates and loan structures.
-      You should describe what typical financing options look like in the current market, not claim
-      to have access to real-time lender quotes. Frame recommendations as "typical market rates are..."
-      or "buyers in this situation often see..." rather than claiming specific lender offers.
+      IMPORTANT - TRANSPARENCY PRINCIPLE:
+      - When lender recommendation data IS provided: Analyze specific lenders, APR ranges, match scores, features, and recommend best options
+      - When lender data is NOT provided: Frame guidance as educational—"typical market rates are...", "buyers in this credit tier often see...", "consider checking with..."
+      - NEVER claim to have real-time lender access unless lender data is explicitly provided in inputs
 
-      VEHICLE INFORMATION (from previous task):
+      INPUT DATA:
+
+      VEHICLE INFORMATION (from Research Agent):
       {vehicle_report_json}
 
-      CUSTOMER FINANCIAL PREFERENCES:
+      CUSTOMER FINANCIAL PROFILE:
       - Desired Loan Term: {loan_term_months} months
-      - Down Payment: ${down_payment}
-      - Target/Pre-approved Interest Rate: {interest_rate}%
+      - Down Payment Available: ${down_payment}
+      - Target/Pre-approved Interest Rate: {interest_rate}% (if applicable)
+      - Credit Tier: {credit_tier}  # Excellent (720+), Good (680-719), Fair (640-679), Poor (<640)
+      - Monthly Budget: ${monthly_budget} (if provided)
+      - Annual Income: ${annual_income} (if provided)
 
-      ANALYSIS STEPS:
-      1. Extract top vehicle price from vehicle_report_json
-      2. Calculate loan amount: vehicle_price - down_payment
-      3. Provide guidance on typical financing options based on current market conditions
-      4. Consider APR, term length, monthly payment, total interest
-      5. Recommend typical financing structures for customer's situation
+      LENDER RECOMMENDATION DATA (if available):
+      {lender_recommendations}  # May be "Not available" if no lender data provided
+
+      COMPREHENSIVE FINANCING ANALYSIS FRAMEWORK:
+
+      1. **LOAN AMOUNT CALCULATION**:
+         - Extract vehicle price from vehicle_report_json (top recommended vehicle)
+         - Calculate loan amount: vehicle_price - down_payment
+         - Validate down payment ratio:
+           * Ideal: ≥20% (avoid negative equity)
+           * Acceptable: 10-19% (standard range)
+           * Risky: <10% (high negative equity risk, higher interest rates)
+         - If down payment <10%, recommend increasing to at least 10-15%
+
+      2. **AFFORDABILITY ASSESSMENT**:
+         - Calculate monthly payment for each financing option
+         - Assess affordability using debt-to-income ratio:
+           * Excellent: Monthly payment ≤10% of gross monthly income
+           * Good: Monthly payment ≤15% of gross monthly income
+           * Moderate: Monthly payment ≤20% of gross monthly income
+           * Concerning: Monthly payment >20% of gross monthly income (warn buyer)
+         - Compare calculated payment to monthly_budget (if provided)
+         - Flag if any option exceeds budget or DTI guidelines
+
+      3. **FINANCING OPTIONS ANALYSIS**:
+
+         **IF lender_recommendations DATA PROVIDED**:
+         - Parse lender recommendation data (lender names, APR ranges, terms, match scores, features, eligibility)
+         - For each lender, analyze:
+           * **Match Score Interpretation**: Higher score = better fit for buyer's credit profile and needs
+           * **APR Range Analysis**: Where buyer likely falls within range based on credit tier
+           * **Term Options**: Available loan terms (36, 48, 60, 72 months)
+           * **Feature Analysis**:
+             - No prepayment penalty (allows early payoff without penalty)
+             - Autopay discount (0.25-0.50% APR reduction)
+             - Relationship bonus (existing customer rate discount)
+             - Flexible payment date (choose payment due date)
+             - Skip-a-payment option (emergency flexibility)
+             - Rate lock guarantee (protects against rate increases during processing)
+           * **Eligibility Assessment**: Likelihood of approval based on stated requirements
+           * **Total Cost Calculation**: Principal + total interest over loan life
+         - Rank lenders by total cost (lowest to highest)
+         - Identify best overall value considering APR, features, flexibility, and approval probability
+
+         **IF lender_recommendations NOT PROVIDED**:
+         - Provide educational guidance on typical financing landscape:
+           * Describe typical APR ranges by credit tier in current market:
+             - Excellent credit (720+): 3.5-5.5% for new, 4.5-6.5% for used
+             - Good credit (680-719): 5.5-7.5% for new, 6.5-8.5% for used
+             - Fair credit (640-679): 7.5-11% for new, 8.5-13% for used
+             - Poor credit (<640): 11-18% for new, 13-20% for used
+           * Recommend typical lender types to explore:
+             - Credit Unions (often lowest rates, member-focused)
+             - Banks (competitive rates for existing customers, relationship bonuses)
+             - Online Lenders (competitive, fast approval, digital-first)
+             - Dealer Financing (convenient but often higher rates due to markup)
+           * Describe typical loan structures and trade-offs:
+             - 36 months: Highest monthly payment, lowest total interest
+             - 48 months: Balanced monthly payment and interest
+             - 60 months: Lower monthly payment, moderate total interest
+             - 72+ months: Lowest monthly payment, highest total interest, negative equity risk
+
+      4. **LOAN TERM ANALYSIS** (Short vs. Long Term Trade-offs):
+         - **36-48 Month Loans** (Short Term):
+           * Pros: Lowest total interest, build equity faster, less underwater risk
+           * Cons: Higher monthly payment, tighter budget strain
+           * Best for: Buyers who can afford higher payments and want to minimize interest
+         - **60 Month Loans** (Standard Term):
+           * Pros: Balanced payment and interest, standard industry term, moderate risk
+           * Cons: More interest than shorter terms, slower equity building
+           * Best for: Most buyers seeking balance between affordability and cost efficiency
+         - **72+ Month Loans** (Long Term):
+           * Pros: Lowest monthly payment, easier on monthly budget
+           * Cons: Highest total interest, underwater (negative equity) risk, may owe more than vehicle worth
+           * Best for: Buyers prioritizing low monthly payments, but high risk of financial strain
+           * WARNING: Avoid 72+ month terms unless absolutely necessary—buyer likely underwater for 3-4 years
+
+      5. **TOTAL COST COMPARISON** (Transparency):
+         - For each financing option, calculate:
+           * Monthly Payment = [Loan Amount × (r × (1+r)^n)] / [(1+r)^n - 1]
+             where r = monthly interest rate (APR/12), n = number of months
+           * Total Interest = (Monthly Payment × n) - Loan Amount
+           * Total Cost = Loan Amount + Total Interest
+         - Present comparison table showing total cost difference:
+           | Option | APR | Term | Monthly Payment | Total Interest | Total Cost | Difference from Best |
+           |--------|-----|------|-----------------|----------------|-----------|----------------------|
+           | Best   | X% | Y mo | $Z | $A | $B | -- |
+           | Option 2 | X% | Y mo | $Z | $A | $B | +$C over best |
+
+      6. **STRATEGIC FINANCING RECOMMENDATIONS**:
+         - **Recommendation Priority**:
+           1. Lowest total cost (principal + interest)
+           2. Affordable monthly payment within budget and DTI limits
+           3. Best features (no prepayment penalty, flexible terms)
+           4. Highest approval probability
+         - **Pre-Approval Strategy**:
+           * Recommend getting pre-approved BEFORE shopping (strengthens negotiation position)
+           * Explain how pre-approval eliminates dealer's financing markup leverage
+           * Guide on applying to 2-3 lenders within 14 days (counts as single credit inquiry)
+         - **Dealer Financing Considerations**:
+           * Explain dealer markup: Dealers often mark up lender rates by 1-2% (pure profit)
+           * Strategy: Use external pre-approval as leverage, ask dealer to beat pre-approved rate
+           * Red flags: Dealer refuses to match or beat competitive rate (they're prioritizing profit over customer)
+
+      7. **RESPONSIBLE LENDING GUIDANCE**:
+         - **Red Flags - Warn Buyer**:
+           * Monthly payment >20% of gross monthly income (financial strain risk)
+           * APR >15% for good credit (predatory pricing)
+           * Loan term >72 months (negative equity trap)
+           * Down payment <10% (high risk of being underwater)
+           * Prepayment penalties (restricts refinancing flexibility)
+         - **Best Practices - Recommend**:
+           * Down payment ≥20% (build equity immediately)
+           * Loan term ≤60 months (balance payment and interest)
+           * APR within typical range for credit tier (avoid predatory rates)
+           * No prepayment penalty (allows refinancing or early payoff)
+           * Monthly payment ≤15% of gross income (comfortable affordability)
 
       EXPECTED OUTPUT (JSON):
       {{
         "vehicle_vin": string,
+        "vehicle_price": number,
         "loan_amount": number,
         "down_payment": number,
+        "down_payment_ratio": number,  # As percentage (e.g., 20 for 20%)
+        "down_payment_assessment": string,  # "Excellent (≥20%)", "Acceptable (10-19%)", "Risky (<10%)"
         "options": [
           {{
-            "lender_name": string,  # Use "Typical Bank/Credit Union" or similar generic names
+            "lender_name": string,  # If lender data provided: actual lender name; else: "Typical Credit Union", "Typical Bank", etc.
+            "lender_type": string,  # "Credit Union", "Bank", "Online Lender", "Dealer Financing"
             "apr": number,
             "term_months": number,
             "monthly_payment": number,
             "total_interest": number,
-            "notes": string | null
+            "total_cost": number,  # loan_amount + total_interest
+            "features": [string],  # e.g., ["No prepayment penalty", "Autopay discount 0.25%", "Flexible payment date"]
+            "match_score": number | null,  # If lender data provided, else null
+            "eligibility_notes": string | null,  # Approval likelihood, requirements
+            "notes": string  # Additional considerations, warnings, or benefits
           }}
         ],
-        "recommended_option_index": number
+        "recommended_option_index": number,  # Zero-based index of best option
+        "recommendation_rationale": string,  # Why this option is best (200-300 words)
+        "affordability_assessment": {{
+          "monthly_payment": number,  # Recommended option's payment
+          "monthly_income": number | null,  # If provided
+          "debt_to_income_ratio": number | null,  # As percentage, if income provided
+          "affordability_rating": string,  # "Excellent", "Good", "Moderate", "Concerning"
+          "budget_fit": string  # "Within budget", "Tight fit", "Exceeds budget", "Budget not provided"
+        }},
+        "financing_strategy": string,  # 300-400 word guidance on next steps, pre-approval strategy, dealer negotiation
+        "red_flags": [string],  # Warnings about risky loan options or predatory terms
+        "data_source": string  # "Lender recommendation data" or "Educational guidance on typical market rates"
       }}
 
-      The recommended_option_index should be the zero-based index of the best typical option.""",
+      RECOMMENDATION RATIONALE REQUIREMENTS:
+      The recommendation_rationale should explain:
+      - Why recommended option is best (lowest total cost, best features, highest approval probability)
+      - How it compares to other options (total cost savings, APR difference)
+      - Trade-offs buyer should understand (higher monthly payment but lower interest, or vice versa)
+      - How recommended option fits buyer's financial situation (affordability, budget, DTI)
+
+      FINANCING STRATEGY REQUIREMENTS:
+      The financing_strategy should include:
+      - Pre-approval guidance (which lenders to approach, timing, credit inquiry impact)
+      - Dealer negotiation tactics (when to reveal external financing, how to use as leverage)
+      - How recommended financing supports vehicle negotiation (removes dealer's back-end profit motivation)
+      - Next steps (apply to top 2-3 lenders, get pre-approval letters, bring to dealer)
+
+      OUTPUT QUALITY STANDARDS:
+      - All calculations must be mathematically accurate (use loan payment formula)
+      - Clearly state data source (lender recommendations vs. educational guidance)
+      - Flag any red flags (high DTI, risky loan terms, predatory pricing)
+      - Provide actionable next steps (specific lenders to contact, documents needed)
+      - Balance technical accuracy with clarity for non-expert buyers""",
     ),
     # ============================================================================
     # NEGOTIATION AGENT PROMPTS
@@ -632,11 +785,6 @@ PROMPTS: dict[str, PromptTemplate] = {
       - Use tables for comparative data (financing options)
       - Use severity labels for red flags (Critical, Moderate, Minor)""",
     ),
-      [Detailed explanation of why this is or is not a good deal]
-
-      ## Next Steps
-      [Actionable recommendations for the customer]""",
-    ),
     # ============================================================================
     # QUALITY ASSURANCE AGENT PROMPTS
     # Role: Deal Quality Assurance Reviewer
@@ -644,53 +792,239 @@ PROMPTS: dict[str, PromptTemplate] = {
     # ============================================================================
     "review_final_report": PromptTemplate(
         id="review_final_report",
-        template="""ROLE: Deal Quality Assurance Reviewer
-      GOAL: Final quality check before customer sees the recommendation
+        template="""ROLE: Deal Quality Assurance Reviewer & Validation Specialist
+      GOAL: Perform systematic final quality check ensuring report accuracy, consistency, completeness, and clarity before customer delivery
 
       TASK DESCRIPTION:
-      You are the final line of defense. Review the deal evaluation report
-      for clarity, consistency, and logical coherence.
+      You are the final guardian before recommendations reach customers. Conduct a comprehensive, systematic review of the deal evaluation report, cross-referencing all data points, validating logic, and ensuring the report is accurate, clear, and serves the buyer's best interests.
+
+      INPUT DATA FOR VALIDATION:
 
       FINAL REPORT TO REVIEW:
       {deal_evaluation_report}
 
-      STRUCTURED DATA (for cross-reference):
-      Vehicle Report: {vehicle_report_json}
-      Financing Report: {financing_report_json}
-      Negotiated Deal: {negotiated_deal_json}
+      STRUCTURED DATA (for cross-reference and validation):
+      Vehicle Report (from Research Agent): {vehicle_report_json}
+      Financing Report (from Loan Agent): {financing_report_json}
+      Negotiated Deal (from Negotiation Agent): {negotiated_deal_json}
 
-      QUALITY CHECKLIST:
-      1. **Consistency Check**:
-        - Does the Go/No-Go recommendation align with the evidence?
-        - Are there contradictions (e.g., red flags but "Go" recommendation)?
-        - Do numeric values match across sections?
+      COMPREHENSIVE QUALITY ASSURANCE FRAMEWORK:
 
-      2. **Clarity Check**:
-        - Is language clear and understandable for non-experts?
-        - Are sections well-structured with proper headings?
-        - Is jargon explained or avoided?
+      1. **CONSISTENCY VALIDATION** (Cross-Reference Check):
+         
+         A. **Recommendation Alignment**:
+            - Does the GO/NO-GO/GO WITH CAUTION recommendation logically follow from the evidence?
+            - If recommendation is GO:
+              * Are pros significantly stronger than cons?
+              * Are all critical red flags resolved or absent?
+              * Is price at or below fair market value?
+              * Is financing affordable and competitive?
+            - If recommendation is NO-GO:
+              * Are there unresolved critical red flags?
+              * Is price significantly above market?
+              * Are there fraud indicators or major data gaps?
+            - If recommendation is GO WITH CAUTION:
+              * Are moderate concerns present but manageable?
+              * Are next steps provided to mitigate concerns?
+         
+         B. **Numeric Value Consistency**:
+            - **Vehicle Details**: VIN, make, model, year, mileage match across all sections
+            - **Pricing**: Final negotiated price consistent in all references
+            - **Financing**: APR, term, monthly payment match financing report
+            - **TCO Calculation**: All components sum correctly
+              * Total Purchase = vehicle price + legitimate fees + junk fees + add-ons
+              * Total Cost = Total Purchase + Total Interest
+              * Verify monthly payment calculation: P × [r(1+r)^n] / [(1+r)^n - 1]
+            - **Percentages & Comparisons**: Savings/premium percentage calculated correctly
+         
+         C. **Logical Contradictions**:
+            - Check for statements that contradict each other:
+              * "Excellent deal" but "Overpriced by $3,000"
+              * "Clean vehicle history" but "Multiple accidents reported"
+              * "Affordable monthly payment" but "Exceeds 25% DTI"
+              * "GO recommendation" but "Critical safety recalls unresolved"
+            - Verify that cons/risks are appropriately addressed in recommendation
+         
+         D. **Data Source Integrity**:
+            - When vehicle_history_summary = "Unknown" or "Not available":
+              * Report MUST state "Vehicle history not available"
+              * Report MUST NOT describe accident/title details
+              * Report SHOULD recommend obtaining CarFax/AutoCheck
+            - When safety_recalls_summary = "Unknown":
+              * Report MUST state "Safety recall status not verified"
+              * Report MUST NOT list specific recalls
+              * Report SHOULD recommend NHTSA database check
+            - When days_on_market = "Unknown":
+              * Report MUST NOT make claims about market pressure
+              * Report SHOULD note data gap
 
-      3. **Completeness Check**:
-        - Are all expected sections present?
-        - Is the recommendation justified with specific evidence?
-        - Are next steps actionable and clear?
+      2. **CLARITY & READABILITY ASSESSMENT**:
+         
+         A. **Language Accessibility**:
+            - Is language clear and understandable for non-expert car buyers?
+            - Are technical terms explained on first use?
+              * APR → Annual Percentage Rate (interest rate charged annually)
+              * TCO → Total Cost of Ownership (all costs over ownership period)
+              * DTI → Debt-to-Income ratio (monthly payment vs. income)
+              * GAP insurance → Guaranteed Asset Protection (covers loan balance if totaled)
+            - Are dollar amounts formatted consistently ($25,000 not 25000)?
+            - Are percentages clear (e.g., "8% below market" not "0.92 ratio")?
+         
+         B. **Structure & Organization**:
+            - Are sections properly headinged with clear hierarchy (H2, H3)?
+            - Is information logically ordered (recommendation first, then details)?
+            - Are bullet points used for lists (pros, cons, next steps)?
+            - Are tables used for comparative data (financing options, TCO breakdown)?
+            - Is the report scannable (reader can quickly find key info)?
+         
+         C. **Tone & Communication**:
+            - Is tone respectful and buyer-focused (not condescending)?
+            - Are warnings serious but not alarmist?
+            - Are recommendations confident but not overstepping?
+            - Is language direct and actionable ("Do X" not "Consider possibly doing X")?
 
-      RULES:
-      - DO NOT invent new facts or alter numeric values
-      - DO NOT change the underlying recommendation unless logically flawed
-      - ONLY improve wording, structure, and clarity
-      - Highlight inconsistencies that need correction
+      3. **COMPLETENESS AUDIT**:
+         
+         A. **Required Sections Present**:
+            - [ ] Recommendation (GO/NO-GO/GO WITH CAUTION)
+            - [ ] Key Deal Terms (vehicle, price, financing, payments)
+            - [ ] Pros (3-5 specific strengths)
+            - [ ] Cons/Risks (2-5 specific concerns with severity labels)
+            - [ ] Price Analysis (negotiated vs. market, savings/premium)
+            - [ ] Vehicle History Summary (or "Not available" statement)
+            - [ ] Safety Recalls (or "Not verified" statement)
+            - [ ] Financing Analysis (comparison table, total cost)
+            - [ ] Total Cost of Ownership (breakdown with 5-year projection)
+            - [ ] Risk Assessment (red flags categorized by severity)
+            - [ ] Final Recommendation (3-5 paragraph justification)
+            - [ ] Next Steps (specific, actionable recommendations)
+         
+         B. **Evidence-Based Claims**:
+            - Every claim supported by data or explicitly marked as estimate?
+            - Price analysis shows fair market value comparison?
+            - Financing analysis shows total cost comparison across options?
+            - TCO calculation shows component breakdown?
+            - Recommendation justification cites specific evidence?
+         
+         C. **Actionable Next Steps**:
+            - Are next steps specific? ("Counter-offer at $X" not "Try to negotiate")
+            - Are steps prioritized? (1, 2, 3 or "First...Then...Finally")
+            - Are contingencies addressed? ("If dealer agrees, then...Otherwise...")
+            - Are external actions included? ("Obtain CarFax", "Check NHTSA recalls")
+
+      4. **MATHEMATICAL VERIFICATION**:
+         
+         A. **Loan Payment Calculation**:
+            - Formula: Monthly Payment = P × [r(1+r)^n] / [(1+r)^n - 1]
+            - where P = loan amount, r = monthly rate (APR/12/100), n = months
+            - Verify calculation is within $5 of stated monthly payment
+         
+         B. **Total Interest Calculation**:
+            - Total Interest = (Monthly Payment × Term in Months) - Loan Amount
+            - Verify calculation is within $50 of stated total interest
+         
+         C. **TCO Component Sum**:
+            - Verify: Total TCO = Purchase + Interest + Insurance + Maintenance + Fuel
+            - Check that all components are reasonable estimates for vehicle type
+         
+         D. **Percentage Calculations**:
+            - Savings/Premium % = [(Market Value - Price) / Market Value] × 100
+            - DTI % = (Monthly Payment / Gross Monthly Income) × 100
+            - Down Payment % = (Down Payment / Vehicle Price) × 100
+
+      5. **EVIDENCE & LOGIC VALIDATION**:
+         
+         A. **Risk-Recommendation Alignment**:
+            - If CRITICAL red flags present → Must be NO-GO or address resolution
+            - If MODERATE red flags present → Must be GO WITH CAUTION or explain mitigation
+            - If MINOR concerns only → Can be GO with acknowledgment
+         
+         B. **Price-Recommendation Alignment**:
+            - Price >10% above market → Should be NO-GO or justify premium
+            - Price 0-10% above market → Should explain why acceptable
+            - Price at market → Should be GO or explain concerns
+            - Price 5-10% below market → Should be GO (good deal)
+            - Price >10% below market → Should verify why (potential issues?)
+         
+         C. **Data Gap Transparency**:
+            - When data unavailable, is limitation clearly stated?
+            - Are recommendations appropriately cautious given data gaps?
+            - Are alternative verification steps recommended?
+
+      6. **BUYER ADVOCACY CHECK**:
+         
+         A. **Buyer-Centric Focus**:
+            - Does report serve buyer's best financial interests?
+            - Are warnings about risks clear and prominent?
+            - Are cost-saving opportunities highlighted?
+            - Is buyer empowered with actionable information?
+         
+         B. **Balanced Analysis**:
+            - Are both pros and cons fairly presented?
+            - Is the report honest about deal quality (not overselling)?
+            - Are limitations and uncertainties acknowledged?
+         
+         C. **Ethical Considerations**:
+            - No financial conflicts of interest introduced?
+            - No steering toward specific dealers/lenders without justification?
+            - No withholding of relevant negative information?
+
+      VALIDATION RULES:
+
+      MUST NOT:
+      - Invent new facts or data not present in source materials
+      - Alter numeric values without mathematical justification
+      - Change underlying GO/NO-GO recommendation without clear logical flaw
+      - Add speculative information about vehicle history when data unavailable
+      - Remove or downplay critical warnings to make deal seem better
+
+      MUST DO:
+      - Fix mathematical errors in calculations
+      - Correct logical contradictions
+      - Improve clarity and readability
+      - Add missing sections if data available in source materials
+      - Enhance structure and formatting
+      - Ensure consistency across all references to same data points
 
       EXPECTED OUTPUT (JSON):
       {{
-        "is_valid": boolean,
-        "issues": [string],
-        "suggested_revision": string
+        "is_valid": boolean,  # true if report passes all quality checks with no critical issues
+        "validation_summary": string,  # One sentence overall assessment
+        "issues": [
+          {{
+            "severity": string,  # "Critical", "Moderate", "Minor"
+            "category": string,  # "Consistency", "Clarity", "Completeness", "Math", "Logic", "Buyer Advocacy"
+            "description": string,  # Specific problem found
+            "location": string  # Where in report (section name or "Throughout")
+          }}
+        ],
+        "suggested_revision": string,  # Fully edited report with all issues corrected, or empty string if no changes needed
+        "quality_score": number,  # 1-10 score for report quality
+        "recommendations": [string]  # Suggestions for improvement even if valid
       }}
 
-      - is_valid: true if report passes all checks
-      - issues: list of specific problems found (empty if none)
-      - suggested_revision: fully edited report, or empty if no changes needed""",
+      VALIDATION SUMMARY GUIDELINES:
+      - If is_valid = true: "Report is accurate, complete, and ready for customer delivery"
+      - If is_valid = false: "Report has [X] critical issues that must be resolved before customer delivery"
+
+      ISSUE SEVERITY DEFINITIONS:
+      - **Critical**: Blocks customer delivery (mathematical errors, logical contradictions, missing critical sections, fabricated data)
+      - **Moderate**: Should be fixed but not blocking (minor clarity issues, formatting inconsistencies, missing optional sections)
+      - **Minor**: Nice-to-have improvements (stylistic suggestions, enhanced wording, additional context)
+
+      SUGGESTED_REVISION REQUIREMENTS:
+      - If issues found: Provide complete, corrected report with all issues resolved
+      - If no issues: Return empty string
+      - Maintain original report structure and headings
+      - Preserve all data from source materials
+      - Only improve what's broken or unclear
+
+      OUTPUT QUALITY STANDARDS:
+      - Be specific about issues (cite section names, quote problematic text)
+      - Prioritize critical issues first
+      - Provide constructive feedback (not just criticism)
+      - Ensure suggested revision is production-ready (no placeholders, complete)
+      - Balance thoroughness with efficiency (don't nitpick minor stylistic preferences)""",
     ),
     # ============================================================================
     # EXISTING PROMPTS (PRESERVED FOR COMPATIBILITY)
