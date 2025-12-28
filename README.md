@@ -215,17 +215,31 @@ autodealgenie/
 ### Environment Variables
 
 #### Backend (.env)
-- `POSTGRES_SERVER`: PostgreSQL host
+- `POSTGRES_SERVER`: PostgreSQL host (e.g., Supabase: `db.xxxxx.supabase.co`)
 - `POSTGRES_USER`: PostgreSQL username
 - `POSTGRES_PASSWORD`: PostgreSQL password
 - `POSTGRES_DB`: PostgreSQL database name
-- `MONGODB_URL`: MongoDB connection string
-- `REDIS_HOST`: Redis host
-- `KAFKA_BOOTSTRAP_SERVERS`: Kafka servers
+- `POSTGRES_PORT`: PostgreSQL port (default: 5432, Supabase pooling: 6543)
+- `MONGODB_URL`: MongoDB connection string (e.g., MongoDB Atlas: `mongodb+srv://...`)
+- `REDIS_HOST`: Redis host (e.g., Upstash: `xxxxx.upstash.io`)
+- `REDIS_PORT`: Redis port
+- `REDIS_PASSWORD`: Redis password (required for Upstash)
+- `REDIS_TLS`: Set to `true` for Upstash Redis
+- `KAFKA_BOOTSTRAP_SERVERS`: Kafka servers (optional, can use in-memory queue)
 - `OPENAI_API_KEY`: OpenAI API key (required for AI features)
+- `SECRET_KEY`: JWT signing key (generate with `openssl rand -hex 32`)
+- `BACKEND_CORS_ORIGINS`: Allowed frontend origins (JSON array format)
 
 #### Frontend (.env.local)
-- `NEXT_PUBLIC_API_URL`: Backend API URL
+- `NEXT_PUBLIC_API_URL`: Backend API URL (e.g., `https://your-backend.onrender.com`)
+- `NEXT_PUBLIC_API_VERSION`: API version (default: `v1`)
+
+### Free Tier Service Configuration
+
+For free tier deployment, see:
+- `backend/.env.render.example` - Render backend configuration
+- `frontend/.env.vercel.example` - Vercel frontend configuration
+- [FREE_TIER_DEPLOYMENT.md](FREE_TIER_DEPLOYMENT.md) - Complete setup guide
 
 ## 📚 API Documentation
 
