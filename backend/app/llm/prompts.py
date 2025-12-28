@@ -386,6 +386,7 @@ PROMPTS: dict[str, PromptTemplate] = {
       CONTEXT FROM PREVIOUS AGENTS:
       Vehicle Report (Research Agent): {vehicle_report_json}
       Financing Report (Loan Agent): {financing_report_json}
+      Initial Deal Evaluation (Deal Evaluator Agent): {evaluation_report}
 
       ADDITIONAL MARKET INTELLIGENCE:
       - Days on Market: {days_on_market} days
@@ -396,7 +397,9 @@ PROMPTS: dict[str, PromptTemplate] = {
       STRATEGIC NEGOTIATION FRAMEWORK:
 
       1. **Opening Strategy & Target Price**:
+         - Use the Initial Deal Evaluation report to understand fair market value and price positioning
          - Calculate fair market value based on comparable listings, mileage, condition, features
+         - Leverage MarketCheck API price predictions and evaluation insights
          - Recommend aggressive opening offer: 10-15% below fair market value (create negotiation room)
          - Identify buyer's walk-away threshold (maximum acceptable price)
          - Set target final price: 5-8% below asking price or at/below fair market value

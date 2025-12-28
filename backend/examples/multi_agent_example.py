@@ -32,15 +32,22 @@ def example_agent_synergy():
     print("   - Total interest: $1,920 over 60 months")
     print("   - Strategy: Use as leverage—dealer loses back-end profit\n")
     
+    print("📋 Initial Evaluation Agent (Financial Detective):")
+    print("   - Fair market value: $23,800 (from MarketCheck API)")
+    print("   - Asking price: $23,500 (already $300 below market)")
+    print("   - Vehicle history: Clean title, no accidents")
+    print("   - Recommendation: Good base price, strong negotiation potential\n")
+    
     print("🤝 Negotiation Agent (Advocate):")
+    print("   - Uses Initial Evaluation fair market value in strategy")
     print("   - Opening offer: $20,500 (13% below asking)")
-    print("   - Justification: 78 days on market + pre-approved financing")
+    print("   - Justification: 78 days on market + pre-approved financing + market data")
     print("   - Target price: $22,000 (6% below asking)")
     print("   - Walk-away: $22,800")
-    print("   - Key leverage: 'I have 3.5% APR pre-approved + vehicle sitting 78 days'")
+    print("   - Key leverage: 'MarketCheck shows fair value at $23,800, vehicle sitting 78 days'")
     print("   - Strategy: Reveal financing AFTER price negotiation\n")
     
-    print("📋 Evaluation Agent (Financial Detective):")
+    print("📋 Final Evaluation Agent (Financial Detective):")
     print("   - Final negotiated price: $21,800 (7% below asking)")
     print("   - Assessment: Excellent deal—strong negotiation execution")
     print("   - Total cost: $23,720 (price + interest)")
@@ -59,9 +66,10 @@ def example_agent_synergy():
     print("🎯 SYNERGY DEMONSTRATED:")
     print("   1. Research identified 78 days on market")
     print("   2. Financing quantified 3.5% APR advantage ($800 savings)")
-    print("   3. Negotiation leveraged both for 7% discount")
-    print("   4. Evaluation calculated total value ($2,500 total savings)")
-    print("   5. QA validated all claims and logic")
+    print("   3. Initial Evaluation provided fair market value from MarketCheck API")
+    print("   4. Negotiation leveraged evaluation + market data for 7% discount")
+    print("   5. Final Evaluation calculated total value ($2,500 total savings)")
+    print("   6. QA validated all claims and logic")
 
 
 def main():

@@ -109,7 +109,7 @@ class AgentPipeline:
                     self.context.financing_output = result
                 elif step_name == "negotiation":
                     self.context.negotiation_output = result
-                elif step_name == "evaluation":
+                elif step_name == "evaluation" or step_name == "initial_evaluation" or step_name == "final_evaluation":
                     self.context.evaluation_output = result
                 elif step_name == "qa":
                     self.context.qa_output = result
@@ -251,21 +251,11 @@ class DataEnricher:
                     if context.lender_recommendations else "Not available",
             }
             
-        elif agent_role == "negotiation":
-            # Negotiation agent needs research and financing outputs plus market data
+        elif agent_role == "evaluator":
+            # Evaluator needs research, financing outputs plus market and vehicle data
+            # Note: Evaluator now runs BEFORE negotiation to provide price analysis
             base_vars = {
                 "vehicle_report_json": json.dumps(context.research_output or {}),
-                "financing_report_json": json.dumps(context.financing_output or {}),
-                "days_on_market": context.market_data.get("days_on_market", "Unknown"),
-                "fair_market_price": context.market_data.get("fair_market_value", 0),
-                "sales_stats": json.dumps(context.market_data.get("sales_stats", {})),
-                "inventory_pressure": context.market_data.get("inventory_pressure", "Unknown"),
-            }
-            
-        elif agent_role == "evaluator":
-            # Evaluator needs all previous outputs plus market and vehicle data
-            base_vars = {
-                "negotiated_deal_json": json.dumps(context.negotiation_output or {}),
                 "financing_report_json": json.dumps(context.financing_output or {}),
                 "fair_market_value": context.market_data.get("fair_market_value", 0),
                 "vehicle_history_summary": context.vehicle_history.get("summary", "Unknown"),
@@ -273,15 +263,31 @@ class DataEnricher:
                 "days_on_market": context.market_data.get("days_on_market", "Unknown"),
                 "sales_trends": json.dumps(context.market_data.get("trends", {})),
                 "comparable_listings": json.dumps(context.market_data.get("comparables", [])),
+                # For initial evaluation (before negotiation), provide asking price from research
+                "asking_price": context.research_output.get("top_vehicles", [{}])[0].get("price", 0) if context.research_output else 0,
+            }
+            
+        elif agent_role == "negotiation":
+            # Negotiation agent needs research, financing, and evaluation outputs plus market data
+            # Evaluation output provides fair market value analysis for better negotiation
+            base_vars = {
+                "vehicle_report_json": json.dumps(context.research_output or {}),
+                "financing_report_json": json.dumps(context.financing_output or {}),
+                "evaluation_report": context.evaluation_output or "",
+                "days_on_market": context.market_data.get("days_on_market", "Unknown"),
+                "fair_market_price": context.market_data.get("fair_market_value", 0),
+                "sales_stats": json.dumps(context.market_data.get("sales_stats", {})),
+                "inventory_pressure": context.market_data.get("inventory_pressure", "Unknown"),
             }
             
         elif agent_role == "qa":
-            # QA agent needs the evaluation report and all structured data
+            # QA agent needs the final evaluation report (after negotiation) and all structured data
             base_vars = {
                 "deal_evaluation_report": context.evaluation_output or "",
                 "vehicle_report_json": json.dumps(context.research_output or {}),
                 "financing_report_json": json.dumps(context.financing_output or {}),
                 "negotiated_deal_json": json.dumps(context.negotiation_output or {}),
+                "initial_evaluation": context.market_data.get("initial_evaluation", ""),
             }
         
         # Merge additional variables
@@ -296,7 +302,14 @@ def create_vehicle_research_pipeline() -> AgentPipeline:
     Create a standard vehicle research and evaluation pipeline
     
     This is a convenience function for the most common workflow:
-    Research → Financing → Negotiation → Evaluation → QA
+    Research → Financing → Evaluation (Initial) → Negotiation → Evaluation (Final) → QA
+    
+    The evaluation step now runs BEFORE negotiation to provide:
+    - Fair market value analysis from MarketCheck API
+    - Price validation and recommendations
+    - Risk assessment
+    
+    This information is then used by the negotiation agent to make better offers.
     
     Returns:
         Configured AgentPipeline
@@ -335,8 +348,23 @@ def create_vehicle_research_pipeline() -> AgentPipeline:
         )
         return result.model_dump()
     
+    def initial_evaluation_step(context: AgentContext) -> str:
+        """Execute initial evaluation agent (before negotiation)"""
+        variables = DataEnricher.format_for_agent(context, "evaluator")
+        result = generate_text(
+            prompt_id="evaluate_deal",
+            variables=variables,
+            agent_role="evaluator",
+            temperature=0.6,
+        )
+        # Store initial evaluation in market_data for later reference
+        if not context.market_data:
+            context.market_data = {}
+        context.market_data["initial_evaluation"] = result
+        return result
+    
     def negotiation_step(context: AgentContext) -> dict[str, Any]:
-        """Execute negotiation agent"""
+        """Execute negotiation agent (uses evaluation output)"""
         variables = DataEnricher.format_for_agent(context, "negotiation")
         result = generate_structured_json(
             prompt_id="negotiate_deal",
@@ -347,8 +375,8 @@ def create_vehicle_research_pipeline() -> AgentPipeline:
         )
         return result.model_dump()
     
-    def evaluation_step(context: AgentContext) -> str:
-        """Execute evaluation agent"""
+    def final_evaluation_step(context: AgentContext) -> str:
+        """Execute final evaluation agent (after negotiation)"""
         variables = DataEnricher.format_for_agent(context, "evaluator")
         result = generate_text(
             prompt_id="evaluate_deal",
@@ -372,8 +400,9 @@ def create_vehicle_research_pipeline() -> AgentPipeline:
     
     pipeline.add_step("research", research_step)
     pipeline.add_step("financing", financing_step)
+    pipeline.add_step("initial_evaluation", initial_evaluation_step)
     pipeline.add_step("negotiation", negotiation_step)
-    pipeline.add_step("evaluation", evaluation_step)
+    pipeline.add_step("evaluation", final_evaluation_step)
     pipeline.add_step("qa", qa_step)
     
     return pipeline

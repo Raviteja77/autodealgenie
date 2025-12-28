@@ -142,15 +142,17 @@ AutoDealGenie uses a sophisticated multi-agent system where specialized AI agent
 Agents operate in a sequential pipeline where each agent builds upon previous agents' outputs:
 
 ```
-User Input → Research → Financing → Negotiation → Evaluation → QA → Final Report
+User Input → Research → Financing → Evaluation (Initial) → Negotiation → Evaluation (Final) → QA → Final Report
 ```
+
+**Key Update**: The evaluation agent now runs BEFORE negotiation to provide fair market value analysis from MarketCheck API. This enables the negotiation agent to leverage actual price predictions for better-informed offers.
 
 ### Example Usage
 
 ```python
 from app.llm.agent_coordination import create_vehicle_research_pipeline, DataEnricher
 
-# Create pipeline
+# Create pipeline (now with evaluation before negotiation)
 pipeline = create_vehicle_research_pipeline()
 
 # Prepare user input
@@ -170,7 +172,7 @@ result = pipeline.execute(user_input)
 research = result.research_output
 financing = result.financing_output
 negotiation = result.negotiation_output
-evaluation = result.evaluation_output
+evaluation = result.evaluation_output  # Final evaluation (after negotiation)
 qa = result.qa_output
 ```
 
