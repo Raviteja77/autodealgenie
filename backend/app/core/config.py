@@ -52,7 +52,7 @@ class Settings(BaseSettings):
             protocol = "rediss"
         else:
             protocol = "redis"
-        
+
         if self.REDIS_PASSWORD:
             # Include password in URL if provided
             return f"{protocol}://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
