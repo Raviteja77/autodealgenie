@@ -45,13 +45,15 @@ def upgrade():
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    
+
     # Create indexes for efficient querying
     op.create_index("ix_marketcheck_queries_id", "marketcheck_queries", ["id"])
     op.create_index("ix_marketcheck_queries_query_type", "marketcheck_queries", ["query_type"])
     op.create_index("ix_marketcheck_queries_user_id", "marketcheck_queries", ["user_id"])
     op.create_index("ix_marketcheck_queries_timestamp", "marketcheck_queries", ["timestamp"])
-    op.create_index("idx_marketcheck_queries_type", "marketcheck_queries", ["query_type", "timestamp"])
+    op.create_index(
+        "idx_marketcheck_queries_type", "marketcheck_queries", ["query_type", "timestamp"]
+    )
     op.create_index("idx_marketcheck_queries_user", "marketcheck_queries", ["user_id", "timestamp"])
 
 
@@ -63,6 +65,6 @@ def downgrade():
     op.drop_index("ix_marketcheck_queries_user_id", "marketcheck_queries")
     op.drop_index("ix_marketcheck_queries_query_type", "marketcheck_queries")
     op.drop_index("ix_marketcheck_queries_id", "marketcheck_queries")
-    
+
     # Drop table
     op.drop_table("marketcheck_queries")

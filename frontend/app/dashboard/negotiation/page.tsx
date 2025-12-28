@@ -106,9 +106,12 @@ function NegotiationContent() {
       insights?: string[];
       talking_points?: string[];
       market_data?: {
-        comparables_found?: number;
-        summary?: string;
-        comparables?: unknown[];
+        predicted_price?: number;
+        confidence?: string;
+        price_range?: {
+          min: number;
+          max: number;
+        };
       };
     };
   }>(3);
