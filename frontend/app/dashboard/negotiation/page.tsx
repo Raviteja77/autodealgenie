@@ -865,6 +865,16 @@ function NegotiationContent() {
                   onClick={() => {
                     if (vehicleData) {
                       const finalPrice = latestPrice?.price || vehicleData.price;
+                      
+                      // Complete negotiation step with final data
+                      completeStep(3, {
+                        status: 'completed',
+                        finalPrice,
+                        negotiatedPrice: finalPrice,
+                        savings: vehicleData.price - finalPrice,
+                        timestamp: new Date().toISOString(),
+                      });
+                      
                       const vehicleParams = new URLSearchParams({
                         vin: vehicleData.vin || "",
                         make: vehicleData.make,
@@ -875,12 +885,12 @@ function NegotiationContent() {
                         fuelType: vehicleData.fuelType || "",
                       });
                       router.push(
-                        `/dashboard/evaluation?${vehicleParams.toString()}`
+                        `/dashboard/finalize?${vehicleParams.toString()}`
                       );
                     }
                   }}
                 >
-                  Evaluate Deal
+                  Proceed to Final Summary
                 </Button>
                 <Link
                   href="/dashboard/search"
