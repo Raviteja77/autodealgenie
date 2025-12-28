@@ -46,6 +46,7 @@ export interface DealEvaluationRequest {
   make?: string;
   model?: string;
   year?: number;
+  zip_code?: string;
 }
 
 export interface DealEvaluationResponse {
