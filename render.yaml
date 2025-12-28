@@ -1,0 +1,138 @@
+# Render Blueprint Configuration for AutoDealGenie Backend
+# This file defines the infrastructure for deploying the FastAPI backend on Render's free tier
+
+services:
+  # Backend API Service
+  - type: web
+    name: autodealgenie-backend-dev
+    runtime: python
+    region: oregon  # Free tier available in all regions
+    plan: free  # Free tier with 750 hours/month
+    branch: dev  # Deploy from dev branch
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: development
+      - key: PROJECT_NAME
+        value: AutoDealGenie API (Dev)
+      - key: VERSION
+        value: 1.0.0
+      - key: API_V1_STR
+        value: /api/v1
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: 7
+      - key: LOG_LEVEL
+        value: DEBUG
+      - key: USE_MOCK_SERVICES
+        value: false
+      - key: PORT
+        value: 10000  # Default Render port
+      # Database configuration (Supabase)
+      - key: POSTGRES_PORT
+        value: 5432
+      # Secret keys (add these manually in Render dashboard)
+      - key: SECRET_KEY
+        sync: false  # Must be set in Render dashboard
+      - key: POSTGRES_SERVER
+        sync: false  # Must be set in Render dashboard
+      - key: POSTGRES_USER
+        sync: false  # Must be set in Render dashboard
+      - key: POSTGRES_PASSWORD
+        sync: false  # Must be set in Render dashboard
+      - key: POSTGRES_DB
+        sync: false  # Must be set in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false  # Must be set in Render dashboard
+      - key: MONGODB_URL
+        sync: false  # Must be set in Render dashboard (MongoDB Atlas)
+      # Redis configuration (Upstash)
+      - key: REDIS_HOST
+        sync: false  # Must be set in Render dashboard (Upstash host)
+      - key: REDIS_PORT
+        sync: false  # Must be set in Render dashboard (Upstash port)
+      - key: REDIS_PASSWORD
+        sync: false  # Must be set in Render dashboard (Upstash password)
+      - key: REDIS_DB
+        value: 0
+      - key: REDIS_TLS
+        value: true  # Upstash requires TLS
+      # CORS configuration (will be updated after frontend deployment)
+      - key: BACKEND_CORS_ORIGINS
+        value: '["http://localhost:3000"]'
+    healthCheckPath: /health
+    autoDeploy: true
+    
+  # Production Backend API Service
+  - type: web
+    name: autodealgenie-backend-prod
+    runtime: python
+    region: oregon
+    plan: free
+    branch: main  # Deploy from main branch
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: PROJECT_NAME
+        value: AutoDealGenie API
+      - key: VERSION
+        value: 1.0.0
+      - key: API_V1_STR
+        value: /api/v1
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: 7
+      - key: LOG_LEVEL
+        value: INFO
+      - key: USE_MOCK_SERVICES
+        value: false
+      - key: PORT
+        value: 10000
+      - key: POSTGRES_PORT
+        value: 5432
+      # Secret keys (add these manually in Render dashboard)
+      - key: SECRET_KEY
+        sync: false
+      - key: POSTGRES_SERVER
+        sync: false
+      - key: POSTGRES_USER
+        sync: false
+      - key: POSTGRES_PASSWORD
+        sync: false
+      - key: POSTGRES_DB
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MONGODB_URL
+        sync: false
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        sync: false
+      - key: REDIS_PASSWORD
+        sync: false
+      - key: REDIS_DB
+        value: 0
+      - key: REDIS_TLS
+        value: true
+      - key: BACKEND_CORS_ORIGINS
+        value: '["https://autodealgenie.vercel.app"]'
+    healthCheckPath: /health
+    autoDeploy: true
+
+# Database notes:
+# - PostgreSQL: Use Supabase (free tier: 500MB database)
+# - MongoDB: Use MongoDB Atlas (free tier: 512MB storage)
+# - Redis: Use Upstash (free tier: 10k commands/day)
+#
+# Important: Render free tier services spin down after 15 minutes of inactivity
+# First request after spindown may take 30-60 seconds to wake up the service
