@@ -57,7 +57,7 @@ export interface DealEvaluationResponse {
   market_data?: {
     comparables_found: number;
     summary: string;
-    comparables: any[];
+    comparables: unknown[];
   };
 }
 
@@ -310,7 +310,7 @@ export interface CreateNegotiationRequest {
     market_data?: {
       comparables_found?: number;
       summary?: string;
-      comparables?: any[];
+      comparables?: unknown[];
     };
   };
 }

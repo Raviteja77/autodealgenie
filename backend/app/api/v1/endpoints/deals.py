@@ -132,7 +132,7 @@ async def evaluate_deal(
     Evaluate a car deal and get fair market value analysis using MarketCheck ML Price API
 
     This endpoint uses MarketCheck's ML-based price prediction API for accurate fair value
-    estimates and combines it with LLM-powered insights. For best results, provide make, 
+    estimates and combines it with LLM-powered insights. For best results, provide make,
     model, year, and zip_code.
 
     Returns:

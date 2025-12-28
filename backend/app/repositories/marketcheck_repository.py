@@ -145,9 +145,7 @@ class MarketCheckQueryRepository:
             logger.error(f"Error getting recent searches: {e}", exc_info=True)
             raise
 
-    async def get_query_stats(
-        self, user_id: int | None = None, days: int = 7
-    ) -> dict[str, Any]:
+    async def get_query_stats(self, user_id: int | None = None, days: int = 7) -> dict[str, Any]:
         """
         Get query statistics
 

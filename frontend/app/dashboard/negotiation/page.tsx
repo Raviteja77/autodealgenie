@@ -108,7 +108,7 @@ function NegotiationContent() {
       market_data?: {
         comparables_found?: number;
         summary?: string;
-        comparables?: any[];
+        comparables?: unknown[];
       };
     };
   }>(3);

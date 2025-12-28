@@ -158,7 +158,10 @@ class NegotiationService:
             message_metadata["evaluation_data"] = {
                 "fair_value": evaluation_data.get("fair_value"),
                 "score": evaluation_data.get("score"),
-                "has_market_data": evaluation_data.get("market_data", {}).get("comparables_found", 0) > 0,
+                "has_market_data": evaluation_data.get("market_data", {}).get(
+                    "comparables_found", 0
+                )
+                > 0,
             }
 
         user_msg = self.negotiation_repo.add_message(
@@ -578,7 +581,7 @@ class NegotiationService:
                 )
                 if market_data_summary:
                     evaluation_context += f"- Market Analysis: {market_data_summary}\n"
-                
+
                 insights = evaluation_data.get("insights", [])
                 if insights:
                     evaluation_context += f"- Key Insights: {'; '.join(insights[:3])}"
@@ -603,7 +606,7 @@ class NegotiationService:
             # Use fair value from evaluation if available, otherwise use user target
             # This ensures negotiation suggestions are data-driven
             base_price_for_suggestion = fair_value if fair_value else user_target_price
-            
+
             # Generate suggested counter offer - start BELOW fair value to leave negotiating room
             # If fair value is significantly below asking price, be more aggressive
             if fair_value and fair_value < deal.asking_price * 0.9:
@@ -662,8 +665,10 @@ class NegotiationService:
             # Fallback response if LLM fails
             fair_value_context = ""
             if fair_value:
-                fair_value_context = f" Based on market data, the fair value is around ${fair_value:,.2f}."
-            
+                fair_value_context = (
+                    f" Based on market data, the fair value is around ${fair_value:,.2f}."
+                )
+
             fallback_content = (
                 f"Thank you for your interest in the {deal.vehicle_year} "
                 f"{deal.vehicle_make} {deal.vehicle_model}. "
