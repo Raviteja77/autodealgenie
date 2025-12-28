@@ -124,8 +124,8 @@ function EvaluationContent() {
       // Mark as evaluated
       hasEvaluatedRef.current = true;
       
-      // Complete the evaluation step
-      completeStep(3, {
+      // Complete the evaluation step (step 2 - evaluation now comes before negotiation)
+      completeStep(2, {
         status: 'completed',
         vehicleData: vehicleData,
         evaluation: data,

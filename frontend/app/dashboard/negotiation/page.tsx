@@ -98,7 +98,7 @@ function NegotiationContent() {
   const [vehicleData, setVehicleData] = useState<VehicleInfo | null>(null);
   const [targetPrice, setTargetPrice] = useState<number | null>(null);
   
-  // Get evaluation data from stepper context (step 3)
+  // Get evaluation data from stepper context (step 2 - evaluation now comes before negotiation)
   const evaluationStepData = getStepData<{
     evaluation?: {
       fair_value?: number;
@@ -114,7 +114,7 @@ function NegotiationContent() {
         };
       };
     };
-  }>(3);
+  }>(2);
 
   // Use centralized negotiation state hook
   const {

@@ -39,14 +39,14 @@ export const STEPS: Step[] = [
   },
   {
     id: 2,
-    label: "Negotiate",
-    path: "/dashboard/negotiation",
+    label: "Evaluate",
+    path: "/dashboard/evaluation",
     requiresPrevious: true,
   },
   {
     id: 3,
-    label: "Evaluate",
-    path: "/dashboard/evaluation",
+    label: "Negotiate",
+    path: "/dashboard/negotiation",
     requiresPrevious: true,
   },
   // { id: 4, label: "Finalize", path: "/deals", requiresPrevious: true },
