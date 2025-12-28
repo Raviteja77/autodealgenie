@@ -158,10 +158,7 @@ class NegotiationService:
             message_metadata["evaluation_data"] = {
                 "fair_value": evaluation_data.get("fair_value"),
                 "score": evaluation_data.get("score"),
-                "has_market_data": evaluation_data.get("market_data", {}).get(
-                    "comparables_found", 0
-                )
-                > 0,
+                "has_market_data": bool(evaluation_data.get("market_data")),
             }
 
         user_msg = self.negotiation_repo.add_message(

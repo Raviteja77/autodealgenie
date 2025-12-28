@@ -140,7 +140,12 @@ async def evaluate_deal(
         - score: Deal quality score (1-10)
         - insights: AI-powered analysis insights incorporating market data
         - talking_points: Data-driven negotiation recommendations
-        - market_data: ML price prediction data from MarketCheck
+        - market_data: Detailed ML price prediction data from MarketCheck, including:
+            - predicted_price: The model-predicted fair market price
+            - confidence: Confidence level for the prediction (e.g., 'high', 'medium', 'low')
+            - price_range: Expected price range with:
+                - min: Lower bound of the predicted fair price
+                - max: Upper bound of the predicted fair price
     """
     result = await deal_evaluation_service.evaluate_deal(
         vehicle_vin=evaluation_request.vehicle_vin,
