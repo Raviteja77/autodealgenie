@@ -54,6 +54,13 @@ def get_deal_by_email_and_vin(
     current_user: User = Depends(get_current_user),
 ):
     """Get deals by customer email and vehicle VIN (requires authentication)"""
+    # Authorization check: verify user owns the resource or is a superuser
+    if current_user.email != customer_email and current_user.is_superuser != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to access this deal",
+        )
+    
     repository = DealRepository(db)
     deal = repository.get_deal_by_vehicle_and_customer(vehicle_vin, customer_email)
     if not deal:
