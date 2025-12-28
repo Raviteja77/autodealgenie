@@ -114,6 +114,7 @@ BACKEND_CORS_ORIGINS=["http://localhost:3000"]
 
 EOF
 
+chmod 600 /tmp/autodealgenie-env.txt
 print_info "Created environment template at: /tmp/autodealgenie-env.txt"
 echo ""
 echo "Next steps:"

@@ -185,8 +185,13 @@ External Services:
 
 3. **Configure Network Access**:
    - Go to Network Access → Add IP Address
-   - Click "Allow Access from Anywhere" (0.0.0.0/0)
-   - Or add specific Render IP addresses
+   - **Recommended (safer)**: Add specific trusted IPs or CIDR ranges:
+     - Your hosting provider's egress IPs (e.g., Render outbound IP addresses)
+     - Your office/VPN egress IP or current IP for admin access
+   - **Do NOT use "Allow Access from Anywhere" (0.0.0.0/0) for production**. This exposes your
+     database to the entire internet and significantly increases the risk of unauthorized access.
+   - If you must use 0.0.0.0/0 temporarily for initial local development, remove it as soon as
+     you have your deployed backend IPs or VPN in place.
    - Click "Confirm"
 
 4. **Get Connection String**:

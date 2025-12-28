@@ -80,7 +80,10 @@ EOF
 1. Go to https://www.mongodb.com/cloud/atlas
 2. Create M0 Free cluster
 3. Create database user
-4. Whitelist all IPs (0.0.0.0/0)
+4. Configure network access:
+   - Add only trusted IP ranges (for example: Render backend egress IPs, your VPN gateway, or a bastion host).
+   - For local development, you may temporarily add your current IP address, but remove it when not in use.
+   - Do **not** use `0.0.0.0/0` for production environments, as it exposes your database to the entire internet.
 5. Get connection string:
    ```
    MONGODB_URL=mongodb+srv://user:pass@cluster.mongodb.net/autodealgenie

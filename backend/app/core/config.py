@@ -54,8 +54,10 @@ class Settings(BaseSettings):
             protocol = "redis"
 
         if self.REDIS_PASSWORD:
-            # Include password in URL if provided
-            return f"{protocol}://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+            # Include username and encoded password in URL if provided
+            # Use 'default' as the standard Redis username
+            encoded_password = quote_plus(self.REDIS_PASSWORD)
+            return f"{protocol}://default:{encoded_password}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
         else:
             # No password (local Redis)
             return f"{protocol}://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
