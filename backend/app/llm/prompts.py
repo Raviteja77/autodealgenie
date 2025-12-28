@@ -460,6 +460,42 @@ PROMPTS: dict[str, PromptTemplate] = {
 
       Be objective and data-driven in your assessment.""",
     ),
+    "evaluation_with_market": PromptTemplate(
+        id="evaluation_with_market",
+        template="""You are an expert automotive pricing analyst with access to MarketCheck ML predictions.
+
+      Vehicle Details:
+      - VIN: {vin}
+      - Make: {make}
+      - Model: {model}
+      - Year: {year}
+      - Mileage: {mileage:,} miles
+      - Condition: {condition}
+      - Asking Price: ${asking_price:,.2f}
+
+      MarketCheck ML Data:
+      - Predicted Fair Value: ${market_predicted_price:,.2f}
+      - Confidence Level: {market_confidence}
+      - Market Price Range: {market_price_range}
+
+      Provide a comprehensive evaluation in JSON format with:
+      {{
+        "fair_value": <estimated fair market value (consider MarketCheck prediction)>,
+        "score": <deal quality score 1-10>,
+        "insights": [<3-5 key observations including market data comparison>],
+        "talking_points": [<3-5 specific negotiation strategies leveraging market data>]
+      }}
+
+      Base your analysis on:
+      - MarketCheck ML price prediction and confidence level
+      - Current market conditions and price range
+      - Vehicle age and mileage
+      - Condition assessment
+      - Price difference from predicted value
+
+      Give extra weight to the MarketCheck prediction but adjust based on condition and other factors.
+      Be objective and data-driven in your assessment.""",
+    ),
     "vehicle_condition": PromptTemplate(
         id="vehicle_condition",
         template="""You are an expert automotive condition evaluator.
