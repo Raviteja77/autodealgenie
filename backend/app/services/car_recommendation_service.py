@@ -477,7 +477,7 @@ class CarRecommendationService:
         }
 
         try:
-            # Use the LLM module to generate structured recommendations
+            # Use the LLM module to generate structured recommendations with research agent
             response = await generate_structured_json(
                 prompt_id="car_selection_from_list",
                 variables={
@@ -485,6 +485,7 @@ class CarRecommendationService:
                     "listings_summary": json.dumps(listings_summary, indent=2),
                 },
                 response_model=CarSelectionResponse,
+                agent_role="research",
                 temperature=0.3,  # Lower temperature for more consistent recommendations
             )
 
