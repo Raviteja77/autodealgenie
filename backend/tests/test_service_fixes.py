@@ -1,7 +1,8 @@
 """Test fixes for negotiation, lender, and deal evaluation services"""
 
-import pytest
 from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from app.models.negotiation import MessageRole, NegotiationMessage
 from app.services.negotiation_service import NegotiationService
@@ -31,7 +32,9 @@ async def test_negotiation_service_metadata_access():
 
     # Mock the repository to return messages using AsyncMock
     service.negotiation_repo = Mock()
-    service.negotiation_repo.get_messages = AsyncMock(return_value=[mock_msg1, mock_msg2, mock_msg3])
+    service.negotiation_repo.get_messages = AsyncMock(
+        return_value=[mock_msg1, mock_msg2, mock_msg3]
+    )
 
     # Test _get_latest_suggested_price method with await
     result = await service._get_latest_suggested_price(session_id=1, default_price=25000.0)
@@ -113,7 +116,7 @@ def test_lender_service_recommendations():
 
 if __name__ == "__main__":
     import asyncio
-    
+
     # Run tests
     asyncio.run(test_negotiation_service_metadata_access())
     test_llm_json_parsing_with_markdown()

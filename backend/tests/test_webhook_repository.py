@@ -175,7 +175,7 @@ async def test_update_webhook_subscription(async_db, mock_user):
     """Test updating a webhook subscription"""
     repo = WebhookRepository(async_db)
 
-    subscription = await repo.create(
+    await repo.create(
         {
             "user_id": mock_user.id,
             "webhook_url": "https://example.com/webhook",
