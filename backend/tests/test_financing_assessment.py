@@ -1,14 +1,15 @@
 """Test financing assessment functionality"""
 
 import pytest
+import pytest_asyncio
 
 from app.api.dependencies import get_current_user
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import Deal, User
 
 
-@pytest.fixture
-def mock_user(db):
+@pytest_asyncio.fixture
+async def mock_user(async_db):
     """Create a mock user for testing"""
     user = User(
         email="testuser@example.com",
@@ -16,9 +17,9 @@ def mock_user(db):
         hashed_password="hashed",
         full_name="Test User",
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    async_db.add(user)
+    await async_db.commit()
+    await async_db.refresh(user)
     return user
 
 
@@ -35,8 +36,8 @@ def authenticated_client(client, mock_user):
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def mock_deal(db):
+@pytest_asyncio.fixture
+async def mock_deal(async_db):
     """Create a mock deal for testing"""
     deal = Deal(
         customer_name="John Doe",
@@ -48,9 +49,9 @@ def mock_deal(db):
         vehicle_mileage=15000,
         asking_price=25000.00,
     )
-    db.add(deal)
-    db.commit()
-    db.refresh(deal)
+    async_db.add(deal)
+    await async_db.commit()
+    await async_db.refresh(deal)
     return deal
 
 
@@ -165,8 +166,8 @@ async def test_get_lender_recommendations(authenticated_client, mock_deal, mock_
     from app.repositories.evaluation_repository import EvaluationRepository
 
     # Create an evaluation with completed financing step
-    repo = EvaluationRepository(db)
-    evaluation = repo.create(
+    repo = EvaluationRepository(async_db)
+    evaluation = await repo.create(
         user_id=mock_user.id,
         deal_id=mock_deal.id,
         status=EvaluationStatus.ANALYZING,
@@ -196,7 +197,7 @@ async def test_get_lender_recommendations(authenticated_client, mock_deal, mock_
             },
         },
     }
-    repo.update_result(evaluation.id, result_json, EvaluationStatus.ANALYZING)
+    await repo.update_result(evaluation.id, result_json, EvaluationStatus.ANALYZING)
 
     # Fetch lender recommendations
     response = authenticated_client.get(
@@ -218,8 +219,8 @@ async def test_lender_recommendations_not_for_poor_deals(
     """Test that lender recommendations are not provided for poor quality deals"""
     from app.repositories.evaluation_repository import EvaluationRepository
 
-    repo = EvaluationRepository(db)
-    evaluation = repo.create(
+    repo = EvaluationRepository(async_db)
+    evaluation = await repo.create(
         user_id=mock_user.id,
         deal_id=mock_deal.id,
         status=EvaluationStatus.ANALYZING,
@@ -249,7 +250,7 @@ async def test_lender_recommendations_not_for_poor_deals(
             },
         },
     }
-    repo.update_result(evaluation.id, result_json, EvaluationStatus.ANALYZING)
+    await repo.update_result(evaluation.id, result_json, EvaluationStatus.ANALYZING)
 
     # Fetch lender recommendations
     response = authenticated_client.get(
@@ -271,8 +272,8 @@ async def test_lender_recommendations_requires_completed_financing(
     """Test that lender recommendations require completed financing step"""
     from app.repositories.evaluation_repository import EvaluationRepository
 
-    repo = EvaluationRepository(db)
-    evaluation = repo.create(
+    repo = EvaluationRepository(async_db)
+    evaluation = await repo.create(
         user_id=mock_user.id,
         deal_id=mock_deal.id,
         status=EvaluationStatus.ANALYZING,
@@ -289,7 +290,7 @@ async def test_lender_recommendations_requires_completed_financing(
             "completed": False,  # Not completed
         },
     }
-    repo.update_result(evaluation.id, result_json, EvaluationStatus.ANALYZING)
+    await repo.update_result(evaluation.id, result_json, EvaluationStatus.ANALYZING)
 
     # Try to fetch lender recommendations
     response = authenticated_client.get(

@@ -1,6 +1,7 @@
 """Test AI metrics calculation in negotiation service"""
 
 import pytest
+import pytest_asyncio
 
 from app.services.negotiation_service import NegotiationService
 
@@ -26,9 +27,9 @@ class MockMessage:
 
 
 @pytest.fixture
-def negotiation_service(db):
+def negotiation_service(async_db):
     """Create a NegotiationService instance for testing"""
-    return NegotiationService(db)
+    return NegotiationService(async_db)
 
 
 class TestCalculateAIMetrics:

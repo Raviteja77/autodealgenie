@@ -64,14 +64,14 @@ async def initiate_or_continue_evaluation(
     eval_repo = EvaluationRepository(db)
 
     # Check for existing evaluation in progress
-    existing_eval = eval_repo.get_latest_by_deal(deal_id)
+    existing_eval = await eval_repo.get_latest_by_deal(deal_id)
 
     if existing_eval and existing_eval.status != EvaluationStatus.COMPLETED:
         # Continue existing evaluation
         evaluation = existing_eval
     else:
         # Create new evaluation
-        evaluation = eval_repo.create(
+        evaluation = await eval_repo.create(
             user_id=current_user.id,
             deal_id=deal_id,
             status=EvaluationStatus.ANALYZING,
@@ -85,7 +85,7 @@ async def initiate_or_continue_evaluation(
         )
 
         # Refresh evaluation to get updated state
-        db.refresh(evaluation)
+        await db.refresh(evaluation)
 
         return {
             "evaluation_id": evaluation.id,
@@ -120,7 +120,7 @@ async def get_evaluation(
     Get the current state of a deal evaluation
     """
     eval_repo = EvaluationRepository(db)
-    evaluation = eval_repo.get(evaluation_id)
+    evaluation = await eval_repo.get(evaluation_id)
 
     if not evaluation:
         raise HTTPException(
@@ -154,7 +154,7 @@ async def submit_evaluation_answers(
     Submit answers to evaluation questions and continue the pipeline
     """
     eval_repo = EvaluationRepository(db)
-    evaluation = eval_repo.get(evaluation_id)
+    evaluation = await eval_repo.get(evaluation_id)
 
     if not evaluation:
         raise HTTPException(
@@ -179,14 +179,14 @@ async def submit_evaluation_answers(
     # Process with answers
     try:
         # Update status back to analyzing
-        eval_repo.update_status(evaluation_id, EvaluationStatus.ANALYZING)
+        await eval_repo.update_status(evaluation_id, EvaluationStatus.ANALYZING)
 
         step_result = await deal_evaluation_service.process_evaluation_step(
             db=db, evaluation_id=evaluation.id, user_answers=request.answers
         )
 
         # Refresh evaluation
-        db.refresh(evaluation)
+        await db.refresh(evaluation)
 
         return {
             "evaluation_id": evaluation.id,
@@ -229,7 +229,7 @@ async def get_evaluation_lenders(
     - Overall deal score >= 6.5 (good or excellent deals)
     """
     eval_repo = EvaluationRepository(db)
-    evaluation = eval_repo.get(evaluation_id)
+    evaluation = await eval_repo.get(evaluation_id)
 
     if not evaluation:
         raise HTTPException(
