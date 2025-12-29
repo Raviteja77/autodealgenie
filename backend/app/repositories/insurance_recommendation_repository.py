@@ -130,8 +130,9 @@ class InsuranceRecommendationRepository:
             InsuranceRecommendation or None
         """
         result = await self.db.execute(
-            select(InsuranceRecommendation)
-            .filter(InsuranceRecommendation.id == insurance_recommendation_id)
+            select(InsuranceRecommendation).filter(
+                InsuranceRecommendation.id == insurance_recommendation_id
+            )
         )
         return result.scalar_one_or_none()
 

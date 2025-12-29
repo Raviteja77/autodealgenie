@@ -54,7 +54,9 @@ class EvaluationRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[DealEvaluation]:
+    async def get_by_user(
+        self, user_id: int, skip: int = 0, limit: int = 100
+    ) -> list[DealEvaluation]:
         """Get all evaluations for a user with pagination"""
         result = await self.db.execute(
             select(DealEvaluation)
@@ -65,7 +67,9 @@ class EvaluationRepository:
         )
         return result.scalars().all()
 
-    async def update_status(self, evaluation_id: int, status: EvaluationStatus) -> DealEvaluation | None:
+    async def update_status(
+        self, evaluation_id: int, status: EvaluationStatus
+    ) -> DealEvaluation | None:
         """Update evaluation status"""
         evaluation = await self.get(evaluation_id)
         if not evaluation:
@@ -76,7 +80,9 @@ class EvaluationRepository:
         await self.db.refresh(evaluation)
         return evaluation
 
-    async def update_step(self, evaluation_id: int, current_step: PipelineStep) -> DealEvaluation | None:
+    async def update_step(
+        self, evaluation_id: int, current_step: PipelineStep
+    ) -> DealEvaluation | None:
         """Update evaluation current step"""
         evaluation = await self.get(evaluation_id)
         if not evaluation:

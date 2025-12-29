@@ -62,7 +62,9 @@ class DealRepository:
         Get a deal by vehicle VIN and customer email.
         """
         result = await self.db.execute(
-            select(Deal).filter(Deal.vehicle_vin == vehicle_vin, Deal.customer_email == customer_email)
+            select(Deal).filter(
+                Deal.vehicle_vin == vehicle_vin, Deal.customer_email == customer_email
+            )
         )
         return result.scalar_one_or_none()
 

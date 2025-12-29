@@ -146,13 +146,3 @@ class NegotiationRepository:
         await self.db.delete(session)
         await self.db.commit()
         return True
-
-    def delete_session(self, session_id: int) -> bool:
-        """Delete a negotiation session (cascade deletes messages)"""
-        session = self.get_session(session_id)
-        if not session:
-            return False
-
-        self.db.delete(session)
-        self.db.commit()
-        return True

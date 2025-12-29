@@ -35,7 +35,9 @@ class FavoriteRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_all_by_user(self, user_id: int, skip: int = 0, limit: int = 100) -> list[Favorite]:
+    async def get_all_by_user(
+        self, user_id: int, skip: int = 0, limit: int = 100
+    ) -> list[Favorite]:
         """Get all favorites for a user with pagination"""
         result = await self.db.execute(
             select(Favorite)

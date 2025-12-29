@@ -42,8 +42,9 @@ class SavedSearchRepository:
             Optional[SavedSearch]: Saved search or None
         """
         result = await db.execute(
-            select(SavedSearch)
-            .filter(and_(SavedSearch.id == search_id, SavedSearch.user_id == user_id))
+            select(SavedSearch).filter(
+                and_(SavedSearch.id == search_id, SavedSearch.user_id == user_id)
+            )
         )
         return result.scalar_one_or_none()
 
@@ -83,6 +84,7 @@ class SavedSearchRepository:
             int: Total count
         """
         from sqlalchemy import func
+
         result = await db.execute(
             select(func.count()).select_from(SavedSearch).filter(SavedSearch.user_id == user_id)
         )

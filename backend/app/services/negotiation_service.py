@@ -89,7 +89,7 @@ class NegotiationService:
         Returns:
             Latest suggested price or default_price
         """
-        messages =            await self.negotiation_repo.get_messages(session_id)
+        messages = await self.negotiation_repo.get_messages(session_id)
         for msg in reversed(messages[-10:]):  # Check last 10 messages
             if msg.message_metadata and "suggested_price" in msg.message_metadata:
                 return msg.message_metadata["suggested_price"]
@@ -125,7 +125,7 @@ class NegotiationService:
         )
 
         # Validate deal exists
-        deal =            await self.deal_repo.get(deal_id)
+        deal = await self.deal_repo.get(deal_id)
         if not deal:
             logger.error(f"[{request_id}] Deal {deal_id} not found")
             raise ApiError(status_code=404, message=f"Deal with id {deal_id} not found")
@@ -139,7 +139,7 @@ class NegotiationService:
             )
 
         # Create session with evaluation data in metadata
-        session =            await self.negotiation_repo.create_session(user_id=user_id, deal_id=deal_id)
+        session = await self.negotiation_repo.create_session(user_id=user_id, deal_id=deal_id)
         logger.info(f"[{request_id}] Created session {session.id}")
 
         # Add initial user message
@@ -163,7 +163,7 @@ class NegotiationService:
                 "has_market_data": bool(evaluation_data.get("market_data")),
             }
 
-        user_msg =            await self.negotiation_repo.add_message(
+        user_msg = await self.negotiation_repo.add_message(
             session_id=session.id,
             role=MessageRole.USER,
             content=user_message,
@@ -172,14 +172,14 @@ class NegotiationService:
         )
 
         # Broadcast user message via WebSocket
-            await self._broadcast_message(session.id, user_msg)
+        await self._broadcast_message(session.id, user_msg)
 
         # Generate agent's initial response using LLM with evaluation data
         try:
             # Show typing indicator
             await self.ws_manager.broadcast_typing_indicator(session.id, True)
 
-            agent_response =            await self._generate_agent_response(
+            agent_response = await self._generate_agent_response(
                 session=session,
                 deal=deal,
                 user_target_price=user_target_price,
@@ -191,7 +191,7 @@ class NegotiationService:
             # Hide typing indicator
             await self.ws_manager.broadcast_typing_indicator(session.id, False)
 
-            agent_msg =            await self.negotiation_repo.add_message(
+            agent_msg = await self.negotiation_repo.add_message(
                 session_id=session.id,
                 role=MessageRole.AGENT,
                 content=agent_response["content"],
@@ -244,7 +244,7 @@ class NegotiationService:
         logger.info(f"[{request_id}] Processing next round for session {session_id}")
 
         # Get session
-        session =            await self.negotiation_repo.get_session(session_id)
+        session = await self.negotiation_repo.get_session(session_id)
         if not session:
             logger.error(f"[{request_id}] Session {session_id} not found")
             raise ApiError(status_code=404, message=f"Session {session_id} not found")
@@ -261,7 +261,9 @@ class NegotiationService:
         # Check max rounds
         if session.current_round >= session.max_rounds:
             logger.warning(f"[{request_id}] Session {session_id} reached max rounds")
-            await self.negotiation_repo.update_session_status(session_id, NegotiationStatus.COMPLETED)
+            await self.negotiation_repo.update_session_status(
+                session_id, NegotiationStatus.COMPLETED
+            )
             raise ApiError(
                 status_code=400,
                 message="Maximum negotiation rounds reached",
@@ -269,7 +271,7 @@ class NegotiationService:
             )
 
         # Get deal
-        deal =            await self.deal_repo.get(session.deal_id)
+        deal = await self.deal_repo.get(session.deal_id)
         if not deal:
             logger.error(f"[{request_id}] Deal {session.deal_id} not found")
             raise ApiError(status_code=404, message="Associated deal not found")
@@ -277,7 +279,9 @@ class NegotiationService:
         # Handle user action
         if user_action == "confirm":
             # User accepts the deal - update negotiation status
-            await self.negotiation_repo.update_session_status(session_id, NegotiationStatus.COMPLETED)
+            await self.negotiation_repo.update_session_status(
+                session_id, NegotiationStatus.COMPLETED
+            )
 
             # Get the latest negotiated price to update the deal
             latest_price = self._get_latest_suggested_price(session_id, deal.asking_price)
@@ -327,7 +331,9 @@ class NegotiationService:
 
         elif user_action == "reject":
             # User rejects and ends negotiation
-            await self.negotiation_repo.update_session_status(session_id, NegotiationStatus.CANCELLED)
+            await self.negotiation_repo.update_session_status(
+                session_id, NegotiationStatus.CANCELLED
+            )
 
             message_content = "I'm not interested in continuing this negotiation."
             await self.negotiation_repo.add_message(
@@ -368,11 +374,11 @@ class NegotiationService:
                 )
 
             # Increment round
-            session =            await self.negotiation_repo.increment_round(session_id)
+            session = await self.negotiation_repo.increment_round(session_id)
 
             # Add user counter message
             message_content = f"I'd like to counter with an offer of ${counter_offer:,.2f}."
-            user_msg =            await self.negotiation_repo.add_message(
+            user_msg = await self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.USER,
                 content=message_content,
@@ -386,9 +392,9 @@ class NegotiationService:
             # Generate agent's counter response using LLM
             try:
                 # Show typing indicator
-            await self.ws_manager.broadcast_typing_indicator(session_id, True)
+                await self.ws_manager.broadcast_typing_indicator(session_id, True)
 
-                agent_response =            await self._generate_counter_response(
+                agent_response = await self._generate_counter_response(
                     session=session,
                     deal=deal,
                     counter_offer=counter_offer,
@@ -396,9 +402,9 @@ class NegotiationService:
                 )
 
                 # Hide typing indicator
-            await self.ws_manager.broadcast_typing_indicator(session_id, False)
+                await self.ws_manager.broadcast_typing_indicator(session_id, False)
 
-                agent_msg =            await self.negotiation_repo.add_message(
+                agent_msg = await self.negotiation_repo.add_message(
                     session_id=session_id,
                     role=MessageRole.AGENT,
                     content=agent_response["content"],
@@ -407,7 +413,7 @@ class NegotiationService:
                 )
 
                 # Broadcast agent message via WebSocket
-            await self._broadcast_message(session_id, agent_msg)
+                await self._broadcast_message(session_id, agent_msg)
 
                 logger.info(
                     f"[{request_id}] Session {session_id} advanced to round {session.current_round}"
@@ -842,7 +848,7 @@ class NegotiationService:
         logger.info(f"[{request_id}] Generating counter response for session {session.id}")
 
         # Get conversation history
-        messages =            await self.negotiation_repo.get_messages(session.id)
+        messages = await self.negotiation_repo.get_messages(session.id)
         offer_history = []
         for msg in messages[-self.MAX_CONVERSATION_HISTORY :]:  # Last N messages
             if msg.message_metadata and "counter_offer" in msg.message_metadata:
@@ -1069,20 +1075,20 @@ class NegotiationService:
         logger.info(f"[{request_id}] Processing chat message for session {session_id}")
 
         # Get session
-        session =            await self.negotiation_repo.get_session(session_id)
+        session = await self.negotiation_repo.get_session(session_id)
         if not session:
             logger.error(f"[{request_id}] Session {session_id} not found")
             raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
         # Allow chat even if session is completed/cancelled for post-negotiation questions
         # Get deal
-        deal =            await self.deal_repo.get(session.deal_id)
+        deal = await self.deal_repo.get(session.deal_id)
         if not deal:
             logger.error(f"[{request_id}] Deal {session.deal_id} not found")
             raise ApiError(status_code=404, message="Associated deal not found")
 
         # Add user message
-        user_msg =            await self.negotiation_repo.add_message(
+        user_msg = await self.negotiation_repo.add_message(
             session_id=session_id,
             role=MessageRole.USER,
             content=user_message,
@@ -1091,14 +1097,14 @@ class NegotiationService:
         )
 
         # Broadcast user message via WebSocket
-            await self._broadcast_message(session_id, user_msg)
+        await self._broadcast_message(session_id, user_msg)
 
         # Generate agent response
         try:
             # Show typing indicator
             await self.ws_manager.broadcast_typing_indicator(session_id, True)
 
-            agent_response =            await self._generate_chat_response(
+            agent_response = await self._generate_chat_response(
                 session=session,
                 deal=deal,
                 user_message=user_message,
@@ -1108,7 +1114,7 @@ class NegotiationService:
             # Hide typing indicator
             await self.ws_manager.broadcast_typing_indicator(session_id, False)
 
-            agent_msg =            await self.negotiation_repo.add_message(
+            agent_msg = await self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.AGENT,
                 content=agent_response["content"],
@@ -1163,7 +1169,7 @@ class NegotiationService:
         logger.info(f"[{request_id}] Generating chat response for session {session.id}")
 
         # Get recent conversation history
-        messages =            await self.negotiation_repo.get_messages(session.id)
+        messages = await self.negotiation_repo.get_messages(session.id)
         recent_messages = messages[-6:]  # Last 6 messages for context
 
         conversation_history = []
@@ -1246,7 +1252,7 @@ class NegotiationService:
         logger.info(f"[{request_id}] Analyzing dealer info for session {session_id}")
 
         # Get session
-        session =            await self.negotiation_repo.get_session(session_id)
+        session = await self.negotiation_repo.get_session(session_id)
         if not session:
             logger.error(f"[{request_id}] Session {session_id} not found")
             raise ApiError(status_code=404, message=f"Session {session_id} not found")
@@ -1261,7 +1267,7 @@ class NegotiationService:
             )
 
         # Get deal
-        deal =            await self.deal_repo.get(session.deal_id)
+        deal = await self.deal_repo.get(session.deal_id)
         if not deal:
             logger.error(f"[{request_id}] Deal {session.deal_id} not found")
             raise ApiError(status_code=404, message="Associated deal not found")
@@ -1271,7 +1277,7 @@ class NegotiationService:
         if price_mentioned:
             user_msg_content += f"\n\nPrice mentioned: ${price_mentioned:,.2f}"
 
-        user_msg =            await self.negotiation_repo.add_message(
+        user_msg = await self.negotiation_repo.add_message(
             session_id=session_id,
             role=MessageRole.USER,
             content=user_msg_content,
@@ -1286,7 +1292,7 @@ class NegotiationService:
 
         # Generate analysis
         try:
-            agent_response =            await self._generate_dealer_info_analysis(
+            agent_response = await self._generate_dealer_info_analysis(
                 session=session,
                 deal=deal,
                 info_type=info_type,
@@ -1295,7 +1301,7 @@ class NegotiationService:
                 request_id=request_id,
             )
 
-            agent_msg =            await self.negotiation_repo.add_message(
+            agent_msg = await self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.AGENT,
                 content=agent_response["content"],
@@ -1354,7 +1360,7 @@ class NegotiationService:
         suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
 
         # Get user target price from messages or use default
-        messages =            await self.negotiation_repo.get_messages(session.id)
+        messages = await self.negotiation_repo.get_messages(session.id)
         user_target = deal.asking_price * self.DEFAULT_TARGET_PRICE_RATIO
 
         for msg in reversed(messages[-10:]):
