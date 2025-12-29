@@ -5,10 +5,10 @@ Negotiation endpoints for multi-round negotiations
 import logging
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.models import User
 from app.schemas.loan_schemas import (
     LenderRecommendationRequest,
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_negotiation(
     request: CreateNegotiationRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -74,7 +74,7 @@ async def create_negotiation(
 async def process_next_round(
     session_id: int,
     request: NextRoundRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -125,7 +125,7 @@ async def process_next_round(
 @router.get("/{session_id}", response_model=NegotiationSessionResponse)
 def get_negotiation_session(
     session_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -169,7 +169,7 @@ def get_lender_recommendations(
     session_id: int,
     loan_term_months: int = 60,
     credit_score_range: str = "good",
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -245,7 +245,7 @@ def get_lender_recommendations(
 async def send_chat_message(
     session_id: int,
     request: ChatMessageRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -293,7 +293,7 @@ async def send_chat_message(
 async def submit_dealer_info(
     session_id: int,
     request: DealerInfoRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -345,7 +345,7 @@ async def submit_dealer_info(
 async def websocket_endpoint(
     websocket: WebSocket,
     session_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     WebSocket endpoint for real-time negotiation chat updates
