@@ -158,7 +158,7 @@ function EvaluationContent() {
       selectedVehicle: vehicle,
     });
 
-    // Navigate to the target page
+    // Navigate to the target page with all vehicle data
     const vehicleParams = new URLSearchParams({
       vin: vehicle.vin || "",
       make: vehicle.make,
@@ -168,6 +168,12 @@ function EvaluationContent() {
       mileage: vehicle.mileage.toString(),
       fuelType: vehicle.fuelType || "",
     });
+    
+    // Add zipCode if available
+    if (vehicle.zipCode) {
+      vehicleParams.set("zipCode", vehicle.zipCode);
+    }
+    
     router.push(`${targetPath}?${vehicleParams.toString()}`);
   };
 
@@ -317,7 +323,10 @@ function EvaluationContent() {
                     sx={{ display: "flex", alignItems: "center", gap: 1 }}
                   >
                     <TrendingUp color="primary" />
-                    Market Intelligence
+                    AI-Powered Market Analysis
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Real-time pricing intelligence based on market data and ML predictions
                   </Typography>
                   <Divider sx={{ my: 2 }} />
 
@@ -425,21 +434,25 @@ function EvaluationContent() {
                 </Card.Body>
               </Card>
 
-              {/* Overall Score */}
-              <Card shadow="lg" sx={{ mb: 3 }}>
+              {/* Overall Score with Enhanced Visual */}
+              <Card shadow="lg" sx={{ mb: 3, border: "2px solid", borderColor: getScoreColor(evaluation.score) === "success" ? "success.main" : getScoreColor(evaluation.score) === "error" ? "error.main" : "warning.main" }}>
                 <Card.Body>
-                  <Box sx={{ textAlign: "center", py: 2 }}>
+                  <Box sx={{ textAlign: "center", py: 3 }}>
+                    <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 2 }}>
+                      Deal Quality Score
+                    </Typography>
                     <Box
-                      sx={{ display: "flex", justifyContent: "center", mb: 2 }}
+                      sx={{ display: "flex", justifyContent: "center", mb: 3, mt: 2 }}
                     >
                       {getScoreIcon(evaluation.score)}
                     </Box>
-                    <Typography variant="h2" component="div" gutterBottom>
+                    <Typography variant="h1" component="div" gutterBottom sx={{ fontWeight: "bold" }}>
                       {evaluation.score.toFixed(1)}
                       <Typography
-                        variant="h5"
+                        variant="h4"
                         component="span"
                         color="text.secondary"
+                        sx={{ ml: 1 }}
                       >
                         /10
                       </Typography>
@@ -447,8 +460,37 @@ function EvaluationContent() {
                     <Chip
                       label={getRecommendation(evaluation.score)}
                       color={getScoreColor(evaluation.score)}
-                      sx={{ mt: 1, fontSize: "1rem", py: 2 }}
+                      sx={{ mt: 2, fontSize: "1.1rem", py: 3, px: 2, fontWeight: "bold" }}
                     />
+                    
+                    {/* Score Breakdown */}
+                    <Box sx={{ mt: 4, textAlign: "left", bgcolor: "grey.50", p: 3, borderRadius: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
+                        Score Breakdown
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                          <Box sx={{ textAlign: "center", p: 2, bgcolor: "white", borderRadius: 1 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Price Competitiveness
+                            </Typography>
+                            <Typography variant="h6" color="success.main" sx={{ fontWeight: "bold" }}>
+                              {evaluation.score >= 8 ? "Excellent" : evaluation.score >= 6.5 ? "Good" : evaluation.score >= 5 ? "Fair" : "Poor"}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Box sx={{ textAlign: "center", p: 2, bgcolor: "white", borderRadius: 1 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Market Position
+                            </Typography>
+                            <Typography variant="h6" color="primary.main" sx={{ fontWeight: "bold" }}>
+                              {priceDifference > 0 ? "Above" : "Below"}
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </Box>
                   </Box>
                 </Card.Body>
               </Card>
@@ -514,25 +556,37 @@ function EvaluationContent() {
                 </Grid>
               </Grid>
 
-              {/* Key Insights */}
+              {/* Key Insights - Enhanced */}
               {evaluation.insights.length > 0 && (
-                <Card sx={{ mb: 3 }}>
+                <Card sx={{ mb: 3, bgcolor: "primary.50", border: "1px solid", borderColor: "primary.200" }}>
                   <Card.Body>
-                    <Typography variant="h6" gutterBottom>
-                      Key Insights
+                    <Typography variant="h6" gutterBottom sx={{ color: "primary.dark" }}>
+                      📊 Key Market Insights
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Important factors influencing this vehicle&apos;s value
                     </Typography>
                     <Divider sx={{ mb: 2 }} />
-                    <Stack spacing={1.5}>
+                    <Stack spacing={2}>
                       {evaluation.insights.map((insight, index) => (
                         <Box
                           key={index}
-                          sx={{ display: "flex", alignItems: "start" }}
+                          sx={{ 
+                            display: "flex", 
+                            alignItems: "start",
+                            p: 2,
+                            bgcolor: "white",
+                            borderRadius: 2,
+                            boxShadow: 1
+                          }}
                         >
                           <CheckCircle
-                            color="primary"
-                            sx={{ mr: 1.5, mt: 0.2, fontSize: 20 }}
+                            color="success"
+                            sx={{ mr: 2, mt: 0.2, fontSize: 24, flexShrink: 0 }}
                           />
-                          <Typography variant="body1">{insight}</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                            {insight}
+                          </Typography>
                         </Box>
                       ))}
                     </Stack>
@@ -540,42 +594,64 @@ function EvaluationContent() {
                 </Card>
               )}
 
-              {/* Negotiation Strategy */}
-              {/* {evaluation.talking_points.length > 0 && (
-                <Card sx={{ mb: 3 }}>
+              {/* Negotiation Talking Points - Now Visible */}
+              {evaluation.talking_points && evaluation.talking_points.length > 0 && (
+                <Card sx={{ mb: 3, border: "2px solid", borderColor: "primary.main" }}>
                   <Card.Body>
-                    <Typography variant="h6" gutterBottom>
-                      Negotiation Strategy
+                    <Typography 
+                      variant="h6" 
+                      gutterBottom
+                      sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                    >
+                      <TrendingUp color="primary" />
+                      Negotiation Talking Points
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Use these points to strengthen your negotiation position
                     </Typography>
                     <Divider sx={{ mb: 2 }} />
-                    <Stack spacing={1.5}>
+                    <Stack spacing={2}>
                       {evaluation.talking_points.map((point, index) => (
-                        <Box key={index} sx={{ display: "flex", alignItems: "start" }}>
+                        <Box 
+                          key={index} 
+                          sx={{ 
+                            display: "flex", 
+                            alignItems: "start",
+                            p: 2,
+                            bgcolor: "grey.50",
+                            borderRadius: 2,
+                            border: "1px solid",
+                            borderColor: "grey.200"
+                          }}
+                        >
                           <Typography 
                             variant="body2" 
                             sx={{ 
-                              minWidth: 24, 
-                              height: 24,
+                              minWidth: 32, 
+                              height: 32,
                               borderRadius: "50%",
                               bgcolor: "primary.main",
                               color: "white",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
-                              mr: 1.5,
-                              mt: 0.2,
-                              fontWeight: "bold"
+                              mr: 2,
+                              flexShrink: 0,
+                              fontWeight: "bold",
+                              fontSize: "1rem"
                             }}
                           >
                             {index + 1}
                           </Typography>
-                          <Typography variant="body1">{point}</Typography>
+                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                            {point}
+                          </Typography>
                         </Box>
                       ))}
                     </Stack>
                   </Card.Body>
                 </Card>
-              )} */}
+              )}
 
               {/* Insurance Recommendations */}
               {/* <Card sx={{ mb: 3 }}>
@@ -596,64 +672,80 @@ function EvaluationContent() {
                 </Card.Body>
               </Card> */}
 
-              {/* Action Buttons */}
+              {/* Action Buttons with Clear CTAs */}
               <Box
                 sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: 2,
+                  mt: 4,
+                  p: 3,
+                  bgcolor: "grey.50",
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "grey.200"
                 }}
               >
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => router.back()}
+                <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+                  What would you like to do next?
+                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 2,
+                  }}
                 >
-                  Go Back
-                </Button>
-                <Box sx={{ display: "flex", gap: 2 }}>
-                  {shouldSearchMore(evaluation.score) ? (
-                    <>
-                      <Button
-                        variant="danger"
-                        size="lg"
-                        onClick={() => router.push("/")}
-                      >
-                        Skip This Deal
-                      </Button>
-                      <Button
-                        variant="primary"
-                        size="lg"
-                        onClick={() => router.push("/dashboard/search")}
-                      >
-                        Search More Vehicles
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        variant="success"
-                        size="lg"
-                        onClick={() =>
-                          handleVehicleSelection(
-                            vehicleData,
-                            "/dashboard/negotiation"
-                          )
-                        }
-                      >
-                        Negotiate the deal
-                      </Button>
-                      {/* <Button
-                        variant="success"
-                        size="lg"
-                        onClick={() => router.push("/deals")}
-                      >
-                        Proceed with This Deal
-                      </Button> */}
-                    </>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => router.back()}
+                  >
+                    ← Go Back
+                  </Button>
+                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+                    {shouldSearchMore(evaluation.score) ? (
+                      <>
+                        <Button
+                          variant="danger"
+                          size="lg"
+                          onClick={() => router.push("/")}
+                        >
+                          Skip This Deal
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="lg"
+                          onClick={() => router.push("/dashboard/search")}
+                        >
+                          Search More Vehicles →
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="success"
+                          size="lg"
+                          onClick={() =>
+                            handleVehicleSelection(
+                              vehicleData,
+                              "/dashboard/negotiation"
+                            )
+                          }
+                          sx={{ fontSize: "1.1rem", px: 4 }}
+                        >
+                          🤝 Start Negotiation
+                        </Button>
+                      </>
+                    )}
+                  </Box>
                 </Box>
+                {!shouldSearchMore(evaluation.score) && (
+                  <Alert severity="info" sx={{ mt: 3 }} icon={<TrendingUp />}>
+                    <Typography variant="body2">
+                      <strong>Next Step:</strong> Our AI negotiation assistant will help you get the best possible price. 
+                      You&apos;ll receive talking points and real-time guidance throughout the negotiation process.
+                    </Typography>
+                  </Alert>
+                )}
               </Box>
             </Box>
           )}
