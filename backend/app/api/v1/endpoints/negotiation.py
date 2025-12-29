@@ -104,7 +104,7 @@ async def process_next_round(
     service = NegotiationService(db)
 
     # Verify session belongs to user
-    session = service.negotiation_repo.get_session(session_id)
+    session = await service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -123,7 +123,7 @@ async def process_next_round(
 
 
 @router.get("/{session_id}", response_model=NegotiationSessionResponse)
-def get_negotiation_session(
+async def get_negotiation_session(
     session_id: int,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
@@ -147,7 +147,7 @@ def get_negotiation_session(
     service = NegotiationService(db)
 
     # Verify session belongs to user
-    session = service.negotiation_repo.get_session(session_id)
+    session = await service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -271,7 +271,7 @@ async def send_chat_message(
     service = NegotiationService(db)
 
     # Verify session belongs to user
-    session = service.negotiation_repo.get_session(session_id)
+    session = await service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -321,7 +321,7 @@ async def submit_dealer_info(
     service = NegotiationService(db)
 
     # Verify session belongs to user
-    session = service.negotiation_repo.get_session(session_id)
+    session = await service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -410,7 +410,7 @@ async def websocket_endpoint(
 
     # Verify session exists before accepting connection
     service = NegotiationService(db)
-    session = service.negotiation_repo.get_session(session_id)
+    session = await service.negotiation_repo.get_session(session_id)
 
     if not session:
         await websocket.close(code=4004, reason="Session not found")

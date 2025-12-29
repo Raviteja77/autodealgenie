@@ -1,13 +1,14 @@
 """Test loan endpoints"""
 
 import pytest
+import pytest_asyncio
 
 from app.api.dependencies import get_current_user
 from app.models.models import User
 
 
-@pytest.fixture
-def mock_user(db):
+@pytest_asyncio.fixture
+async def mock_user(async_db):
     """Create a mock user for testing"""
     user = User(
         email="loanuser@example.com",
@@ -15,9 +16,9 @@ def mock_user(db):
         hashed_password="hashed",
         full_name="Loan User",
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    async_db.add(user)
+    await async_db.commit()
+    await async_db.refresh(user)
     return user
 
 

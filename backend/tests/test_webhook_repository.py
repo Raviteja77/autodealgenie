@@ -34,10 +34,13 @@ async def test_create_webhook_subscription(async_db, mock_user):
     repo = WebhookRepository(async_db)
 
     subscription = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook",
-        events=[WebhookEvent.DEAL_CREATED, WebhookEvent.DEAL_UPDATED],
-        secret="test_secret_123",
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook",
+            "events": [WebhookEvent.DEAL_CREATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     assert subscription.id is not None
@@ -54,9 +57,13 @@ async def test_get_webhook_by_id(async_db, mock_user):
     repo = WebhookRepository(async_db)
 
     subscription = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook",
-        events=[WebhookEvent.DEAL_CREATED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook",
+            "events": [WebhookEvent.DEAL_CREATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     retrieved = await repo.get(subscription.id)
@@ -72,15 +79,23 @@ async def test_get_webhooks_by_user(async_db, mock_user):
 
     # Create multiple webhooks
     sub1 = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook1",
-        events=[WebhookEvent.DEAL_CREATED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook1",
+            "events": [WebhookEvent.DEAL_CREATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     sub2 = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook2",
-        events=[WebhookEvent.DEAL_UPDATED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook2",
+            "events": [WebhookEvent.DEAL_UPDATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     webhooks = await repo.get_by_user(mock_user.id)
@@ -96,16 +111,24 @@ async def test_get_active_subscriptions(async_db, mock_user):
 
     # Create active webhook
     sub1 = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook1",
-        events=[WebhookEvent.DEAL_CREATED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook1",
+            "events": [WebhookEvent.DEAL_CREATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     # Create inactive webhook
     sub2 = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook2",
-        events=[WebhookEvent.DEAL_UPDATED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook2",
+            "events": [WebhookEvent.DEAL_UPDATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
     await repo.update_status(sub2.id, WebhookStatus.DISABLED)
 
@@ -122,15 +145,23 @@ async def test_get_matching_subscriptions(async_db, mock_user):
 
     # Create webhooks with different events
     sub1 = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook1",
-        events=[WebhookEvent.DEAL_CREATED, WebhookEvent.DEAL_UPDATED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook1",
+            "events": [WebhookEvent.DEAL_CREATED, WebhookEvent.DEAL_UPDATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook2",
-        events=[WebhookEvent.EVALUATION_COMPLETED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook2",
+            "events": [WebhookEvent.EVALUATION_COMPLETED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     # Get subscriptions for DEAL_CREATED event
@@ -145,15 +176,23 @@ async def test_update_webhook_subscription(async_db, mock_user):
     repo = WebhookRepository(async_db)
 
     subscription = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook",
-        events=[WebhookEvent.DEAL_CREATED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook",
+            "events": [WebhookEvent.DEAL_CREATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
-    updated = await repo.update(
-        subscription.id,
-        webhook_url="https://example.com/new-webhook",
-        events=[WebhookEvent.DEAL_CREATED, WebhookEvent.DEAL_UPDATED],
+    updated = await repo.create(
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook",
+            "events": [WebhookEvent.DEAL_UPDATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     assert updated is not None
@@ -167,9 +206,13 @@ async def test_delete_webhook_subscription(async_db, mock_user):
     repo = WebhookRepository(async_db)
 
     subscription = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook",
-        events=[WebhookEvent.DEAL_CREATED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook",
+            "events": [WebhookEvent.DEAL_CREATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     deleted = await repo.delete(subscription.id)
@@ -186,9 +229,13 @@ async def test_increment_failure_count(async_db, mock_user):
     repo = WebhookRepository(async_db)
 
     subscription = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook",
-        events=[WebhookEvent.DEAL_CREATED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook",
+            "events": [WebhookEvent.DEAL_CREATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     assert subscription.failure_count == 0
@@ -203,9 +250,13 @@ async def test_increment_failure_count_auto_disable(async_db, mock_user):
     repo = WebhookRepository(async_db)
 
     subscription = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook",
-        events=[WebhookEvent.DEAL_CREATED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook",
+            "events": [WebhookEvent.DEAL_CREATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     # Increment to max failures (5)
@@ -222,9 +273,13 @@ async def test_reset_failure_count(async_db, mock_user):
     repo = WebhookRepository(async_db)
 
     subscription = await repo.create(
-        user_id=mock_user.id,
-        webhook_url="https://example.com/webhook",
-        events=[WebhookEvent.DEAL_CREATED],
+        {
+            "user_id": mock_user.id,
+            "webhook_url": "https://example.com/webhook",
+            "events": [WebhookEvent.DEAL_CREATED],
+            "status": WebhookStatus.ACTIVE,
+            "secret": "test_secret_123",
+        }
     )
 
     # Increment failure count

@@ -1,12 +1,14 @@
 """Test fixes for negotiation, lender, and deal evaluation services"""
 
-from unittest.mock import Mock
+import pytest
+from unittest.mock import AsyncMock, Mock
 
 from app.models.negotiation import MessageRole, NegotiationMessage
 from app.services.negotiation_service import NegotiationService
 
 
-def test_negotiation_service_metadata_access():
+@pytest.mark.asyncio
+async def test_negotiation_service_metadata_access():
     """Test that negotiation service correctly accesses message_metadata attribute"""
     # Create a mock database session
     db = Mock()
@@ -27,12 +29,12 @@ def test_negotiation_service_metadata_access():
     mock_msg3.message_metadata = None
     mock_msg3.role = MessageRole.AGENT
 
-    # Mock the repository to return messages
+    # Mock the repository to return messages using AsyncMock
     service.negotiation_repo = Mock()
-    service.negotiation_repo.get_messages = Mock(return_value=[mock_msg1, mock_msg2, mock_msg3])
+    service.negotiation_repo.get_messages = AsyncMock(return_value=[mock_msg1, mock_msg2, mock_msg3])
 
-    # Test _get_latest_suggested_price method
-    result = service._get_latest_suggested_price(session_id=1, default_price=25000.0)
+    # Test _get_latest_suggested_price method with await
+    result = await service._get_latest_suggested_price(session_id=1, default_price=25000.0)
 
     # Should find the suggested_price from mock_msg1
     assert result == 20000.0, f"Expected 20000.0, got {result}"
@@ -110,8 +112,10 @@ def test_lender_service_recommendations():
 
 
 if __name__ == "__main__":
+    import asyncio
+    
     # Run tests
-    test_negotiation_service_metadata_access()
+    asyncio.run(test_negotiation_service_metadata_access())
     test_llm_json_parsing_with_markdown()
     test_deal_evaluation_fallback()
     test_lender_service_recommendations()
