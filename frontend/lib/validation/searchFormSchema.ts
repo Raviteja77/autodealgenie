@@ -28,6 +28,7 @@ export const SearchFormSchema = z
     drivetrain: z.string().optional(),
     mustHaveFeatures: z.array(z.string()).optional(),
     userPriorities: z.string().optional(),
+    zipCode: z.string().optional(),
 
     // Financing criteria
     paymentMethod: z.enum(["cash", "finance", "both"]),

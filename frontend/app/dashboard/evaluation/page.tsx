@@ -13,19 +13,19 @@ import {
   Stack,
   Chip,
 } from "@mui/material";
-import { 
-  CheckCircle, 
-  Warning, 
-  Cancel, 
+import {
+  CheckCircle,
+  Warning,
+  Cancel,
   TrendingUp,
   TrendingDown,
   AttachMoney,
   Speed,
-  Security
+  Security,
 } from "@mui/icons-material";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
-import { Button, Card, Spinner, InsuranceRecommendations } from "@/components";
+import { Button, Card, Spinner } from "@/components";
 import { apiClient } from "@/lib/api";
 
 interface VehicleInfo {
@@ -49,15 +49,17 @@ interface DealEvaluationResult {
 function EvaluationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeStep } = useStepper();
-  
+  const { completeStep, getStepData, setStepData } = useStepper();
+
   const hasEvaluatedRef = useRef(false);
   const evaluationInProgressRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [evaluation, setEvaluation] = useState<DealEvaluationResult | null>(null);
+  const [evaluation, setEvaluation] = useState<DealEvaluationResult | null>(
+    null
+  );
   // Driver age for insurance calculation - currently using default
-  const driverAge = 30;
+  // const driverAge = 30;
 
   // Extract vehicle data from URL params
   const vehicleData: VehicleInfo | null = useMemo(() => {
@@ -120,27 +122,49 @@ function EvaluationContent() {
       });
 
       setEvaluation(data);
-      
+
       // Mark as evaluated
       hasEvaluatedRef.current = true;
-      
+
       // Complete the evaluation step (step 2 - evaluation now comes before negotiation)
       completeStep(2, {
-        status: 'completed',
+        status: "completed",
         vehicleData: vehicleData,
         evaluation: data,
         timestamp: new Date().toISOString(),
       });
     } catch (err: unknown) {
       console.error("Error evaluating deal:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to evaluate deal";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to evaluate deal";
       setError(errorMessage);
-      
+
       // Reset in progress flag on error so user can retry
       evaluationInProgressRef.current = false;
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVehicleSelection = (vehicle: VehicleInfo, targetPath: string) => {
+    // Store the selected vehicle data for use in subsequent steps
+    const existingData = getStepData(2) || {};
+    setStepData(2, {
+      ...existingData,
+      selectedVehicle: vehicle,
+    });
+
+    // Navigate to the target page
+    const vehicleParams = new URLSearchParams({
+      vin: vehicle.vin || "",
+      make: vehicle.make,
+      model: vehicle.model,
+      year: vehicle.year.toString(),
+      price: vehicle.price.toString(),
+      mileage: vehicle.mileage.toString(),
+      fuelType: vehicle.fuelType || "",
+    });
+    router.push(`${targetPath}?${vehicleParams.toString()}`);
   };
 
   useEffect(() => {
@@ -181,24 +205,21 @@ function EvaluationContent() {
 
   const getRecommendation = (score: number) => {
     if (score >= 8) return "Excellent Deal - Highly Recommended";
-    if (score >= 6.5) return "Good Deal - Recommended with Minor Considerations";
+    if (score >= 6.5)
+      return "Good Deal - Recommended with Minor Considerations";
     if (score >= 5) return "Fair Deal - Proceed with Caution";
     return "Poor Deal - Consider Other Options";
   };
 
   const shouldSearchMore = (score: number) => score < 5.0;
 
-  const priceDifference = evaluation && vehicleData
-    ? vehicleData.price - evaluation.fair_value
-    : 0;
+  const priceDifference =
+    evaluation && vehicleData ? vehicleData.price - evaluation.fair_value : 0;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <Box sx={{ bgcolor: "background.default", flexGrow: 1, py: 4 }}>
         <Container maxWidth="lg">
-          <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
-            Deal Evaluation Report
-          </Typography>
 
           {/* Error Alert */}
           {error && (
@@ -209,7 +230,11 @@ function EvaluationContent() {
               <Typography variant="body2" sx={{ mb: 2 }}>
                 {error}
               </Typography>
-              <Button variant="primary" size="sm" onClick={() => evaluateDeal(vehicleData)}>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => evaluateDeal(vehicleData)}
+              >
                 Retry Evaluation
               </Button>
             </Alert>
@@ -222,7 +247,8 @@ function EvaluationContent() {
                 Unable to Load Vehicle Data
               </Typography>
               <Typography variant="body2" sx={{ mb: 2 }}>
-                Invalid vehicle data. Please select a vehicle from the search results.
+                Invalid vehicle data. Please select a vehicle from the search
+                results.
               </Typography>
               <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
                 <Button variant="success" size="sm">
@@ -262,8 +288,14 @@ function EvaluationContent() {
                     {vehicleData.year} {vehicleData.make} {vehicleData.model}
                   </Typography>
                   <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-                    <Chip icon={<Speed />} label={`${vehicleData.mileage.toLocaleString()} miles`} />
-                    <Chip icon={<AttachMoney />} label={`$${vehicleData.price.toLocaleString()}`} />
+                    <Chip
+                      icon={<Speed />}
+                      label={`${vehicleData.mileage.toLocaleString()} miles`}
+                    />
+                    <Chip
+                      icon={<AttachMoney />}
+                      label={`$${vehicleData.price.toLocaleString()}`}
+                    />
                   </Stack>
                   {vehicleData.vin && (
                     <Typography variant="caption" color="text.secondary">
@@ -273,20 +305,142 @@ function EvaluationContent() {
                 </Card.Body>
               </Card>
 
+              <Card shadow="lg" sx={{ mb: 3 }}>
+                <Card.Body>
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                  >
+                    <TrendingUp color="primary" />
+                    Market Intelligence
+                  </Typography>
+                  <Divider sx={{ my: 2 }} />
+
+                  <Grid container spacing={3}>
+                    {/* Price Comparison Visual */}
+                    <Grid item xs={12} md={6}>
+                      <Box
+                        sx={{
+                          background:
+                            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          borderRadius: 2,
+                          p: 3,
+                          color: "white",
+                        }}
+                      >
+                        <Typography
+                          variant="subtitle2"
+                          sx={{ opacity: 0.9, mb: 1 }}
+                        >
+                          Market Position
+                        </Typography>
+                        <Typography
+                          variant="h3"
+                          sx={{ fontWeight: "bold", mb: 2 }}
+                        >
+                          {priceDifference > 0 ? "Above" : "Below"} Market
+                        </Typography>
+                        <Typography variant="h4" sx={{ fontWeight: "bold" }}>
+                          ${Math.abs(priceDifference).toLocaleString()}
+                        </Typography>
+                        <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                          {(
+                            (Math.abs(priceDifference) / vehicleData.price) *
+                            100
+                          ).toFixed(1)}
+                          % difference
+                        </Typography>
+                      </Box>
+                    </Grid>
+
+                    {/* Quick Stats */}
+                    <Grid item xs={12} md={6}>
+                      <Stack spacing={2}>
+                        <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            Days on Market
+                          </Typography>
+                          <Typography variant="h6" fontWeight="bold">
+                            32 days
+                          </Typography>
+                          <Typography variant="caption" color="success.main">
+                            Faster than average
+                          </Typography>
+                        </Box>
+                        <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            Similar Vehicles
+                          </Typography>
+                          <Typography variant="h6" fontWeight="bold">
+                            12 in your area
+                          </Typography>
+                          <Typography variant="caption" color="primary.main">
+                            Average: ${vehicleData.price.toLocaleString()}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Grid>
+                  </Grid>
+
+                  {/* Negotiation Leverage Indicator */}
+                  <Box
+                    sx={{
+                      mt: 3,
+                      p: 3,
+                      bgcolor: "success.50",
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "success.200",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        mb: 1,
+                      }}
+                    >
+                      <CheckCircle color="success" />
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight="bold"
+                        color="success.dark"
+                      >
+                        Strong Negotiation Position
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      This vehicle is priced{" "}
+                      {priceDifference > 0 ? "above" : "competitively with"}{" "}
+                      similar listings. You have good leverage to negotiate{" "}
+                      {priceDifference > 0 ? "down" : "for additional value"}.
+                    </Typography>
+                  </Box>
+                </Card.Body>
+              </Card>
+
               {/* Overall Score */}
               <Card shadow="lg" sx={{ mb: 3 }}>
                 <Card.Body>
                   <Box sx={{ textAlign: "center", py: 2 }}>
-                    <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+                    <Box
+                      sx={{ display: "flex", justifyContent: "center", mb: 2 }}
+                    >
                       {getScoreIcon(evaluation.score)}
                     </Box>
                     <Typography variant="h2" component="div" gutterBottom>
                       {evaluation.score.toFixed(1)}
-                      <Typography variant="h5" component="span" color="text.secondary">
+                      <Typography
+                        variant="h5"
+                        component="span"
+                        color="text.secondary"
+                      >
                         /10
                       </Typography>
                     </Typography>
-                    <Chip 
+                    <Chip
                       label={getRecommendation(evaluation.score)}
                       color={getScoreColor(evaluation.score)}
                       sx={{ mt: 1, fontSize: "1rem", py: 2 }}
@@ -300,7 +454,11 @@ function EvaluationContent() {
                 <Grid item xs={12} md={6}>
                   <Card>
                     <Card.Body>
-                      <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center" }}>
+                      <Typography
+                        variant="h6"
+                        gutterBottom
+                        sx={{ display: "flex", alignItems: "center" }}
+                      >
                         <AttachMoney sx={{ mr: 1 }} />
                         Asking Price
                       </Typography>
@@ -313,7 +471,11 @@ function EvaluationContent() {
                 <Grid item xs={12} md={6}>
                   <Card>
                     <Card.Body>
-                      <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center" }}>
+                      <Typography
+                        variant="h6"
+                        gutterBottom
+                        sx={{ display: "flex", alignItems: "center" }}
+                      >
                         <Security sx={{ mr: 1 }} />
                         Fair Market Value
                       </Typography>
@@ -321,19 +483,23 @@ function EvaluationContent() {
                         ${evaluation.fair_value.toLocaleString()}
                       </Typography>
                       {priceDifference !== 0 && (
-                        <Box sx={{ mt: 1, display: "flex", alignItems: "center" }}>
+                        <Box
+                          sx={{ mt: 1, display: "flex", alignItems: "center" }}
+                        >
                           {priceDifference > 0 ? (
                             <>
                               <TrendingUp color="error" sx={{ mr: 0.5 }} />
                               <Typography variant="body2" color="error">
-                                ${Math.abs(priceDifference).toLocaleString()} above market
+                                ${Math.abs(priceDifference).toLocaleString()}{" "}
+                                above market
                               </Typography>
                             </>
                           ) : (
                             <>
                               <TrendingDown color="success" sx={{ mr: 0.5 }} />
                               <Typography variant="body2" color="success">
-                                ${Math.abs(priceDifference).toLocaleString()} below market
+                                ${Math.abs(priceDifference).toLocaleString()}{" "}
+                                below market
                               </Typography>
                             </>
                           )}
@@ -354,8 +520,14 @@ function EvaluationContent() {
                     <Divider sx={{ mb: 2 }} />
                     <Stack spacing={1.5}>
                       {evaluation.insights.map((insight, index) => (
-                        <Box key={index} sx={{ display: "flex", alignItems: "start" }}>
-                          <CheckCircle color="primary" sx={{ mr: 1.5, mt: 0.2, fontSize: 20 }} />
+                        <Box
+                          key={index}
+                          sx={{ display: "flex", alignItems: "start" }}
+                        >
+                          <CheckCircle
+                            color="primary"
+                            sx={{ mr: 1.5, mt: 0.2, fontSize: 20 }}
+                          />
                           <Typography variant="body1">{insight}</Typography>
                         </Box>
                       ))}
@@ -402,7 +574,7 @@ function EvaluationContent() {
               )} */}
 
               {/* Insurance Recommendations */}
-              <Card sx={{ mb: 3 }}>
+              {/* <Card sx={{ mb: 3 }}>
                 <Card.Body>
                   <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
                     Insurance Options
@@ -418,7 +590,7 @@ function EvaluationContent() {
                     compact={false}
                   />
                 </Card.Body>
-              </Card>
+              </Card> */}
 
               {/* Action Buttons */}
               <Box
@@ -442,7 +614,7 @@ function EvaluationContent() {
                       <Button
                         variant="danger"
                         size="lg"
-                        onClick={() => router.push("/deals")}
+                        onClick={() => router.push("/")}
                       >
                         Skip This Deal
                       </Button>
@@ -459,9 +631,14 @@ function EvaluationContent() {
                       <Button
                         variant="success"
                         size="lg"
-                        onClick={() => router.push("/dashboard/search")}
+                        onClick={() =>
+                          handleVehicleSelection(
+                            vehicleData,
+                            "/dashboard/negotiation"
+                          )
+                        }
                       >
-                        View More Options
+                        Negotiate the deal
                       </Button>
                       {/* <Button
                         variant="success"
@@ -484,12 +661,21 @@ function EvaluationContent() {
 
 export default function EvaluationPage() {
   return (
-    <Suspense fallback={
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
-        <Spinner size="lg" />
-        <Typography sx={{ ml: 2 }}>Loading evaluation...</Typography>
-      </Box>
-    }>
+    <Suspense
+      fallback={
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "100vh",
+          }}
+        >
+          <Spinner size="lg" />
+          <Typography sx={{ ml: 2 }}>Loading evaluation...</Typography>
+        </Box>
+      }
+    >
       <EvaluationContent />
     </Suspense>
   );
