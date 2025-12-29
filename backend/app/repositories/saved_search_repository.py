@@ -2,8 +2,8 @@
 Repository for saved search operations in PostgreSQL
 """
 
-from sqlalchemy import and_
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import SavedSearch
 
@@ -11,7 +11,7 @@ from app.models.models import SavedSearch
 class SavedSearchRepository:
     """Repository for managing saved searches"""
 
-    def create(self, db: Session, user_id: int, search_data: dict) -> SavedSearch:
+    async def create(self, db: AsyncSession, user_id: int, search_data: dict) -> SavedSearch:
         """
         Create a new saved search
 
@@ -25,11 +25,11 @@ class SavedSearchRepository:
         """
         saved_search = SavedSearch(user_id=user_id, **search_data)
         db.add(saved_search)
-        db.commit()
-        db.refresh(saved_search)
+        await db.commit()
+        await db.refresh(saved_search)
         return saved_search
 
-    def get_by_id(self, db: Session, search_id: int, user_id: int) -> SavedSearch | None:
+    async def get_by_id(self, db: AsyncSession, search_id: int, user_id: int) -> SavedSearch | None:
         """
         Get a saved search by ID
 
@@ -41,14 +41,14 @@ class SavedSearchRepository:
         Returns:
             Optional[SavedSearch]: Saved search or None
         """
-        return (
-            db.query(SavedSearch)
+        result = await db.execute(
+            select(SavedSearch)
             .filter(and_(SavedSearch.id == search_id, SavedSearch.user_id == user_id))
-            .first()
         )
+        return result.scalar_one_or_none()
 
-    def get_user_searches(
-        self, db: Session, user_id: int, skip: int = 0, limit: int = 100
+    async def get_user_searches(
+        self, db: AsyncSession, user_id: int, skip: int = 0, limit: int = 100
     ) -> list[SavedSearch]:
         """
         Get all saved searches for a user
@@ -62,16 +62,16 @@ class SavedSearchRepository:
         Returns:
             list[SavedSearch]: List of saved searches
         """
-        return (
-            db.query(SavedSearch)
+        result = await db.execute(
+            select(SavedSearch)
             .filter(SavedSearch.user_id == user_id)
             .order_by(SavedSearch.created_at.desc())
             .offset(skip)
             .limit(limit)
-            .all()
         )
+        return result.scalars().all()
 
-    def count_user_searches(self, db: Session, user_id: int) -> int:
+    async def count_user_searches(self, db: AsyncSession, user_id: int) -> int:
         """
         Count total saved searches for a user
 
@@ -82,10 +82,14 @@ class SavedSearchRepository:
         Returns:
             int: Total count
         """
-        return db.query(SavedSearch).filter(SavedSearch.user_id == user_id).count()
+        from sqlalchemy import func
+        result = await db.execute(
+            select(func.count()).select_from(SavedSearch).filter(SavedSearch.user_id == user_id)
+        )
+        return result.scalar()
 
-    def update(
-        self, db: Session, search_id: int, user_id: int, update_data: dict
+    async def update(
+        self, db: AsyncSession, search_id: int, user_id: int, update_data: dict
     ) -> SavedSearch | None:
         """
         Update a saved search
@@ -99,7 +103,7 @@ class SavedSearchRepository:
         Returns:
             Optional[SavedSearch]: Updated saved search or None
         """
-        saved_search = self.get_by_id(db, search_id, user_id)
+        saved_search = await self.get_by_id(db, search_id, user_id)
         if not saved_search:
             return None
 
@@ -107,11 +111,11 @@ class SavedSearchRepository:
             if value is not None and hasattr(saved_search, key):
                 setattr(saved_search, key, value)
 
-        db.commit()
-        db.refresh(saved_search)
+        await db.commit()
+        await db.refresh(saved_search)
         return saved_search
 
-    def delete(self, db: Session, search_id: int, user_id: int) -> bool:
+    async def delete(self, db: AsyncSession, search_id: int, user_id: int) -> bool:
         """
         Delete a saved search
 
@@ -123,16 +127,16 @@ class SavedSearchRepository:
         Returns:
             bool: True if deleted, False if not found
         """
-        saved_search = self.get_by_id(db, search_id, user_id)
+        saved_search = await self.get_by_id(db, search_id, user_id)
         if not saved_search:
             return False
 
-        db.delete(saved_search)
-        db.commit()
+        await db.delete(saved_search)
+        await db.commit()
         return True
 
-    def update_new_matches_count(
-        self, db: Session, search_id: int, count: int
+    async def update_new_matches_count(
+        self, db: AsyncSession, search_id: int, count: int
     ) -> SavedSearch | None:
         """
         Update the new matches count for a saved search
@@ -145,7 +149,8 @@ class SavedSearchRepository:
         Returns:
             Optional[SavedSearch]: Updated saved search or None
         """
-        saved_search = db.query(SavedSearch).filter(SavedSearch.id == search_id).first()
+        result = await db.execute(select(SavedSearch).filter(SavedSearch.id == search_id))
+        saved_search = result.scalar_one_or_none()
         if not saved_search:
             return None
 
@@ -154,8 +159,8 @@ class SavedSearchRepository:
 
         saved_search.last_checked = datetime.utcnow()
 
-        db.commit()
-        db.refresh(saved_search)
+        await db.commit()
+        await db.refresh(saved_search)
         return saved_search
 
 

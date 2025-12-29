@@ -5,7 +5,8 @@ Repository for loan recommendation operations (PostgreSQL)
 import logging
 from typing import Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai_response import LoanRecommendation
 
@@ -15,10 +16,10 @@ logger = logging.getLogger(__name__)
 class LoanRecommendationRepository:
     """Repository for managing loan recommendations in PostgreSQL"""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def create(
+    async def create(
         self,
         deal_id: int,
         user_id: int,
@@ -65,15 +66,15 @@ class LoanRecommendationRepository:
             additional_data=additional_data,
         )
         self.db.add(loan_rec)
-        self.db.commit()
-        self.db.refresh(loan_rec)
+        await self.db.commit()
+        await self.db.refresh(loan_rec)
         logger.info(
             f"Created loan recommendation {loan_rec.id} for deal {deal_id}, "
             f"term {loan_term_months}mo, APR {apr}%"
         )
         return loan_rec
 
-    def get_by_deal_id(self, deal_id: int) -> list[LoanRecommendation]:
+    async def get_by_deal_id(self, deal_id: int) -> list[LoanRecommendation]:
         """
         Get all loan recommendations for a deal
 
@@ -83,14 +84,14 @@ class LoanRecommendationRepository:
         Returns:
             List of loan recommendations
         """
-        return (
-            self.db.query(LoanRecommendation)
+        result = await self.db.execute(
+            select(LoanRecommendation)
             .filter(LoanRecommendation.deal_id == deal_id)
-            .order_by(LoanRecommendation.created_at.desc())
-            .all()
+            .order_by(desc(LoanRecommendation.created_at))
         )
+        return result.scalars().all()
 
-    def get_by_user_id(self, user_id: int, limit: int = 50) -> list[LoanRecommendation]:
+    async def get_by_user_id(self, user_id: int, limit: int = 50) -> list[LoanRecommendation]:
         """
         Get loan recommendations for a user
 
@@ -101,15 +102,15 @@ class LoanRecommendationRepository:
         Returns:
             List of loan recommendations
         """
-        return (
-            self.db.query(LoanRecommendation)
+        result = await self.db.execute(
+            select(LoanRecommendation)
             .filter(LoanRecommendation.user_id == user_id)
-            .order_by(LoanRecommendation.created_at.desc())
+            .order_by(desc(LoanRecommendation.created_at))
             .limit(limit)
-            .all()
         )
+        return result.scalars().all()
 
-    def get_by_id(self, loan_rec_id: int) -> LoanRecommendation | None:
+    async def get_by_id(self, loan_rec_id: int) -> LoanRecommendation | None:
         """
         Get a loan recommendation by ID
 
@@ -119,11 +120,12 @@ class LoanRecommendationRepository:
         Returns:
             LoanRecommendation or None
         """
-        return (
-            self.db.query(LoanRecommendation).filter(LoanRecommendation.id == loan_rec_id).first()
+        result = await self.db.execute(
+            select(LoanRecommendation).filter(LoanRecommendation.id == loan_rec_id)
         )
+        return result.scalar_one_or_none()
 
-    def delete(self, loan_rec_id: int) -> bool:
+    async def delete(self, loan_rec_id: int) -> bool:
         """
         Delete a loan recommendation
 
@@ -133,10 +135,10 @@ class LoanRecommendationRepository:
         Returns:
             True if deleted, False if not found
         """
-        loan_rec = self.get_by_id(loan_rec_id)
+        loan_rec = await self.get_by_id(loan_rec_id)
         if loan_rec:
-            self.db.delete(loan_rec)
-            self.db.commit()
+            await self.db.delete(loan_rec)
+            await self.db.commit()
             logger.info(f"Deleted loan recommendation {loan_rec_id}")
             return True
         return False

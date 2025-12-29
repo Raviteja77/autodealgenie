@@ -5,7 +5,8 @@ User repository for database operations
 import secrets
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
@@ -16,22 +17,25 @@ from app.schemas.schemas import UserCreate
 class UserRepository:
     """Repository for user database operations"""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def get_by_email(self, email: str) -> User | None:
+    async def get_by_email(self, email: str) -> User | None:
         """Get user by email"""
-        return self.db.query(User).filter(User.email == email).first()
+        result = await self.db.execute(select(User).filter(User.email == email))
+        return result.scalar_one_or_none()
 
-    def get_by_username(self, username: str) -> User | None:
+    async def get_by_username(self, username: str) -> User | None:
         """Get user by username"""
-        return self.db.query(User).filter(User.username == username).first()
+        result = await self.db.execute(select(User).filter(User.username == username))
+        return result.scalar_one_or_none()
 
-    def get_by_id(self, user_id: int) -> User | None:
+    async def get_by_id(self, user_id: int) -> User | None:
         """Get user by ID"""
-        return self.db.query(User).filter(User.id == user_id).first()
+        result = await self.db.execute(select(User).filter(User.id == user_id))
+        return result.scalar_one_or_none()
 
-    def create(self, user_in: UserCreate) -> User:
+    async def create(self, user_in: UserCreate) -> User:
         """Create a new user"""
         db_user = User(
             email=user_in.email,
@@ -40,13 +44,13 @@ class UserRepository:
             hashed_password=get_password_hash(user_in.password),
         )
         self.db.add(db_user)
-        self.db.commit()
-        self.db.refresh(db_user)
+        await self.db.commit()
+        await self.db.refresh(db_user)
         return db_user
 
-    def authenticate(self, email: str, password: str) -> User | None:
+    async def authenticate(self, email: str, password: str) -> User | None:
         """Authenticate a user by email and password"""
-        user = self.get_by_email(email)
+        user = await self.get_by_email(email)
         if not user:
             return None
         if not verify_password(password, user.hashed_password):
@@ -55,9 +59,9 @@ class UserRepository:
             return None
         return user
 
-    def create_password_reset_token(self, email: str) -> str | None:
+    async def create_password_reset_token(self, email: str) -> str | None:
         """Create a password reset token for a user"""
-        user = self.get_by_email(email)
+        user = await self.get_by_email(email)
         if not user:
             return None
 
@@ -70,12 +74,13 @@ class UserRepository:
             hours=settings.PASSWORD_RESET_TOKEN_EXPIRE_HOURS
         )
 
-        self.db.commit()
+        await self.db.commit()
         return token
 
-    def verify_reset_token(self, token: str) -> User | None:
+    async def verify_reset_token(self, token: str) -> User | None:
         """Verify a password reset token and return the user if valid"""
-        user = self.db.query(User).filter(User.reset_token == token).first()
+        result = await self.db.execute(select(User).filter(User.reset_token == token))
+        user = result.scalar_one_or_none()
 
         if not user:
             return None
@@ -86,9 +91,9 @@ class UserRepository:
 
         return user
 
-    def reset_password(self, token: str, new_password: str) -> bool:
+    async def reset_password(self, token: str, new_password: str) -> bool:
         """Reset a user's password using a valid token"""
-        user = self.verify_reset_token(token)
+        user = await self.verify_reset_token(token)
 
         if not user:
             return False
@@ -98,5 +103,5 @@ class UserRepository:
         user.reset_token = None
         user.reset_token_expires = None
 
-        self.db.commit()
+        await self.db.commit()
         return True

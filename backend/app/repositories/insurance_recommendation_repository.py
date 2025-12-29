@@ -5,7 +5,8 @@ Repository for insurance recommendation operations (PostgreSQL)
 import logging
 from typing import Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai_response import InsuranceRecommendation
 
@@ -15,10 +16,10 @@ logger = logging.getLogger(__name__)
 class InsuranceRecommendationRepository:
     """Repository for managing insurance recommendations in PostgreSQL"""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def create(
+    async def create(
         self,
         deal_id: int,
         user_id: int,
@@ -74,15 +75,15 @@ class InsuranceRecommendationRepository:
             full_recommendation_data=full_recommendation_data,
         )
         self.db.add(insurance_recommendation)
-        self.db.commit()
-        self.db.refresh(insurance_recommendation)
+        await self.db.commit()
+        await self.db.refresh(insurance_recommendation)
         logger.info(
             f"Created insurance recommendation {insurance_recommendation.id} for deal {deal_id}, "
             f"provider {provider_name}, rank {rank}"
         )
         return insurance_recommendation
 
-    def get_by_deal_id(self, deal_id: int) -> list[InsuranceRecommendation]:
+    async def get_by_deal_id(self, deal_id: int) -> list[InsuranceRecommendation]:
         """
         Get all insurance recommendations for a deal
 
@@ -92,14 +93,14 @@ class InsuranceRecommendationRepository:
         Returns:
             List of insurance recommendations, ordered by rank
         """
-        return (
-            self.db.query(InsuranceRecommendation)
+        result = await self.db.execute(
+            select(InsuranceRecommendation)
             .filter(InsuranceRecommendation.deal_id == deal_id)
             .order_by(InsuranceRecommendation.rank)
-            .all()
         )
+        return result.scalars().all()
 
-    def get_by_user_id(self, user_id: int, limit: int = 50) -> list[InsuranceRecommendation]:
+    async def get_by_user_id(self, user_id: int, limit: int = 50) -> list[InsuranceRecommendation]:
         """
         Get insurance recommendations for a user
 
@@ -110,15 +111,15 @@ class InsuranceRecommendationRepository:
         Returns:
             List of insurance recommendations
         """
-        return (
-            self.db.query(InsuranceRecommendation)
+        result = await self.db.execute(
+            select(InsuranceRecommendation)
             .filter(InsuranceRecommendation.user_id == user_id)
             .order_by(InsuranceRecommendation.created_at.desc())
             .limit(limit)
-            .all()
         )
+        return result.scalars().all()
 
-    def get_by_id(self, insurance_recommendation_id: int) -> InsuranceRecommendation | None:
+    async def get_by_id(self, insurance_recommendation_id: int) -> InsuranceRecommendation | None:
         """
         Get an insurance recommendation by ID
 
@@ -128,13 +129,13 @@ class InsuranceRecommendationRepository:
         Returns:
             InsuranceRecommendation or None
         """
-        return (
-            self.db.query(InsuranceRecommendation)
+        result = await self.db.execute(
+            select(InsuranceRecommendation)
             .filter(InsuranceRecommendation.id == insurance_recommendation_id)
-            .first()
         )
+        return result.scalar_one_or_none()
 
-    def delete(self, insurance_recommendation_id: int) -> bool:
+    async def delete(self, insurance_recommendation_id: int) -> bool:
         """
         Delete an insurance recommendation
 
@@ -144,10 +145,10 @@ class InsuranceRecommendationRepository:
         Returns:
             True if deleted, False if not found
         """
-        insurance_recommendation = self.get_by_id(insurance_recommendation_id)
+        insurance_recommendation = await self.get_by_id(insurance_recommendation_id)
         if insurance_recommendation:
-            self.db.delete(insurance_recommendation)
-            self.db.commit()
+            await self.db.delete(insurance_recommendation)
+            await self.db.commit()
             logger.info(f"Deleted insurance recommendation {insurance_recommendation_id}")
             return True
         return False
