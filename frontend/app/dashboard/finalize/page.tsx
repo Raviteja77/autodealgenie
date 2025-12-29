@@ -14,6 +14,13 @@ import {
   AlertTitle,
   Card as MuiCard,
   CardContent,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Paper,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import {
   TrendingUp,
@@ -24,6 +31,9 @@ import {
   Shield,
   Verified,
   Star,
+  CheckCircle,
+  AccountBalance,
+  Info,
 } from "@mui/icons-material";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
@@ -34,6 +44,8 @@ import {
   apiClient,
   type InsuranceRecommendationResponse,
   type InsuranceMatch,
+  type LenderRecommendationResponse,
+  type LenderMatch,
 } from "@/lib/api";
 import { formatPrice } from "@/lib/utils/formatting";
 
@@ -44,6 +56,7 @@ interface VehicleInfo {
   price: string;
   mileage: string;
   vin?: string;
+  zipCode?: string;
 }
 
 function FinalizeDealContent() {
@@ -53,8 +66,10 @@ function FinalizeDealContent() {
   const { user } = useAuth();
 
   const [vehicleInfo, setVehicleInfo] = useState<VehicleInfo | null>(null);
-
+  const [activeTab, setActiveTab] = useState(0); // 0 = Insurance, 1 = Financing
+  
   const hasFetchedInsuranceRef = useRef(false);
+  const hasFetchedLendersRef = useRef(false);
 
   // Get evaluation data from step 2
   const evaluationData = getStepData<{
@@ -88,6 +103,13 @@ function FinalizeDealContent() {
     execute: fetchInsurance,
   } = useApi<InsuranceRecommendationResponse>();
 
+  const {
+    data: lenderRecommendations,
+    isLoading: lendersLoading,
+    error: lendersError,
+    execute: fetchLenders,
+  } = useApi<LenderRecommendationResponse>();
+
   // Parse vehicle info from URL params
   useEffect(() => {
     const make = searchParams.get("make");
@@ -96,6 +118,7 @@ function FinalizeDealContent() {
     const price = searchParams.get("price");
     const mileage = searchParams.get("mileage");
     const vin = searchParams.get("vin");
+    const zipCode = searchParams.get("zipCode") || searchParams.get("zip_code");
 
     if (make && model && year && price && mileage) {
       setVehicleInfo({
@@ -105,6 +128,7 @@ function FinalizeDealContent() {
         price,
         mileage,
         vin: vin || undefined,
+        zipCode: zipCode || undefined,
       });
     }
   }, [searchParams]);
@@ -128,10 +152,31 @@ function FinalizeDealContent() {
         vehicleInfo.make,
         vehicleInfo.model,
         "full",
-        30
+        30 // Default driver age
       )
     );
   }, [vehicleInfo, user, negotiationData, fetchInsurance]);
+
+  // Fetch lender recommendations
+  useEffect(() => {
+    if (hasFetchedLendersRef.current || !vehicleInfo || !user) {
+      return;
+    }
+
+    hasFetchedLendersRef.current = true;
+
+    const finalPrice = negotiationData?.finalPrice || parseFloat(vehicleInfo.price);
+    const downPayment = finalPrice * 0.2; // 20% down payment
+    const loanAmount = finalPrice - downPayment;
+
+    fetchLenders(() =>
+      apiClient.getLenderRecommendations(
+        loanAmount,
+        "good", // Default credit score range
+        60 // 60 months loan term
+      )
+    );
+  }, [vehicleInfo, user, negotiationData, fetchLenders]);
 
   const evaluation = evaluationData?.evaluation;
   const finalPrice =
@@ -398,136 +443,274 @@ function FinalizeDealContent() {
           )}
         </Grid>
 
-        {/* Right Column - Insurance Recommendations */}
+        {/* Right Column - Insurance & Financing Recommendations */}
         <Grid item xs={12} md={5}>
           <Card>
             <Box sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom fontWeight="bold">
                 <Shield sx={{ mr: 1, verticalAlign: "middle" }} />
-                Insurance Recommendations
+                Recommendations
               </Typography>
               <Divider sx={{ mb: 2 }} />
 
-              {insuranceLoading && (
-                <Box display="flex" justifyContent="center" py={4}>
-                  <Spinner size="md" />
+              {/* Tabs for Insurance and Financing */}
+              <Tabs
+                value={activeTab}
+                onChange={(_, newValue) => setActiveTab(newValue)}
+                sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+              >
+                <Tab label="Insurance" icon={<Shield />} iconPosition="start" />
+                <Tab label="Financing" icon={<AccountBalance />} iconPosition="start" />
+              </Tabs>
+
+              {/* Insurance Tab Content */}
+              {activeTab === 0 && (
+                <Box>
+                  {insuranceLoading && (
+                    <Box display="flex" justifyContent="center" py={4}>
+                      <Spinner size="md" />
+                    </Box>
+                  )}
+
+                  {insuranceError && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      Unable to load insurance recommendations. You can add
+                      insurance later.
+                    </Alert>
+                  )}
+
+                  {insuranceRecommendations &&
+                  insuranceRecommendations.recommendations.length > 0 ? (
+                    <Stack spacing={2}>
+                      {insuranceRecommendations.recommendations
+                        .slice(0, 3)
+                        .map((match: InsuranceMatch, index: number) => (
+                          <MuiCard
+                            key={match.provider.provider_id}
+                            variant="outlined"
+                            sx={{
+                              border: index === 0 ? 2 : 1,
+                              borderColor: index === 0 ? "primary.main" : "divider",
+                              transition: "all 0.2s",
+                              "&:hover": {
+                                boxShadow: 3,
+                                transform: "translateY(-2px)",
+                              },
+                            }}
+                          >
+                            <CardContent>
+                              <Box
+                                display="flex"
+                                justifyContent="space-between"
+                                alignItems="start"
+                                mb={1}
+                              >
+                                <Typography variant="subtitle1" fontWeight="bold">
+                                  {match.provider.name}
+                                </Typography>
+                                {index === 0 && (
+                                  <Chip
+                                    label="Best Match"
+                                    size="small"
+                                    color="primary"
+                                    icon={<Star />}
+                                  />
+                                )}
+                              </Box>
+
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                mb={1}
+                              >
+                                {match.provider.description}
+                              </Typography>
+
+                              <Box
+                                display="flex"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                mb={1}
+                              >
+                                <Typography variant="body2" color="text.secondary">
+                                  Estimated Monthly
+                                </Typography>
+                                <Typography
+                                  variant="h6"
+                                  color="primary"
+                                  fontWeight="bold"
+                                >
+                                  ${match.estimated_monthly_premium.toFixed(0)}
+                                </Typography>
+                              </Box>
+
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                display="block"
+                                mb={1}
+                              >
+                                Match Score: {(match.match_score * 100).toFixed(0)}%
+                              </Typography>
+
+                              <List dense sx={{ py: 0 }}>
+                                {match.recommendation_reasons.slice(0, 2).map((reason, idx) => (
+                                  <ListItem key={idx} sx={{ px: 0, py: 0.5 }}>
+                                    <ListItemIcon sx={{ minWidth: 24 }}>
+                                      <CheckCircle color="success" fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText 
+                                      primary={reason} 
+                                      primaryTypographyProps={{ variant: 'caption' }}
+                                    />
+                                  </ListItem>
+                                ))}
+                              </List>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                fullWidth
+                                onClick={() =>
+                                  window.open(
+                                    match.provider.affiliate_url,
+                                    "_blank"
+                                  )
+                                }
+                                sx={{ mt: 1 }}
+                              >
+                                Get Quote
+                              </Button>
+                            </CardContent>
+                          </MuiCard>
+                        ))}
+                    </Stack>
+                  ) : (
+                    !insuranceLoading && (
+                      <Alert severity="info" icon={<Info />}>
+                        No insurance recommendations available at this time.
+                      </Alert>
+                    )
+                  )}
                 </Box>
               )}
 
-              {insuranceError && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                  Unable to load insurance recommendations. You can add
-                  insurance later.
-                </Alert>
-              )}
+              {/* Financing Tab Content */}
+              {activeTab === 1 && (
+                <Box>
+                  {lendersLoading && (
+                    <Box display="flex" justifyContent="center" py={4}>
+                      <Spinner size="md" />
+                    </Box>
+                  )}
 
-              {insuranceRecommendations &&
-              insuranceRecommendations.recommendations.length > 0 ? (
-                <Stack spacing={2}>
-                  {insuranceRecommendations.recommendations
-                    .slice(0, 3)
-                    .map((match: InsuranceMatch, index: number) => (
-                      <MuiCard
-                        key={match.provider.provider_id}
-                        variant="outlined"
-                        sx={{
-                          border: index === 0 ? 2 : 1,
-                          borderColor: index === 0 ? "primary.main" : "divider",
-                        }}
-                      >
-                        <CardContent>
-                          <Box
-                            display="flex"
-                            justifyContent="space-between"
-                            alignItems="start"
-                            mb={1}
-                          >
-                            <Typography variant="subtitle1" fontWeight="bold">
-                              {match.provider.name}
-                            </Typography>
-                            {index === 0 && (
-                              <Chip
-                                label="Best Match"
-                                size="small"
-                                color="primary"
-                                icon={<Star />}
-                              />
-                            )}
-                          </Box>
+                  {lendersError && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      Unable to load financing options. You can explore financing later.
+                    </Alert>
+                  )}
 
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            mb={1}
+                  {lenderRecommendations &&
+                  lenderRecommendations.length > 0 ? (
+                    <Stack spacing={2}>
+                      {lenderRecommendations
+                        .slice(0, 3)
+                        .map((match: LenderMatch, index: number) => (
+                          <Paper
+                            key={match.lender.lender_id}
+                            elevation={2}
+                            sx={{
+                              p: 2,
+                              border: match.rank === 1 ? 2 : 1,
+                              borderColor:
+                                match.rank === 1 ? "primary.main" : "divider",
+                              transition: "all 0.2s",
+                              "&:hover": {
+                                boxShadow: 3,
+                                transform: "translateY(-2px)",
+                              },
+                            }}
                           >
-                            {match.provider.description}
-                          </Typography>
-
-                          <Box
-                            display="flex"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            mb={1}
-                          >
-                            <Typography variant="body2" color="text.secondary">
-                              Estimated Monthly
-                            </Typography>
-                            <Typography
-                              variant="h6"
-                              color="primary"
-                              fontWeight="bold"
+                            <Box
+                              sx={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "start",
+                                mb: 1,
+                              }}
                             >
-                              ${match.estimated_monthly_premium.toFixed(0)}
-                            </Typography>
-                          </Box>
-
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            display="block"
-                            mb={1}
-                          >
-                            Match Score: {(match.match_score * 100).toFixed(0)}%
-                          </Typography>
-
-                          {/* <List dense sx={{ py: 0 }}>
-                          {match.recommendation_reasons.slice(0, 2).map((reason, idx) => (
-                            <ListItem key={idx} sx={{ px: 0, py: 0.5 }}>
-                              <ListItemIcon sx={{ minWidth: 24 }}>
-                                <CheckCircle color="success" fontSize="small" />
-                              </ListItemIcon>
-                              <ListItemText 
-                                primary={reason} 
-                                primaryTypographyProps={{ variant: 'caption' }}
-                              />
-                            </ListItem>
-                          ))}
-                        </List> */}
-
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            fullWidth
-                            onClick={() =>
-                              window.open(
-                                match.provider.affiliate_url,
-                                "_blank"
-                              )
-                            }
-                            sx={{ mt: 1 }}
-                          >
-                            Get Quote
-                          </Button>
-                        </CardContent>
-                      </MuiCard>
-                    ))}
-                </Stack>
-              ) : (
-                !insuranceLoading && (
-                  <Alert severity="info">
-                    No insurance recommendations available at this time.
-                  </Alert>
-                )
+                              <Box>
+                                {match.rank === 1 && (
+                                  <Chip
+                                    label="Best Match"
+                                    color="primary"
+                                    size="small"
+                                    icon={<Star />}
+                                    sx={{ mb: 1 }}
+                                  />
+                                )}
+                                <Typography variant="subtitle1" fontWeight="bold">
+                                  {match.lender.name}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  {match.recommendation_reason}
+                                </Typography>
+                              </Box>
+                              <Typography variant="h6" color="primary.main">
+                                {(match.estimated_apr * 100).toFixed(2)}% APR
+                              </Typography>
+                            </Box>
+                            <Divider sx={{ my: 1 }} />
+                            <Grid container spacing={2}>
+                              <Grid item xs={6}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Estimated Payment
+                                </Typography>
+                                <Typography variant="body2" fontWeight="medium">
+                                  {formatPrice(match.estimated_monthly_payment)}
+                                  /mo
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={6}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Match Score
+                                </Typography>
+                                <Typography variant="body2" fontWeight="medium">
+                                  {match.match_score.toFixed(0)}/100
+                                </Typography>
+                              </Grid>
+                            </Grid>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              fullWidth
+                              sx={{ mt: 2 }}
+                              onClick={() =>
+                                window.open(match.lender.affiliate_url, "_blank")
+                              }
+                            >
+                              Apply Now
+                            </Button>
+                          </Paper>
+                        ))}
+                    </Stack>
+                  ) : (
+                    !lendersLoading && (
+                      <Alert severity="info" icon={<Info />}>
+                        No financing options available at this time.
+                      </Alert>
+                    )
+                  )}
+                </Box>
               )}
             </Box>
           </Card>

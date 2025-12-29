@@ -37,6 +37,7 @@ interface VehicleInfo {
   mileage: number;
   fuelType: string;
   condition?: string;
+  zipCode?: string;
 }
 
 interface DealEvaluationResult {
@@ -72,6 +73,7 @@ function EvaluationContent() {
       const mileageStr = searchParams.get("mileage");
       const fuelType = searchParams.get("fuelType");
       const condition = searchParams.get("condition");
+      const zipCode = searchParams.get("zipCode") || searchParams.get("zip_code");
 
       if (!make || !model || !yearStr || !priceStr || !mileageStr) {
         return null;
@@ -94,6 +96,7 @@ function EvaluationContent() {
         mileage,
         fuelType: fuelType || "Unknown",
         condition: condition || "good",
+        zipCode: zipCode || undefined,
       };
     } catch (err) {
       console.error("Error parsing vehicle data:", err);
@@ -119,6 +122,7 @@ function EvaluationContent() {
         make: vehicleData.make,
         model: vehicleData.model,
         year: vehicleData.year,
+        zip_code: vehicleData.zipCode, // Pass zipCode to backend for MarketCheck API
       });
 
       setEvaluation(data);

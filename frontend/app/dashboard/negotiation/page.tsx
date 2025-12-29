@@ -82,6 +82,7 @@ interface VehicleInfo {
   price: number;
   mileage: number;
   fuelType: string;
+  zipCode?: string;
 }
 
 function NegotiationContent() {
@@ -221,6 +222,7 @@ function NegotiationContent() {
       const priceStr = searchParams.get("price");
       const mileageStr = searchParams.get("mileage");
       const fuelType = searchParams.get("fuelType");
+      const zipCode = searchParams.get("zipCode") || searchParams.get("zip_code");
 
       if (!make || !model || !yearStr || !priceStr || !mileageStr) {
         setVehicleData(null);
@@ -244,6 +246,7 @@ function NegotiationContent() {
         price,
         mileage,
         fuelType: fuelType || "Unknown",
+        zipCode: zipCode || undefined,
       };
       
       setVehicleData(parsedVehicleData);
@@ -884,6 +887,12 @@ function NegotiationContent() {
                         mileage: vehicleData.mileage.toString(),
                         fuelType: vehicleData.fuelType || "",
                       });
+                      
+                      // Add zipCode if available
+                      if (vehicleData.zipCode) {
+                        vehicleParams.set("zipCode", vehicleData.zipCode);
+                      }
+                      
                       router.push(
                         `/dashboard/finalize?${vehicleParams.toString()}`
                       );
