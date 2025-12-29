@@ -1,6 +1,5 @@
 """Tests for negotiation lender recommendation endpoint"""
 
-import pytest
 import pytest_asyncio
 
 from app.models.models import Deal, DealStatus, User

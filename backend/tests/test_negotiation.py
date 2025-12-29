@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 import pytest_asyncio
 
+from app import db
 from app.api.dependencies import get_current_user
 from app.models.models import Deal, DealStatus, User
 from app.models.negotiation import MessageRole, NegotiationStatus

@@ -1,7 +1,6 @@
 """Test AI metrics calculation in negotiation service"""
 
 import pytest
-import pytest_asyncio
 
 from app.services.negotiation_service import NegotiationService
 

@@ -6,6 +6,7 @@ import pytest_asyncio
 from app.api.dependencies import get_current_user
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import Deal, User
+from tests.conftest import async_db
 
 
 @pytest_asyncio.fixture

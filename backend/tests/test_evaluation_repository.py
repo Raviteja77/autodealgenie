@@ -1,6 +1,5 @@
 """Test evaluation repository"""
 
-import pytest
 import pytest_asyncio
 
 from app.models.evaluation import EvaluationStatus, PipelineStep

@@ -3,6 +3,7 @@
 from app.repositories.deal_repository import DealRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.schemas import DealCreate, DealUpdate, UserCreate
+from tests.conftest import async_db
 
 
 class TestUserRepository:
@@ -105,7 +106,7 @@ class TestUserRepository:
         authenticated_user = repo.authenticate("nonexistent@example.com", "Testpass123!")
         assert authenticated_user is None
 
-    def test_authenticate_inactive_user(self, db):
+    async def test_authenticate_inactive_user(self, db):
         """Test authentication with inactive user"""
         repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
