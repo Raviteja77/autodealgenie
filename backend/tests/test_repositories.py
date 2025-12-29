@@ -10,7 +10,7 @@ class TestUserRepository:
 
     def test_create_user(self, db):
         """Test creating a user"""
-        repo = UserRepository(db)
+        repo = UserRepository(async_db)
         user_in = UserCreate(
             email="test@example.com",
             username="testuser",
@@ -27,7 +27,7 @@ class TestUserRepository:
 
     def test_get_by_email(self, db):
         """Test getting user by email"""
-        repo = UserRepository(db)
+        repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         created_user = repo.create(user_in)
@@ -39,13 +39,13 @@ class TestUserRepository:
 
     def test_get_by_email_not_found(self, db):
         """Test getting user by non-existent email"""
-        repo = UserRepository(db)
+        repo = UserRepository(async_db)
         user = repo.get_by_email("nonexistent@example.com")
         assert user is None
 
     def test_get_by_username(self, db):
         """Test getting user by username"""
-        repo = UserRepository(db)
+        repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         created_user = repo.create(user_in)
@@ -57,13 +57,13 @@ class TestUserRepository:
 
     def test_get_by_username_not_found(self, db):
         """Test getting user by non-existent username"""
-        repo = UserRepository(db)
+        repo = UserRepository(async_db)
         user = repo.get_by_username("nonexistent")
         assert user is None
 
     def test_get_by_id(self, db):
         """Test getting user by ID"""
-        repo = UserRepository(db)
+        repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         created_user = repo.create(user_in)
@@ -74,13 +74,13 @@ class TestUserRepository:
 
     def test_get_by_id_not_found(self, db):
         """Test getting user by non-existent ID"""
-        repo = UserRepository(db)
+        repo = UserRepository(async_db)
         user = repo.get_by_id(99999)
         assert user is None
 
     def test_authenticate_success(self, db):
         """Test successful authentication"""
-        repo = UserRepository(db)
+        repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         repo.create(user_in)
@@ -91,7 +91,7 @@ class TestUserRepository:
 
     def test_authenticate_wrong_password(self, db):
         """Test authentication with wrong password"""
-        repo = UserRepository(db)
+        repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         repo.create(user_in)
@@ -101,19 +101,19 @@ class TestUserRepository:
 
     def test_authenticate_nonexistent_user(self, db):
         """Test authentication with non-existent user"""
-        repo = UserRepository(db)
+        repo = UserRepository(async_db)
         authenticated_user = repo.authenticate("nonexistent@example.com", "Testpass123!")
         assert authenticated_user is None
 
     def test_authenticate_inactive_user(self, db):
         """Test authentication with inactive user"""
-        repo = UserRepository(db)
+        repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
         user = repo.create(user_in)
         # Manually set user as inactive
         user.is_active = False
-        db.commit()
+        await async_db.commit()
 
         authenticated_user = repo.authenticate("test@example.com", "Testpass123!")
         assert authenticated_user is None
@@ -124,7 +124,7 @@ class TestDealRepository:
 
     def test_create_deal(self, db):
         """Test creating a deal"""
-        repo = DealRepository(db)
+        repo = DealRepository(async_db)
         deal_in = DealCreate(
             customer_name="John Doe",
             customer_email="john@example.com",
@@ -144,7 +144,7 @@ class TestDealRepository:
 
     def test_get_deal(self, db):
         """Test getting a deal by ID"""
-        repo = DealRepository(db)
+        repo = DealRepository(async_db)
         deal_in = DealCreate(
             customer_name="Jane Doe",
             customer_email="jane@example.com",
@@ -166,13 +166,13 @@ class TestDealRepository:
 
     def test_get_deal_not_found(self, db):
         """Test getting a non-existent deal"""
-        repo = DealRepository(db)
+        repo = DealRepository(async_db)
         deal = repo.get(99999)
         assert deal is None
 
     def test_get_all_deals(self, db):
         """Test getting all deals with pagination"""
-        repo = DealRepository(db)
+        repo = DealRepository(async_db)
 
         # Create multiple deals
         for i in range(5):
@@ -194,7 +194,7 @@ class TestDealRepository:
 
     def test_get_all_deals_pagination(self, db):
         """Test pagination in get_all"""
-        repo = DealRepository(db)
+        repo = DealRepository(async_db)
 
         # Create multiple deals
         for i in range(5):
@@ -221,7 +221,7 @@ class TestDealRepository:
 
     def test_get_by_status(self, db):
         """Test getting deals by status"""
-        repo = DealRepository(db)
+        repo = DealRepository(async_db)
 
         # Create deals with different statuses
         for status in ["pending", "in_progress", "completed"]:
@@ -244,7 +244,7 @@ class TestDealRepository:
 
     def test_get_by_email(self, db):
         """Test getting deals by customer email"""
-        repo = DealRepository(db)
+        repo = DealRepository(async_db)
 
         email = "customer@example.com"
 
@@ -269,7 +269,7 @@ class TestDealRepository:
 
     def test_update_deal(self, db):
         """Test updating a deal"""
-        repo = DealRepository(db)
+        repo = DealRepository(async_db)
         deal_in = DealCreate(
             customer_name="John Doe",
             customer_email="john@example.com",
@@ -297,7 +297,7 @@ class TestDealRepository:
 
     def test_update_nonexistent_deal(self, db):
         """Test updating a non-existent deal"""
-        repo = DealRepository(db)
+        repo = DealRepository(async_db)
         update_data = DealUpdate(status="completed")
 
         updated_deal = repo.update(99999, update_data)
@@ -305,7 +305,7 @@ class TestDealRepository:
 
     def test_delete_deal(self, db):
         """Test deleting a deal"""
-        repo = DealRepository(db)
+        repo = DealRepository(async_db)
         deal_in = DealCreate(
             customer_name="John Doe",
             customer_email="john@example.com",
@@ -326,6 +326,6 @@ class TestDealRepository:
 
     def test_delete_nonexistent_deal(self, db):
         """Test deleting a non-existent deal"""
-        repo = DealRepository(db)
+        repo = DealRepository(async_db)
         result = repo.delete(99999)
         assert result is False
