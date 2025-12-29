@@ -48,7 +48,9 @@ def signup(user_in: UserCreate, db: AsyncSession = Depends(get_async_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(response: Response, login_request: LoginRequest, db: AsyncSession = Depends(get_async_db)):
+def login(
+    response: Response, login_request: LoginRequest, db: AsyncSession = Depends(get_async_db)
+):
     """
     Login and get access and refresh tokens
     """

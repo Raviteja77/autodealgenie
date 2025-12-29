@@ -7,7 +7,8 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user, get_db
+from app.api.dependencies import get_current_user
+from app.db.session import get_async_db
 from app.models.models import User
 from app.repositories.loan_recommendation_repository import LoanRecommendationRepository
 from app.schemas.loan_schemas import (
