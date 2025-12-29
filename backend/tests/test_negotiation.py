@@ -265,7 +265,7 @@ async def test_create_negotiation_invalid_deal(authenticated_client):
 
 
 @pytest.mark.asyncio
-async def test_process_next_round_counter(authenticated_client, mock_deal, db):
+async def test_process_next_round_counter(authenticated_client, mock_deal, async_db):
     """Test processing next round with counter offer"""
     from app.models.models import User
     from app.repositories.negotiation_repository import NegotiationRepository
@@ -303,7 +303,7 @@ async def test_process_next_round_counter(authenticated_client, mock_deal, db):
 
 
 @pytest.mark.asyncio
-async def test_process_next_round_confirm(authenticated_client, mock_deal, db):
+async def test_process_next_round_confirm(authenticated_client, mock_deal, async_db):
     """Test processing next round with confirm action and verify deal update"""
     from app.models.models import User
     from app.repositories.deal_repository import DealRepository
@@ -342,7 +342,7 @@ async def test_process_next_round_confirm(authenticated_client, mock_deal, db):
 
 
 @pytest.mark.asyncio
-async def test_process_next_round_reject(authenticated_client, mock_deal, db):
+async def test_process_next_round_reject(authenticated_client, mock_deal, async_db):
     """Test processing next round with reject action"""
     from app.models.models import User
     from app.repositories.negotiation_repository import NegotiationRepository
@@ -363,7 +363,7 @@ async def test_process_next_round_reject(authenticated_client, mock_deal, db):
 
 
 @pytest.mark.asyncio
-async def test_get_negotiation_session(authenticated_client, mock_deal, db):
+async def test_get_negotiation_session(authenticated_client, mock_deal, async_db):
     """Test retrieving a negotiation session"""
     from app.models.models import User
     from app.repositories.negotiation_repository import NegotiationRepository
@@ -403,7 +403,7 @@ async def test_get_nonexistent_negotiation(authenticated_client):
 
 
 @pytest.mark.asyncio
-async def test_access_other_user_session(authenticated_client, mock_deal, db):
+async def test_access_other_user_session(authenticated_client, mock_deal, async_db):
     """Test that users cannot access other users' sessions"""
     from app.models.models import User
     from app.repositories.negotiation_repository import NegotiationRepository
@@ -431,7 +431,7 @@ async def test_access_other_user_session(authenticated_client, mock_deal, db):
 
 
 @pytest.mark.asyncio
-async def test_send_chat_message(authenticated_client, mock_deal, db):
+async def test_send_chat_message(authenticated_client, mock_deal, async_db):
     """Test sending a free-form chat message"""
     from app.models.models import User
     from app.repositories.negotiation_repository import NegotiationRepository
@@ -500,7 +500,7 @@ async def test_send_chat_message_invalid_session(authenticated_client):
 
 
 @pytest.mark.asyncio
-async def test_send_chat_message_validation(authenticated_client, mock_deal, db):
+async def test_send_chat_message_validation(authenticated_client, mock_deal, async_db):
     """Test chat message validation"""
     from app.models.models import User
     from app.repositories.negotiation_repository import NegotiationRepository
@@ -531,7 +531,7 @@ async def test_send_chat_message_validation(authenticated_client, mock_deal, db)
 
 
 @pytest.mark.asyncio
-async def test_submit_dealer_info(authenticated_client, mock_deal, db):
+async def test_submit_dealer_info(authenticated_client, mock_deal, async_db):
     """Test submitting dealer-provided information"""
     from app.models.models import User
     from app.repositories.negotiation_repository import NegotiationRepository
@@ -591,7 +591,7 @@ async def test_submit_dealer_info(authenticated_client, mock_deal, db):
 
 
 @pytest.mark.asyncio
-async def test_submit_dealer_info_inactive_session(authenticated_client, mock_deal, db):
+async def test_submit_dealer_info_inactive_session(authenticated_client, mock_deal, async_db):
     """Test submitting dealer info to inactive session"""
     from app.models.models import User
     from app.models.negotiation import NegotiationStatus
@@ -618,7 +618,7 @@ async def test_submit_dealer_info_inactive_session(authenticated_client, mock_de
 
 
 @pytest.mark.asyncio
-async def test_submit_dealer_info_validation(authenticated_client, mock_deal, db):
+async def test_submit_dealer_info_validation(authenticated_client, mock_deal, async_db):
     """Test dealer info validation"""
     from app.models.models import User
     from app.repositories.negotiation_repository import NegotiationRepository
