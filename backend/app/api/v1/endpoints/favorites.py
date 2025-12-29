@@ -85,7 +85,7 @@ async def get_favorite(
     user_id = current_user.id
     repository = FavoriteRepository(db)
 
-    favorite = repository.get_by_user_and_vin(user_id, vin)
+    favorite = await repository.get_by_user_and_vin(user_id, vin)
     if not favorite:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

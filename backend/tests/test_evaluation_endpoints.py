@@ -1,14 +1,15 @@
 """Test evaluation endpoints"""
 
 import pytest
+import pytest_asyncio
 
 from app.api.dependencies import get_current_user
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import Deal, User
 
 
-@pytest.fixture
-def mock_user(db):
+@pytest_asyncio.fixture
+async def mock_user(async_db):
     """Create a mock user for testing"""
     user = User(
         email="testuser@example.com",
@@ -16,9 +17,9 @@ def mock_user(db):
         hashed_password="hashed",
         full_name="Test User",
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    async_db.add(user)
+    await async_db.commit()
+    await async_db.refresh(user)
     return user
 
 
@@ -35,8 +36,8 @@ def authenticated_client(client, mock_user):
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def mock_deal(db):
+@pytest_asyncio.fixture
+async def mock_deal(async_db):
     """Create a mock deal for testing"""
     deal = Deal(
         customer_name="John Doe",
@@ -48,9 +49,9 @@ def mock_deal(db):
         vehicle_mileage=15000,
         asking_price=25000.00,
     )
-    db.add(deal)
-    db.commit()
-    db.refresh(deal)
+    async_db.add(deal)
+    await async_db.commit()
+    await async_db.refresh(deal)
     return deal
 
 
@@ -97,14 +98,14 @@ async def test_get_evaluation(authenticated_client, mock_deal):
     assert data["deal_id"] == mock_deal.id
 
 
-def test_get_nonexistent_evaluation(authenticated_client, mock_deal):
+async def test_get_nonexistent_evaluation(authenticated_client, mock_deal):
     """Test getting a non-existent evaluation"""
     response = authenticated_client.get(f"/api/v1/deals/{mock_deal.id}/evaluation/99999")
 
     assert response.status_code == 404
 
 
-def test_get_evaluation_wrong_deal(authenticated_client, mock_deal, db):
+async def test_get_evaluation_wrong_deal(authenticated_client, mock_deal, async_db):
     """Test getting an evaluation for the wrong deal"""
     # Create another deal
     other_deal = Deal(
@@ -117,9 +118,9 @@ def test_get_evaluation_wrong_deal(authenticated_client, mock_deal, db):
         vehicle_mileage=20000,
         asking_price=23000.00,
     )
-    db.add(other_deal)
-    db.commit()
-    db.refresh(other_deal)
+    async_db.add(other_deal)
+    await async_db.commit()
+    await async_db.refresh(other_deal)
 
     # Create evaluation for original deal
     create_response = authenticated_client.post(
@@ -165,13 +166,13 @@ async def test_continue_evaluation_with_answers(authenticated_client, mock_deal)
 
 
 @pytest.mark.asyncio
-async def test_submit_answers_when_not_awaiting(authenticated_client, mock_deal, db):
+async def test_submit_answers_when_not_awaiting(authenticated_client, mock_deal, async_db):
     """Test submitting answers when evaluation is not awaiting input"""
     from app.repositories.evaluation_repository import EvaluationRepository
 
     # Create evaluation in completed status
-    repo = EvaluationRepository(db)
-    evaluation = repo.create(
+    repo = EvaluationRepository(async_db)
+    evaluation = await repo.create(
         user_id=1,  # mock_user.id
         deal_id=mock_deal.id,
         status=EvaluationStatus.COMPLETED,

@@ -16,6 +16,9 @@ from sqlalchemy.pool import StaticPool
 from app.db.session import Base, get_async_db, get_db
 from app.main import app
 
+# Import all models to ensure they're registered with SQLAlchemy
+from app.models import models  # noqa: F401
+
 
 # Add a compiler for JSONB on SQLite - render as TEXT
 @compiles(JSONB, "sqlite")
