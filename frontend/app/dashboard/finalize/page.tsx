@@ -223,14 +223,19 @@ function FinalizeDealContent() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Header */}
+      {/* Header with breadcrumb-like context */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" gutterBottom fontWeight="bold">
-          Final Deal Summary
+        <Chip 
+          label="Step 4 of 4" 
+          size="small" 
+          color="primary" 
+          sx={{ mb: 2 }} 
+        />
+        <Typography variant="h4" gutterBottom fontWeight="bold" sx={{ color: "primary.dark" }}>
+          🎉 Final Deal Summary
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Review your deal details and explore insurance options before
-          finalizing
+          Review your deal details and explore financing & insurance options before finalizing
         </Typography>
       </Box>
 
@@ -256,23 +261,28 @@ function FinalizeDealContent() {
       <Grid container spacing={3}>
         {/* Left Column - Vehicle & Price Details */}
         <Grid item xs={12} md={7}>
-          {/* Vehicle Information */}
-          <Card sx={{ mb: 3 }}>
+          {/* Vehicle Information - Enhanced */}
+          <Card sx={{ mb: 3, border: "2px solid", borderColor: "primary.main" }}>
             <Box sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom fontWeight="bold">
+              <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ color: "primary.dark" }}>
                 <DirectionsCar sx={{ mr: 1, verticalAlign: "middle" }} />
-                Vehicle Details
+                Your Vehicle
               </Typography>
               <Divider sx={{ mb: 2 }} />
 
               <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Make & Model
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {vehicleInfo.year} {vehicleInfo.make} {vehicleInfo.model}
-                  </Typography>
+                <Grid item xs={12}>
+                  <Box sx={{ 
+                    p: 2, 
+                    bgcolor: "primary.50", 
+                    borderRadius: 2,
+                    border: "1px solid",
+                    borderColor: "primary.200"
+                  }}>
+                    <Typography variant="h5" fontWeight="bold" sx={{ color: "primary.dark" }}>
+                      {vehicleInfo.year} {vehicleInfo.make} {vehicleInfo.model}
+                    </Typography>
+                  </Box>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="body2" color="text.secondary">
@@ -285,6 +295,14 @@ function FinalizeDealContent() {
                     {parseInt(vehicleInfo.mileage).toLocaleString()} miles
                   </Typography>
                 </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Year
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {vehicleInfo.year}
+                  </Typography>
+                </Grid>
                 {vehicleInfo.vin && (
                   <Grid item xs={12}>
                     <Typography variant="body2" color="text.secondary">
@@ -293,7 +311,7 @@ function FinalizeDealContent() {
                     <Typography
                       variant="body1"
                       fontWeight="medium"
-                      sx={{ fontFamily: "monospace" }}
+                      sx={{ fontFamily: "monospace", fontSize: "0.9rem" }}
                     >
                       {vehicleInfo.vin}
                     </Typography>
@@ -303,23 +321,32 @@ function FinalizeDealContent() {
             </Box>
           </Card>
 
-          {/* Price Breakdown */}
-          <Card sx={{ mb: 3 }}>
+          {/* Price Breakdown - Enhanced */}
+          <Card sx={{ mb: 3, boxShadow: 3 }}>
             <Box sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom fontWeight="bold">
+              <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ color: "primary.dark" }}>
                 <AttachMoney sx={{ mr: 1, verticalAlign: "middle" }} />
-                Price Breakdown
+                Complete Price Breakdown
               </Typography>
-              <Divider sx={{ mb: 2 }} />
+              <Divider sx={{ mb: 3 }} />
 
-              <Stack spacing={2}>
+              <Stack spacing={2.5}>
                 <Box
                   display="flex"
                   justifyContent="space-between"
                   alignItems="center"
+                  sx={{ 
+                    p: 2, 
+                    bgcolor: "success.50", 
+                    borderRadius: 2,
+                    border: "2px solid",
+                    borderColor: "success.main"
+                  }}
                 >
-                  <Typography variant="body1">Vehicle Price</Typography>
-                  <Typography variant="h6" fontWeight="bold" color="primary">
+                  <Typography variant="h6" fontWeight="bold">
+                    Negotiated Vehicle Price
+                  </Typography>
+                  <Typography variant="h5" fontWeight="bold" color="success.dark">
                     {formatPrice(finalPrice)}
                   </Typography>
                 </Box>
@@ -329,17 +356,18 @@ function FinalizeDealContent() {
                     display="flex"
                     justifyContent="space-between"
                     alignItems="center"
+                    sx={{ px: 2 }}
                   >
-                    <Typography variant="body2" color="success.main">
+                    <Typography variant="body1" color="success.main" sx={{ display: "flex", alignItems: "center" }}>
                       <TrendingUp
-                        sx={{ fontSize: 16, mr: 0.5, verticalAlign: "middle" }}
+                        sx={{ fontSize: 20, mr: 1 }}
                       />
-                      Savings vs Fair Value
+                      <strong>Your Savings vs Fair Market Value</strong>
                     </Typography>
                     <Typography
-                      variant="body1"
+                      variant="h6"
                       color="success.main"
-                      fontWeight="medium"
+                      fontWeight="bold"
                     >
                       {formatPrice(savings)}
                     </Typography>
@@ -348,42 +376,53 @@ function FinalizeDealContent() {
 
                 <Divider />
 
-                <Box display="flex" justifyContent="space-between">
+                <Typography variant="subtitle2" color="text.secondary" sx={{ px: 2 }}>
+                  Additional Costs & Fees
+                </Typography>
+
+                <Box display="flex" justifyContent="space-between" sx={{ px: 2 }}>
                   <Typography variant="body2" color="text.secondary">
                     Sales Tax (8%)
                   </Typography>
-                  <Typography variant="body2">
+                  <Typography variant="body1" fontWeight="medium">
                     {formatPrice(salesTax)}
                   </Typography>
                 </Box>
-                <Box display="flex" justifyContent="space-between">
+                <Box display="flex" justifyContent="space-between" sx={{ px: 2 }}>
                   <Typography variant="body2" color="text.secondary">
                     Registration Fee
                   </Typography>
-                  <Typography variant="body2">
+                  <Typography variant="body1" fontWeight="medium">
                     {formatPrice(registrationFee)}
                   </Typography>
                 </Box>
-                <Box display="flex" justifyContent="space-between">
+                <Box display="flex" justifyContent="space-between" sx={{ px: 2 }}>
                   <Typography variant="body2" color="text.secondary">
                     Documentation Fee
                   </Typography>
-                  <Typography variant="body2">
+                  <Typography variant="body1" fontWeight="medium">
                     {formatPrice(documentFee)}
                   </Typography>
                 </Box>
 
-                <Divider />
+                <Divider sx={{ mt: 2 }} />
 
                 <Box
                   display="flex"
                   justifyContent="space-between"
                   alignItems="center"
+                  sx={{ 
+                    p: 2.5, 
+                    bgcolor: "primary.50", 
+                    borderRadius: 2,
+                    border: "2px solid",
+                    borderColor: "primary.main"
+                  }}
                 >
-                  <Typography variant="h6" fontWeight="bold">
-                    Total Cost
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: "primary.dark" }}>
+                    Total Out-the-Door Price
                   </Typography>
-                  <Typography variant="h5" fontWeight="bold" color="primary">
+                  <Typography variant="h4" fontWeight="bold" color="primary.main">
                     {formatPrice(totalCost)}
                   </Typography>
                 </Box>
@@ -717,14 +756,30 @@ function FinalizeDealContent() {
         </Grid>
       </Grid>
 
-      {/* Action Buttons */}
-      <Box sx={{ mt: 4, display: "flex", justifyContent: "space-between" }}>
-        <Button variant="outline" onClick={() => router.back()}>
-          Back to Negotiation
-        </Button>
-        <Button variant="success" onClick={handleFinalizeDeal}>
-          Finalize Deal
-        </Button>
+      {/* Action Buttons - Enhanced */}
+      <Box sx={{ 
+        mt: 4, 
+        p: 3, 
+        bgcolor: "grey.50", 
+        borderRadius: 2,
+        border: "1px solid",
+        borderColor: "grey.200"
+      }}>
+        <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+          Ready to finalize your deal?
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          By finalizing, you&apos;re confirming your interest in this vehicle at the agreed-upon price.
+          You can review financing and insurance options before completing your purchase.
+        </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+          <Button variant="outline" onClick={() => router.back()}>
+            ← Back to Negotiation
+          </Button>
+          <Button variant="success" size="lg" onClick={handleFinalizeDeal} sx={{ px: 4 }}>
+            ✓ Finalize This Deal
+          </Button>
+        </Box>
       </Box>
     </Container>
   );

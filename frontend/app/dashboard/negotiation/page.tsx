@@ -1049,6 +1049,34 @@ function NegotiationContent() {
                       )}
                     </Box>
 
+                    {/* Evaluation Score Indicator */}
+                    {evaluationStepData?.evaluation?.score && (
+                      <>
+                        <Divider sx={{ my: 2 }} />
+                        <Box sx={{ 
+                          p: 2, 
+                          bgcolor: "success.50", 
+                          borderRadius: 2,
+                          border: "1px solid",
+                          borderColor: "success.200"
+                        }}>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                            AI Evaluation Score
+                          </Typography>
+                          <Typography variant="h5" fontWeight="bold" color="success.dark">
+                            {evaluationStepData.evaluation.score.toFixed(1)}/10
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {evaluationStepData.evaluation.score >= 8 
+                              ? "Excellent Deal" 
+                              : evaluationStepData.evaluation.score >= 6.5 
+                              ? "Good Deal" 
+                              : "Fair Deal"}
+                          </Typography>
+                        </Box>
+                      </>
+                    )}
+
                     <Divider sx={{ my: 2 }} />
 
                     <Typography variant="subtitle2" gutterBottom>
@@ -1885,7 +1913,7 @@ function NegotiationContent() {
                     <Typography variant="subtitle2" gutterBottom>
                       Strategy Tips
                     </Typography>
-                    <Stack spacing={1}>
+                    <Stack spacing={1} sx={{ mb: 2 }}>
                       <Typography variant="caption" color="text.secondary">
                         • Be patient and don&apos;t rush
                       </Typography>
@@ -1899,6 +1927,26 @@ function NegotiationContent() {
                         • Ask about additional perks
                       </Typography>
                     </Stack>
+
+                    {/* Evaluation Insights */}
+                    {evaluationStepData?.evaluation?.talking_points && 
+                     evaluationStepData.evaluation.talking_points.length > 0 && (
+                      <>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle2" gutterBottom>
+                          💡 Evaluation Talking Points
+                        </Typography>
+                        <Stack spacing={1}>
+                          {evaluationStepData.evaluation.talking_points.slice(0, 3).map((point, idx) => (
+                            <Alert key={idx} severity="info" sx={{ py: 0.5 }}>
+                              <Typography variant="caption">
+                                {point}
+                              </Typography>
+                            </Alert>
+                          ))}
+                        </Stack>
+                      </>
+                    )}
                   </Card.Body>
                 </Card>
               </Grid>
