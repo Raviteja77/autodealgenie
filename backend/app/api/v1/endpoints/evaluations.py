@@ -54,7 +54,7 @@ async def initiate_or_continue_evaluation(
     """
     # Verify deal exists
     deal_repo = DealRepository(db)
-    deal = deal_repo.get(deal_id)
+    deal = await deal_repo.get(deal_id)
     if not deal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -110,7 +110,7 @@ async def initiate_or_continue_evaluation(
     response_model=EvaluationResponse,
     status_code=status.HTTP_200_OK,
 )
-def get_evaluation(
+async def get_evaluation(
     deal_id: int,
     evaluation_id: int,
     db: AsyncSession = Depends(get_async_db),
@@ -211,7 +211,7 @@ async def submit_evaluation_answers(
     response_model=LenderRecommendationResponse,
     status_code=status.HTTP_200_OK,
 )
-def get_evaluation_lenders(
+async def get_evaluation_lenders(
     deal_id: int,
     evaluation_id: int,
     db: AsyncSession = Depends(get_async_db),
@@ -299,7 +299,7 @@ def get_evaluation_lenders(
 
     # Get deal information
     deal_repo = DealRepository(db)
-    deal = deal_repo.get(deal_id)
+    deal = await deal_repo.get(deal_id)
     if not deal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

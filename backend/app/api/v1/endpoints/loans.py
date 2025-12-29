@@ -34,7 +34,7 @@ BEST_LENDER_DISCOUNT = 0.005  # 0.5% below base rate
 HIGHER_LENDER_PREMIUM = 0.01  # 1.0% above base rate
 
 
-def generate_mock_loan_offers(
+async def generate_mock_loan_offers(
     loan_amount: float,
     credit_score: str,
     loan_term: int,
@@ -112,7 +112,7 @@ async def calculate_loan_payment(
         if calculation.deal_id:
             try:
                 loan_repo = LoanRecommendationRepository(db)
-                loan_repo.create(
+                await loan_repo.create(
                     deal_id=calculation.deal_id,
                     user_id=current_user.id,
                     loan_amount=result.principal,

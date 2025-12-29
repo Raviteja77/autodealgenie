@@ -84,7 +84,7 @@ async def create_webhook_subscription(
     data["status"] = WebhookStatus.ACTIVE
 
     try:
-        subscription = webhook_repo.create(data)
+        subscription = await webhook_repo.create(data)
         return subscription
     except Exception as e:
         raise HTTPException(
@@ -102,7 +102,7 @@ async def list_webhook_subscriptions(
     List all webhook subscriptions for the current user
     """
     webhook_repo = WebhookRepository(db)
-    subscriptions = webhook_repo.get_by_user(current_user.id)
+    subscriptions = await webhook_repo.get_by_user(current_user.id)
     return subscriptions
 
 
@@ -116,7 +116,7 @@ async def get_webhook_subscription(
     Get a specific webhook subscription by ID
     """
     webhook_repo = WebhookRepository(db)
-    subscription = webhook_repo.get_by_id(subscription_id)
+    subscription = await webhook_repo.get_by_id(subscription_id)
 
     if not subscription:
         raise HTTPException(
@@ -145,7 +145,7 @@ async def update_webhook_subscription(
     Update a webhook subscription
     """
     webhook_repo = WebhookRepository(db)
-    subscription = webhook_repo.get_by_id(subscription_id)
+    subscription = await webhook_repo.get_by_id(subscription_id)
 
     if not subscription:
         raise HTTPException(
@@ -162,7 +162,7 @@ async def update_webhook_subscription(
 
     # Update subscription
     data = update_data.model_dump(exclude_unset=True)
-    updated_subscription = webhook_repo.update(subscription_id, data)
+    updated_subscription = await webhook_repo.update(subscription_id, data)
 
     return updated_subscription
 
@@ -177,7 +177,7 @@ async def delete_webhook_subscription(
     Delete a webhook subscription
     """
     webhook_repo = WebhookRepository(db)
-    subscription = webhook_repo.get_by_id(subscription_id)
+    subscription = await webhook_repo.get_by_id(subscription_id)
 
     if not subscription:
         raise HTTPException(
@@ -193,5 +193,5 @@ async def delete_webhook_subscription(
         )
 
     # Delete subscription
-    webhook_repo.delete(subscription_id)
+    await webhook_repo.delete(subscription_id)
     return None

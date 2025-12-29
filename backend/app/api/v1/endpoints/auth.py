@@ -25,30 +25,30 @@ router = APIRouter()
 
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def signup(user_in: UserCreate, db: AsyncSession = Depends(get_async_db)):
+async def signup(user_in: UserCreate, db: AsyncSession = Depends(get_async_db)):
     """
     Create a new user account
     """
     user_repo = UserRepository(db)
 
     # Check if user already exists
-    if user_repo.get_by_email(user_in.email):
+    if await user_repo.get_by_email(user_in.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
 
-    if user_repo.get_by_username(user_in.username):
+    if await user_repo.get_by_username(user_in.username):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken"
         )
 
     # Create new user
-    user = user_repo.create(user_in)
+    user = await user_repo.create(user_in)
     return user
 
 
 @router.post("/login", response_model=Token)
-def login(
+async def login(
     response: Response, login_request: LoginRequest, db: AsyncSession = Depends(get_async_db)
 ):
     """
@@ -57,7 +57,7 @@ def login(
     user_repo = UserRepository(db)
 
     # Authenticate user
-    user = user_repo.authenticate(login_request.email, login_request.password)
+    user = await user_repo.authenticate(login_request.email, login_request.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -91,7 +91,7 @@ def login(
 
 
 @router.post("/refresh", response_model=Token)
-def refresh(
+async def refresh(
     response: Response,
     refresh_request: RefreshTokenRequest,
     db: AsyncSession = Depends(get_async_db),
@@ -135,7 +135,7 @@ def refresh(
 
     # Verify user exists and is active
     user_repo = UserRepository(db)
-    user = user_repo.get_by_id(user_id)
+    user = await user_repo.get_by_id(user_id)
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -187,7 +187,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
-def forgot_password(
+async def forgot_password(
     request: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -201,7 +201,7 @@ def forgot_password(
 
     # Create reset token if user exists
     # In production, the token would be sent via email
-    _ = user_repo.create_password_reset_token(request.email)
+    _ = await user_repo.create_password_reset_token(request.email)
 
     # Always return success message to prevent email enumeration
     # In production, send email with reset link containing the token
@@ -213,7 +213,7 @@ def forgot_password(
 
 
 @router.post("/reset-password", response_model=ForgotPasswordResponse)
-def reset_password(
+async def reset_password(
     request: ResetPasswordRequest,
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -223,7 +223,7 @@ def reset_password(
     user_repo = UserRepository(db)
 
     # Attempt to reset password
-    success = user_repo.reset_password(request.token, request.new_password)
+    success = await user_repo.reset_password(request.token, request.new_password)
 
     if not success:
         raise HTTPException(

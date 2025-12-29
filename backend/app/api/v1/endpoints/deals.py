@@ -22,19 +22,19 @@ router = APIRouter()
 
 
 @router.post("/", response_model=DealResponse, status_code=status.HTTP_201_CREATED)
-def create_deal(
+async def create_deal(
     deal_in: DealCreate,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Create a new deal (requires authentication)"""
     repository = DealRepository(db)
-    deal = repository.create(deal_in)
+    deal = await repository.create(deal_in)
     return deal
 
 
 @router.get("/", response_model=list[DealResponse])
-def get_deals(
+async def get_deals(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_async_db),
@@ -42,12 +42,12 @@ def get_deals(
 ):
     """Get all deals with pagination (requires authentication)"""
     repository = DealRepository(db)
-    deals = repository.get_all(skip=skip, limit=limit)
+    deals = await repository.get_all(skip=skip, limit=limit)
     return deals
 
 
 @router.get("/search", response_model=DealResponse)
-def get_deal_by_email_and_vin(
+async def get_deal_by_email_and_vin(
     customer_email: str,
     vehicle_vin: str,
     db: AsyncSession = Depends(get_async_db),
@@ -62,7 +62,7 @@ def get_deal_by_email_and_vin(
         )
 
     repository = DealRepository(db)
-    deal = repository.get_deal_by_vehicle_and_customer(vehicle_vin, customer_email)
+    deal = await repository.get_deal_by_vehicle_and_customer(vehicle_vin, customer_email)
     if not deal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -72,14 +72,14 @@ def get_deal_by_email_and_vin(
 
 
 @router.get("/{deal_id}", response_model=DealResponse)
-def get_deal(
+async def get_deal(
     deal_id: int,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get a specific deal by ID (requires authentication)"""
     repository = DealRepository(db)
-    deal = repository.get(deal_id)
+    deal = await repository.get(deal_id)
     if not deal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -89,7 +89,7 @@ def get_deal(
 
 
 @router.put("/{deal_id}", response_model=DealResponse)
-def update_deal(
+async def update_deal(
     deal_id: int,
     deal_in: DealUpdate,
     db: AsyncSession = Depends(get_async_db),
@@ -97,7 +97,7 @@ def update_deal(
 ):
     """Update a deal (requires authentication)"""
     repository = DealRepository(db)
-    deal = repository.update(deal_id, deal_in)
+    deal = await repository.update(deal_id, deal_in)
     if not deal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -107,14 +107,14 @@ def update_deal(
 
 
 @router.delete("/{deal_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_deal(
+async def delete_deal(
     deal_id: int,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Delete a deal (requires authentication)"""
     repository = DealRepository(db)
-    deleted = repository.delete(deal_id)
+    deleted = await repository.delete(deal_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

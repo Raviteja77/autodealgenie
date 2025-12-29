@@ -22,7 +22,7 @@ storage_lock = threading.Lock()
 
 
 @router.post("/", response_model=FavoriteResponse, status_code=status.HTTP_201_CREATED)
-def add_favorite(
+async def add_favorite(
     favorite_in: FavoriteCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
@@ -32,19 +32,19 @@ def add_favorite(
     repository = FavoriteRepository(db)
 
     # Check if already exists
-    if repository.exists(user_id, favorite_in.vin):
+    if await repository.exists(user_id, favorite_in.vin):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Vehicle already in favorites",
         )
 
     # Create favorite
-    favorite = repository.create(user_id, favorite_in)
+    favorite = await repository.create(user_id, favorite_in)
     return favorite
 
 
 @router.get("/", response_model=list[FavoriteResponse])
-def get_favorites(
+async def get_favorites(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -52,12 +52,12 @@ def get_favorites(
     user_id = current_user.id
     repository = FavoriteRepository(db)
 
-    favorites = repository.get_all_by_user(user_id)
+    favorites = await repository.get_all_by_user(user_id)
     return favorites
 
 
 @router.delete("/{vin}", status_code=status.HTTP_204_NO_CONTENT)
-def remove_favorite(
+async def remove_favorite(
     vin: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
@@ -66,7 +66,7 @@ def remove_favorite(
     user_id = current_user.id
     repository = FavoriteRepository(db)
 
-    if not repository.delete_by_user_and_vin(user_id, vin):
+    if not await repository.delete_by_user_and_vin(user_id, vin):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Vehicle not found in favorites",
@@ -76,7 +76,7 @@ def remove_favorite(
 
 
 @router.get("/{vin}", response_model=FavoriteResponse)
-def get_favorite(
+async def get_favorite(
     vin: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
