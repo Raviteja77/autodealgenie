@@ -155,7 +155,7 @@ async def get_loan_offers(
     For now, returns mock data based on credit score
     """
     # Mock lender offers
-    offers = generate_mock_loan_offers(loan_amount, credit_score, loan_term)
+    offers = await generate_mock_loan_offers(loan_amount, credit_score, loan_term)
 
     return LoanOffersResponse(
         offers=offers,

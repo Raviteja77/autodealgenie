@@ -284,7 +284,7 @@ class NegotiationService:
             )
 
             # Get the latest negotiated price to update the deal
-            latest_price = self._get_latest_suggested_price(session_id, deal.asking_price)
+            latest_price = await self._get_latest_suggested_price(session_id, deal.asking_price)
 
             # Update the deal with the final negotiated price and status
             from app.schemas.schemas import DealUpdate
@@ -1357,7 +1357,7 @@ class NegotiationService:
         logger.info(f"[{request_id}] Generating dealer info analysis for session {session.id}")
 
         # Get latest suggested price using helper method
-        suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
+        suggested_price = await self._get_latest_suggested_price(session.id, deal.asking_price)
 
         # Get user target price from messages or use default
         messages = await self.negotiation_repo.get_messages(session.id)
@@ -1370,7 +1370,7 @@ class NegotiationService:
 
         try:
             # Use centralized LLM client with evaluator agent for dealer analysis
-            response_content = generate_text(
+            response_content = await generate_text(
                 prompt_id="dealer_info_analysis",
                 variables={
                     "make": deal.vehicle_make,

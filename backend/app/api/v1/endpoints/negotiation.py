@@ -157,7 +157,7 @@ async def get_negotiation_session(
             message="You don't have permission to access this session",
         )
 
-    result = service.get_session_with_messages(session_id)
+    result = await service.get_session_with_messages(session_id)
     if not result:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -165,7 +165,7 @@ async def get_negotiation_session(
 
 
 @router.get("/{session_id}/lender-recommendations", response_model=LenderRecommendationResponse)
-def get_lender_recommendations(
+async def get_lender_recommendations(
     session_id: int,
     loan_term_months: int = 60,
     credit_score_range: str = "good",
@@ -198,7 +198,7 @@ def get_lender_recommendations(
     negotiation_service = NegotiationService(db)
 
     # Verify session belongs to user
-    session = negotiation_service.negotiation_repo.get_session(session_id)
+    session = await negotiation_service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -209,12 +209,12 @@ def get_lender_recommendations(
         )
 
     # Get the deal to determine the vehicle price
-    deal = negotiation_service.deal_repo.get(session.deal_id)
+    deal = await negotiation_service.deal_repo.get(session.deal_id)
     if not deal:
         raise ApiError(status_code=404, message="Associated deal not found")
 
     # Get the latest messages to find the final negotiated price
-    messages = negotiation_service.negotiation_repo.get_messages(session_id)
+    messages = await negotiation_service.negotiation_repo.get_messages(session_id)
     negotiated_price = deal.asking_price
 
     # Try to find the last suggested price in agent messages (check last 10 messages only)
@@ -399,7 +399,7 @@ async def websocket_endpoint(
         from app.repositories.user_repository import UserRepository
 
         user_repo = UserRepository(db)
-        user = user_repo.get_by_id(user_id)
+        user = await user_repo.get_by_id(user_id)
         if not user or not user.is_active:
             await websocket.close(code=4001, reason="User not found or inactive")
             return
