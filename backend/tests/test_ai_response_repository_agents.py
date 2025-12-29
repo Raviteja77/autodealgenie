@@ -1,11 +1,12 @@
 """Tests for AI Response Repository agent tracking enhancements"""
 
-import pytest
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
-from app.repositories.ai_response_repository import AIResponseRepository
+import pytest
+
 from app.models.jsonb_data import AIResponse
+from app.repositories.ai_response_repository import AIResponseRepository
 
 
 @pytest.fixture
@@ -54,7 +55,7 @@ class TestAIResponseRepositoryAgentTracking:
         mock_db_session.refresh = AsyncMock()
 
         # Create response
-        result = await ai_response_repo.create_response(
+        await ai_response_repo.create_response(
             feature="negotiation",
             user_id=1,
             deal_id=1,
@@ -66,16 +67,14 @@ class TestAIResponseRepositoryAgentTracking:
 
         # Verify add was called
         assert mock_db_session.add.called
-        
+
         # Get the added object
         added_obj = mock_db_session.add.call_args[0][0]
         assert added_obj.agent_role == "negotiation"
         assert added_obj.feature == "negotiation"
 
     @pytest.mark.asyncio
-    async def test_create_response_without_agent_role(
-        self, ai_response_repo, mock_db_session
-    ):
+    async def test_create_response_without_agent_role(self, ai_response_repo, mock_db_session):
         """Test creating AI response without agent_role (None)"""
         # Setup mock
         mock_db_session.add = MagicMock()
@@ -83,7 +82,7 @@ class TestAIResponseRepositoryAgentTracking:
         mock_db_session.refresh = AsyncMock()
 
         # Create response without agent_role
-        result = await ai_response_repo.create_response(
+        await ai_response_repo.create_response(
             feature="evaluation",
             user_id=1,
             deal_id=1,

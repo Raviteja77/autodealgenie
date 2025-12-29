@@ -1,10 +1,11 @@
 """Tests for Agent Orchestrator Service"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.services.agent_orchestrator import AgentOrchestrator
+import pytest
+
 from app.models.models import Deal
+from app.services.agent_orchestrator import AgentOrchestrator
 from app.utils.error_handler import ApiError
 
 
@@ -99,34 +100,38 @@ class TestAgentOrchestrator:
         assert "not found" in exc_info.value.message.lower()
 
     @pytest.mark.asyncio
-    async def test_negotiate_deal_success(
-        self, orchestrator, mock_deal, mock_llm_responses
-    ):
+    async def test_negotiate_deal_success(self, orchestrator, mock_deal, mock_llm_responses):
         """Test successful orchestrated negotiation"""
         # Mock deal repository
         orchestrator.deal_repo.get = MagicMock(return_value=mock_deal)
 
         # Mock all agent methods
-        with patch.object(
-            orchestrator,
-            "_research_vehicle",
-            new=AsyncMock(return_value=mock_llm_responses["research"]),
-        ), patch.object(
-            orchestrator,
-            "_evaluate_deal",
-            new=AsyncMock(return_value=mock_llm_responses["evaluation"]),
-        ), patch.object(
-            orchestrator,
-            "_analyze_financing",
-            new=AsyncMock(return_value=mock_llm_responses["financing"]),
-        ), patch.object(
-            orchestrator,
-            "_generate_negotiation_strategy",
-            new=AsyncMock(return_value=mock_llm_responses["negotiation"]),
-        ), patch.object(
-            orchestrator,
-            "_qa_review",
-            new=AsyncMock(return_value=mock_llm_responses["qa"]),
+        with (
+            patch.object(
+                orchestrator,
+                "_research_vehicle",
+                new=AsyncMock(return_value=mock_llm_responses["research"]),
+            ),
+            patch.object(
+                orchestrator,
+                "_evaluate_deal",
+                new=AsyncMock(return_value=mock_llm_responses["evaluation"]),
+            ),
+            patch.object(
+                orchestrator,
+                "_analyze_financing",
+                new=AsyncMock(return_value=mock_llm_responses["financing"]),
+            ),
+            patch.object(
+                orchestrator,
+                "_generate_negotiation_strategy",
+                new=AsyncMock(return_value=mock_llm_responses["negotiation"]),
+            ),
+            patch.object(
+                orchestrator,
+                "_qa_review",
+                new=AsyncMock(return_value=mock_llm_responses["qa"]),
+            ),
         ):
 
             # Execute orchestration
@@ -166,27 +171,31 @@ class TestAgentOrchestrator:
         orchestrator.deal_repo.get = MagicMock(return_value=mock_deal)
 
         # Mock research agent to fail, others to succeed
-        with patch.object(
-            orchestrator,
-            "_research_vehicle",
-            new=AsyncMock(side_effect=Exception("LLM error")),
-        ), patch.object(
-            orchestrator,
-            "_evaluate_deal",
-            new=AsyncMock(
-                return_value={
-                    "fair_value": 27000.0,
-                    "score": 6.0,
-                    "insights": [],
-                    "talking_points": [],
-                }
+        with (
+            patch.object(
+                orchestrator,
+                "_research_vehicle",
+                new=AsyncMock(side_effect=Exception("LLM error")),
             ),
-        ), patch.object(
-            orchestrator, "_analyze_financing", new=AsyncMock(return_value={})
-        ), patch.object(
-            orchestrator, "_generate_negotiation_strategy", new=AsyncMock(return_value={})
-        ), patch.object(
-            orchestrator, "_qa_review", new=AsyncMock(return_value={"is_valid": True})
+            patch.object(
+                orchestrator,
+                "_evaluate_deal",
+                new=AsyncMock(
+                    return_value={
+                        "fair_value": 27000.0,
+                        "score": 6.0,
+                        "insights": [],
+                        "talking_points": [],
+                    }
+                ),
+            ),
+            patch.object(orchestrator, "_analyze_financing", new=AsyncMock(return_value={})),
+            patch.object(
+                orchestrator, "_generate_negotiation_strategy", new=AsyncMock(return_value={})
+            ),
+            patch.object(
+                orchestrator, "_qa_review", new=AsyncMock(return_value={"is_valid": True})
+            ),
         ):
 
             # Execute orchestration
@@ -284,9 +293,7 @@ class TestAgentOrchestrator:
         """Test fallback negotiation data generation"""
         evaluation_data = {"fair_value": 27000.0, "score": 7.0}
         user_context = {}
-        fallback = orchestrator._fallback_negotiation(
-            mock_deal, evaluation_data, user_context
-        )
+        fallback = orchestrator._fallback_negotiation(mock_deal, evaluation_data, user_context)
 
         assert "target_price" in fallback
         assert "opening_offer" in fallback

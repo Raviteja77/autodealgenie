@@ -317,15 +317,13 @@ class AIResponseRepository:
             }
 
         # Calculate average tokens per agent
-        for agent_role, agent_data in analytics["agents"].items():
+        for _agent_role, agent_data in analytics["agents"].items():
             if agent_data["total_calls"] > 0:
                 agent_data["avg_tokens"] = round(
                     agent_data["total_tokens"] / agent_data["total_calls"], 2
                 )
 
-        logger.info(
-            f"Agent analytics for {days} days: {len(analytics['agents'])} agents tracked"
-        )
+        logger.info(f"Agent analytics for {days} days: {len(analytics['agents'])} agents tracked")
         return analytics
 
     async def delete_by_deal_id(self, deal_id: int) -> int:

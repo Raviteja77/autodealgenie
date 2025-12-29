@@ -76,7 +76,9 @@ class AIResponse(Base):
     tokens_used = Column(Integer, nullable=True)  # Tokens consumed
     temperature = Column(Integer, nullable=True)  # Temperature parameter (stored as int * 100)
     llm_used = Column(Integer, nullable=False, default=1)  # 1 for True, 0 for False
-    agent_role = Column(String(50), nullable=True)  # Agent role (research, loan, negotiation, evaluator, qa)
+    agent_role = Column(
+        String(50), nullable=True
+    )  # Agent role (research, loan, negotiation, evaluator, qa)
     timestamp = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )

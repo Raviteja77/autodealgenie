@@ -18,7 +18,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.llm import generate_structured_json, generate_text
+from app.llm import generate_structured_json
 from app.llm.schemas import (
     DealEvaluation,
     FinancingReport,
@@ -109,7 +109,9 @@ class AgentOrchestrator:
         try:
             # Step 2: Evaluator Agent - Assess deal quality
             logger.info(f"[Deal {deal_id}] Step 2: Evaluator agent assessing deal quality")
-            evaluation_output = await self._evaluate_deal(deal, result.get("research"), user_context)
+            evaluation_output = await self._evaluate_deal(
+                deal, result.get("research"), user_context
+            )
             result["evaluation"] = evaluation_output
             result["orchestration_steps"].append(
                 {"step": "evaluation", "status": "completed", "agent": "evaluator"}
@@ -147,7 +149,11 @@ class AgentOrchestrator:
             # Step 4: Negotiation Agent - Generate strategy
             logger.info(f"[Deal {deal_id}] Step 4: Negotiation agent generating strategy")
             negotiation_output = await self._generate_negotiation_strategy(
-                deal, result.get("research"), result.get("evaluation"), result.get("financing"), user_context
+                deal,
+                result.get("research"),
+                result.get("evaluation"),
+                result.get("financing"),
+                user_context,
             )
             result["negotiation"] = negotiation_output
             result["orchestration_steps"].append(
@@ -199,9 +205,7 @@ class AgentOrchestrator:
         )
         return result
 
-    async def _research_vehicle(
-        self, deal: Deal, user_context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _research_vehicle(self, deal: Deal, user_context: dict[str, Any]) -> dict[str, Any]:
         """Execute research agent to analyze vehicle value"""
         try:
             research_result = generate_structured_json(
@@ -248,9 +252,7 @@ class AgentOrchestrator:
             logger.error(f"Evaluator agent LLM call failed: {str(e)}")
             raise
 
-    async def _analyze_financing(
-        self, deal: Deal, user_context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _analyze_financing(self, deal: Deal, user_context: dict[str, Any]) -> dict[str, Any]:
         """Execute loan agent to calculate financing options"""
         try:
             financing_result = generate_structured_json(
@@ -285,7 +287,11 @@ class AgentOrchestrator:
         """Execute negotiation agent to generate strategy"""
         try:
             # Prepare evaluation context
-            fair_value = evaluation_data.get("fair_value", deal.asking_price) if evaluation_data else deal.asking_price
+            fair_value = (
+                evaluation_data.get("fair_value", deal.asking_price)
+                if evaluation_data
+                else deal.asking_price
+            )
             eval_score = evaluation_data.get("score", 5.0) if evaluation_data else 5.0
 
             negotiation_result = generate_structured_json(
@@ -372,12 +378,13 @@ class AgentOrchestrator:
             "fair_value": deal.asking_price * 0.95,
             "score": 5.0,
             "insights": ["Unable to perform detailed evaluation"],
-            "talking_points": ["Request vehicle history report", "Schedule pre-purchase inspection"],
+            "talking_points": [
+                "Request vehicle history report",
+                "Schedule pre-purchase inspection",
+            ],
         }
 
-    def _fallback_financing(
-        self, deal: Deal, user_context: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _fallback_financing(self, deal: Deal, user_context: dict[str, Any]) -> dict[str, Any]:
         """Fallback financing when agent fails"""
         down_payment = user_context.get("down_payment", deal.asking_price * 0.2)
         loan_amount = deal.asking_price - down_payment
@@ -401,7 +408,11 @@ class AgentOrchestrator:
         self, deal: Deal, evaluation_data: dict[str, Any] | None, user_context: dict[str, Any]
     ) -> dict[str, Any]:
         """Fallback negotiation when agent fails"""
-        fair_value = evaluation_data.get("fair_value", deal.asking_price * 0.95) if evaluation_data else deal.asking_price * 0.95
+        fair_value = (
+            evaluation_data.get("fair_value", deal.asking_price * 0.95)
+            if evaluation_data
+            else deal.asking_price * 0.95
+        )
         target_price = user_context.get("target_price", fair_value)
 
         return {
@@ -416,7 +427,9 @@ class AgentOrchestrator:
             ],
         }
 
-    def _generate_overall_recommendation(self, orchestration_result: dict[str, Any]) -> dict[str, Any]:
+    def _generate_overall_recommendation(
+        self, orchestration_result: dict[str, Any]
+    ) -> dict[str, Any]:
         """Generate final recommendation based on all agent outputs"""
         evaluation = orchestration_result.get("evaluation", {})
         qa_validation = orchestration_result.get("qa_validation", {})
