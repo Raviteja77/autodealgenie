@@ -1,15 +1,17 @@
 """Tests for repository pattern implementations"""
 
+import pytest
+
 from app.repositories.deal_repository import DealRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.schemas import DealCreate, DealUpdate, UserCreate
-from tests.conftest import async_db
 
 
 class TestUserRepository:
     """Test UserRepository methods"""
 
-    def test_create_user(self, db):
+    @pytest.mark.asyncio
+    async def test_create_user(self, async_db):
         """Test creating a user"""
         repo = UserRepository(async_db)
         user_in = UserCreate(
@@ -19,111 +21,122 @@ class TestUserRepository:
             full_name="Test User",
         )
 
-        user = repo.create(user_in)
+        user = await repo.create(user_in)
         assert user.id is not None
         assert user.email == "test@example.com"
         assert user.username == "testuser"
         assert user.full_name == "Test User"
         assert user.hashed_password != "Testpass123!"  # Should be hashed
 
-    def test_get_by_email(self, db):
+    @pytest.mark.asyncio
+    async def test_get_by_email(self, async_db):
         """Test getting user by email"""
         repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
-        created_user = repo.create(user_in)
-        found_user = repo.get_by_email("test@example.com")
+        created_user = await repo.create(user_in)
+        found_user = await repo.get_by_email("test@example.com")
 
         assert found_user is not None
         assert found_user.id == created_user.id
         assert found_user.email == created_user.email
 
-    def test_get_by_email_not_found(self, db):
+    @pytest.mark.asyncio
+    async def test_get_by_email_not_found(self, async_db):
         """Test getting user by non-existent email"""
         repo = UserRepository(async_db)
-        user = repo.get_by_email("nonexistent@example.com")
+        user = await repo.get_by_email("nonexistent@example.com")
         assert user is None
 
-    def test_get_by_username(self, db):
+    @pytest.mark.asyncio
+    async def test_get_by_username(self, async_db):
         """Test getting user by username"""
         repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
-        created_user = repo.create(user_in)
-        found_user = repo.get_by_username("testuser")
+        created_user = await repo.create(user_in)
+        found_user = await repo.get_by_username("testuser")
 
         assert found_user is not None
         assert found_user.id == created_user.id
         assert found_user.username == created_user.username
 
-    def test_get_by_username_not_found(self, db):
+    @pytest.mark.asyncio
+    async def test_get_by_username_not_found(self, async_db):
         """Test getting user by non-existent username"""
         repo = UserRepository(async_db)
-        user = repo.get_by_username("nonexistent")
+        user = await repo.get_by_username("nonexistent")
         assert user is None
 
-    def test_get_by_id(self, db):
+    @pytest.mark.asyncio
+    async def test_get_by_id(self, async_db):
         """Test getting user by ID"""
         repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
-        created_user = repo.create(user_in)
-        found_user = repo.get_by_id(created_user.id)
+        created_user = await repo.create(user_in)
+        found_user = await repo.get_by_id(created_user.id)
 
         assert found_user is not None
         assert found_user.id == created_user.id
 
-    def test_get_by_id_not_found(self, db):
+    @pytest.mark.asyncio
+    async def test_get_by_id_not_found(self, async_db):
         """Test getting user by non-existent ID"""
         repo = UserRepository(async_db)
-        user = repo.get_by_id(99999)
+        user = await repo.get_by_id(99999)
         assert user is None
 
-    def test_authenticate_success(self, db):
+    @pytest.mark.asyncio
+    async def test_authenticate_success(self, async_db):
         """Test successful authentication"""
         repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
-        repo.create(user_in)
-        authenticated_user = repo.authenticate("test@example.com", "Testpass123!")
+        await repo.create(user_in)
+        authenticated_user = await repo.authenticate("test@example.com", "Testpass123!")
 
         assert authenticated_user is not None
         assert authenticated_user.email == "test@example.com"
 
-    def test_authenticate_wrong_password(self, db):
+    @pytest.mark.asyncio
+    async def test_authenticate_wrong_password(self, async_db):
         """Test authentication with wrong password"""
         repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
-        repo.create(user_in)
-        authenticated_user = repo.authenticate("test@example.com", "wrongpassword")
+        await repo.create(user_in)
+        authenticated_user = await repo.authenticate("test@example.com", "wrongpassword")
 
         assert authenticated_user is None
 
-    def test_authenticate_nonexistent_user(self, db):
+    @pytest.mark.asyncio
+    async def test_authenticate_nonexistent_user(self, async_db):
         """Test authentication with non-existent user"""
         repo = UserRepository(async_db)
-        authenticated_user = repo.authenticate("nonexistent@example.com", "Testpass123!")
+        authenticated_user = await repo.authenticate("nonexistent@example.com", "Testpass123!")
         assert authenticated_user is None
 
-    async def test_authenticate_inactive_user(self, db):
+    @pytest.mark.asyncio
+    async def test_authenticate_inactive_user(self, async_db):
         """Test authentication with inactive user"""
         repo = UserRepository(async_db)
         user_in = UserCreate(email="test@example.com", username="testuser", password="Testpass123!")
 
-        user = repo.create(user_in)
+        user = await repo.create(user_in)
         # Manually set user as inactive
         user.is_active = False
         await async_db.commit()
 
-        authenticated_user = repo.authenticate("test@example.com", "Testpass123!")
+        authenticated_user = await repo.authenticate("test@example.com", "Testpass123!")
         assert authenticated_user is None
 
 
 class TestDealRepository:
     """Test DealRepository methods"""
 
-    def test_create_deal(self, db):
+    @pytest.mark.asyncio
+    async def test_create_deal(self, async_db):
         """Test creating a deal"""
         repo = DealRepository(async_db)
         deal_in = DealCreate(
@@ -138,12 +151,13 @@ class TestDealRepository:
             status="pending",
         )
 
-        deal = repo.create(deal_in)
+        deal = await repo.create(deal_in)
         assert deal.id is not None
         assert deal.customer_name == "John Doe"
         assert deal.vehicle_make == "Toyota"
 
-    def test_get_deal(self, db):
+    @pytest.mark.asyncio
+    async def test_get_deal(self, async_db):
         """Test getting a deal by ID"""
         repo = DealRepository(async_db)
         deal_in = DealCreate(
@@ -158,20 +172,22 @@ class TestDealRepository:
             status="pending",
         )
 
-        created_deal = repo.create(deal_in)
-        found_deal = repo.get(created_deal.id)
+        created_deal = await repo.create(deal_in)
+        found_deal = await repo.get(created_deal.id)
 
         assert found_deal is not None
         assert found_deal.id == created_deal.id
         assert found_deal.customer_name == created_deal.customer_name
 
-    def test_get_deal_not_found(self, db):
+    @pytest.mark.asyncio
+    async def test_get_deal_not_found(self, async_db):
         """Test getting a non-existent deal"""
         repo = DealRepository(async_db)
-        deal = repo.get(99999)
+        deal = await repo.get(99999)
         assert deal is None
 
-    def test_get_all_deals(self, db):
+    @pytest.mark.asyncio
+    async def test_get_all_deals(self, async_db):
         """Test getting all deals with pagination"""
         repo = DealRepository(async_db)
 
@@ -188,12 +204,13 @@ class TestDealRepository:
                 asking_price=25000.00,
                 status="pending",
             )
-            repo.create(deal_in)
+            await repo.create(deal_in)
 
-        deals = repo.get_all(skip=0, limit=10)
+        deals = await repo.get_all(skip=0, limit=10)
         assert len(deals) == 5
 
-    def test_get_all_deals_pagination(self, db):
+    @pytest.mark.asyncio
+    async def test_get_all_deals_pagination(self, async_db):
         """Test pagination in get_all"""
         repo = DealRepository(async_db)
 
@@ -210,17 +227,18 @@ class TestDealRepository:
                 asking_price=25000.00,
                 status="pending",
             )
-            repo.create(deal_in)
+            await repo.create(deal_in)
 
         # Get first 3
-        deals = repo.get_all(skip=0, limit=3)
+        deals = await repo.get_all(skip=0, limit=3)
         assert len(deals) == 3
 
         # Get next 2
-        deals = repo.get_all(skip=3, limit=3)
+        deals = await repo.get_all(skip=3, limit=3)
         assert len(deals) == 2
 
-    def test_get_by_status(self, db):
+    @pytest.mark.asyncio
+    async def test_get_by_status(self, async_db):
         """Test getting deals by status"""
         repo = DealRepository(async_db)
 
@@ -237,13 +255,14 @@ class TestDealRepository:
                 asking_price=25000.00,
                 status=status,
             )
-            repo.create(deal_in)
+            await repo.create(deal_in)
 
-        pending_deals = repo.get_by_status("pending")
+        pending_deals = await repo.get_by_status("pending")
         assert len(pending_deals) == 1
         assert pending_deals[0].status == "pending"
 
-    def test_get_by_email(self, db):
+    @pytest.mark.asyncio
+    async def test_get_by_email(self, async_db):
         """Test getting deals by customer email"""
         repo = DealRepository(async_db)
 
@@ -262,13 +281,14 @@ class TestDealRepository:
                 asking_price=25000.00,
                 status="pending",
             )
-            repo.create(deal_in)
+            await repo.create(deal_in)
 
-        deals = repo.get_by_email(email)
+        deals = await repo.get_by_email(email)
         assert len(deals) == 3
         assert all(deal.customer_email == email for deal in deals)
 
-    def test_update_deal(self, db):
+    @pytest.mark.asyncio
+    async def test_update_deal(self, async_db):
         """Test updating a deal"""
         repo = DealRepository(async_db)
         deal_in = DealCreate(
@@ -283,12 +303,12 @@ class TestDealRepository:
             status="pending",
         )
 
-        deal = repo.create(deal_in)
+        deal = await repo.create(deal_in)
 
         # Update the deal
         update_data = DealUpdate(status="in_progress", offer_price=24000.00, notes="Negotiating")
 
-        updated_deal = repo.update(deal.id, update_data)
+        updated_deal = await repo.update(deal.id, update_data)
 
         assert updated_deal is not None
         assert updated_deal.id == deal.id
@@ -296,15 +316,17 @@ class TestDealRepository:
         assert updated_deal.offer_price == 24000.00
         assert updated_deal.notes == "Negotiating"
 
-    def test_update_nonexistent_deal(self, db):
+    @pytest.mark.asyncio
+    async def test_update_nonexistent_deal(self, async_db):
         """Test updating a non-existent deal"""
         repo = DealRepository(async_db)
         update_data = DealUpdate(status="completed")
 
-        updated_deal = repo.update(99999, update_data)
+        updated_deal = await repo.update(99999, update_data)
         assert updated_deal is None
 
-    def test_delete_deal(self, db):
+    @pytest.mark.asyncio
+    async def test_delete_deal(self, async_db):
         """Test deleting a deal"""
         repo = DealRepository(async_db)
         deal_in = DealCreate(
@@ -319,14 +341,15 @@ class TestDealRepository:
             status="pending",
         )
 
-        deal = repo.create(deal_in)
-        result = repo.delete(deal.id)
+        deal = await repo.create(deal_in)
+        result = await repo.delete(deal.id)
 
         assert result is True
-        assert repo.get(deal.id) is None
+        assert await repo.get(deal.id) is None
 
-    def test_delete_nonexistent_deal(self, db):
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent_deal(self, async_db):
         """Test deleting a non-existent deal"""
         repo = DealRepository(async_db)
-        result = repo.delete(99999)
+        result = await repo.delete(99999)
         assert result is False

@@ -5,7 +5,6 @@ from unittest.mock import patch
 import pytest
 import pytest_asyncio
 
-from app import db
 from app.api.dependencies import get_current_user
 from app.models.models import Deal, DealStatus, User
 from app.models.negotiation import MessageRole, NegotiationStatus
@@ -266,17 +265,11 @@ async def test_create_negotiation_invalid_deal(authenticated_client):
 
 
 @pytest.mark.asyncio
-async def test_process_next_round_counter(authenticated_client, mock_deal, async_db):
+async def test_process_next_round_counter(authenticated_client, mock_user, mock_deal, async_db):
     """Test processing next round with counter offer"""
-    from app.models.models import User
-    from app.repositories.negotiation_repository import NegotiationRepository
-
-    # Get the mock user
-    user = db.query(User).filter(User.email == "testuser@example.com").first()
-
     # Create a session
     repo = NegotiationRepository(async_db)
-    session = await repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+    session = await repo.create_session(user_id=mock_user.id, deal_id=mock_deal.id)
 
     # Add initial message
     await repo.add_message(
@@ -304,15 +297,12 @@ async def test_process_next_round_counter(authenticated_client, mock_deal, async
 
 
 @pytest.mark.asyncio
-async def test_process_next_round_confirm(authenticated_client, mock_deal, async_db):
+async def test_process_next_round_confirm(authenticated_client, mock_user, mock_deal, async_db):
     """Test processing next round with confirm action and verify deal update"""
-    from app.models.models import User
     from app.repositories.deal_repository import DealRepository
-    from app.repositories.negotiation_repository import NegotiationRepository
 
-    user = db.query(User).filter(User.email == "testuser@example.com").first()
     repo = NegotiationRepository(async_db)
-    session = await repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+    session = await repo.create_session(user_id=mock_user.id, deal_id=mock_deal.id)
 
     # Add a message with a suggested price to simulate negotiation
     await repo.add_message(
@@ -343,14 +333,10 @@ async def test_process_next_round_confirm(authenticated_client, mock_deal, async
 
 
 @pytest.mark.asyncio
-async def test_process_next_round_reject(authenticated_client, mock_deal, async_db):
+async def test_process_next_round_reject(authenticated_client, mock_user, mock_deal, async_db):
     """Test processing next round with reject action"""
-    from app.models.models import User
-    from app.repositories.negotiation_repository import NegotiationRepository
-
-    user = db.query(User).filter(User.email == "testuser@example.com").first()
     repo = NegotiationRepository(async_db)
-    session = await repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+    session = await repo.create_session(user_id=mock_user.id, deal_id=mock_deal.id)
 
     request_data = {"user_action": "reject"}
 
@@ -364,14 +350,10 @@ async def test_process_next_round_reject(authenticated_client, mock_deal, async_
 
 
 @pytest.mark.asyncio
-async def test_get_negotiation_session(authenticated_client, mock_deal, async_db):
+async def test_get_negotiation_session(authenticated_client, mock_user, mock_deal, async_db):
     """Test retrieving a negotiation session"""
-    from app.models.models import User
-    from app.repositories.negotiation_repository import NegotiationRepository
-
-    user = db.query(User).filter(User.email == "testuser@example.com").first()
     repo = NegotiationRepository(async_db)
-    session = await repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+    session = await repo.create_session(user_id=mock_user.id, deal_id=mock_deal.id)
 
     # Add messages
     await repo.add_message(
@@ -392,7 +374,7 @@ async def test_get_negotiation_session(authenticated_client, mock_deal, async_db
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == session.id
-    assert data["user_id"] == user.id
+    assert data["user_id"] == mock_user.id
     assert data["deal_id"] == mock_deal.id
     assert len(data["messages"]) == 2
 
@@ -406,9 +388,6 @@ async def test_get_nonexistent_negotiation(authenticated_client):
 @pytest.mark.asyncio
 async def test_access_other_user_session(authenticated_client, mock_deal, async_db):
     """Test that users cannot access other users' sessions"""
-    from app.models.models import User
-    from app.repositories.negotiation_repository import NegotiationRepository
-
     # Create another user
     other_user = User(
         email="other@example.com",
@@ -432,17 +411,11 @@ async def test_access_other_user_session(authenticated_client, mock_deal, async_
 
 
 @pytest.mark.asyncio
-async def test_send_chat_message(authenticated_client, mock_deal, async_db):
+async def test_send_chat_message(authenticated_client, mock_user, mock_deal, async_db):
     """Test sending a free-form chat message"""
-    from app.models.models import User
-    from app.repositories.negotiation_repository import NegotiationRepository
-
-    # Get the mock user
-    user = db.query(User).filter(User.email == "testuser@example.com").first()
-
     # Create a session
     repo = NegotiationRepository(async_db)
-    session = await repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+    session = await repo.create_session(user_id=mock_user.id, deal_id=mock_deal.id)
 
     request_data = {
         "message": "What's the best strategy for negotiating this price?",
@@ -501,17 +474,11 @@ async def test_send_chat_message_invalid_session(authenticated_client):
 
 
 @pytest.mark.asyncio
-async def test_send_chat_message_validation(authenticated_client, mock_deal, async_db):
+async def test_send_chat_message_validation(authenticated_client, mock_user, mock_deal, async_db):
     """Test chat message validation"""
-    from app.models.models import User
-    from app.repositories.negotiation_repository import NegotiationRepository
-
-    # Get the mock user
-    user = db.query(User).filter(User.email == "testuser@example.com").first()
-
     # Create a session
     repo = NegotiationRepository(async_db)
-    session = await repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+    session = await repo.create_session(user_id=mock_user.id, deal_id=mock_deal.id)
 
     # Test with empty message
     request_data = {"message": "", "message_type": "general"}
@@ -532,17 +499,11 @@ async def test_send_chat_message_validation(authenticated_client, mock_deal, asy
 
 
 @pytest.mark.asyncio
-async def test_submit_dealer_info(authenticated_client, mock_deal, async_db):
+async def test_submit_dealer_info(authenticated_client, mock_user, mock_deal, async_db):
     """Test submitting dealer-provided information"""
-    from app.models.models import User
-    from app.repositories.negotiation_repository import NegotiationRepository
-
-    # Get the mock user
-    user = db.query(User).filter(User.email == "testuser@example.com").first()
-
     # Create a session
     repo = NegotiationRepository(async_db)
-    session = await repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+    session = await repo.create_session(user_id=mock_user.id, deal_id=mock_deal.id)
 
     request_data = {
         "info_type": "price_quote",
@@ -592,18 +553,13 @@ async def test_submit_dealer_info(authenticated_client, mock_deal, async_db):
 
 
 @pytest.mark.asyncio
-async def test_submit_dealer_info_inactive_session(authenticated_client, mock_deal, async_db):
+async def test_submit_dealer_info_inactive_session(
+    authenticated_client, mock_user, mock_deal, async_db
+):
     """Test submitting dealer info to inactive session"""
-    from app.models.models import User
-    from app.models.negotiation import NegotiationStatus
-    from app.repositories.negotiation_repository import NegotiationRepository
-
-    # Get the mock user
-    user = db.query(User).filter(User.email == "testuser@example.com").first()
-
     # Create a completed session
     repo = NegotiationRepository(async_db)
-    session = await repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+    session = await repo.create_session(user_id=mock_user.id, deal_id=mock_deal.id)
     await repo.update_session_status(session.id, NegotiationStatus.COMPLETED)
 
     request_data = {
@@ -619,17 +575,11 @@ async def test_submit_dealer_info_inactive_session(authenticated_client, mock_de
 
 
 @pytest.mark.asyncio
-async def test_submit_dealer_info_validation(authenticated_client, mock_deal, async_db):
+async def test_submit_dealer_info_validation(authenticated_client, mock_user, mock_deal, async_db):
     """Test dealer info validation"""
-    from app.models.models import User
-    from app.repositories.negotiation_repository import NegotiationRepository
-
-    # Get the mock user
-    user = db.query(User).filter(User.email == "testuser@example.com").first()
-
     # Create a session
     repo = NegotiationRepository(async_db)
-    session = await repo.create_session(user_id=user.id, deal_id=mock_deal.id)
+    session = await repo.create_session(user_id=mock_user.id, deal_id=mock_deal.id)
 
     # Test with empty content
     request_data = {"info_type": "price_quote", "content": ""}

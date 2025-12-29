@@ -1,286 +1,237 @@
-"""
-Tests for webhook repository
-"""
-
-from unittest.mock import MagicMock
+"""Tests for webhook repository"""
 
 import pytest
+import pytest_asyncio
 
-from app.models.models import WebhookStatus, WebhookSubscription
+from app.models.models import User, WebhookStatus
 from app.repositories.webhook_repository import WebhookRepository
 
 
-@pytest.fixture
-def mock_db():
-    """Create a mock database session"""
-    return MagicMock()
+class WebhookEvent:
+    DEAL_CREATED = "deal_created"
+    DEAL_UPDATED = "deal_updated"
+    EVALUATION_COMPLETED = "evaluation_completed"
 
 
-def test_create_webhook_subscription(mock_db):
+@pytest_asyncio.fixture
+async def mock_user(async_db):
+    """Create a mock user for testing"""
+    user = User(
+        email="testuser@example.com",
+        username="testuser",
+        hashed_password="hashed",
+        full_name="Test User",
+    )
+    async_db.add(user)
+    await async_db.commit()
+    await async_db.refresh(user)
+    return user
+
+
+@pytest.mark.asyncio
+async def test_create_webhook_subscription(async_db, mock_user):
     """Test creating a webhook subscription"""
-    repo = WebhookRepository(mock_db)
+    repo = WebhookRepository(async_db)
 
-    subscription_data = {
-        "user_id": 1,
-        "webhook_url": "https://example.com/webhook",
-        "status": WebhookStatus.ACTIVE,
-        "make": "Toyota",
-        "model": "RAV4",
-        "price_min": 20000,
-        "price_max": 30000,
-    }
-
-    WebhookSubscription(**subscription_data)
-    mock_db.add = MagicMock()
-    mock_db.commit = MagicMock()
-    mock_db.refresh = MagicMock()
-
-    # Mock the refresh to set ID
-    def refresh_side_effect(obj):
-        obj.id = 1
-
-    mock_db.refresh.side_effect = refresh_side_effect
-
-    repo.create(subscription_data)
-
-    mock_db.add.assert_called_once()
-    mock_db.commit.assert_called_once()
-    mock_db.refresh.assert_called_once()
-
-
-def test_get_webhook_by_id(mock_db):
-    """Test retrieving webhook subscription by ID"""
-    repo = WebhookRepository(mock_db)
-
-    mock_subscription = WebhookSubscription(
-        id=1,
-        user_id=1,
+    subscription = await repo.create(
+        user_id=mock_user.id,
         webhook_url="https://example.com/webhook",
-        status=WebhookStatus.ACTIVE,
+        events=[WebhookEvent.DEAL_CREATED, WebhookEvent.DEAL_UPDATED],
+        secret="test_secret_123",
     )
 
-    mock_query = MagicMock()
-    mock_query.filter.return_value.first.return_value = mock_subscription
-    mock_db.query.return_value = mock_query
-
-    subscription = repo.get_by_id(1)
-
-    assert subscription is not None
-    assert subscription.id == 1
+    assert subscription.id is not None
+    assert subscription.user_id == mock_user.id
     assert subscription.webhook_url == "https://example.com/webhook"
+    assert subscription.status == WebhookStatus.ACTIVE
+    assert WebhookEvent.DEAL_CREATED in subscription.events
+    assert WebhookEvent.DEAL_UPDATED in subscription.events
 
 
-def test_get_webhooks_by_user(mock_db):
-    """Test retrieving all webhook subscriptions for a user"""
-    repo = WebhookRepository(mock_db)
+@pytest.mark.asyncio
+async def test_get_webhook_by_id(async_db, mock_user):
+    """Test getting webhook by ID"""
+    repo = WebhookRepository(async_db)
 
-    mock_subscriptions = [
-        WebhookSubscription(
-            id=1,
-            user_id=1,
-            webhook_url="https://example.com/webhook1",
-            status=WebhookStatus.ACTIVE,
-        ),
-        WebhookSubscription(
-            id=2,
-            user_id=1,
-            webhook_url="https://example.com/webhook2",
-            status=WebhookStatus.ACTIVE,
-        ),
-    ]
-
-    mock_query = MagicMock()
-    mock_query.filter.return_value.all.return_value = mock_subscriptions
-    mock_db.query.return_value = mock_query
-
-    subscriptions = repo.get_by_user(1)
-
-    assert len(subscriptions) == 2
-    assert all(sub.user_id == 1 for sub in subscriptions)
-
-
-def test_get_active_subscriptions(mock_db):
-    """Test retrieving all active webhook subscriptions"""
-    repo = WebhookRepository(mock_db)
-
-    mock_subscriptions = [
-        WebhookSubscription(
-            id=1,
-            user_id=1,
-            webhook_url="https://example.com/webhook1",
-            status=WebhookStatus.ACTIVE,
-        ),
-        WebhookSubscription(
-            id=2,
-            user_id=2,
-            webhook_url="https://example.com/webhook2",
-            status=WebhookStatus.ACTIVE,
-        ),
-    ]
-
-    mock_query = MagicMock()
-    mock_query.filter.return_value.all.return_value = mock_subscriptions
-    mock_db.query.return_value = mock_query
-
-    subscriptions = repo.get_active_subscriptions()
-
-    assert len(subscriptions) == 2
-    assert all(sub.status == WebhookStatus.ACTIVE for sub in subscriptions)
-
-
-def test_get_matching_subscriptions(mock_db):
-    """Test retrieving webhook subscriptions matching vehicle criteria"""
-    repo = WebhookRepository(mock_db)
-
-    # Create mock subscription that should match
-    mock_subscription = WebhookSubscription(
-        id=1,
-        user_id=1,
+    subscription = await repo.create(
+        user_id=mock_user.id,
         webhook_url="https://example.com/webhook",
-        status=WebhookStatus.ACTIVE,
-        make="Toyota",
-        model="RAV4",
-        price_min=20000,
-        price_max=30000,
-        year_min=2020,
+        events=[WebhookEvent.DEAL_CREATED],
     )
 
-    mock_query = MagicMock()
-    # Chain the filters
-    filtered_query = mock_query.filter.return_value
-    for _ in range(7):  # Multiple filter calls
-        filtered_query = filtered_query.filter.return_value
-    filtered_query.all.return_value = [mock_subscription]
-    mock_db.query.return_value = mock_query
+    retrieved = await repo.get(subscription.id)
+    assert retrieved is not None
+    assert retrieved.id == subscription.id
+    assert retrieved.webhook_url == subscription.webhook_url
 
-    repo.get_matching_subscriptions(
-        make="Toyota", model="RAV4", price=25000, year=2022, mileage=30000
+
+@pytest.mark.asyncio
+async def test_get_webhooks_by_user(async_db, mock_user):
+    """Test getting all webhooks for a user"""
+    repo = WebhookRepository(async_db)
+
+    # Create multiple webhooks
+    sub1 = await repo.create(
+        user_id=mock_user.id,
+        webhook_url="https://example.com/webhook1",
+        events=[WebhookEvent.DEAL_CREATED],
     )
 
-    # In a real scenario, this would match based on criteria
-    # For now, just verify the query is constructed
-    mock_db.query.assert_called_once()
+    sub2 = await repo.create(
+        user_id=mock_user.id,
+        webhook_url="https://example.com/webhook2",
+        events=[WebhookEvent.DEAL_UPDATED],
+    )
+
+    webhooks = await repo.get_by_user(mock_user.id)
+    assert len(webhooks) == 2
+    assert sub1.id in [w.id for w in webhooks]
+    assert sub2.id in [w.id for w in webhooks]
 
 
-def test_update_webhook_subscription(mock_db):
+@pytest.mark.asyncio
+async def test_get_active_subscriptions(async_db, mock_user):
+    """Test getting active subscriptions"""
+    repo = WebhookRepository(async_db)
+
+    # Create active webhook
+    sub1 = await repo.create(
+        user_id=mock_user.id,
+        webhook_url="https://example.com/webhook1",
+        events=[WebhookEvent.DEAL_CREATED],
+    )
+
+    # Create inactive webhook
+    sub2 = await repo.create(
+        user_id=mock_user.id,
+        webhook_url="https://example.com/webhook2",
+        events=[WebhookEvent.DEAL_UPDATED],
+    )
+    await repo.update_status(sub2.id, WebhookStatus.DISABLED)
+
+    active = await repo.get_active_subscriptions(mock_user.id)
+    assert len(active) == 1
+    assert active[0].id == sub1.id
+    assert active[0].status == WebhookStatus.ACTIVE
+
+
+@pytest.mark.asyncio
+async def test_get_matching_subscriptions(async_db, mock_user):
+    """Test getting subscriptions matching an event"""
+    repo = WebhookRepository(async_db)
+
+    # Create webhooks with different events
+    sub1 = await repo.create(
+        user_id=mock_user.id,
+        webhook_url="https://example.com/webhook1",
+        events=[WebhookEvent.DEAL_CREATED, WebhookEvent.DEAL_UPDATED],
+    )
+
+    await repo.create(
+        user_id=mock_user.id,
+        webhook_url="https://example.com/webhook2",
+        events=[WebhookEvent.EVALUATION_COMPLETED],
+    )
+
+    # Get subscriptions for DEAL_CREATED event
+    matching = await repo.get_matching_subscriptions(WebhookEvent.DEAL_CREATED)
+    assert len(matching) == 1
+    assert matching[0].id == sub1.id
+
+
+@pytest.mark.asyncio
+async def test_update_webhook_subscription(async_db, mock_user):
     """Test updating a webhook subscription"""
-    repo = WebhookRepository(mock_db)
+    repo = WebhookRepository(async_db)
 
-    mock_subscription = WebhookSubscription(
-        id=1,
-        user_id=1,
+    subscription = await repo.create(
+        user_id=mock_user.id,
         webhook_url="https://example.com/webhook",
-        status=WebhookStatus.ACTIVE,
-        failure_count=0,
+        events=[WebhookEvent.DEAL_CREATED],
     )
 
-    mock_query = MagicMock()
-    mock_query.filter.return_value.first.return_value = mock_subscription
-    mock_db.query.return_value = mock_query
-    mock_db.commit = MagicMock()
-    mock_db.refresh = MagicMock()
+    updated = await repo.update(
+        subscription.id,
+        webhook_url="https://example.com/new-webhook",
+        events=[WebhookEvent.DEAL_CREATED, WebhookEvent.DEAL_UPDATED],
+    )
 
-    update_data = {"status": WebhookStatus.INACTIVE, "failure_count": 5}
-
-    updated_subscription = repo.update(1, update_data)
-
-    assert updated_subscription is not None
-    assert updated_subscription.status == WebhookStatus.INACTIVE
-    assert updated_subscription.failure_count == 5
-    mock_db.commit.assert_called_once()
+    assert updated is not None
+    assert updated.webhook_url == "https://example.com/new-webhook"
+    assert len(updated.events) == 2
 
 
-def test_delete_webhook_subscription(mock_db):
+@pytest.mark.asyncio
+async def test_delete_webhook_subscription(async_db, mock_user):
     """Test deleting a webhook subscription"""
-    repo = WebhookRepository(mock_db)
+    repo = WebhookRepository(async_db)
 
-    mock_subscription = WebhookSubscription(
-        id=1,
-        user_id=1,
+    subscription = await repo.create(
+        user_id=mock_user.id,
         webhook_url="https://example.com/webhook",
-        status=WebhookStatus.ACTIVE,
+        events=[WebhookEvent.DEAL_CREATED],
     )
 
-    mock_query = MagicMock()
-    mock_query.filter.return_value.first.return_value = mock_subscription
-    mock_db.query.return_value = mock_query
-    mock_db.delete = MagicMock()
-    mock_db.commit = MagicMock()
+    deleted = await repo.delete(subscription.id)
+    assert deleted is True
 
-    result = repo.delete(1)
-
-    assert result is True
-    mock_db.delete.assert_called_once_with(mock_subscription)
-    mock_db.commit.assert_called_once()
+    # Verify it's deleted
+    retrieved = await repo.get(subscription.id)
+    assert retrieved is None
 
 
-def test_increment_failure_count(mock_db):
+@pytest.mark.asyncio
+async def test_increment_failure_count(async_db, mock_user):
     """Test incrementing failure count"""
-    repo = WebhookRepository(mock_db)
+    repo = WebhookRepository(async_db)
 
-    mock_subscription = WebhookSubscription(
-        id=1,
-        user_id=1,
+    subscription = await repo.create(
+        user_id=mock_user.id,
         webhook_url="https://example.com/webhook",
-        status=WebhookStatus.ACTIVE,
-        failure_count=0,
+        events=[WebhookEvent.DEAL_CREATED],
     )
 
-    mock_query = MagicMock()
-    mock_query.filter.return_value.first.return_value = mock_subscription
-    mock_db.query.return_value = mock_query
-    mock_db.commit = MagicMock()
+    assert subscription.failure_count == 0
 
-    repo.increment_failure_count(1)
-
-    assert mock_subscription.failure_count == 1
-    assert mock_subscription.status == WebhookStatus.ACTIVE
-    mock_db.commit.assert_called_once()
+    updated = await repo.increment_failure_count(subscription.id)
+    assert updated.failure_count == 1
 
 
-def test_increment_failure_count_auto_disable(mock_db):
-    """Test that subscription is auto-disabled after 5 failures"""
-    repo = WebhookRepository(mock_db)
+@pytest.mark.asyncio
+async def test_increment_failure_count_auto_disable(async_db, mock_user):
+    """Test auto-disable after max failures"""
+    repo = WebhookRepository(async_db)
 
-    mock_subscription = WebhookSubscription(
-        id=1,
-        user_id=1,
+    subscription = await repo.create(
+        user_id=mock_user.id,
         webhook_url="https://example.com/webhook",
-        status=WebhookStatus.ACTIVE,
-        failure_count=4,  # Already at 4 failures
+        events=[WebhookEvent.DEAL_CREATED],
     )
 
-    mock_query = MagicMock()
-    mock_query.filter.return_value.first.return_value = mock_subscription
-    mock_db.query.return_value = mock_query
-    mock_db.commit = MagicMock()
+    # Increment to max failures (5)
+    for _ in range(5):
+        subscription = await repo.increment_failure_count(subscription.id)
 
-    repo.increment_failure_count(1)
-
-    assert mock_subscription.failure_count == 5
-    assert mock_subscription.status == WebhookStatus.FAILED
-    mock_db.commit.assert_called_once()
+    assert subscription.failure_count == 5
+    assert subscription.status == WebhookStatus.DISABLED
 
 
-def test_reset_failure_count(mock_db):
+@pytest.mark.asyncio
+async def test_reset_failure_count(async_db, mock_user):
     """Test resetting failure count"""
-    repo = WebhookRepository(mock_db)
+    repo = WebhookRepository(async_db)
 
-    mock_subscription = WebhookSubscription(
-        id=1,
-        user_id=1,
+    subscription = await repo.create(
+        user_id=mock_user.id,
         webhook_url="https://example.com/webhook",
-        status=WebhookStatus.FAILED,
-        failure_count=5,
+        events=[WebhookEvent.DEAL_CREATED],
     )
 
-    mock_query = MagicMock()
-    mock_query.filter.return_value.first.return_value = mock_subscription
-    mock_db.query.return_value = mock_query
-    mock_db.commit = MagicMock()
+    # Increment failure count
+    for _ in range(5):
+        await repo.increment_failure_count(subscription.id)
 
-    repo.reset_failure_count(1)
-
-    assert mock_subscription.failure_count == 0
-    assert mock_subscription.status == WebhookStatus.ACTIVE
-    mock_db.commit.assert_called_once()
+    # Reset
+    updated = await repo.reset_failure_count(subscription.id)
+    assert updated.failure_count == 0
+    assert updated.status == WebhookStatus.ACTIVE
