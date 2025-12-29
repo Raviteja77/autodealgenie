@@ -583,7 +583,7 @@ class NegotiationService:
                 if insights:
                     evaluation_context += f"- Key Insights: {'; '.join(insights[:3])}"
 
-            # Use centralized LLM client
+            # Use centralized LLM client with negotiation agent
             response_content = generate_text(
                 prompt_id="negotiation_initial",
                 variables={
@@ -597,6 +597,7 @@ class NegotiationService:
                     "evaluation_context": evaluation_context,
                     "fair_value": fair_value or deal.asking_price,
                 },
+                agent_role="negotiation",
                 temperature=0.7,
             )
 
@@ -800,7 +801,7 @@ class NegotiationService:
                 offer_history.append(f"${msg.message_metadata['suggested_price']:,.2f}")
 
         try:
-            # Use centralized LLM client
+            # Use centralized LLM client with negotiation agent
             response_content = generate_text(
                 prompt_id="negotiation_counter",
                 variables={
@@ -813,6 +814,7 @@ class NegotiationService:
                     "round_number": session.current_round,
                     "offer_history": ", ".join(offer_history) if offer_history else "None",
                 },
+                agent_role="negotiation",
                 temperature=0.7,
             )
 
@@ -1123,7 +1125,7 @@ class NegotiationService:
         suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
 
         try:
-            # Use centralized LLM client
+            # Use centralized LLM client with negotiation agent
             response_content = generate_text(
                 prompt_id="negotiation_chat",
                 variables={
@@ -1137,6 +1139,7 @@ class NegotiationService:
                     "conversation_history": "\n".join(conversation_history[-4:]),
                     "user_message": user_message,
                 },
+                agent_role="negotiation",
                 temperature=0.8,
             )
 
@@ -1310,7 +1313,7 @@ class NegotiationService:
                 break
 
         try:
-            # Use centralized LLM client
+            # Use centralized LLM client with evaluator agent for dealer analysis
             response_content = generate_text(
                 prompt_id="dealer_info_analysis",
                 variables={
@@ -1325,6 +1328,7 @@ class NegotiationService:
                     "dealer_content": content,
                     "price_mentioned": f"${price_mentioned:,.2f}" if price_mentioned else "None",
                 },
+                agent_role="evaluator",
                 temperature=0.7,
             )
 

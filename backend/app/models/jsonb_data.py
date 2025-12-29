@@ -76,6 +76,7 @@ class AIResponse(Base):
     tokens_used = Column(Integer, nullable=True)  # Tokens consumed
     temperature = Column(Integer, nullable=True)  # Temperature parameter (stored as int * 100)
     llm_used = Column(Integer, nullable=False, default=1)  # 1 for True, 0 for False
+    agent_role = Column(String(50), nullable=True)  # Agent role (research, loan, negotiation, evaluator, qa)
     timestamp = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
@@ -84,10 +85,11 @@ class AIResponse(Base):
         Index("idx_ai_responses_feature", "feature", "timestamp"),
         Index("idx_ai_responses_deal", "deal_id", "timestamp"),
         Index("idx_ai_responses_user", "user_id", "timestamp"),
+        Index("idx_ai_responses_agent_role", "agent_role", "timestamp"),
     )
 
     def __repr__(self):
-        return f"<AIResponse {self.id}: Feature {self.feature}, Deal {self.deal_id}>"
+        return f"<AIResponse {self.id}: Feature {self.feature}, Agent {self.agent_role}, Deal {self.deal_id}>"
 
 
 class MarketCheckQuery(Base):

@@ -35,6 +35,7 @@ class AIResponseRepository:
         tokens_used: int | None = None,
         temperature: float | None = None,
         llm_used: bool = True,
+        agent_role: str | None = None,
     ) -> AIResponse:
         """
         Create an AI response record
@@ -51,6 +52,7 @@ class AIResponseRepository:
             tokens_used: Tokens used
             temperature: Temperature used
             llm_used: Whether LLM was actually used (False for fallback)
+            agent_role: Agent role that handled the request (research, loan, negotiation, evaluator, qa)
 
         Returns:
             AIResponse: Created record
@@ -74,6 +76,7 @@ class AIResponseRepository:
             tokens_used=tokens_used,
             temperature=temperature_int,
             llm_used=1 if llm_used else 0,
+            agent_role=agent_role,
         )
 
         self.db.add(record)
@@ -82,7 +85,7 @@ class AIResponseRepository:
 
         logger.info(
             f"Logged AI response for feature={feature}, "
-            f"deal_id={deal_id}, prompt_id={prompt_id}, llm_used={llm_used}"
+            f"deal_id={deal_id}, prompt_id={prompt_id}, llm_used={llm_used}, agent_role={agent_role}"
         )
         return record
 
@@ -254,6 +257,75 @@ class AIResponseRepository:
                 "total_tokens": row.total_tokens or 0,
             }
         print("DEBUG:", analytics)
+        return analytics
+
+    async def get_analytics_by_agent(self, days: int = 30) -> dict[str, Any]:
+        """
+        Get analytics about AI usage by agent role
+
+        Args:
+            days: Number of days to look back
+
+        Returns:
+            Analytics data grouped by agent role
+        """
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+        # Aggregate by agent_role
+        result = await self.db.execute(
+            select(
+                AIResponse.agent_role,
+                AIResponse.feature,
+                func.count(AIResponse.id).label("count"),
+                func.sum(case((AIResponse.llm_used == 1, 1), else_=0)).label("llm_count"),
+                func.sum(case((AIResponse.llm_used == 0, 1), else_=0)).label("fallback_count"),
+                func.sum(AIResponse.tokens_used).label("total_tokens"),
+                func.avg(AIResponse.tokens_used).label("avg_tokens"),
+            )
+            .filter(AIResponse.timestamp >= cutoff_date)
+            .filter(AIResponse.agent_role.isnot(None))  # Only include records with agent_role
+            .group_by(AIResponse.agent_role, AIResponse.feature)
+        )
+        results = result.all()
+
+        analytics = {"period_days": days, "agents": {}}
+        for row in results:
+            agent_role = row.agent_role
+            if agent_role not in analytics["agents"]:
+                analytics["agents"][agent_role] = {
+                    "total_calls": 0,
+                    "llm_calls": 0,
+                    "fallback_calls": 0,
+                    "total_tokens": 0,
+                    "avg_tokens": 0,
+                    "features": {},
+                }
+
+            # Update agent totals
+            analytics["agents"][agent_role]["total_calls"] += row.count
+            analytics["agents"][agent_role]["llm_calls"] += row.llm_count or 0
+            analytics["agents"][agent_role]["fallback_calls"] += row.fallback_count or 0
+            analytics["agents"][agent_role]["total_tokens"] += row.total_tokens or 0
+
+            # Add feature-specific data
+            analytics["agents"][agent_role]["features"][row.feature] = {
+                "total_calls": row.count,
+                "llm_calls": row.llm_count or 0,
+                "fallback_calls": row.fallback_count or 0,
+                "total_tokens": row.total_tokens or 0,
+                "avg_tokens": round(row.avg_tokens, 2) if row.avg_tokens else 0,
+            }
+
+        # Calculate average tokens per agent
+        for agent_role, agent_data in analytics["agents"].items():
+            if agent_data["total_calls"] > 0:
+                agent_data["avg_tokens"] = round(
+                    agent_data["total_tokens"] / agent_data["total_calls"], 2
+                )
+
+        logger.info(
+            f"Agent analytics for {days} days: {len(analytics['agents'])} agents tracked"
+        )
         return analytics
 
     async def delete_by_deal_id(self, deal_id: int) -> int:
