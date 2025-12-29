@@ -554,7 +554,7 @@ function FinalizeDealContent() {
                               </Typography>
 
                               <List dense sx={{ py: 0 }}>
-                                {match.recommendation_reasons.slice(0, 2).map((reason, idx) => (
+                                {match.recommendation_reason.split(" . ").slice(0, 2).map((reason, idx) => (
                                   <ListItem key={idx} sx={{ px: 0, py: 0.5 }}>
                                     <ListItemIcon sx={{ minWidth: 24 }}>
                                       <CheckCircle color="success" fontSize="small" />
@@ -611,11 +611,11 @@ function FinalizeDealContent() {
                   )}
 
                   {lenderRecommendations &&
-                  lenderRecommendations.length > 0 ? (
+                  lenderRecommendations.recommendations.length > 0 ? (
                     <Stack spacing={2}>
-                      {lenderRecommendations
+                      {lenderRecommendations.recommendations
                         .slice(0, 3)
-                        .map((match: LenderMatch, index: number) => (
+                        .map((match: LenderMatch) => (
                           <Paper
                             key={match.lender.lender_id}
                             elevation={2}
