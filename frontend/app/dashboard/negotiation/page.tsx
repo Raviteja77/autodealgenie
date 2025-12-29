@@ -82,12 +82,13 @@ interface VehicleInfo {
   price: number;
   mileage: number;
   fuelType: string;
+  zipCode?: string;
 }
 
 function NegotiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeStep, canNavigateToStep } = useStepper();
+  const { completeStep, canNavigateToStep, getStepData } = useStepper();
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContext = useNegotiationChat();
@@ -97,6 +98,24 @@ function NegotiationContent() {
   // Local state for vehicle data and target price (derived from URL)
   const [vehicleData, setVehicleData] = useState<VehicleInfo | null>(null);
   const [targetPrice, setTargetPrice] = useState<number | null>(null);
+  
+  // Get evaluation data from stepper context (step 2 - evaluation now comes before negotiation)
+  const evaluationStepData = getStepData<{
+    evaluation?: {
+      fair_value?: number;
+      score?: number;
+      insights?: string[];
+      talking_points?: string[];
+      market_data?: {
+        predicted_price?: number;
+        confidence?: string;
+        price_range?: {
+          min: number;
+          max: number;
+        };
+      };
+    };
+  }>(2);
 
   // Use centralized negotiation state hook
   const {
@@ -203,6 +222,7 @@ function NegotiationContent() {
       const priceStr = searchParams.get("price");
       const mileageStr = searchParams.get("mileage");
       const fuelType = searchParams.get("fuelType");
+      const zipCode = searchParams.get("zipCode") || searchParams.get("zip_code");
 
       if (!make || !model || !yearStr || !priceStr || !mileageStr) {
         setVehicleData(null);
@@ -226,6 +246,7 @@ function NegotiationContent() {
         price,
         mileage,
         fuelType: fuelType || "Unknown",
+        zipCode: zipCode || undefined,
       };
       
       setVehicleData(parsedVehicleData);
@@ -326,6 +347,7 @@ function NegotiationContent() {
           deal_id: dealId,
           user_target_price: targetPrice,
           strategy: "moderate",
+          evaluation_data: evaluationStepData?.evaluation,
         });
 
         const session = await apiClient.getNegotiationSession(
@@ -846,6 +868,16 @@ function NegotiationContent() {
                   onClick={() => {
                     if (vehicleData) {
                       const finalPrice = latestPrice?.price || vehicleData.price;
+                      
+                      // Complete negotiation step with final data
+                      completeStep(3, {
+                        status: 'completed',
+                        finalPrice,
+                        negotiatedPrice: finalPrice,
+                        savings: vehicleData.price - finalPrice,
+                        timestamp: new Date().toISOString(),
+                      });
+                      
                       const vehicleParams = new URLSearchParams({
                         vin: vehicleData.vin || "",
                         make: vehicleData.make,
@@ -855,13 +887,19 @@ function NegotiationContent() {
                         mileage: vehicleData.mileage.toString(),
                         fuelType: vehicleData.fuelType || "",
                       });
+                      
+                      // Add zipCode if available
+                      if (vehicleData.zipCode) {
+                        vehicleParams.set("zipCode", vehicleData.zipCode);
+                      }
+                      
                       router.push(
-                        `/dashboard/evaluation?${vehicleParams.toString()}`
+                        `/dashboard/finalize?${vehicleParams.toString()}`
                       );
                     }
                   }}
                 >
-                  Evaluate Deal
+                  Proceed to Final Summary
                 </Button>
                 <Link
                   href="/dashboard/search"

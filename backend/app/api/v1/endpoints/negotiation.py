@@ -48,13 +48,14 @@ async def create_negotiation(
     - `deal_id`: ID of the deal being negotiated
     - `user_target_price`: User's target price
     - `strategy`: Optional negotiation strategy (e.g., "aggressive", "moderate")
+    - `evaluation_data`: Optional evaluation results (recommended for data-driven negotiation)
 
     **Returns:**
     - `session_id`: ID of the created session
     - `status`: Current session status
     - `current_round`: Current negotiation round
     - `agent_message`: Agent's initial response
-    - `metadata`: Additional context (suggested price, etc.)
+    - `metadata`: Additional context (suggested price, evaluation data, etc.)
 
     **Requires authentication**
     """
@@ -64,6 +65,7 @@ async def create_negotiation(
         deal_id=request.deal_id,
         user_target_price=request.user_target_price,
         strategy=request.strategy,
+        evaluation_data=request.evaluation_data,
     )
     return result
 

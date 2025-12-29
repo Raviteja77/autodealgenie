@@ -88,3 +88,31 @@ class AIResponse(Base):
 
     def __repr__(self):
         return f"<AIResponse {self.id}: Feature {self.feature}, Deal {self.deal_id}>"
+
+
+class MarketCheckQuery(Base):
+    """
+    MarketCheck API query history model
+    Previously stored in MongoDB, now using PostgreSQL JSONB
+    Stores query parameters and response summaries for analytics and caching
+    """
+
+    __tablename__ = "marketcheck_queries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    query_type = Column(String(50), nullable=False, index=True)  # 'search', 'price', 'vin', 'mds'
+    params = Column(JSONB, nullable=False)  # Query parameters
+    response_summary = Column(JSONB, nullable=False)  # API response summary
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    timestamp = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        Index("idx_marketcheck_queries_type", "query_type", "timestamp"),
+        Index("idx_marketcheck_queries_user", "user_id", "timestamp"),
+    )
+
+    def __repr__(self):
+        return f"<MarketCheckQuery {self.id}: Type {self.query_type}, User {self.user_id}>"

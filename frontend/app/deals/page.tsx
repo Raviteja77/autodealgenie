@@ -50,10 +50,12 @@ export default function DealsPage() {
 
   const getNavigationHint = (status: string): string | null => {
     switch (status) {
+      case "pending":
+        return "Click to evaluate deal";
       case "in_progress":
         return "Click to continue negotiation";
       case "completed":
-        return "Click to view deal evaluation";
+        return "Click to view deal details";
       default:
         return null;
     }
@@ -79,14 +81,18 @@ export default function DealsPage() {
     
     // Add fuelType with fallback
     vehicleParams.set("fuelType", DEFAULT_FUEL_TYPE);
+    vehicleParams.set("condition", DEFAULT_CONDITION);
     
-    // Navigate based on deal status
-    if (deal.status === "in_progress") {
-      // In progress deals go to negotiation page
+    // Navigate based on deal status - evaluation must come before negotiation
+    if (deal.status === "pending") {
+      // New deals go to evaluation first
+      router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
+    } else if (deal.status === "in_progress") {
+      // Deals in progress (after evaluation) go to negotiation
       router.push(`/dashboard/negotiation?${vehicleParams.toString()}`);
     } else if (deal.status === "completed") {
-      // Completed deals go to evaluation page
-      vehicleParams.set("condition", DEFAULT_CONDITION); // Add default condition for evaluation
+      // Completed deals can view either evaluation or negotiation results
+      // Default to evaluation page to show final assessment
       router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
     }
   };

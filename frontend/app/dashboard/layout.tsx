@@ -19,11 +19,13 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
       <Header />
       <Container maxWidth="xl" sx={{ pt: 16, pb: 6, flexGrow: 1 }}>
         {showStepper && (
-          <ProgressStepper
-            activeStep={currentStep}
-            steps={steps.map(step => step.label)}
-            onStepClick={navigateToStep}
-          />
+          <Container maxWidth="xl">
+            <ProgressStepper
+              activeStep={currentStep}
+              steps={steps.map(step => step.label)}
+              onStepClick={navigateToStep}
+            />
+          </Container>
         )}
         {children}
       </Container>

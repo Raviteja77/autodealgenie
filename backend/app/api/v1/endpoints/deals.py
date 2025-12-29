@@ -129,18 +129,32 @@ async def evaluate_deal(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Evaluate a car deal and get fair market value analysis
+    Evaluate a car deal and get fair market value analysis using MarketCheck ML Price API
+
+    This endpoint uses MarketCheck's ML-based price prediction API for accurate fair value
+    estimates and combines it with LLM-powered insights. For best results, provide make,
+    model, year, and zip_code.
 
     Returns:
-        - fair_value: Estimated fair market value
+        - fair_value: Estimated fair market value based on MarketCheck ML prediction
         - score: Deal quality score (1-10)
-        - insights: AI-powered analysis insights
-        - talking_points: Negotiation recommendations
+        - insights: AI-powered analysis insights incorporating market data
+        - talking_points: Data-driven negotiation recommendations
+        - market_data: Detailed ML price prediction data from MarketCheck, including:
+            - predicted_price: The model-predicted fair market price
+            - confidence: Confidence level for the prediction (e.g., 'high', 'medium', 'low')
+            - price_range: Expected price range with:
+                - min: Lower bound of the predicted fair price
+                - max: Upper bound of the predicted fair price
     """
     result = await deal_evaluation_service.evaluate_deal(
         vehicle_vin=evaluation_request.vehicle_vin,
         asking_price=evaluation_request.asking_price,
         condition=evaluation_request.condition,
         mileage=evaluation_request.mileage,
+        make=evaluation_request.make,
+        model=evaluation_request.model,
+        year=evaluation_request.year,
+        zip_code=evaluation_request.zip_code,
     )
     return result

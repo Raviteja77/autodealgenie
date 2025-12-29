@@ -51,6 +51,8 @@ interface SearchFormData {
   mustHaveFeatures: string[];
   userPriorities: string;
   maxResults: number;
+  zipCode: string;
+  searchRadius: number;
 
   // Financing criteria
   paymentMethod: "cash" | "finance" | "both";
@@ -81,6 +83,8 @@ function DashboardSearchPageContent() {
     drivetrain: "",
     mustHaveFeatures: [],
     userPriorities: "",
+    zipCode: "",
+    searchRadius: 50,
     paymentMethod: "cash",
     budgetMin: 10000,
     budgetMax: 50000,
@@ -473,6 +477,14 @@ function DashboardSearchPageContent() {
                   model={searchParams.model}
                   carType={searchParams.carType}
                   bodyType={searchParams.bodyType}
+                  zipCode={searchParams.zipCode}
+                  searchRadius={searchParams.searchRadius}
+                  onZipCodeChange={(value) =>
+                    setSearchParams((prev) => ({ ...prev, zipCode: value }))
+                  }
+                  onSearchRadiusChange={(value) =>
+                    setSearchParams((prev) => ({ ...prev, searchRadius: value }))
+                  }
                   maxResults={searchParams.maxResults}
                   onMaxResultsChange={(value) =>
                     setSearchParams((prev) => ({ ...prev, maxResults: value }))
@@ -635,6 +647,8 @@ function DashboardSearchPageContent() {
                           drivetrain: "",
                           mustHaveFeatures: [],
                           userPriorities: "",
+                          zipCode: "",
+                          searchRadius: 50,
                           paymentMethod: "cash",
                           budgetMin: 10000,
                           budgetMax: 50000,

@@ -937,11 +937,11 @@ function ResultsContent() {
                           onClick={() =>
                             handleVehicleSelection(
                               vehicle,
-                              "/dashboard/negotiation"
+                              "/dashboard/evaluation"
                             )
                           }
                         >
-                          Negotiate
+                          Evaluate Deal
                         </Button>
                         {/* <Button
                           variant="primary"

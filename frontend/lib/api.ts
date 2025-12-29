@@ -43,6 +43,10 @@ export interface DealEvaluationRequest {
   asking_price: number;
   condition: string;
   mileage: number;
+  make?: string;
+  model?: string;
+  year?: number;
+  zip_code?: string;
 }
 
 export interface DealEvaluationResponse {
@@ -50,6 +54,14 @@ export interface DealEvaluationResponse {
   score: number;
   insights: string[];
   talking_points: string[];
+  market_data?: {
+    predicted_price: number;
+    confidence: string;
+    price_range: {
+      min: number;
+      max: number;
+    };
+  };
 }
 
 export interface CarSearchRequest {
@@ -293,6 +305,20 @@ export interface CreateNegotiationRequest {
   deal_id: number;
   user_target_price: number;
   strategy?: string | null;
+  evaluation_data?: {
+    fair_value?: number;
+    score?: number;
+    insights?: string[];
+    talking_points?: string[];
+    market_data?: {
+      predicted_price?: number;
+      confidence?: string;
+      price_range?: {
+        min: number;
+        max: number;
+      };
+    };
+  };
 }
 
 export interface CreateNegotiationResponse {

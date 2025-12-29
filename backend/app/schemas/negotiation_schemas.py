@@ -43,6 +43,10 @@ class CreateNegotiationRequest(BaseModel):
         max_length=50,
         description="Negotiation strategy (e.g., aggressive, moderate)",
     )
+    evaluation_data: dict[str, Any] | None = Field(
+        None,
+        description="Optional evaluation results (fair_value, score, insights, market_data)",
+    )
 
 
 class NextRoundRequest(BaseModel):

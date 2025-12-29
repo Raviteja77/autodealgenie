@@ -1245,16 +1245,22 @@ PROMPTS: dict[str, PromptTemplate] = {
       User's Target Price: ${target_price:,.2f}
       Negotiation Strategy: {strategy}
 
+      {evaluation_context}
+
       CRITICAL: You work for the buyer, not the dealer. Your goal is to help the user pay as little as possible while still getting the vehicle they want.
 
-      Generate a strategic response that:
-      1. Acknowledges the user's target price as reasonable and achievable
-      2. Suggests an INITIAL OFFER that is 10-15% BELOW the user's target price (to leave room for negotiation)
-      3. Provides specific talking points the user can use to justify a lower price (vehicle age, mileage, market conditions, comparable listings)
-      4. Encourages the user to start low and negotiate up, not the other way around
-      5. Reminds them that dealers expect negotiation and initial offers are rarely accepted
+      USE THE EVALUATION DATA: If evaluation data is provided above (Fair Market Value, Deal Quality Score, Market Analysis), use it prominently in your response. Reference the fair market value (${fair_value:,.2f}) and MarketCheck ML predictions to justify your suggested price.
 
-      Example approach: "Based on market data, I recommend starting with an offer of $[15% below target]. This gives you negotiating room and reflects the vehicle's [age/mileage/condition]. Dealers typically expect to negotiate, so starting lower is standard practice."
+      Generate a strategic response that:
+      1. References the fair market value and evaluation score if available
+      2. Acknowledges the user's target price in the context of market data
+      3. Suggests an INITIAL OFFER based on the fair value (if available) or 10-15% BELOW the user's target price
+      4. Provides specific talking points using MarketCheck data (ML predicted price, confidence level, price range)
+      5. Uses the market analysis to build a strong negotiation position
+      6. Encourages the user to start low and negotiate up, backed by data
+      7. Reminds them that dealers expect negotiation and data-driven offers are powerful
+
+      Example with evaluation data: "Based on MarketCheck ML price prediction of ${fair_value:,.2f}, I recommend starting with an offer of $[slightly below fair value] which is justified by market conditions. This approach is data-driven and gives you strong leverage."
 
       Keep your response conversational, supportive, and under 200 words. Always prioritize the user's financial benefit.""",
     ),
