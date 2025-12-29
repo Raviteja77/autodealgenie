@@ -3,12 +3,12 @@ Authentication endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token, decode_token
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.models import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth_schemas import (
@@ -25,7 +25,7 @@ router = APIRouter()
 
 
 @router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def signup(user_in: UserCreate, db: Session = Depends(get_db)):
+def signup(user_in: UserCreate, db: AsyncSession = Depends(get_async_db)):
     """
     Create a new user account
     """
@@ -48,7 +48,7 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(response: Response, login_request: LoginRequest, db: Session = Depends(get_db)):
+def login(response: Response, login_request: LoginRequest, db: AsyncSession = Depends(get_async_db)):
     """
     Login and get access and refresh tokens
     """
@@ -92,7 +92,7 @@ def login(response: Response, login_request: LoginRequest, db: Session = Depends
 def refresh(
     response: Response,
     refresh_request: RefreshTokenRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Refresh access token using refresh token
@@ -187,7 +187,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
 def forgot_password(
     request: ForgotPasswordRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Request a password reset token
@@ -213,7 +213,7 @@ def forgot_password(
 @router.post("/reset-password", response_model=ForgotPasswordResponse)
 def reset_password(
     request: ResetPasswordRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Reset password using a valid reset token

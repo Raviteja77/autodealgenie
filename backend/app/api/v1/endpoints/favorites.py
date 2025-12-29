@@ -5,10 +5,10 @@ Favorites endpoints with repository pattern and in-memory fallback
 import threading
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.models import User
 from app.repositories.favorite_repository import FavoriteRepository
 from app.schemas.schemas import FavoriteCreate, FavoriteResponse
@@ -25,7 +25,7 @@ storage_lock = threading.Lock()
 def add_favorite(
     favorite_in: FavoriteCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Add a car to favorites (requires authentication)"""
     user_id = current_user.id
@@ -46,7 +46,7 @@ def add_favorite(
 @router.get("/", response_model=list[FavoriteResponse])
 def get_favorites(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get all favorites for the current user (requires authentication)"""
     user_id = current_user.id
@@ -60,7 +60,7 @@ def get_favorites(
 def remove_favorite(
     vin: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Remove a car from favorites (requires authentication)"""
     user_id = current_user.id
@@ -79,7 +79,7 @@ def remove_favorite(
 def get_favorite(
     vin: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Check if a specific vehicle is in favorites (requires authentication)"""
     user_id = current_user.id

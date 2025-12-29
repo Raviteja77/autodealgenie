@@ -5,7 +5,7 @@ Loan calculation endpoints (anonymous, secure)
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, get_db
 from app.models.models import User
@@ -87,7 +87,7 @@ def generate_mock_loan_offers(
 async def calculate_loan_payment(
     calculation: LoanCalculationRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Calculate monthly payment and total cost for a loan.

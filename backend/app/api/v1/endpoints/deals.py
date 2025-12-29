@@ -3,10 +3,10 @@ Deal endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.models import User
 from app.repositories.deal_repository import DealRepository
 from app.schemas.schemas import (
@@ -24,7 +24,7 @@ router = APIRouter()
 @router.post("/", response_model=DealResponse, status_code=status.HTTP_201_CREATED)
 def create_deal(
     deal_in: DealCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Create a new deal (requires authentication)"""
@@ -37,7 +37,7 @@ def create_deal(
 def get_deals(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get all deals with pagination (requires authentication)"""
@@ -50,7 +50,7 @@ def get_deals(
 def get_deal_by_email_and_vin(
     customer_email: str,
     vehicle_vin: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get deals by customer email and vehicle VIN (requires authentication)"""
@@ -74,7 +74,7 @@ def get_deal_by_email_and_vin(
 @router.get("/{deal_id}", response_model=DealResponse)
 def get_deal(
     deal_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get a specific deal by ID (requires authentication)"""
@@ -92,7 +92,7 @@ def get_deal(
 def update_deal(
     deal_id: int,
     deal_in: DealUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Update a deal (requires authentication)"""
@@ -109,7 +109,7 @@ def update_deal(
 @router.delete("/{deal_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_deal(
     deal_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """Delete a deal (requires authentication)"""

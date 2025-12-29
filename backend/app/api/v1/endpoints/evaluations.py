@@ -3,10 +3,10 @@ Deal Evaluation endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import User
 from app.repositories.deal_repository import DealRepository
@@ -43,7 +43,7 @@ DEFAULT_INTEREST_RATE = 5.5
 async def initiate_or_continue_evaluation(
     deal_id: int,
     request: EvaluationInitiateRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -113,7 +113,7 @@ async def initiate_or_continue_evaluation(
 def get_evaluation(
     deal_id: int,
     evaluation_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -147,7 +147,7 @@ async def submit_evaluation_answers(
     deal_id: int,
     evaluation_id: int,
     request: EvaluationAnswerRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -214,7 +214,7 @@ async def submit_evaluation_answers(
 def get_evaluation_lenders(
     deal_id: int,
     evaluation_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
