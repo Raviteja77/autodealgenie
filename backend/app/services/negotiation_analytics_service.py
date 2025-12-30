@@ -885,29 +885,61 @@ class NegotiationAnalyticsService:
     ) -> None:
         """Store analytics results in database"""
         try:
-            query = text(
+            # First, check if a record exists
+            check_query = text(
                 """
-                INSERT INTO negotiation_analytics
-                (session_id, success_probability, confidence_score, negotiation_patterns, created_at)
-                VALUES (:session_id, :success_probability, :confidence_score, :patterns, NOW())
-                ON CONFLICT (session_id)
-                DO UPDATE SET
-                    success_probability = :success_probability,
-                    confidence_score = :confidence_score,
-                    negotiation_patterns = :patterns,
-                    updated_at = NOW()
-            """
+                SELECT id FROM negotiation_analytics
+                WHERE session_id = :session_id
+                LIMIT 1
+                """
             )
 
-            await self.db.execute(
-                query,
-                {
-                    "session_id": session_id,
-                    "success_probability": analytics_data.get("success_probability"),
-                    "confidence_score": analytics_data.get("similar_sessions_count", 0) / 20.0,
-                    "patterns": json.dumps(analytics_data),
-                },
-            )
+            result = await self.db.execute(check_query, {"session_id": session_id})
+            existing = result.fetchone()
+
+            if existing:
+                # Update existing record
+                update_query = text(
+                    """
+                    UPDATE negotiation_analytics
+                    SET
+                        success_probability = :success_probability,
+                        confidence_score = :confidence_score,
+                        negotiation_patterns = :patterns,
+                        updated_at = NOW()
+                    WHERE session_id = :session_id
+                    """
+                )
+
+                await self.db.execute(
+                    update_query,
+                    {
+                        "session_id": session_id,
+                        "success_probability": analytics_data.get("success_probability"),
+                        "confidence_score": analytics_data.get("similar_sessions_count", 0) / 20.0,
+                        "patterns": json.dumps(analytics_data),
+                    },
+                )
+            else:
+                # Insert new record
+                insert_query = text(
+                    """
+                    INSERT INTO negotiation_analytics
+                    (session_id, success_probability, confidence_score, negotiation_patterns, created_at)
+                    VALUES (:session_id, :success_probability, :confidence_score, :patterns, NOW())
+                    """
+                )
+
+                await self.db.execute(
+                    insert_query,
+                    {
+                        "session_id": session_id,
+                        "success_probability": analytics_data.get("success_probability"),
+                        "confidence_score": analytics_data.get("similar_sessions_count", 0) / 20.0,
+                        "patterns": json.dumps(analytics_data),
+                    },
+                )
+
             await self.db.commit()
 
         except Exception as e:

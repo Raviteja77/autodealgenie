@@ -6,8 +6,8 @@ import logging
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm import generate_text
 from app.models.negotiation import MessageRole, NegotiationSession, NegotiationStatus
@@ -217,7 +217,7 @@ class NegotiationService:
                 "agent_message": agent_response["content"],
                 "metadata": agent_response["metadata"],
             }
-        
+
         except SQLAlchemyError as db_exc:
             await self.db.rollback()
             logger.error(f"[{request_id}] DB error: {str(db_exc)}")

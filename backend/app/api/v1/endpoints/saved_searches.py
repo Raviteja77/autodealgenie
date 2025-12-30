@@ -122,7 +122,9 @@ async def delete_saved_search(
     """
     Delete a saved search
     """
-    deleted = await saved_search_repository.delete(db=db, search_id=search_id, user_id=current_user.id)
+    deleted = await saved_search_repository.delete(
+        db=db, search_id=search_id, user_id=current_user.id
+    )
 
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Saved search not found")

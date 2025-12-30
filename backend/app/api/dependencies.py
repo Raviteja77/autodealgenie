@@ -6,14 +6,14 @@ from fastapi import Cookie, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_token
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.models import User
 from app.repositories.user_repository import UserRepository
 
 
 async def get_current_user(
     access_token: str | None = Cookie(default=None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ) -> User:
     """
     Get the current authenticated user from the access token cookie
