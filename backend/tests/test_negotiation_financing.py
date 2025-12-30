@@ -125,13 +125,20 @@ async def test_negotiation_response_includes_financing(async_db, mock_deal):
 
     service = NegotiationService(async_db)
 
+    # Create a proper mock session with all required attributes
+    mock_session = Mock()
+    mock_session.id = 1
+    mock_session.current_round = 1
+    mock_session.max_rounds = 10
+    mock_session.user_id = 1  # Must be an int, not a Mock
+
     # Mock the LLM response
     with patch(
         "app.services.negotiation_service.generate_text",
         return_value="Here's my offer for this vehicle.",
     ):
         response = await service._generate_agent_response(
-            session=Mock(id=1, current_round=1, max_rounds=10),
+            session=mock_session,
             deal=mock_deal,
             user_target_price=22000.0,
             strategy="moderate",

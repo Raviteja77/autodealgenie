@@ -45,11 +45,16 @@ class WebhookRepository:
         )
         return result.scalars().all()
 
-    async def get_active_subscriptions(self) -> list[WebhookSubscription]:
-        """Get all active webhook subscriptions"""
-        result = await self.db.execute(
-            select(WebhookSubscription).filter(WebhookSubscription.status == WebhookStatus.ACTIVE)
+    async def get_active_subscriptions(
+        self, user_id: int | None = None
+    ) -> list[WebhookSubscription]:
+        """Get all active webhook subscriptions, optionally filtered by user"""
+        query = select(WebhookSubscription).filter(
+            WebhookSubscription.status == WebhookStatus.ACTIVE
         )
+        if user_id is not None:
+            query = query.filter(WebhookSubscription.user_id == user_id)
+        result = await self.db.execute(query)
         return result.scalars().all()
 
     async def get_matching_subscriptions(
@@ -140,6 +145,28 @@ class WebhookRepository:
         await self.db.refresh(subscription)
         return subscription
 
+    async def update_status(
+        self, subscription_id: int, status: WebhookStatus
+    ) -> WebhookSubscription | None:
+        """
+        Update webhook subscription status
+
+        Args:
+            subscription_id: Subscription ID
+            status: New status
+
+        Returns:
+            Updated WebhookSubscription or None
+        """
+        subscription = await self.get_by_id(subscription_id)
+        if not subscription:
+            return None
+
+        subscription.status = status
+        await self.db.commit()
+        await self.db.refresh(subscription)
+        return subscription
+
     async def delete(self, subscription_id: int) -> bool:
         """
         Delete webhook subscription
@@ -158,21 +185,45 @@ class WebhookRepository:
         await self.db.commit()
         return True
 
-    async def increment_failure_count(self, subscription_id: int) -> None:
-        """Increment failure count for a subscription"""
-        subscription = await self.get_by_id(subscription_id)
-        if subscription:
-            subscription.failure_count += 1
-            # Auto-disable after 5 consecutive failures
-            if subscription.failure_count >= 5:
-                subscription.status = WebhookStatus.FAILED
-            await self.db.commit()
+    async def increment_failure_count(self, subscription_id: int) -> WebhookSubscription | None:
+        """
+        Increment failure count for a subscription
 
-    async def reset_failure_count(self, subscription_id: int) -> None:
-        """Reset failure count for a subscription"""
+        Args:
+            subscription_id: Subscription ID
+
+        Returns:
+            Updated WebhookSubscription or None
+        """
         subscription = await self.get_by_id(subscription_id)
-        if subscription:
-            subscription.failure_count = 0
-            if subscription.status == WebhookStatus.FAILED:
-                subscription.status = WebhookStatus.ACTIVE
-            await self.db.commit()
+        if not subscription:
+            return None
+
+        subscription.failure_count += 1
+        # Auto-disable after 5 consecutive failures
+        if subscription.failure_count >= 5:
+            subscription.status = WebhookStatus.INACTIVE
+        await self.db.commit()
+        await self.db.refresh(subscription)
+        return subscription
+
+    async def reset_failure_count(self, subscription_id: int) -> WebhookSubscription | None:
+        """
+        Reset failure count for a subscription
+
+        Args:
+            subscription_id: Subscription ID
+
+        Returns:
+            Updated WebhookSubscription or None
+        """
+        subscription = await self.get_by_id(subscription_id)
+        if not subscription:
+            return None
+
+        subscription.failure_count = 0
+        if subscription.status == WebhookStatus.INACTIVE:
+            subscription.status = WebhookStatus.ACTIVE
+        await self.db.commit()
+        await self.db.refresh(subscription)
+        return subscription
