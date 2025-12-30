@@ -30,6 +30,9 @@ aio-pika==9.4.3
 langchain==0.3.7
 langchain-openai==0.2.8
 openai==1.54.4
+pgvector==0.3.6  # Vector similarity search for PostgreSQL
+scikit-learn==1.5.2  # ML models for negotiation analytics
+numpy==1.26.4  # Required by scikit-learn
 
 # Utilities
 python-dotenv==1.0.1
