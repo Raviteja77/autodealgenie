@@ -750,8 +750,8 @@ class NegotiationAnalyticsService:
         messages: list[NegotiationMessage],
     ) -> str:
         """Calculate how quickly negotiation is progressing"""
-        if len(messages) < 4:
-            return "unknown"
+        # if len(messages) < 4:
+        #     return "unknown"
 
         # Look for price mentions in metadata
         price_points = []

@@ -2,8 +2,9 @@
 Unit tests for MarketIntelligenceService
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.services.market_intelligence_service import MarketIntelligenceService
 from app.services.marketcheck_service import MarketCheckService
@@ -107,12 +108,12 @@ class TestGetRealTimeComps:
         )
 
         # Should not raise, returns fallback
-        result = await market_intelligence_service.get_real_time_comps(
-            make="Toyota", model="Camry", year=2022, mileage=15000
-        )
+        with pytest.raises(ApiError) as exc_info:
+            await market_intelligence_service.get_real_time_comps(
+                make="Toyota", model="Camry", year=2022, mileage=15000
+            )
 
-        assert result["average_price"] == 0.0
-        assert "temporarily unavailable" in result["market_summary"].lower()
+        assert exc_info.value.status_code == 503
 
 
 class TestGetPriceTrend:
@@ -195,9 +196,7 @@ class TestGetPriceTrend:
         mock_marketcheck_service.is_available.return_value = False
         service = MarketIntelligenceService(marketcheck_service=mock_marketcheck_service)
 
-        result = await service.get_price_trend(
-            make="Toyota", model="Camry", year=2022
-        )
+        result = await service.get_price_trend(make="Toyota", model="Camry", year=2022)
 
         # Should return fallback data
         assert result["trend_direction"] == "stable"

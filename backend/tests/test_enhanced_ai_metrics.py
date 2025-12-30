@@ -3,15 +3,17 @@ Integration tests for enhanced AI metrics in negotiation service
 Tests the Phase 3 enhancements to _calculate_ai_metrics
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-from app.services.negotiation_service import NegotiationService
+import pytest
+
 from app.models.negotiation import MessageRole
+from app.services.negotiation_service import NegotiationService
 
 
 class MockDeal:
     """Mock Deal object for testing"""
+
     def __init__(self):
         self.id = 1
         self.asking_price = 25000
@@ -24,6 +26,7 @@ class MockDeal:
 
 class MockMessage:
     """Mock NegotiationMessage object"""
+
     def __init__(self, round_number, role="user", metadata=None):
         self.round_number = round_number
         self.role = MessageRole.USER if role == "user" else MessageRole.AGENT
@@ -53,7 +56,7 @@ class TestEnhancedAIMetrics:
         """Test AI metrics calculation with market intelligence data"""
         deal = MockDeal()
         messages = [MockMessage(1), MockMessage(2)]
-        
+
         # Mock market intelligence service
         negotiation_service.market_intelligence_service.get_real_time_comps = AsyncMock(
             return_value={
@@ -63,7 +66,7 @@ class TestEnhancedAIMetrics:
                 "market_summary": "Found 20 comparable vehicles",
             }
         )
-        
+
         negotiation_service.market_intelligence_service.get_price_trend = AsyncMock(
             return_value={
                 "trend_direction": "decreasing",
@@ -71,7 +74,7 @@ class TestEnhancedAIMetrics:
                 "market_days_supply": 65.0,
             }
         )
-        
+
         # Mock analytics service to avoid ML calls
         negotiation_service.analytics_service.calculate_success_probability = AsyncMock(
             side_effect=Exception("Skip ML")
@@ -82,7 +85,7 @@ class TestEnhancedAIMetrics:
         negotiation_service.analytics_service.get_optimal_counter_offer = AsyncMock(
             side_effect=Exception("Skip ML")
         )
-        
+
         metrics = await negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
@@ -90,7 +93,7 @@ class TestEnhancedAIMetrics:
             user_target=21000,
             messages=messages,
         )
-        
+
         # Verify market intelligence data is included
         assert "average_market_price" in metrics
         assert metrics["average_market_price"] == 24000
@@ -99,7 +102,7 @@ class TestEnhancedAIMetrics:
         assert metrics["price_trend"] == "decreasing"
         assert metrics["demand_level"] == "low"
         assert metrics["market_days_supply"] == 65.0
-        
+
         # Verify basic metrics still present
         assert "confidence_score" in metrics
         assert "recommended_action" in metrics
@@ -110,7 +113,7 @@ class TestEnhancedAIMetrics:
         """Test AI metrics calculation with ML success probability"""
         deal = MockDeal()
         messages = [MockMessage(1)]
-        
+
         # Mock market intelligence to skip
         negotiation_service.market_intelligence_service.get_real_time_comps = AsyncMock(
             side_effect=Exception("Skip market")
@@ -118,7 +121,7 @@ class TestEnhancedAIMetrics:
         negotiation_service.market_intelligence_service.get_price_trend = AsyncMock(
             side_effect=Exception("Skip market")
         )
-        
+
         # Mock ML prediction
         negotiation_service.analytics_service.calculate_success_probability = AsyncMock(
             return_value={
@@ -128,7 +131,7 @@ class TestEnhancedAIMetrics:
                 "similar_sessions_count": 12,
             }
         )
-        
+
         # Mock other analytics
         negotiation_service.analytics_service.analyze_negotiation_patterns = AsyncMock(
             side_effect=Exception("Skip")
@@ -136,7 +139,7 @@ class TestEnhancedAIMetrics:
         negotiation_service.analytics_service.get_optimal_counter_offer = AsyncMock(
             side_effect=Exception("Skip")
         )
-        
+
         metrics = await negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
@@ -144,14 +147,14 @@ class TestEnhancedAIMetrics:
             user_target=21000,
             messages=messages,
         )
-        
+
         # Verify ML prediction data is included
         assert "success_probability" in metrics
         assert metrics["success_probability"] == 0.85
         assert metrics["ml_confidence_level"] == "high"
         assert "key_factors" in metrics
         assert metrics["similar_sessions"] == 12
-        
+
         # Confidence score should be blended with ML prediction
         assert metrics["confidence_score"] > 0.5
 
@@ -160,7 +163,7 @@ class TestEnhancedAIMetrics:
         """Test AI metrics calculation with pattern analysis"""
         deal = MockDeal()
         messages = [MockMessage(i) for i in range(1, 5)]
-        
+
         # Skip other services
         negotiation_service.market_intelligence_service.get_real_time_comps = AsyncMock(
             side_effect=Exception("Skip")
@@ -171,7 +174,7 @@ class TestEnhancedAIMetrics:
         negotiation_service.analytics_service.calculate_success_probability = AsyncMock(
             side_effect=Exception("Skip")
         )
-        
+
         # Mock pattern analysis
         negotiation_service.analytics_service.analyze_negotiation_patterns = AsyncMock(
             return_value={
@@ -181,11 +184,11 @@ class TestEnhancedAIMetrics:
                 "insights": ["Good progress", "Dealer flexible"],
             }
         )
-        
+
         negotiation_service.analytics_service.get_optimal_counter_offer = AsyncMock(
             side_effect=Exception("Skip")
         )
-        
+
         metrics = await negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
@@ -193,7 +196,7 @@ class TestEnhancedAIMetrics:
             user_target=21000,
             messages=messages,
         )
-        
+
         # Verify pattern analysis data is included
         assert metrics["negotiation_velocity_pattern"] == "fast"
         assert metrics["dealer_flexibility_pattern"] == "high"
@@ -205,7 +208,7 @@ class TestEnhancedAIMetrics:
         """Test AI metrics calculation with optimal counter-offer"""
         deal = MockDeal()
         messages = [MockMessage(1)]
-        
+
         # Skip other services
         negotiation_service.market_intelligence_service.get_real_time_comps = AsyncMock(
             side_effect=Exception("Skip")
@@ -219,7 +222,7 @@ class TestEnhancedAIMetrics:
         negotiation_service.analytics_service.analyze_negotiation_patterns = AsyncMock(
             side_effect=Exception("Skip")
         )
-        
+
         # Mock optimal offer calculation
         negotiation_service.analytics_service.get_optimal_counter_offer = AsyncMock(
             return_value={
@@ -229,7 +232,7 @@ class TestEnhancedAIMetrics:
                 "risk_assessment": "low",
             }
         )
-        
+
         metrics = await negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
@@ -237,7 +240,7 @@ class TestEnhancedAIMetrics:
             user_target=21000,
             messages=messages,
         )
-        
+
         # Verify optimal offer data is included
         assert metrics["ml_optimal_offer"] == 21800
         assert "optimal_offer_rationale" in metrics
@@ -249,7 +252,7 @@ class TestEnhancedAIMetrics:
         """Test AI metrics with all Phase 3 integrations working"""
         deal = MockDeal()
         messages = [MockMessage(i) for i in range(1, 4)]
-        
+
         # Mock all services successfully
         negotiation_service.market_intelligence_service.get_real_time_comps = AsyncMock(
             return_value={
@@ -259,7 +262,7 @@ class TestEnhancedAIMetrics:
                 "market_summary": "Strong market data",
             }
         )
-        
+
         negotiation_service.market_intelligence_service.get_price_trend = AsyncMock(
             return_value={
                 "trend_direction": "stable",
@@ -267,7 +270,7 @@ class TestEnhancedAIMetrics:
                 "market_days_supply": 45.0,
             }
         )
-        
+
         negotiation_service.analytics_service.calculate_success_probability = AsyncMock(
             return_value={
                 "success_probability": 0.75,
@@ -276,7 +279,7 @@ class TestEnhancedAIMetrics:
                 "similar_sessions_count": 10,
             }
         )
-        
+
         negotiation_service.analytics_service.analyze_negotiation_patterns = AsyncMock(
             return_value={
                 "negotiation_velocity": "moderate",
@@ -285,7 +288,7 @@ class TestEnhancedAIMetrics:
                 "insights": ["Standard progress"],
             }
         )
-        
+
         negotiation_service.analytics_service.get_optimal_counter_offer = AsyncMock(
             return_value={
                 "optimal_offer": 22200,
@@ -294,7 +297,7 @@ class TestEnhancedAIMetrics:
                 "risk_assessment": "medium",
             }
         )
-        
+
         metrics = await negotiation_service._calculate_ai_metrics(
             session_id=1,
             deal=deal,
@@ -302,24 +305,24 @@ class TestEnhancedAIMetrics:
             user_target=21500,
             messages=messages,
         )
-        
+
         # Verify all enhancements are present
         # Market Intelligence
         assert metrics["average_market_price"] == 24000
         assert metrics["price_trend"] == "stable"
-        
+
         # ML Predictions
         assert metrics["success_probability"] == 0.75
         assert metrics["ml_confidence_level"] == "high"
-        
+
         # Pattern Analysis
         assert metrics["negotiation_velocity_pattern"] == "moderate"
         assert metrics["predicted_outcome"] == "uncertain"
-        
+
         # Optimal Offer
         assert metrics["ml_optimal_offer"] == 22200
         assert metrics["expected_savings"] == 2800
-        
+
         # Original metrics still present
         assert "confidence_score" in metrics
         assert "recommended_action" in metrics
@@ -329,7 +332,7 @@ class TestEnhancedAIMetrics:
         """Test that metrics work even when all enhancements fail"""
         deal = MockDeal()
         messages = [MockMessage(1)]
-        
+
         # All services fail
         negotiation_service.market_intelligence_service.get_real_time_comps = AsyncMock(
             side_effect=Exception("Market service down")
@@ -346,7 +349,7 @@ class TestEnhancedAIMetrics:
         negotiation_service.analytics_service.get_optimal_counter_offer = AsyncMock(
             side_effect=Exception("ML service down")
         )
-        
+
         # Should still return basic metrics without crashing
         metrics = await negotiation_service._calculate_ai_metrics(
             session_id=1,
@@ -355,7 +358,7 @@ class TestEnhancedAIMetrics:
             user_target=21000,
             messages=messages,
         )
-        
+
         # Basic metrics should still be present
         assert "confidence_score" in metrics
         assert "recommended_action" in metrics
@@ -377,7 +380,7 @@ class TestEnhancedStrategyGeneration:
             pattern_analysis={},
             ml_prediction={},
         )
-        
+
         assert "high" in strategy.lower() or "demand" in strategy.lower()
         assert "quickly" in strategy.lower() or "negotiate quickly" in strategy.lower()
 
@@ -390,7 +393,7 @@ class TestEnhancedStrategyGeneration:
             pattern_analysis={},
             ml_prediction={},
         )
-        
+
         assert "low" in strategy.lower() or "leverage" in strategy.lower()
 
     def test_generate_enhanced_strategy_high_ml_success(self, negotiation_service):
@@ -402,7 +405,7 @@ class TestEnhancedStrategyGeneration:
             pattern_analysis={},
             ml_prediction={"success_probability": 0.85},
         )
-        
+
         assert "ml" in strategy.lower() or "high probability" in strategy.lower()
 
     def test_generate_enhanced_strategy_low_ml_success(self, negotiation_service):
@@ -414,7 +417,7 @@ class TestEnhancedStrategyGeneration:
             pattern_analysis={},
             ml_prediction={"success_probability": 0.25},
         )
-        
+
         assert "reconsider" in strategy.lower() or "strategy" in strategy.lower()
 
 
@@ -428,7 +431,7 @@ class TestEnhancedMarketComparison:
             current_price=22000,
             market_intelligence={"average_market_price": 24000},
         )
-        
+
         assert "below market average" in comparison.lower()
         assert "24,000" in comparison or "24000" in comparison
 
@@ -439,7 +442,7 @@ class TestEnhancedMarketComparison:
             current_price=25000,
             market_intelligence={"average_market_price": 23000},
         )
-        
+
         assert "above market average" in comparison.lower()
         assert "warning" in comparison.lower()
 
@@ -453,6 +456,6 @@ class TestEnhancedMarketComparison:
                 "price_trend": "increasing",
             },
         )
-        
+
         assert "increasing" in comparison.lower() or "upward" in comparison.lower()
         assert "soon" in comparison.lower() or "act" in comparison.lower()
