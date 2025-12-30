@@ -16,7 +16,7 @@ Architecture:
 import logging
 from typing import Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm import generate_structured_json
 from app.llm.schemas import (
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 class AgentOrchestrator:
     """Coordinates multiple agents for complex tasks"""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
         self.deal_repo = DealRepository(db)
 
@@ -467,6 +467,6 @@ class AgentOrchestrator:
 
 
 # Singleton instance
-def get_agent_orchestrator(db: Session) -> AgentOrchestrator:
-    """Factory function to create orchestrator with db session"""
+def get_agent_orchestrator(db: AsyncSession) -> AgentOrchestrator:
+    """Factory function to create orchestrator with db AsyncSession"""
     return AgentOrchestrator(db)

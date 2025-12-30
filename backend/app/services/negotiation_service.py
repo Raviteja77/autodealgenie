@@ -7,6 +7,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.llm import generate_text
 from app.models.negotiation import MessageRole, NegotiationSession, NegotiationStatus
@@ -216,6 +217,15 @@ class NegotiationService:
                 "agent_message": agent_response["content"],
                 "metadata": agent_response["metadata"],
             }
+        
+        except SQLAlchemyError as db_exc:
+            await self.db.rollback()
+            logger.error(f"[{request_id}] DB error: {str(db_exc)}")
+            raise ApiError(
+                status_code=500,
+                message="Database error during negotiation response",
+                details={"error": str(db_exc)},
+            ) from db_exc
 
         except Exception as e:
             logger.error(f"[{request_id}] Error generating agent response: {str(e)}")
@@ -865,6 +875,7 @@ class NegotiationService:
                     agent_role="negotiation",
                 )
             except Exception as log_error:
+                await self.db.rollback()
                 logger.error(f"Failed to log AI response: {log_error}")
                 # Don't fail the main operation if logging fails
 
@@ -953,6 +964,7 @@ class NegotiationService:
                     agent_role="negotiation",
                 )
             except Exception as log_error:
+                await self.db.rollback()
                 logger.error(f"Failed to log AI fallback response: {log_error}")
                 # Don't fail the main operation if logging fails
 
@@ -1373,7 +1385,7 @@ class NegotiationService:
             conversation_history.append(f"{role_label}: {msg.content}")
 
         # Get latest suggested price using helper method
-        suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
+        suggested_price = await self._get_latest_suggested_price(session.id, deal.asking_price)
 
         try:
             # Use centralized LLM client with negotiation agent
@@ -1565,7 +1577,7 @@ class NegotiationService:
 
         try:
             # Use centralized LLM client with evaluator agent for dealer analysis
-            response_content = await generate_text(
+            response_content = generate_text(
                 prompt_id="dealer_info_analysis",
                 variables={
                     "make": deal.vehicle_make,

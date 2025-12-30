@@ -3,7 +3,7 @@ Authentication dependencies for FastAPI
 """
 
 from fastapi import Cookie, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_token
 from app.db.session import get_db
@@ -11,9 +11,9 @@ from app.models.models import User
 from app.repositories.user_repository import UserRepository
 
 
-def get_current_user(
+async def get_current_user(
     access_token: str | None = Cookie(default=None),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     """
     Get the current authenticated user from the access token cookie
@@ -59,7 +59,7 @@ def get_current_user(
         ) from e
 
     user_repo = UserRepository(db)
-    user = user_repo.get_by_id(user_id)
+    user = await user_repo.get_by_id(user_id)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

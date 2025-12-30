@@ -1,7 +1,7 @@
 """add pgvector and embeddings
 
 Revision ID: 012_add_pgvector_and_embeddings
-Revises: 011_add_agent_role_to_ai_responses
+Revises: 011_add_agent_role
 Create Date: 2025-12-30 01:17:00.000000
 
 """
@@ -9,12 +9,13 @@ Create Date: 2025-12-30 01:17:00.000000
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from pgvector.sqlalchemy import VECTOR
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "012_add_pgvector_and_embeddings"
-down_revision: str | None = "011_add_agent_role_to_ai_responses"
+down_revision: str | None = "011_add_agent_role"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -26,15 +27,16 @@ def upgrade() -> None:
 
     # Add embedding column to negotiation_sessions for vector similarity search
     # Using 1536 dimensions for OpenAI text-embedding-3-small model
+    dimension = 1536
     op.add_column(
         "negotiation_sessions",
-        sa.Column("session_embedding", sa.TEXT, nullable=True),
+        sa.Column("session_embedding", VECTOR(dimension), nullable=True),
     )
 
     # Add embedding column to negotiation_messages
     op.add_column(
         "negotiation_messages",
-        sa.Column("message_embedding", sa.TEXT, nullable=True),
+        sa.Column("message_embedding", VECTOR(dimension), nullable=True),
     )
 
     # Create indexes for vector similarity search

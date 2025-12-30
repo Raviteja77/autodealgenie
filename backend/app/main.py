@@ -89,6 +89,20 @@ async def lifespan(app: FastAPI):
     # Shutdown
     print("Shutting down AutoDealGenie backend...")
 
+    # Stop RabbitMQ consumers and producer (only if RabbitMQ is enabled)
+    if using_rabbitmq:
+        try:
+            for task in consumer_tasks:
+                task.cancel()
+            await asyncio.gather(*consumer_tasks, return_exceptions=True)
+            if deals_consumer:
+                await deals_consumer.stop()
+            if rabbitmq_producer:
+                await rabbitmq_producer.stop()
+            print("RabbitMQ services stopped")
+        except Exception as e:
+            print(f"WARNING: Error stopping RabbitMQ services: {e}")
+
     # Close connections
     if using_rabbitmq:
         await rabbitmq.close()
@@ -103,20 +117,6 @@ async def lifespan(app: FastAPI):
     else:
         await in_memory_cache.close()
         print("In-memory cache closed")
-
-    # Stop RabbitMQ consumers and producer (only if RabbitMQ is enabled)
-    if using_rabbitmq:
-        try:
-            for task in consumer_tasks:
-                task.cancel()
-            await asyncio.gather(*consumer_tasks, return_exceptions=True)
-            if deals_consumer:
-                await deals_consumer.stop()
-            if rabbitmq_producer:
-                await rabbitmq_producer.stop()
-            print("RabbitMQ services stopped")
-        except Exception as e:
-            print(f"WARNING: Error stopping RabbitMQ services: {e}")
 
 
 app = FastAPI(

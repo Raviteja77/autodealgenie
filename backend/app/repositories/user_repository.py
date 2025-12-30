@@ -32,7 +32,7 @@ class UserRepository:
 
     async def get_by_id(self, user_id: int) -> User | None:
         """Get user by ID"""
-        result = await self.db.execute(select(User).filter(User.id == user_id))
+        result = self.db.execute(select(User).filter(User.id == user_id))
         return result.scalar_one_or_none()
 
     async def create(self, user_in: UserCreate) -> User:
