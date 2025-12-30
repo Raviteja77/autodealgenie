@@ -2,8 +2,8 @@
 Repository for webhook subscription operations
 """
 
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import WebhookStatus, WebhookSubscription
 
@@ -11,11 +11,11 @@ from app.models.models import WebhookStatus, WebhookSubscription
 class WebhookRepository:
     """Repository for managing webhook subscriptions"""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         """Initialize repository with database session"""
         self.db = db
 
-    def create(self, subscription_data: dict) -> WebhookSubscription:
+    async def create(self, subscription_data: dict) -> WebhookSubscription:
         """
         Create a new webhook subscription
 
@@ -27,33 +27,37 @@ class WebhookRepository:
         """
         subscription = WebhookSubscription(**subscription_data)
         self.db.add(subscription)
-        self.db.commit()
-        self.db.refresh(subscription)
+        await self.db.commit()
+        await self.db.refresh(subscription)
         return subscription
 
-    def get_by_id(self, subscription_id: int) -> WebhookSubscription | None:
+    async def get_by_id(self, subscription_id: int) -> WebhookSubscription | None:
         """Get webhook subscription by ID"""
-        return (
-            self.db.query(WebhookSubscription)
-            .filter(WebhookSubscription.id == subscription_id)
-            .first()
+        result = await self.db.execute(
+            select(WebhookSubscription).filter(WebhookSubscription.id == subscription_id)
         )
+        return result.scalar_one_or_none()
 
-    def get_by_user(self, user_id: int) -> list[WebhookSubscription]:
+    async def get_by_user(self, user_id: int) -> list[WebhookSubscription]:
         """Get all webhook subscriptions for a user"""
-        return (
-            self.db.query(WebhookSubscription).filter(WebhookSubscription.user_id == user_id).all()
+        result = await self.db.execute(
+            select(WebhookSubscription).filter(WebhookSubscription.user_id == user_id)
         )
+        return result.scalars().all()
 
-    def get_active_subscriptions(self) -> list[WebhookSubscription]:
-        """Get all active webhook subscriptions"""
-        return (
-            self.db.query(WebhookSubscription)
-            .filter(WebhookSubscription.status == WebhookStatus.ACTIVE)
-            .all()
+    async def get_active_subscriptions(
+        self, user_id: int | None = None
+    ) -> list[WebhookSubscription]:
+        """Get all active webhook subscriptions, optionally filtered by user"""
+        query = select(WebhookSubscription).filter(
+            WebhookSubscription.status == WebhookStatus.ACTIVE
         )
+        if user_id is not None:
+            query = query.filter(WebhookSubscription.user_id == user_id)
+        result = await self.db.execute(query)
+        return result.scalars().all()
 
-    def get_matching_subscriptions(
+    async def get_matching_subscriptions(
         self,
         make: str | None = None,
         model: str | None = None,
@@ -74,7 +78,7 @@ class WebhookRepository:
         Returns:
             List of matching webhook subscriptions
         """
-        query = self.db.query(WebhookSubscription).filter(
+        query = select(WebhookSubscription).filter(
             WebhookSubscription.status == WebhookStatus.ACTIVE
         )
 
@@ -115,9 +119,10 @@ class WebhookRepository:
                 )
             )
 
-        return query.all()
+        result = await self.db.execute(query)
+        return result.scalars().all()
 
-    def update(self, subscription_id: int, update_data: dict) -> WebhookSubscription | None:
+    async def update(self, subscription_id: int, update_data: dict) -> WebhookSubscription | None:
         """
         Update webhook subscription
 
@@ -128,7 +133,7 @@ class WebhookRepository:
         Returns:
             Updated WebhookSubscription or None
         """
-        subscription = self.get_by_id(subscription_id)
+        subscription = await self.get_by_id(subscription_id)
         if not subscription:
             return None
 
@@ -136,11 +141,33 @@ class WebhookRepository:
             if hasattr(subscription, key):
                 setattr(subscription, key, value)
 
-        self.db.commit()
-        self.db.refresh(subscription)
+        await self.db.commit()
+        await self.db.refresh(subscription)
         return subscription
 
-    def delete(self, subscription_id: int) -> bool:
+    async def update_status(
+        self, subscription_id: int, status: WebhookStatus
+    ) -> WebhookSubscription | None:
+        """
+        Update webhook subscription status
+
+        Args:
+            subscription_id: Subscription ID
+            status: New status
+
+        Returns:
+            Updated WebhookSubscription or None
+        """
+        subscription = await self.get_by_id(subscription_id)
+        if not subscription:
+            return None
+
+        subscription.status = status
+        await self.db.commit()
+        await self.db.refresh(subscription)
+        return subscription
+
+    async def delete(self, subscription_id: int) -> bool:
         """
         Delete webhook subscription
 
@@ -150,29 +177,53 @@ class WebhookRepository:
         Returns:
             True if deleted, False otherwise
         """
-        subscription = self.get_by_id(subscription_id)
+        subscription = await self.get_by_id(subscription_id)
         if not subscription:
             return False
 
-        self.db.delete(subscription)
-        self.db.commit()
+        await self.db.delete(subscription)
+        await self.db.commit()
         return True
 
-    def increment_failure_count(self, subscription_id: int) -> None:
-        """Increment failure count for a subscription"""
-        subscription = self.get_by_id(subscription_id)
-        if subscription:
-            subscription.failure_count += 1
-            # Auto-disable after 5 consecutive failures
-            if subscription.failure_count >= 5:
-                subscription.status = WebhookStatus.FAILED
-            self.db.commit()
+    async def increment_failure_count(self, subscription_id: int) -> WebhookSubscription | None:
+        """
+        Increment failure count for a subscription
 
-    def reset_failure_count(self, subscription_id: int) -> None:
-        """Reset failure count for a subscription"""
-        subscription = self.get_by_id(subscription_id)
-        if subscription:
-            subscription.failure_count = 0
-            if subscription.status == WebhookStatus.FAILED:
-                subscription.status = WebhookStatus.ACTIVE
-            self.db.commit()
+        Args:
+            subscription_id: Subscription ID
+
+        Returns:
+            Updated WebhookSubscription or None
+        """
+        subscription = await self.get_by_id(subscription_id)
+        if not subscription:
+            return None
+
+        subscription.failure_count += 1
+        # Auto-disable after 5 consecutive failures
+        if subscription.failure_count >= 5:
+            subscription.status = WebhookStatus.INACTIVE
+        await self.db.commit()
+        await self.db.refresh(subscription)
+        return subscription
+
+    async def reset_failure_count(self, subscription_id: int) -> WebhookSubscription | None:
+        """
+        Reset failure count for a subscription
+
+        Args:
+            subscription_id: Subscription ID
+
+        Returns:
+            Updated WebhookSubscription or None
+        """
+        subscription = await self.get_by_id(subscription_id)
+        if not subscription:
+            return None
+
+        subscription.failure_count = 0
+        if subscription.status == WebhookStatus.INACTIVE:
+            subscription.status = WebhookStatus.ACTIVE
+        await self.db.commit()
+        await self.db.refresh(subscription)
+        return subscription

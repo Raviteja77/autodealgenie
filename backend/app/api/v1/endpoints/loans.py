@@ -5,9 +5,10 @@ Loan calculation endpoints (anonymous, secure)
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user, get_db
+from app.api.dependencies import get_current_user
+from app.db.session import get_async_db
 from app.models.models import User
 from app.repositories.loan_recommendation_repository import LoanRecommendationRepository
 from app.schemas.loan_schemas import (
@@ -33,7 +34,7 @@ BEST_LENDER_DISCOUNT = 0.005  # 0.5% below base rate
 HIGHER_LENDER_PREMIUM = 0.01  # 1.0% above base rate
 
 
-def generate_mock_loan_offers(
+async def generate_mock_loan_offers(
     loan_amount: float,
     credit_score: str,
     loan_term: int,
@@ -87,7 +88,7 @@ def generate_mock_loan_offers(
 async def calculate_loan_payment(
     calculation: LoanCalculationRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Calculate monthly payment and total cost for a loan.
@@ -111,7 +112,7 @@ async def calculate_loan_payment(
         if calculation.deal_id:
             try:
                 loan_repo = LoanRecommendationRepository(db)
-                loan_repo.create(
+                await loan_repo.create(
                     deal_id=calculation.deal_id,
                     user_id=current_user.id,
                     loan_amount=result.principal,
@@ -154,7 +155,7 @@ async def get_loan_offers(
     For now, returns mock data based on credit score
     """
     # Mock lender offers
-    offers = generate_mock_loan_offers(loan_amount, credit_score, loan_term)
+    offers = await generate_mock_loan_offers(loan_amount, credit_score, loan_term)
 
     return LoanOffersResponse(
         offers=offers,

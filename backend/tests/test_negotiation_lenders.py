@@ -1,14 +1,14 @@
 """Tests for negotiation lender recommendation endpoint"""
 
-import pytest
+import pytest_asyncio
 
 from app.models.models import Deal, DealStatus, User
 from app.models.negotiation import MessageRole
 from app.repositories.negotiation_repository import NegotiationRepository
 
 
-@pytest.fixture
-def mock_user(db):
+@pytest_asyncio.fixture
+async def mock_user(async_db):
     """Create a mock user for testing"""
     user = User(
         email="testuser@example.com",
@@ -16,14 +16,14 @@ def mock_user(db):
         hashed_password="hashed",
         full_name="Test User",
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    async_db.add(user)
+    await async_db.commit()
+    await async_db.refresh(user)
     return user
 
 
-@pytest.fixture
-def mock_deal(db):
+@pytest_asyncio.fixture
+async def mock_deal(async_db):
     """Create a mock deal for testing"""
     deal = Deal(
         customer_name="John Doe",
@@ -36,20 +36,20 @@ def mock_deal(db):
         asking_price=25000.00,
         status=DealStatus.PENDING,
     )
-    db.add(deal)
-    db.commit()
-    db.refresh(deal)
+    async_db.add(deal)
+    await async_db.commit()
+    await async_db.refresh(deal)
     return deal
 
 
-@pytest.fixture
-def mock_negotiation_session(db, mock_user, mock_deal):
+@pytest_asyncio.fixture
+async def mock_negotiation_session(async_db, mock_user, mock_deal):
     """Create a mock negotiation session"""
-    repo = NegotiationRepository(db)
-    session = repo.create_session(user_id=mock_user.id, deal_id=mock_deal.id)
+    repo = NegotiationRepository(async_db)
+    session = await repo.create_session(user_id=mock_user.id, deal_id=mock_deal.id)
 
     # Add a message with suggested price
-    repo.add_message(
+    await repo.add_message(
         session_id=session.id,
         role=MessageRole.AGENT,
         content="Here's a counter offer",
@@ -60,7 +60,7 @@ def mock_negotiation_session(db, mock_user, mock_deal):
     return session
 
 
-def test_lender_service_integration(db, mock_negotiation_session, mock_deal):
+async def test_lender_service_integration(async_db, mock_negotiation_session, mock_deal):
     """Test that lender service returns recommendations based on negotiated price"""
     from app.schemas.loan_schemas import LenderRecommendationRequest
     from app.services.lender_service import LenderService
@@ -99,7 +99,7 @@ def test_lender_service_integration(db, mock_negotiation_session, mock_deal):
     assert len(top_match.lender.benefits) > 0
 
 
-def test_lender_recommendations_different_credit_scores(db):
+async def test_lender_recommendations_different_credit_scores(async_db):
     """Test that better credit scores get better rates"""
     from app.schemas.loan_schemas import LenderRecommendationRequest
     from app.services.lender_service import LenderService
@@ -133,7 +133,7 @@ def test_lender_recommendations_different_credit_scores(db):
     assert excellent_apr < poor_apr
 
 
-def test_lender_recommendations_ranking(db):
+async def test_lender_recommendations_ranking(async_db):
     """Test that lender recommendations are properly ranked"""
     from app.schemas.loan_schemas import LenderRecommendationRequest
     from app.services.lender_service import LenderService

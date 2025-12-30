@@ -1,17 +1,23 @@
 """Tests package initialization"""
 
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
-from app.db.session import Base, get_db
+from app.db.session import Base, get_async_db, get_db
 from app.main import app
+
+# Import all models to ensure they're registered with SQLAlchemy
+from app.models import models  # noqa: F401
 
 
 # Add a compiler for JSONB on SQLite - render as TEXT
@@ -23,14 +29,29 @@ def compile_jsonb_sqlite(type_, compiler, **kw):
 
 # Use in-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
+SQLALCHEMY_ASYNC_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# Sync engine for legacy tests
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool
+)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Async engine for async tests
+async_engine = create_async_engine(
+    SQLALCHEMY_ASYNC_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+    echo=False,
+)
+AsyncTestingSessionLocal = sessionmaker(
+    async_engine, class_=AsyncSession, expire_on_commit=False, autocommit=False, autoflush=False
+)
 
 
 @pytest.fixture(scope="function")
 def db() -> Generator:
-    """Create a fresh database for each test"""
+    """Create a fresh database for each test (sync)"""
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     try:
@@ -40,15 +61,39 @@ def db() -> Generator:
         Base.metadata.drop_all(bind=engine)
 
 
+@pytest_asyncio.fixture(scope="function")
+async def async_db() -> AsyncGenerator:
+    """Create a fresh async database for each test"""
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with AsyncTestingSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+
 @pytest.fixture(scope="function")
-def client(db) -> Generator:
+def client(async_db) -> Generator:
     """Create a test client with database dependency override and mocked external services"""
 
-    def override_get_db():
+    async def override_get_async_db():
         try:
-            yield db
+            yield async_db
         finally:
             pass
+
+    def override_get_db():
+        # Provide sync db for any legacy code that still uses it
+        sync_db = TestingSessionLocal()
+        try:
+            yield sync_db
+        finally:
+            sync_db.close()
 
     # Mock Redis connection
     mock_redis = MagicMock()
@@ -76,6 +121,7 @@ def client(db) -> Generator:
     )
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_async_db] = override_get_async_db
 
     with (
         patch("app.db.rabbitmq.rabbitmq", mock_rabbitmq),

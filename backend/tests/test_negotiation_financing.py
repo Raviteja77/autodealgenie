@@ -1,13 +1,14 @@
 """Tests for negotiation financing integration"""
 
 import pytest
+import pytest_asyncio
 
 from app.models.models import Deal, DealStatus
 from app.services.negotiation_service import NegotiationService
 
 
-@pytest.fixture
-def mock_deal(db):
+@pytest_asyncio.fixture
+async def mock_deal(async_db):
     """Create a mock deal for testing"""
     deal = Deal(
         customer_name="John Doe",
@@ -20,18 +21,18 @@ def mock_deal(db):
         asking_price=25000.00,
         status=DealStatus.PENDING,
     )
-    db.add(deal)
-    db.commit()
-    db.refresh(deal)
+    async_db.add(deal)
+    await async_db.commit()
+    await async_db.refresh(deal)
     return deal
 
 
 class TestFinancingOptions:
     """Test financing options calculation in negotiation"""
 
-    def test_calculate_financing_options_with_default_credit(self, db):
+    def test_calculate_financing_options_with_default_credit(self, async_db):
         """Test financing calculation with default credit score"""
-        service = NegotiationService(db)
+        service = NegotiationService(async_db)
         vehicle_price = 30000.0
 
         financing_options = service._calculate_financing_options(vehicle_price)
@@ -48,9 +49,9 @@ class TestFinancingOptions:
         assert option_60["total_cost"] > vehicle_price  # Total includes interest
         assert option_60["total_interest"] > 0
 
-    def test_calculate_financing_options_excellent_credit(self, db):
+    def test_calculate_financing_options_excellent_credit(self, async_db):
         """Test financing calculation with excellent credit"""
-        service = NegotiationService(db)
+        service = NegotiationService(async_db)
         vehicle_price = 25000.0
 
         financing_options = service._calculate_financing_options(
@@ -63,9 +64,9 @@ class TestFinancingOptions:
         option = financing_options[0]
         assert option["estimated_apr"] < 0.06  # Less than 6%
 
-    def test_calculate_financing_options_poor_credit(self, db):
+    def test_calculate_financing_options_poor_credit(self, async_db):
         """Test financing calculation with poor credit"""
-        service = NegotiationService(db)
+        service = NegotiationService(async_db)
         vehicle_price = 20000.0
 
         financing_options = service._calculate_financing_options(
@@ -78,9 +79,9 @@ class TestFinancingOptions:
         option = financing_options[0]
         assert option["estimated_apr"] > 0.10  # Greater than 10%
 
-    def test_calculate_financing_different_terms(self, db):
+    def test_calculate_financing_different_terms(self, async_db):
         """Test that different loan terms produce different payments"""
-        service = NegotiationService(db)
+        service = NegotiationService(async_db)
         vehicle_price = 28000.0
 
         financing_options = service._calculate_financing_options(vehicle_price)
@@ -96,9 +97,9 @@ class TestFinancingOptions:
         assert option_36["monthly_payment_estimate"] > option_72["monthly_payment_estimate"]
         assert option_36["total_interest"] < option_72["total_interest"]
 
-    def test_financing_options_cash_savings_calculation(self, db):
+    def test_financing_options_cash_savings_calculation(self, async_db):
         """Test cash savings calculation vs financing"""
-        service = NegotiationService(db)
+        service = NegotiationService(async_db)
         vehicle_price = 25000.0
 
         financing_options = service._calculate_financing_options(vehicle_price)
@@ -118,11 +119,18 @@ class TestFinancingOptions:
 
 
 @pytest.mark.asyncio
-async def test_negotiation_response_includes_financing(db, mock_deal):
+async def test_negotiation_response_includes_financing(async_db, mock_deal):
     """Test that negotiation responses include financing options"""
     from unittest.mock import Mock, patch
 
-    service = NegotiationService(db)
+    service = NegotiationService(async_db)
+
+    # Create a proper mock session with all required attributes
+    mock_session = Mock()
+    mock_session.id = 1
+    mock_session.current_round = 1
+    mock_session.max_rounds = 10
+    mock_session.user_id = 1  # Must be an int, not a Mock
 
     # Mock the LLM response
     with patch(
@@ -130,7 +138,7 @@ async def test_negotiation_response_includes_financing(db, mock_deal):
         return_value="Here's my offer for this vehicle.",
     ):
         response = await service._generate_agent_response(
-            session=Mock(id=1, current_round=1, max_rounds=10),
+            session=mock_session,
             deal=mock_deal,
             user_target_price=22000.0,
             strategy="moderate",

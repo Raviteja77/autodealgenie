@@ -1,13 +1,15 @@
 """Test favorites endpoints"""
 
 import pytest
+import pytest_asyncio
+from sqlalchemy import delete
 
 from app.api.dependencies import get_current_user
 from app.models.models import Favorite, User
 
 
-@pytest.fixture
-def mock_user(db):
+@pytest_asyncio.fixture
+async def mock_user(async_db):
     """Create a mock user for testing"""
     user = User(
         email="testuser@example.com",
@@ -15,9 +17,9 @@ def mock_user(db):
         hashed_password="hashed",
         full_name="Test User",
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    async_db.add(user)
+    await async_db.commit()
+    await async_db.refresh(user)
     return user
 
 
@@ -34,14 +36,14 @@ def authenticated_client(client, mock_user):
     app.dependency_overrides.clear()
 
 
-@pytest.fixture(autouse=True)
-def clear_favorites(db):
+@pytest_asyncio.fixture(autouse=True)
+async def clear_favorites(async_db):
     """Clear favorites from database before each test"""
-    db.query(Favorite).delete()
-    db.commit()
+    await async_db.execute(delete(Favorite))
+    await async_db.commit()
     yield
-    db.query(Favorite).delete()
-    db.commit()
+    await async_db.execute(delete(Favorite))
+    await async_db.commit()
 
 
 @pytest.fixture
@@ -62,7 +64,7 @@ def sample_favorite_data():
     }
 
 
-def test_add_favorite(authenticated_client, sample_favorite_data):
+async def test_add_favorite(authenticated_client, sample_favorite_data):
     """Test adding a favorite"""
     response = authenticated_client.post("/api/v1/favorites/", json=sample_favorite_data)
 
@@ -77,7 +79,7 @@ def test_add_favorite(authenticated_client, sample_favorite_data):
     assert "created_at" in data
 
 
-def test_add_duplicate_favorite(authenticated_client, sample_favorite_data):
+async def test_add_duplicate_favorite(authenticated_client, sample_favorite_data):
     """Test adding a duplicate favorite (should fail)"""
     # Add favorite first time
     response1 = authenticated_client.post("/api/v1/favorites/", json=sample_favorite_data)
@@ -89,7 +91,7 @@ def test_add_duplicate_favorite(authenticated_client, sample_favorite_data):
     assert "already in favorites" in response2.json()["detail"].lower()
 
 
-def test_get_favorites_empty(authenticated_client):
+async def test_get_favorites_empty(authenticated_client):
     """Test getting favorites when none exist"""
     response = authenticated_client.get("/api/v1/favorites/")
 
@@ -99,7 +101,7 @@ def test_get_favorites_empty(authenticated_client):
     assert len(data) == 0
 
 
-def test_get_favorites(authenticated_client, sample_favorite_data):
+async def test_get_favorites(authenticated_client, sample_favorite_data):
     """Test getting all favorites"""
     # Add a favorite
     add_response = authenticated_client.post("/api/v1/favorites/", json=sample_favorite_data)
@@ -115,7 +117,7 @@ def test_get_favorites(authenticated_client, sample_favorite_data):
     assert data[0]["vin"] == sample_favorite_data["vin"]
 
 
-def test_get_favorite_by_vin(authenticated_client, sample_favorite_data):
+async def test_get_favorite_by_vin(authenticated_client, sample_favorite_data):
     """Test getting a specific favorite by VIN"""
     # Add a favorite
     add_response = authenticated_client.post("/api/v1/favorites/", json=sample_favorite_data)
@@ -130,7 +132,7 @@ def test_get_favorite_by_vin(authenticated_client, sample_favorite_data):
     assert data["vin"] == vin
 
 
-def test_get_favorite_not_found(authenticated_client):
+async def test_get_favorite_not_found(authenticated_client):
     """Test getting a favorite that doesn't exist"""
     response = authenticated_client.get("/api/v1/favorites/NONEXISTENTVIN123")
 
@@ -138,7 +140,7 @@ def test_get_favorite_not_found(authenticated_client):
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_remove_favorite(authenticated_client, sample_favorite_data):
+async def test_remove_favorite(authenticated_client, sample_favorite_data):
     """Test removing a favorite"""
     # Add a favorite
     add_response = authenticated_client.post("/api/v1/favorites/", json=sample_favorite_data)
@@ -155,7 +157,7 @@ def test_remove_favorite(authenticated_client, sample_favorite_data):
     assert get_response.status_code == 404
 
 
-def test_remove_favorite_not_found(authenticated_client):
+async def test_remove_favorite_not_found(authenticated_client):
     """Test removing a favorite that doesn't exist"""
     response = authenticated_client.delete("/api/v1/favorites/NONEXISTENTVIN123")
 
@@ -163,7 +165,7 @@ def test_remove_favorite_not_found(authenticated_client):
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_favorites_require_authentication(client, sample_favorite_data):
+async def test_favorites_require_authentication(client, sample_favorite_data):
     """Test that favorites endpoints require authentication"""
     # Try to add favorite without auth
     response = client.post("/api/v1/favorites/", json=sample_favorite_data)

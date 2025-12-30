@@ -3,10 +3,10 @@ Deal Evaluation endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import User
 from app.repositories.deal_repository import DealRepository
@@ -43,7 +43,7 @@ DEFAULT_INTEREST_RATE = 5.5
 async def initiate_or_continue_evaluation(
     deal_id: int,
     request: EvaluationInitiateRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -54,7 +54,7 @@ async def initiate_or_continue_evaluation(
     """
     # Verify deal exists
     deal_repo = DealRepository(db)
-    deal = deal_repo.get(deal_id)
+    deal = await deal_repo.get(deal_id)
     if not deal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -64,14 +64,14 @@ async def initiate_or_continue_evaluation(
     eval_repo = EvaluationRepository(db)
 
     # Check for existing evaluation in progress
-    existing_eval = eval_repo.get_latest_by_deal(deal_id)
+    existing_eval = await eval_repo.get_latest_by_deal(deal_id)
 
     if existing_eval and existing_eval.status != EvaluationStatus.COMPLETED:
         # Continue existing evaluation
         evaluation = existing_eval
     else:
         # Create new evaluation
-        evaluation = eval_repo.create(
+        evaluation = await eval_repo.create(
             user_id=current_user.id,
             deal_id=deal_id,
             status=EvaluationStatus.ANALYZING,
@@ -85,7 +85,7 @@ async def initiate_or_continue_evaluation(
         )
 
         # Refresh evaluation to get updated state
-        db.refresh(evaluation)
+        await db.refresh(evaluation)
 
         return {
             "evaluation_id": evaluation.id,
@@ -110,17 +110,17 @@ async def initiate_or_continue_evaluation(
     response_model=EvaluationResponse,
     status_code=status.HTTP_200_OK,
 )
-def get_evaluation(
+async def get_evaluation(
     deal_id: int,
     evaluation_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     Get the current state of a deal evaluation
     """
     eval_repo = EvaluationRepository(db)
-    evaluation = eval_repo.get(evaluation_id)
+    evaluation = await eval_repo.get(evaluation_id)
 
     if not evaluation:
         raise HTTPException(
@@ -147,14 +147,14 @@ async def submit_evaluation_answers(
     deal_id: int,
     evaluation_id: int,
     request: EvaluationAnswerRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
     Submit answers to evaluation questions and continue the pipeline
     """
     eval_repo = EvaluationRepository(db)
-    evaluation = eval_repo.get(evaluation_id)
+    evaluation = await eval_repo.get(evaluation_id)
 
     if not evaluation:
         raise HTTPException(
@@ -179,14 +179,14 @@ async def submit_evaluation_answers(
     # Process with answers
     try:
         # Update status back to analyzing
-        eval_repo.update_status(evaluation_id, EvaluationStatus.ANALYZING)
+        await eval_repo.update_status(evaluation_id, EvaluationStatus.ANALYZING)
 
         step_result = await deal_evaluation_service.process_evaluation_step(
             db=db, evaluation_id=evaluation.id, user_answers=request.answers
         )
 
         # Refresh evaluation
-        db.refresh(evaluation)
+        await db.refresh(evaluation)
 
         return {
             "evaluation_id": evaluation.id,
@@ -211,10 +211,10 @@ async def submit_evaluation_answers(
     response_model=LenderRecommendationResponse,
     status_code=status.HTTP_200_OK,
 )
-def get_evaluation_lenders(
+async def get_evaluation_lenders(
     deal_id: int,
     evaluation_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -229,7 +229,7 @@ def get_evaluation_lenders(
     - Overall deal score >= 6.5 (good or excellent deals)
     """
     eval_repo = EvaluationRepository(db)
-    evaluation = eval_repo.get(evaluation_id)
+    evaluation = await eval_repo.get(evaluation_id)
 
     if not evaluation:
         raise HTTPException(
@@ -299,7 +299,7 @@ def get_evaluation_lenders(
 
     # Get deal information
     deal_repo = DealRepository(db)
-    deal = deal_repo.get(deal_id)
+    deal = await deal_repo.get(deal_id)
     if not deal:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

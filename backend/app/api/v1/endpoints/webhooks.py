@@ -4,10 +4,10 @@ Webhook subscription management endpoints
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, HttpUrl
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.models import User, WebhookStatus
 from app.repositories.webhook_repository import WebhookRepository
 
@@ -69,7 +69,7 @@ class WebhookSubscriptionResponse(BaseModel):
 async def create_webhook_subscription(
     subscription_data: WebhookSubscriptionCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Create a new webhook subscription for vehicle alerts
@@ -84,7 +84,7 @@ async def create_webhook_subscription(
     data["status"] = WebhookStatus.ACTIVE
 
     try:
-        subscription = webhook_repo.create(data)
+        subscription = await webhook_repo.create(data)
         return subscription
     except Exception as e:
         raise HTTPException(
@@ -96,13 +96,13 @@ async def create_webhook_subscription(
 @router.get("/", response_model=list[WebhookSubscriptionResponse])
 async def list_webhook_subscriptions(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     List all webhook subscriptions for the current user
     """
     webhook_repo = WebhookRepository(db)
-    subscriptions = webhook_repo.get_by_user(current_user.id)
+    subscriptions = await webhook_repo.get_by_user(current_user.id)
     return subscriptions
 
 
@@ -110,13 +110,13 @@ async def list_webhook_subscriptions(
 async def get_webhook_subscription(
     subscription_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get a specific webhook subscription by ID
     """
     webhook_repo = WebhookRepository(db)
-    subscription = webhook_repo.get_by_id(subscription_id)
+    subscription = await webhook_repo.get_by_id(subscription_id)
 
     if not subscription:
         raise HTTPException(
@@ -139,13 +139,13 @@ async def update_webhook_subscription(
     subscription_id: int,
     update_data: WebhookSubscriptionUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Update a webhook subscription
     """
     webhook_repo = WebhookRepository(db)
-    subscription = webhook_repo.get_by_id(subscription_id)
+    subscription = await webhook_repo.get_by_id(subscription_id)
 
     if not subscription:
         raise HTTPException(
@@ -162,7 +162,7 @@ async def update_webhook_subscription(
 
     # Update subscription
     data = update_data.model_dump(exclude_unset=True)
-    updated_subscription = webhook_repo.update(subscription_id, data)
+    updated_subscription = await webhook_repo.update(subscription_id, data)
 
     return updated_subscription
 
@@ -171,13 +171,13 @@ async def update_webhook_subscription(
 async def delete_webhook_subscription(
     subscription_id: int,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Delete a webhook subscription
     """
     webhook_repo = WebhookRepository(db)
-    subscription = webhook_repo.get_by_id(subscription_id)
+    subscription = await webhook_repo.get_by_id(subscription_id)
 
     if not subscription:
         raise HTTPException(
@@ -193,5 +193,5 @@ async def delete_webhook_subscription(
         )
 
     # Delete subscription
-    webhook_repo.delete(subscription_id)
+    await webhook_repo.delete(subscription_id)
     return None

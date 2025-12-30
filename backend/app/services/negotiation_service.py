@@ -6,10 +6,11 @@ import logging
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm import generate_text
 from app.models.negotiation import MessageRole, NegotiationSession, NegotiationStatus
+from app.repositories.ai_response_repository import AIResponseRepository
 from app.repositories.deal_repository import DealRepository
 from app.repositories.negotiation_repository import NegotiationRepository
 from app.services.loan_calculator_service import LoanCalculatorService
@@ -37,10 +38,11 @@ class NegotiationService:
     SMALL_INCREASE_ADJUSTMENT = 1.02  # 2% increase for moderate discount
     AGGRESSIVE_DECREASE_ADJUSTMENT = 0.98  # 2% decrease to pressure dealer
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
         self.negotiation_repo = NegotiationRepository(db)
         self.deal_repo = DealRepository(db)
+        self.ai_response_repo = AIResponseRepository(db)
         # Lazy import to avoid circular dependency
         self._ws_manager = None
 
@@ -76,7 +78,7 @@ class NegotiationService:
             logger.error(f"Failed to broadcast message via WebSocket: {str(e)}")
             # Don't fail the main operation if WebSocket broadcast fails
 
-    def _get_latest_suggested_price(self, session_id: int, default_price: float) -> float:
+    async def _get_latest_suggested_price(self, session_id: int, default_price: float) -> float:
         """
         Get the latest suggested price from message history
 
@@ -87,7 +89,7 @@ class NegotiationService:
         Returns:
             Latest suggested price or default_price
         """
-        messages = self.negotiation_repo.get_messages(session_id)
+        messages = await self.negotiation_repo.get_messages(session_id)
         for msg in reversed(messages[-10:]):  # Check last 10 messages
             if msg.message_metadata and "suggested_price" in msg.message_metadata:
                 return msg.message_metadata["suggested_price"]
@@ -123,7 +125,7 @@ class NegotiationService:
         )
 
         # Validate deal exists
-        deal = self.deal_repo.get(deal_id)
+        deal = await self.deal_repo.get(deal_id)
         if not deal:
             logger.error(f"[{request_id}] Deal {deal_id} not found")
             raise ApiError(status_code=404, message=f"Deal with id {deal_id} not found")
@@ -137,7 +139,7 @@ class NegotiationService:
             )
 
         # Create session with evaluation data in metadata
-        session = self.negotiation_repo.create_session(user_id=user_id, deal_id=deal_id)
+        session = await self.negotiation_repo.create_session(user_id=user_id, deal_id=deal_id)
         logger.info(f"[{request_id}] Created session {session.id}")
 
         # Add initial user message
@@ -161,7 +163,7 @@ class NegotiationService:
                 "has_market_data": bool(evaluation_data.get("market_data")),
             }
 
-        user_msg = self.negotiation_repo.add_message(
+        user_msg = await self.negotiation_repo.add_message(
             session_id=session.id,
             role=MessageRole.USER,
             content=user_message,
@@ -189,7 +191,7 @@ class NegotiationService:
             # Hide typing indicator
             await self.ws_manager.broadcast_typing_indicator(session.id, False)
 
-            agent_msg = self.negotiation_repo.add_message(
+            agent_msg = await self.negotiation_repo.add_message(
                 session_id=session.id,
                 role=MessageRole.AGENT,
                 content=agent_response["content"],
@@ -242,7 +244,7 @@ class NegotiationService:
         logger.info(f"[{request_id}] Processing next round for session {session_id}")
 
         # Get session
-        session = self.negotiation_repo.get_session(session_id)
+        session = await self.negotiation_repo.get_session(session_id)
         if not session:
             logger.error(f"[{request_id}] Session {session_id} not found")
             raise ApiError(status_code=404, message=f"Session {session_id} not found")
@@ -259,7 +261,9 @@ class NegotiationService:
         # Check max rounds
         if session.current_round >= session.max_rounds:
             logger.warning(f"[{request_id}] Session {session_id} reached max rounds")
-            self.negotiation_repo.update_session_status(session_id, NegotiationStatus.COMPLETED)
+            await self.negotiation_repo.update_session_status(
+                session_id, NegotiationStatus.COMPLETED
+            )
             raise ApiError(
                 status_code=400,
                 message="Maximum negotiation rounds reached",
@@ -267,7 +271,7 @@ class NegotiationService:
             )
 
         # Get deal
-        deal = self.deal_repo.get(session.deal_id)
+        deal = await self.deal_repo.get(session.deal_id)
         if not deal:
             logger.error(f"[{request_id}] Deal {session.deal_id} not found")
             raise ApiError(status_code=404, message="Associated deal not found")
@@ -275,10 +279,12 @@ class NegotiationService:
         # Handle user action
         if user_action == "confirm":
             # User accepts the deal - update negotiation status
-            self.negotiation_repo.update_session_status(session_id, NegotiationStatus.COMPLETED)
+            await self.negotiation_repo.update_session_status(
+                session_id, NegotiationStatus.COMPLETED
+            )
 
             # Get the latest negotiated price to update the deal
-            latest_price = self._get_latest_suggested_price(session_id, deal.asking_price)
+            latest_price = await self._get_latest_suggested_price(session_id, deal.asking_price)
 
             # Update the deal with the final negotiated price and status
             from app.schemas.schemas import DealUpdate
@@ -288,14 +294,14 @@ class NegotiationService:
                 status="completed",
                 notes=f"{deal.notes or ''}\nNegotiation completed. Final agreed price: ${latest_price:,.2f}".strip(),
             )
-            self.deal_repo.update(session.deal_id, deal_update)
+            await self.deal_repo.update(session.deal_id, deal_update)
             logger.info(
                 f"[{request_id}] Deal {session.deal_id} updated - "
                 f"Status: completed, Offer Price: ${latest_price:,.2f}"
             )
 
             message_content = "Thank you! I accept the current offer."
-            self.negotiation_repo.add_message(
+            await self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.USER,
                 content=message_content,
@@ -306,7 +312,7 @@ class NegotiationService:
             agent_content = (
                 "Excellent! The deal is confirmed. " "We'll proceed with finalizing the paperwork."
             )
-            self.negotiation_repo.add_message(
+            await self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.AGENT,
                 content=agent_content,
@@ -325,10 +331,12 @@ class NegotiationService:
 
         elif user_action == "reject":
             # User rejects and ends negotiation
-            self.negotiation_repo.update_session_status(session_id, NegotiationStatus.CANCELLED)
+            await self.negotiation_repo.update_session_status(
+                session_id, NegotiationStatus.CANCELLED
+            )
 
             message_content = "I'm not interested in continuing this negotiation."
-            self.negotiation_repo.add_message(
+            await self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.USER,
                 content=message_content,
@@ -340,7 +348,7 @@ class NegotiationService:
                 "I understand. Thank you for your time. "
                 "Feel free to reach out if you change your mind."
             )
-            self.negotiation_repo.add_message(
+            await self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.AGENT,
                 content=agent_content,
@@ -366,11 +374,11 @@ class NegotiationService:
                 )
 
             # Increment round
-            session = self.negotiation_repo.increment_round(session_id)
+            session = await self.negotiation_repo.increment_round(session_id)
 
             # Add user counter message
             message_content = f"I'd like to counter with an offer of ${counter_offer:,.2f}."
-            user_msg = self.negotiation_repo.add_message(
+            user_msg = await self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.USER,
                 content=message_content,
@@ -396,7 +404,7 @@ class NegotiationService:
                 # Hide typing indicator
                 await self.ws_manager.broadcast_typing_indicator(session_id, False)
 
-                agent_msg = self.negotiation_repo.add_message(
+                agent_msg = await self.negotiation_repo.add_message(
                     session_id=session_id,
                     role=MessageRole.AGENT,
                     content=agent_response["content"],
@@ -434,7 +442,7 @@ class NegotiationService:
                 details={"valid_actions": ["confirm", "reject", "counter"]},
             )
 
-    def _calculate_ai_metrics(
+    async def _calculate_ai_metrics(
         self,
         session_id: int,
         deal: Any,
@@ -457,7 +465,7 @@ class NegotiationService:
         """
         # Use provided messages or fetch if not provided
         if messages is None:
-            messages = self.negotiation_repo.get_messages(session_id)
+            messages = await self.negotiation_repo.get_messages(session_id)
 
         # Calculate confidence score based on deal quality
         # Handle edge case where current_price > asking_price (negative discount)
@@ -630,7 +638,7 @@ class NegotiationService:
 
             # Calculate enhanced AI metrics
             # Pass None for messages to fetch them inside the method (first call, no messages yet)
-            ai_metrics = self._calculate_ai_metrics(
+            ai_metrics = await self._calculate_ai_metrics(
                 session_id=session.id,
                 deal=deal,
                 current_price=suggested_price,
@@ -638,9 +646,32 @@ class NegotiationService:
                 messages=None,  # Will fetch messages inside the method
             )
 
-            # TODO: Re-enable AI response logging with async repository
-            # This feature requires refactoring the repository to work with async sessions
-            # Don't fail the main operation if logging fails
+            # Log AI response for analytics and traceability
+            try:
+                await self.ai_response_repo.create_response(
+                    feature="negotiation",
+                    user_id=session.user_id,
+                    deal_id=deal.id,
+                    prompt_id="negotiation_initial",
+                    prompt_variables={
+                        "user_target_price": user_target_price,
+                        "asking_price": deal.asking_price,
+                        "strategy": strategy,
+                        "has_evaluation_data": evaluation_data is not None,
+                    },
+                    response_content=response_content,
+                    response_metadata={
+                        "suggested_price": suggested_price,
+                        "fair_value": fair_value,
+                        "evaluation_score": eval_score,
+                        "ai_metrics": ai_metrics,
+                    },
+                    llm_used=True,
+                    agent_role="negotiation",
+                )
+            except Exception as log_error:
+                logger.error(f"Failed to log AI response: {log_error}")
+                # Don't fail the main operation if logging fails
 
             return {
                 "content": response_content,
@@ -694,7 +725,7 @@ class NegotiationService:
 
             # Calculate enhanced AI metrics even for fallback
             # Pass None for messages to fetch them inside the method (first call, no messages yet)
-            ai_metrics = self._calculate_ai_metrics(
+            ai_metrics = await self._calculate_ai_metrics(
                 session_id=session.id,
                 deal=deal,
                 current_price=suggested_price,
@@ -702,8 +733,33 @@ class NegotiationService:
                 messages=None,  # Will fetch messages inside the method
             )
 
-            # TODO: Re-enable AI fallback response logging with async repository
-            # This feature requires refactoring the repository to work with async sessions
+            # Log AI fallback response for analytics and traceability
+            try:
+                await self.ai_response_repo.create_response(
+                    feature="negotiation",
+                    user_id=session.user_id,
+                    deal_id=deal.id,
+                    prompt_id="negotiation_initial_fallback",
+                    prompt_variables={
+                        "user_target_price": user_target_price,
+                        "asking_price": deal.asking_price,
+                        "strategy": strategy,
+                        "has_evaluation_data": evaluation_data is not None,
+                    },
+                    response_content=fallback_content,
+                    response_metadata={
+                        "suggested_price": suggested_price,
+                        "fair_value": fair_value,
+                        "evaluation_score": eval_score,
+                        "ai_metrics": ai_metrics,
+                        "fallback": True,
+                    },
+                    llm_used=False,
+                    agent_role="negotiation",
+                )
+            except Exception as log_error:
+                logger.error(f"Failed to log AI fallback response: {log_error}")
+                # Don't fail the main operation if logging fails
 
             return {
                 "content": fallback_content,
@@ -792,7 +848,7 @@ class NegotiationService:
         logger.info(f"[{request_id}] Generating counter response for session {session.id}")
 
         # Get conversation history
-        messages = self.negotiation_repo.get_messages(session.id)
+        messages = await self.negotiation_repo.get_messages(session.id)
         offer_history = []
         for msg in messages[-self.MAX_CONVERSATION_HISTORY :]:  # Last N messages
             if msg.message_metadata and "counter_offer" in msg.message_metadata:
@@ -862,7 +918,7 @@ class NegotiationService:
 
             # Calculate enhanced AI metrics for counter offer
             # Pass the already-fetched messages to avoid redundant query
-            ai_metrics = self._calculate_ai_metrics(
+            ai_metrics = await self._calculate_ai_metrics(
                 session_id=session.id,
                 deal=deal,
                 current_price=new_suggested_price,
@@ -934,7 +990,7 @@ class NegotiationService:
 
             # Calculate enhanced AI metrics even for fallback
             # Pass the already-fetched messages to avoid redundant query
-            ai_metrics = self._calculate_ai_metrics(
+            ai_metrics = await self._calculate_ai_metrics(
                 session_id=session.id,
                 deal=deal,
                 current_price=new_suggested_price,
@@ -956,7 +1012,7 @@ class NegotiationService:
                 },
             }
 
-    def get_session_with_messages(self, session_id: int) -> dict[str, Any] | None:
+    async def get_session_with_messages(self, session_id: int) -> dict[str, Any] | None:
         """
         Get a negotiation session with all its messages
 
@@ -966,11 +1022,11 @@ class NegotiationService:
         Returns:
             Dictionary with session details and messages, or None if not found
         """
-        session = self.negotiation_repo.get_session(session_id)
+        session = await self.negotiation_repo.get_session(session_id)
         if not session:
             return None
 
-        messages = self.negotiation_repo.get_messages(session_id)
+        messages = await self.negotiation_repo.get_messages(session_id)
 
         return {
             "id": session.id,
@@ -1019,20 +1075,20 @@ class NegotiationService:
         logger.info(f"[{request_id}] Processing chat message for session {session_id}")
 
         # Get session
-        session = self.negotiation_repo.get_session(session_id)
+        session = await self.negotiation_repo.get_session(session_id)
         if not session:
             logger.error(f"[{request_id}] Session {session_id} not found")
             raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
         # Allow chat even if session is completed/cancelled for post-negotiation questions
         # Get deal
-        deal = self.deal_repo.get(session.deal_id)
+        deal = await self.deal_repo.get(session.deal_id)
         if not deal:
             logger.error(f"[{request_id}] Deal {session.deal_id} not found")
             raise ApiError(status_code=404, message="Associated deal not found")
 
         # Add user message
-        user_msg = self.negotiation_repo.add_message(
+        user_msg = await self.negotiation_repo.add_message(
             session_id=session_id,
             role=MessageRole.USER,
             content=user_message,
@@ -1058,7 +1114,7 @@ class NegotiationService:
             # Hide typing indicator
             await self.ws_manager.broadcast_typing_indicator(session_id, False)
 
-            agent_msg = self.negotiation_repo.add_message(
+            agent_msg = await self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.AGENT,
                 content=agent_response["content"],
@@ -1113,7 +1169,7 @@ class NegotiationService:
         logger.info(f"[{request_id}] Generating chat response for session {session.id}")
 
         # Get recent conversation history
-        messages = self.negotiation_repo.get_messages(session.id)
+        messages = await self.negotiation_repo.get_messages(session.id)
         recent_messages = messages[-6:]  # Last 6 messages for context
 
         conversation_history = []
@@ -1196,7 +1252,7 @@ class NegotiationService:
         logger.info(f"[{request_id}] Analyzing dealer info for session {session_id}")
 
         # Get session
-        session = self.negotiation_repo.get_session(session_id)
+        session = await self.negotiation_repo.get_session(session_id)
         if not session:
             logger.error(f"[{request_id}] Session {session_id} not found")
             raise ApiError(status_code=404, message=f"Session {session_id} not found")
@@ -1211,7 +1267,7 @@ class NegotiationService:
             )
 
         # Get deal
-        deal = self.deal_repo.get(session.deal_id)
+        deal = await self.deal_repo.get(session.deal_id)
         if not deal:
             logger.error(f"[{request_id}] Deal {session.deal_id} not found")
             raise ApiError(status_code=404, message="Associated deal not found")
@@ -1221,7 +1277,7 @@ class NegotiationService:
         if price_mentioned:
             user_msg_content += f"\n\nPrice mentioned: ${price_mentioned:,.2f}"
 
-        user_msg = self.negotiation_repo.add_message(
+        user_msg = await self.negotiation_repo.add_message(
             session_id=session_id,
             role=MessageRole.USER,
             content=user_msg_content,
@@ -1245,7 +1301,7 @@ class NegotiationService:
                 request_id=request_id,
             )
 
-            agent_msg = self.negotiation_repo.add_message(
+            agent_msg = await self.negotiation_repo.add_message(
                 session_id=session_id,
                 role=MessageRole.AGENT,
                 content=agent_response["content"],
@@ -1301,10 +1357,10 @@ class NegotiationService:
         logger.info(f"[{request_id}] Generating dealer info analysis for session {session.id}")
 
         # Get latest suggested price using helper method
-        suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
+        suggested_price = await self._get_latest_suggested_price(session.id, deal.asking_price)
 
         # Get user target price from messages or use default
-        messages = self.negotiation_repo.get_messages(session.id)
+        messages = await self.negotiation_repo.get_messages(session.id)
         user_target = deal.asking_price * self.DEFAULT_TARGET_PRICE_RATIO
 
         for msg in reversed(messages[-10:]):
@@ -1314,7 +1370,7 @@ class NegotiationService:
 
         try:
             # Use centralized LLM client with evaluator agent for dealer analysis
-            response_content = generate_text(
+            response_content = await generate_text(
                 prompt_id="dealer_info_analysis",
                 variables={
                     "make": deal.vehicle_make,

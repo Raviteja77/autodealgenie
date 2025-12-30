@@ -5,10 +5,10 @@ Negotiation endpoints for multi-round negotiations
 import logging
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.models import User
 from app.schemas.loan_schemas import (
     LenderRecommendationRequest,
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_negotiation(
     request: CreateNegotiationRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -74,7 +74,7 @@ async def create_negotiation(
 async def process_next_round(
     session_id: int,
     request: NextRoundRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -104,7 +104,7 @@ async def process_next_round(
     service = NegotiationService(db)
 
     # Verify session belongs to user
-    session = service.negotiation_repo.get_session(session_id)
+    session = await service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -123,9 +123,9 @@ async def process_next_round(
 
 
 @router.get("/{session_id}", response_model=NegotiationSessionResponse)
-def get_negotiation_session(
+async def get_negotiation_session(
     session_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -147,7 +147,7 @@ def get_negotiation_session(
     service = NegotiationService(db)
 
     # Verify session belongs to user
-    session = service.negotiation_repo.get_session(session_id)
+    session = await service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -157,7 +157,7 @@ def get_negotiation_session(
             message="You don't have permission to access this session",
         )
 
-    result = service.get_session_with_messages(session_id)
+    result = await service.get_session_with_messages(session_id)
     if not result:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -165,11 +165,11 @@ def get_negotiation_session(
 
 
 @router.get("/{session_id}/lender-recommendations", response_model=LenderRecommendationResponse)
-def get_lender_recommendations(
+async def get_lender_recommendations(
     session_id: int,
     loan_term_months: int = 60,
     credit_score_range: str = "good",
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -198,7 +198,7 @@ def get_lender_recommendations(
     negotiation_service = NegotiationService(db)
 
     # Verify session belongs to user
-    session = negotiation_service.negotiation_repo.get_session(session_id)
+    session = await negotiation_service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -209,12 +209,12 @@ def get_lender_recommendations(
         )
 
     # Get the deal to determine the vehicle price
-    deal = negotiation_service.deal_repo.get(session.deal_id)
+    deal = await negotiation_service.deal_repo.get(session.deal_id)
     if not deal:
         raise ApiError(status_code=404, message="Associated deal not found")
 
     # Get the latest messages to find the final negotiated price
-    messages = negotiation_service.negotiation_repo.get_messages(session_id)
+    messages = await negotiation_service.negotiation_repo.get_messages(session_id)
     negotiated_price = deal.asking_price
 
     # Try to find the last suggested price in agent messages (check last 10 messages only)
@@ -245,7 +245,7 @@ def get_lender_recommendations(
 async def send_chat_message(
     session_id: int,
     request: ChatMessageRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -271,7 +271,7 @@ async def send_chat_message(
     service = NegotiationService(db)
 
     # Verify session belongs to user
-    session = service.negotiation_repo.get_session(session_id)
+    session = await service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -293,7 +293,7 @@ async def send_chat_message(
 async def submit_dealer_info(
     session_id: int,
     request: DealerInfoRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -321,7 +321,7 @@ async def submit_dealer_info(
     service = NegotiationService(db)
 
     # Verify session belongs to user
-    session = service.negotiation_repo.get_session(session_id)
+    session = await service.negotiation_repo.get_session(session_id)
     if not session:
         raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
@@ -345,7 +345,7 @@ async def submit_dealer_info(
 async def websocket_endpoint(
     websocket: WebSocket,
     session_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     WebSocket endpoint for real-time negotiation chat updates
@@ -399,7 +399,7 @@ async def websocket_endpoint(
         from app.repositories.user_repository import UserRepository
 
         user_repo = UserRepository(db)
-        user = user_repo.get_by_id(user_id)
+        user = await user_repo.get_by_id(user_id)
         if not user or not user.is_active:
             await websocket.close(code=4001, reason="User not found or inactive")
             return
@@ -410,7 +410,7 @@ async def websocket_endpoint(
 
     # Verify session exists before accepting connection
     service = NegotiationService(db)
-    session = service.negotiation_repo.get_session(session_id)
+    session = await service.negotiation_repo.get_session(session_id)
 
     if not session:
         await websocket.close(code=4004, reason="Session not found")

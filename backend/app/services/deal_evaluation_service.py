@@ -12,7 +12,8 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.redis import redis_client
 from app.llm import generate_structured_json, llm_client
@@ -595,7 +596,7 @@ class DealEvaluationService:
 
     async def process_evaluation_step(
         self,
-        db: Session,
+        db: AsyncSession,
         evaluation_id: int,
         user_answers: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
@@ -611,13 +612,14 @@ class DealEvaluationService:
             Dictionary containing step result with either assessment or questions
         """
         repo = EvaluationRepository(db)
-        evaluation = repo.get(evaluation_id)
+        evaluation = await repo.get(evaluation_id)
 
         if not evaluation:
             raise ValueError(f"Evaluation {evaluation_id} not found")
 
         # Get the deal details
-        deal = db.query(Deal).filter(Deal.id == evaluation.deal_id).first()
+        result = await db.execute(select(Deal).filter(Deal.id == evaluation.deal_id))
+        deal = result.scalar_one_or_none()
         if not deal:
             raise ValueError(f"Deal {evaluation.deal_id} not found")
 
@@ -646,18 +648,18 @@ class DealEvaluationService:
         if step_result.get("questions"):
             # If questions are returned, update status to awaiting_input
             result_json[current_step.value] = step_result
-            repo.update_result(evaluation_id, result_json, EvaluationStatus.AWAITING_INPUT)
+            await repo.update_result(evaluation_id, result_json, EvaluationStatus.AWAITING_INPUT)
         else:
             # If no questions, advance to next step
             result_json[current_step.value] = step_result
             next_step = self._get_next_step(current_step)
 
             if next_step:
-                repo.update_step(evaluation_id, next_step)
-                repo.update_result(evaluation_id, result_json, EvaluationStatus.ANALYZING)
+                await repo.update_step(evaluation_id, next_step)
+                await repo.update_result(evaluation_id, result_json, EvaluationStatus.ANALYZING)
             else:
                 # Final step completed
-                repo.update_result(evaluation_id, result_json, EvaluationStatus.COMPLETED)
+                await repo.update_result(evaluation_id, result_json, EvaluationStatus.COMPLETED)
 
         return step_result
 

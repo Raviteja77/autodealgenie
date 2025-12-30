@@ -1,13 +1,14 @@
 """Test loan endpoints"""
 
 import pytest
+import pytest_asyncio
 
 from app.api.dependencies import get_current_user
 from app.models.models import User
 
 
-@pytest.fixture
-def mock_user(db):
+@pytest_asyncio.fixture
+async def mock_user(async_db):
     """Create a mock user for testing"""
     user = User(
         email="loanuser@example.com",
@@ -15,9 +16,9 @@ def mock_user(db):
         hashed_password="hashed",
         full_name="Loan User",
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    async_db.add(user)
+    await async_db.commit()
+    await async_db.refresh(user)
     return user
 
 
@@ -34,7 +35,7 @@ def authenticated_client(client, mock_user):
     app.dependency_overrides.clear()
 
 
-def test_calculate_loan_payment_excellent_credit(authenticated_client):
+async def test_calculate_loan_payment_excellent_credit(authenticated_client):
     """Test loan calculation with excellent credit score"""
     calculation_data = {
         "loan_amount": 30000,
@@ -57,7 +58,7 @@ def test_calculate_loan_payment_excellent_credit(authenticated_client):
     assert data["total_interest"] > 0
 
 
-def test_calculate_loan_payment_good_credit(authenticated_client):
+async def test_calculate_loan_payment_good_credit(authenticated_client):
     """Test loan calculation with good credit score"""
     calculation_data = {
         "loan_amount": 25000,
@@ -75,7 +76,7 @@ def test_calculate_loan_payment_good_credit(authenticated_client):
     assert data["monthly_payment"] > 0
 
 
-def test_calculate_loan_payment_fair_credit(authenticated_client):
+async def test_calculate_loan_payment_fair_credit(authenticated_client):
     """Test loan calculation with fair credit score"""
     calculation_data = {
         "loan_amount": 20000,
@@ -92,7 +93,7 @@ def test_calculate_loan_payment_fair_credit(authenticated_client):
     assert data["interest_rate"] == 0.104
 
 
-def test_calculate_loan_payment_poor_credit(authenticated_client):
+async def test_calculate_loan_payment_poor_credit(authenticated_client):
     """Test loan calculation with poor credit score"""
     calculation_data = {
         "loan_amount": 15000,
@@ -109,7 +110,7 @@ def test_calculate_loan_payment_poor_credit(authenticated_client):
     assert data["interest_rate"] == 0.134
 
 
-def test_calculate_loan_payment_invalid_credit_score(authenticated_client):
+async def test_calculate_loan_payment_invalid_credit_score(authenticated_client):
     """Test loan calculation with invalid credit score range"""
     calculation_data = {
         "loan_amount": 20000,
@@ -124,7 +125,7 @@ def test_calculate_loan_payment_invalid_credit_score(authenticated_client):
     assert response.status_code == 422
 
 
-def test_calculate_loan_payment_zero_term(authenticated_client):
+async def test_calculate_loan_payment_zero_term(authenticated_client):
     """Test loan calculation with zero loan term"""
     calculation_data = {
         "loan_amount": 20000,
@@ -139,7 +140,7 @@ def test_calculate_loan_payment_zero_term(authenticated_client):
     assert response.status_code == 422
 
 
-def test_calculate_loan_payment_negative_amount(authenticated_client):
+async def test_calculate_loan_payment_negative_amount(authenticated_client):
     """Test loan calculation with negative loan amount"""
     calculation_data = {
         "loan_amount": -10000,
@@ -154,7 +155,7 @@ def test_calculate_loan_payment_negative_amount(authenticated_client):
     assert response.status_code == 422
 
 
-def test_calculate_loan_payment_down_payment_exceeds_loan(authenticated_client):
+async def test_calculate_loan_payment_down_payment_exceeds_loan(authenticated_client):
     """Test loan calculation when down payment exceeds loan amount"""
     calculation_data = {
         "loan_amount": 10000,
@@ -169,7 +170,7 @@ def test_calculate_loan_payment_down_payment_exceeds_loan(authenticated_client):
     assert response.status_code == 400
 
 
-def test_get_loan_offers_excellent_credit(authenticated_client):
+async def test_get_loan_offers_excellent_credit(authenticated_client):
     """Test getting loan offers with excellent credit"""
     response = authenticated_client.get(
         "/api/v1/loans/offers",
@@ -198,7 +199,7 @@ def test_get_loan_offers_excellent_credit(authenticated_client):
     assert any(offer["pre_approved"] for offer in data["offers"])
 
 
-def test_get_loan_offers_poor_credit(authenticated_client):
+async def test_get_loan_offers_poor_credit(authenticated_client):
     """Test getting loan offers with poor credit"""
     response = authenticated_client.get(
         "/api/v1/loans/offers",
@@ -219,7 +220,7 @@ def test_get_loan_offers_poor_credit(authenticated_client):
         assert offer["interest_rate"] > 0.08  # Higher than 8%
 
 
-def test_get_loan_offers_rate_comparison(authenticated_client):
+async def test_get_loan_offers_rate_comparison(authenticated_client):
     """Test that different lenders provide different rates"""
     response = authenticated_client.get(
         "/api/v1/loans/offers",
@@ -240,7 +241,7 @@ def test_get_loan_offers_rate_comparison(authenticated_client):
     assert len(set(rates)) > 1  # Different rates
 
 
-def test_loan_calculation_total_cost_accuracy(authenticated_client):
+async def test_loan_calculation_total_cost_accuracy(authenticated_client):
     """Test that total cost calculation is accurate"""
     calculation_data = {
         "loan_amount": 30000,
@@ -265,7 +266,7 @@ def test_loan_calculation_total_cost_accuracy(authenticated_client):
     assert abs(data["total_interest"] - expected_interest) < 1.0
 
 
-def test_unauthorized_access_to_loan_endpoints(client):
+async def test_unauthorized_access_to_loan_endpoints(client):
     """Test that unauthenticated users cannot access loan endpoints"""
     # Try to calculate loan without authentication
     calculation_data = {
