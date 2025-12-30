@@ -457,7 +457,7 @@ class NegotiationService:
     ) -> dict[str, Any]:
         """
         Calculate enhanced AI metrics for negotiation intelligence
-        
+
         Now integrates:
         - Market intelligence data (real-time comps, price trends)
         - ML-based success probability prediction
@@ -523,14 +523,14 @@ class NegotiationService:
                 zip_code=None,  # Could be extracted from user preferences
                 max_results=10,
             )
-            
+
             # Get price trend analysis
             trend_data = await self.market_intelligence_service.get_price_trend(
                 make=deal.vehicle_make,
                 model=deal.vehicle_model,
                 year=deal.vehicle_year,
             )
-            
+
             market_intelligence = {
                 "average_market_price": comps_data.get("average_price", 0),
                 "median_market_price": comps_data.get("median_price", 0),
@@ -540,7 +540,7 @@ class NegotiationService:
                 "demand_level": trend_data.get("demand_level", "medium"),
                 "market_days_supply": trend_data.get("market_days_supply", 0),
             }
-            
+
             # Adjust confidence based on market data
             if comps_data.get("average_price", 0) > 0:
                 market_avg = comps_data["average_price"]
@@ -548,7 +548,7 @@ class NegotiationService:
                 if current_price < market_avg:
                     price_vs_market = (market_avg - current_price) / market_avg
                     confidence_score = min(1.0, confidence_score + price_vs_market * 0.15)
-                
+
         except Exception as e:
             logger.warning(f"Failed to get market intelligence: {e}")
             # Continue with basic metrics if market data unavailable
@@ -562,18 +562,18 @@ class NegotiationService:
                 user_target_price=user_target,
                 asking_price=deal.asking_price,
             )
-            
+
             ml_prediction = {
                 "success_probability": success_analysis.get("success_probability", 0.5),
                 "ml_confidence_level": success_analysis.get("confidence_level", "low"),
                 "key_factors": success_analysis.get("key_factors", []),
                 "similar_sessions": success_analysis.get("similar_sessions_count", 0),
             }
-            
+
             # Blend ML confidence with rule-based confidence
             ml_success_prob = success_analysis.get("success_probability", 0.5)
             confidence_score = (confidence_score * 0.6) + (ml_success_prob * 0.4)
-            
+
         except Exception as e:
             logger.warning(f"Failed to calculate ML prediction: {e}")
             # Continue with basic metrics if ML unavailable
@@ -584,14 +584,14 @@ class NegotiationService:
             patterns = await self.analytics_service.analyze_negotiation_patterns(
                 session_id=session_id,
             )
-            
+
             pattern_analysis = {
                 "negotiation_velocity_pattern": patterns.get("negotiation_velocity", "unknown"),
                 "dealer_flexibility_pattern": patterns.get("dealer_flexibility", "unknown"),
                 "predicted_outcome": patterns.get("predicted_outcome", "uncertain"),
                 "pattern_insights": patterns.get("insights", []),
             }
-            
+
         except Exception as e:
             logger.warning(f"Failed to analyze patterns: {e}")
             # Continue with basic metrics if pattern analysis unavailable
@@ -605,14 +605,14 @@ class NegotiationService:
                 user_target_price=user_target,
                 asking_price=deal.asking_price,
             )
-            
+
             optimal_offer_data = {
                 "ml_optimal_offer": optimal_offer_result.get("optimal_offer", current_price),
                 "optimal_offer_rationale": optimal_offer_result.get("rationale", ""),
                 "expected_savings": optimal_offer_result.get("expected_savings", 0),
                 "offer_risk_assessment": optimal_offer_result.get("risk_assessment", "medium"),
             }
-            
+
         except Exception as e:
             logger.warning(f"Failed to calculate optimal offer: {e}")
             # Continue with basic metrics if optimal offer calculation unavailable
@@ -676,11 +676,15 @@ class NegotiationService:
         """Generate enhanced strategy adjustments using market and ML data"""
         # Start with base strategy
         if dealer_concession_rate > 0.10:
-            strategy = "Dealer showing strong flexibility. You have significant leverage—push for more!"
+            strategy = (
+                "Dealer showing strong flexibility. You have significant leverage—push for more!"
+            )
         elif dealer_concession_rate > 0.05:
             strategy = "Moderate progress. Consider one more counter to maximize your savings."
         elif round_count > 5:
-            strategy = "Limited movement detected. Consider accepting current offer or walking away."
+            strategy = (
+                "Limited movement detected. Consider accepting current offer or walking away."
+            )
         elif dealer_concession_rate <= 0.02:
             strategy = (
                 "Early in the negotiation, but the dealer has shown limited flexibility so far. "
@@ -689,19 +693,19 @@ class NegotiationService:
             )
         else:
             strategy = "Early stage. Continue negotiating strategically to secure the best price."
-        
+
         # Enhance with market intelligence
         if market_intelligence.get("demand_level") == "high":
             strategy += " Market demand is high—consider negotiating quickly."
         elif market_intelligence.get("demand_level") == "low":
             strategy += " Low market demand gives you strong negotiating leverage."
-        
+
         # Add ML insights
         if ml_prediction.get("success_probability", 0) > 0.75:
             strategy += " ML analysis suggests high probability of success with current approach."
         elif ml_prediction.get("success_probability", 0) < 0.3:
             strategy += " ML analysis suggests reconsidering your strategy or target price."
-        
+
         return strategy
 
     def _generate_market_comparison(
@@ -717,10 +721,14 @@ class NegotiationService:
         elif discount_percent >= 10:
             comparison = f"Excellent! You're {discount_percent:.1f}% below asking—better than typical market deals."
         elif discount_percent >= 5:
-            comparison = f"Solid progress at {discount_percent:.1f}% off. Average market discount is 3-7%."
+            comparison = (
+                f"Solid progress at {discount_percent:.1f}% off. Average market discount is 3-7%."
+            )
         else:
-            comparison = f"Currently at {discount_percent:.1f}% off. Most buyers achieve 5-10% discounts."
-        
+            comparison = (
+                f"Currently at {discount_percent:.1f}% off. Most buyers achieve 5-10% discounts."
+            )
+
         # Enhance with real market data
         avg_market = market_intelligence.get("average_market_price", 0)
         if avg_market > 0 and current_price > 0:
@@ -728,22 +736,20 @@ class NegotiationService:
             if vs_market > 5:
                 comparison += f" Current price is {vs_market:.1f}% below market average of ${avg_market:,.0f}!"
             elif vs_market < -5:
-                comparison += f" Warning: {abs(vs_market):.1f}% above market average of ${avg_market:,.0f}."
+                comparison += (
+                    f" Warning: {abs(vs_market):.1f}% above market average of ${avg_market:,.0f}."
+                )
             else:
                 comparison += f" Price aligns with market average of ${avg_market:,.0f}."
-        
+
         # Add market trend context
         trend = market_intelligence.get("price_trend", "")
         if trend == "increasing":
             comparison += " Prices are trending upward—act soon."
         elif trend == "decreasing":
             comparison += " Prices are trending downward—you may get better deals soon."
-        
+
         return comparison
-            "dealer_concession_rate": round(dealer_concession_rate, 3),
-            "negotiation_velocity": round(negotiation_velocity, 2),
-            "market_comparison": market_comparison,
-        }
 
     async def _generate_agent_response(
         self,

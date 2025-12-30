@@ -8,18 +8,16 @@ Provides ML-driven analytics for negotiation intelligence:
 - Vector similarity search for comparable sessions
 """
 
-import hashlib
 import json
 import logging
 from typing import Any
 
-import numpy as np
 from openai import AsyncOpenAI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.models.negotiation import NegotiationMessage, NegotiationSession, NegotiationStatus
+from app.models.negotiation import NegotiationMessage
 from app.repositories.negotiation_repository import NegotiationRepository
 from app.utils.error_handler import ApiError
 
@@ -29,7 +27,7 @@ logger = logging.getLogger(__name__)
 class NegotiationAnalyticsService:
     """
     Service for ML-driven negotiation analytics
-    
+
     Provides:
     - Success probability prediction using historical patterns
     - Optimal counter-offer suggestions based on data analysis
@@ -40,7 +38,7 @@ class NegotiationAnalyticsService:
     # Embedding model configuration
     EMBEDDING_MODEL = "text-embedding-3-small"
     EMBEDDING_DIMENSIONS = 1536
-    
+
     # Success probability thresholds
     HIGH_SUCCESS_THRESHOLD = 0.75
     MEDIUM_SUCCESS_THRESHOLD = 0.50
@@ -48,13 +46,13 @@ class NegotiationAnalyticsService:
     def __init__(self, db: AsyncSession):
         """
         Initialize NegotiationAnalyticsService
-        
+
         Args:
             db: SQLAlchemy async database session
         """
         self.db = db
         self.negotiation_repo = NegotiationRepository(db)
-        
+
         # Initialize OpenAI client for embeddings
         self.openai_client = None
         if settings.OPENAI_API_KEY:
@@ -69,18 +67,18 @@ class NegotiationAnalyticsService:
     ) -> dict[str, Any]:
         """
         Calculate the probability of successful negotiation completion
-        
+
         Uses ML-driven analysis based on:
         - Historical negotiation outcomes
         - Current negotiation context (round, price gap, etc.)
         - Similar negotiation patterns via vector similarity
-        
+
         Args:
             session_id: Current negotiation session ID
             current_price: Current negotiated price
             user_target_price: User's target price
             asking_price: Initial asking price
-            
+
         Returns:
             Dictionary with success probability and supporting metrics:
             {
@@ -100,7 +98,7 @@ class NegotiationAnalyticsService:
                 raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
             # Get messages for context
-            messages = await self.negotiation_repo.get_messages(session_id)
+            await self.negotiation_repo.get_messages(session_id)
 
             # Calculate base probability from current negotiation state
             base_probability = self._calculate_base_probability(
@@ -181,18 +179,18 @@ class NegotiationAnalyticsService:
     ) -> dict[str, Any]:
         """
         Calculate the optimal counter-offer based on data analysis
-        
+
         Uses historical data and ML to suggest the best counter-offer that:
         - Maximizes savings potential
         - Maintains reasonable negotiation momentum
         - Considers market conditions and similar negotiations
-        
+
         Args:
             session_id: Current negotiation session ID
             current_offer: Most recent offer price
             user_target_price: User's target price
             asking_price: Initial asking price
-            
+
         Returns:
             Dictionary with optimal counter-offer:
             {
@@ -211,7 +209,7 @@ class NegotiationAnalyticsService:
             if not session:
                 raise ApiError(status_code=404, message=f"Session {session_id} not found")
 
-            messages = await self.negotiation_repo.get_messages(session_id)
+            await self.negotiation_repo.get_messages(session_id)
 
             # Find similar negotiations
             similar_sessions = await self._find_similar_sessions(
@@ -287,16 +285,16 @@ class NegotiationAnalyticsService:
     ) -> dict[str, Any]:
         """
         Analyze patterns in the current negotiation compared to historical data
-        
+
         Provides insights on:
         - Negotiation velocity (speed of price changes)
         - Dealer flexibility indicators
         - User negotiation style
         - Predicted outcome based on patterns
-        
+
         Args:
             session_id: Current negotiation session ID
-            
+
         Returns:
             Dictionary with pattern analysis:
             {
@@ -378,7 +376,7 @@ class NegotiationAnalyticsService:
     ) -> list[dict[str, Any]]:
         """
         Find similar negotiation sessions using vector similarity search
-        
+
         Uses pgvector to find sessions with similar characteristics:
         - Price ranges
         - Negotiation patterns
@@ -396,7 +394,7 @@ class NegotiationAnalyticsService:
 
             # Create embedding query string
             query_text = await self._create_embedding_query(session_id)
-            
+
             # Generate embedding
             embedding = await self._generate_embedding(query_text)
             if not embedding:
@@ -406,21 +404,23 @@ class NegotiationAnalyticsService:
             embedding_str = f"[{','.join(map(str, embedding))}]"
 
             # Find similar sessions using cosine similarity
-            query = text("""
-                SELECT 
+            query = text(
+                """
+                SELECT
                     ns.id,
                     ns.status,
                     ns.current_round,
                     ns.created_at,
                     1 - (ns.session_embedding <=> :embedding::vector) as similarity
                 FROM negotiation_sessions ns
-                WHERE 
+                WHERE
                     ns.id != :session_id
                     AND ns.session_embedding IS NOT NULL
                     AND ns.status IN ('completed', 'cancelled')
                 ORDER BY ns.session_embedding <=> :embedding::vector
                 LIMIT :limit
-            """)
+            """
+            )
 
             result = await self.db.execute(
                 query,
@@ -433,13 +433,15 @@ class NegotiationAnalyticsService:
 
             similar_sessions = []
             for row in result.fetchall():
-                similar_sessions.append({
-                    "session_id": row[0],
-                    "status": row[1],
-                    "rounds": row[2],
-                    "created_at": row[3],
-                    "similarity": float(row[4]) if row[4] else 0.0,
-                })
+                similar_sessions.append(
+                    {
+                        "session_id": row[0],
+                        "status": row[1],
+                        "rounds": row[2],
+                        "created_at": row[3],
+                        "similarity": float(row[4]) if row[4] else 0.0,
+                    }
+                )
 
             logger.info(f"Found {len(similar_sessions)} similar sessions")
             return similar_sessions
@@ -452,18 +454,18 @@ class NegotiationAnalyticsService:
         """Create a text query for embedding generation"""
         session = await self.negotiation_repo.get_session(session_id)
         messages = await self.negotiation_repo.get_messages(session_id)
-        
+
         # Create a representative text for the session
         query_parts = [
             f"Negotiation session with {len(messages)} messages",
             f"Status: {session.status.value}",
             f"Round: {session.current_round} of {session.max_rounds}",
         ]
-        
+
         # Add message content (limited)
         for msg in messages[:5]:
             query_parts.append(f"{msg.role.value}: {msg.content[:100]}")
-        
+
         return " | ".join(query_parts)
 
     async def _generate_embedding(self, text: str) -> list[float] | None:
@@ -508,8 +510,8 @@ class NegotiationAnalyticsService:
             discount_factor = 0.5
 
         # Weighted combination
-        base_prob = (price_factor * 0.4 + round_factor * 0.3 + discount_factor * 0.3)
-        
+        base_prob = price_factor * 0.4 + round_factor * 0.3 + discount_factor * 0.3
+
         return max(0.0, min(1.0, base_prob))
 
     def _adjust_probability_from_history(
@@ -532,7 +534,7 @@ class NegotiationAnalyticsService:
             (1.0 if s["status"] == "completed" else 0.0) * s.get("similarity", 0.5)
             for s in similar_sessions
         )
-        
+
         if total_weight > 0:
             historical_prob = weighted_success / total_weight
         else:
@@ -540,7 +542,7 @@ class NegotiationAnalyticsService:
 
         # Blend: 60% base, 40% historical
         adjusted_prob = base_probability * 0.6 + historical_prob * 0.4
-        
+
         return max(0.0, min(1.0, adjusted_prob))
 
     def _determine_confidence_level(
@@ -587,7 +589,9 @@ class NegotiationAnalyticsService:
 
         # Historical factor
         if similar_sessions:
-            completed_rate = sum(1 for s in similar_sessions if s["status"] == "completed") / len(similar_sessions)
+            completed_rate = sum(1 for s in similar_sessions if s["status"] == "completed") / len(
+                similar_sessions
+            )
             if completed_rate > 0.7:
                 factors.append("Similar negotiations show high success rate")
             elif completed_rate < 0.3:
@@ -617,12 +621,12 @@ class NegotiationAnalyticsService:
             return {"average_rounds": 5, "average_discount": 0.08}
 
         successful = [s for s in similar_sessions if s["status"] == "completed"]
-        
+
         if not successful:
             return {"average_rounds": 5, "average_discount": 0.08}
 
         avg_rounds = sum(s["rounds"] for s in successful) / len(successful)
-        
+
         return {
             "average_rounds": round(avg_rounds, 1),
             "average_discount": 0.08,  # Would calculate from actual data
@@ -640,18 +644,18 @@ class NegotiationAnalyticsService:
         """Calculate optimal counter-offer based on patterns"""
         # Base calculation: move toward target
         gap = current_offer - user_target_price
-        
+
         # Adjust based on round (more aggressive early, more conservative later)
         round_factor = 1.0 - (current_round / 10.0)
-        
+
         # Calculate suggested move
         move_amount = gap * 0.4 * (1 + round_factor * 0.5)
-        
+
         optimal = current_offer - move_amount
-        
+
         # Ensure we don't go below target
         optimal = max(optimal, user_target_price)
-        
+
         return optimal
 
     def _assess_offer_risk(
@@ -693,7 +697,7 @@ class NegotiationAnalyticsService:
             reduction_percent = 0
 
         rationale = f"Suggesting ${optimal_offer:,.2f} "
-        
+
         if reduction_percent > 5:
             rationale += f"(${reduction:,.2f} reduction, {reduction_percent:.1f}%). "
             rationale += "This is an aggressive but data-supported counteroffer."
@@ -704,7 +708,9 @@ class NegotiationAnalyticsService:
             rationale += "Hold firm at this price to gauge dealer flexibility."
 
         if success_patterns.get("success_count", 0) > 5:
-            rationale += f" Based on {success_patterns['success_count']} similar successful negotiations."
+            rationale += (
+                f" Based on {success_patterns['success_count']} similar successful negotiations."
+            )
 
         return rationale
 
@@ -719,19 +725,23 @@ class NegotiationAnalyticsService:
 
         # Conservative option (smaller move)
         conservative = optimal_offer + (current_offer - optimal_offer) * 0.5
-        alternatives.append({
-            "offer": round(conservative, 2),
-            "strategy": "conservative",
-            "description": "Smaller move to gauge dealer response",
-        })
+        alternatives.append(
+            {
+                "offer": round(conservative, 2),
+                "strategy": "conservative",
+                "description": "Smaller move to gauge dealer response",
+            }
+        )
 
         # Aggressive option (larger move toward target)
         aggressive = optimal_offer - (optimal_offer - user_target_price) * 0.3
-        alternatives.append({
-            "offer": round(aggressive, 2),
-            "strategy": "aggressive",
-            "description": "Larger move to test dealer flexibility",
-        })
+        alternatives.append(
+            {
+                "offer": round(aggressive, 2),
+                "strategy": "aggressive",
+                "description": "Larger move to test dealer flexibility",
+            }
+        )
 
         return alternatives
 
@@ -776,7 +786,7 @@ class NegotiationAnalyticsService:
 
         # Simplified assessment - would use more sophisticated analysis in production
         agent_messages = [m for m in messages if m.role.value == "agent"]
-        
+
         if len(agent_messages) < 2:
             return "unknown"
 
@@ -792,7 +802,7 @@ class NegotiationAnalyticsService:
             return "unknown"
 
         user_messages = [m for m in messages if m.role.value == "user"]
-        
+
         # Analyze counter-offer patterns
         counter_offers = []
         for msg in user_messages:
@@ -803,8 +813,9 @@ class NegotiationAnalyticsService:
             return "unknown"
 
         # Calculate aggressiveness
-        avg_move = sum(abs(counter_offers[i] - counter_offers[i-1]) 
-                      for i in range(1, len(counter_offers))) / (len(counter_offers) - 1)
+        avg_move = sum(
+            abs(counter_offers[i] - counter_offers[i - 1]) for i in range(1, len(counter_offers))
+        ) / (len(counter_offers) - 1)
 
         if avg_move > 800:
             return "aggressive"
@@ -823,7 +834,9 @@ class NegotiationAnalyticsService:
         if not similar_sessions:
             return "uncertain"
 
-        success_rate = sum(1 for s in similar_sessions if s["status"] == "completed") / len(similar_sessions)
+        success_rate = sum(1 for s in similar_sessions if s["status"] == "completed") / len(
+            similar_sessions
+        )
 
         if success_rate > 0.7:
             return "likely_success"
@@ -858,10 +871,10 @@ class NegotiationAnalyticsService:
             insights.append("Your conservative approach reduces risk but may limit savings")
 
         if similar_sessions:
-            success_rate = sum(1 for s in similar_sessions if s["status"] == "completed") / len(similar_sessions)
-            insights.append(
-                f"Similar negotiations succeeded {success_rate*100:.0f}% of the time"
+            success_rate = sum(1 for s in similar_sessions if s["status"] == "completed") / len(
+                similar_sessions
             )
+            insights.append(f"Similar negotiations succeeded {success_rate*100:.0f}% of the time")
 
         return insights
 
@@ -872,17 +885,19 @@ class NegotiationAnalyticsService:
     ) -> None:
         """Store analytics results in database"""
         try:
-            query = text("""
-                INSERT INTO negotiation_analytics 
+            query = text(
+                """
+                INSERT INTO negotiation_analytics
                 (session_id, success_probability, confidence_score, negotiation_patterns, created_at)
                 VALUES (:session_id, :success_probability, :confidence_score, :patterns, NOW())
-                ON CONFLICT (session_id) 
-                DO UPDATE SET 
+                ON CONFLICT (session_id)
+                DO UPDATE SET
                     success_probability = :success_probability,
                     confidence_score = :confidence_score,
                     negotiation_patterns = :patterns,
                     updated_at = NOW()
-            """)
+            """
+            )
 
             await self.db.execute(
                 query,

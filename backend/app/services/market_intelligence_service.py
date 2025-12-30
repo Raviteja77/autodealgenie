@@ -7,7 +7,7 @@ and market positioning data.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from app.services.marketcheck_service import MarketCheckService
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class MarketIntelligenceService:
     """
     Service for market intelligence and pricing analysis
-    
+
     Provides:
     - Real-time comparable vehicle pricing
     - Historical price trends
@@ -30,7 +30,7 @@ class MarketIntelligenceService:
     def __init__(self, marketcheck_service: MarketCheckService | None = None):
         """
         Initialize MarketIntelligenceService
-        
+
         Args:
             marketcheck_service: Optional MarketCheckService instance
         """
@@ -48,7 +48,7 @@ class MarketIntelligenceService:
     ) -> dict[str, Any]:
         """
         Get real-time comparable vehicle listings
-        
+
         Args:
             make: Vehicle make
             model: Vehicle model
@@ -57,7 +57,7 @@ class MarketIntelligenceService:
             zip_code: Optional location for search
             radius: Search radius in miles
             max_results: Maximum number of comparables to return
-            
+
         Returns:
             Dictionary with comparable listings and market analysis:
             {
@@ -105,7 +105,7 @@ class MarketIntelligenceService:
 
             # Calculate statistics
             prices = [comp["price"] for comp in comparables if comp.get("price")]
-            
+
             if not prices:
                 logger.warning("No prices found in comparables")
                 return self._get_fallback_comps()
@@ -151,13 +151,13 @@ class MarketIntelligenceService:
     ) -> dict[str, Any]:
         """
         Get historical price trend data for a vehicle
-        
+
         Args:
             make: Vehicle make
             model: Vehicle model
             year: Vehicle year
             zip_code: Optional location for regional trends
-            
+
         Returns:
             Dictionary with price trend analysis:
             {
@@ -254,7 +254,7 @@ class MarketIntelligenceService:
 
         summary = f"Found {total_found} comparable vehicles. "
         summary += f"Average price: ${average_price:,.0f}, Median: ${median_price:,.0f}. "
-        
+
         if spread_percent > 20:
             summary += "Wide price variation indicates diverse market conditions."
         elif spread_percent > 10:
@@ -277,7 +277,7 @@ class MarketIntelligenceService:
     def _estimate_price_change(self, demand_level: str, mds_value: float) -> float:
         """
         Estimate price change percentage based on demand and MDS
-        
+
         Lower MDS = higher demand = increasing prices
         Higher MDS = lower demand = decreasing prices
         """
