@@ -80,9 +80,15 @@ class AIResponseRepository:
         )
 
         self.db.add(record)
-        await self.db.commit()
-        await self.db.refresh(record)
+        try:
 
+            await self.db.commit()
+            await self.db.refresh(record)
+
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Failed to create AI response: {str(e)}")
+            raise
         logger.info(
             f"Logged AI response for feature={feature}, "
             f"deal_id={deal_id}, prompt_id={prompt_id}, llm_used={llm_used}, agent_role={agent_role}"

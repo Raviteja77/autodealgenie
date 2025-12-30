@@ -403,10 +403,10 @@ function NegotiationContent() {
     }
 
     // Sync typing indicator
-    if (chatContext.isTyping) {
-      setTyping(true);
-    }
-  }, [chatContext.messages, chatContext.isTyping, addMessages, setTyping]);
+    // if (chatContext.isTyping) {
+    //   setTyping(true);
+    // }
+  }, [chatContext.messages, addMessages, setTyping]);
 
   // Effect: Auto-scroll when messages change
   useEffect(() => {
@@ -1431,7 +1431,7 @@ function NegotiationContent() {
                       )
                     )}
 
-                    {negotiationState.isTyping && (
+                    {/* {negotiationState.isTyping && (
                       <Box
                         sx={{
                           display: "flex",
@@ -1454,7 +1454,7 @@ function NegotiationContent() {
                           </Typography>
                         </Paper>
                       </Box>
-                    )}
+                    )} */}
                     <div ref={messagesEndRef} />
                   </Box>
 

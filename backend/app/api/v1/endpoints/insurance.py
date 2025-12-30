@@ -3,9 +3,10 @@ Insurance recommendation endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user, get_db
+from app.api.dependencies import get_current_user
+from app.db.session import get_async_db
 from app.models.models import User
 from app.schemas.insurance_schemas import (
     InsuranceRecommendationRequest,
@@ -20,7 +21,7 @@ router = APIRouter()
 async def get_insurance_recommendations(
     request: InsuranceRecommendationRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get personalized insurance recommendations based on vehicle and driver criteria.

@@ -45,6 +45,8 @@ class RabbitMQConsumerService:
                 logger.info(f"Consumer cancelled for queue {self.queue_name}")
             except Exception as e:
                 logger.error(f"Error cancelling consumer: {str(e)}")
+            finally:
+                self.consumer_tag = None
         logger.info("RabbitMQ consumer stopped")
 
     async def consume_messages(self, callback: Callable[[dict[str, Any]], Any]):
