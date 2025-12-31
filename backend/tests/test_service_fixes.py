@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app.models.negotiation import MessageRole, NegotiationMessage
-from app.services.negotiation_service import NegotiationService
+from app.services.negotiation import NegotiationService
 
 
 @pytest.mark.asyncio
@@ -36,8 +36,13 @@ async def test_negotiation_service_metadata_access():
         return_value=[mock_msg1, mock_msg2, mock_msg3]
     )
 
+    # Update session_manager's repo reference since it was initialized with the original one
+    service.session_manager.negotiation_repo = service.negotiation_repo
+
     # Test _get_latest_suggested_price method with await
-    result = await service._get_latest_suggested_price(session_id=1, default_price=25000.0)
+    result = await service.session_manager.get_latest_suggested_price(
+        session_id=1, default_price=25000.0
+    )
 
     # Should find the suggested_price from mock_msg1
     assert result == 20000.0, f"Expected 20000.0, got {result}"

@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.services.negotiation_service import NegotiationService
+from app.services.negotiation import NegotiationService
 
 
 class MockDeal:
@@ -41,7 +41,7 @@ class TestCalculateAIMetrics:
         user_target = 22000
         messages = [MockMessage(1), MockMessage(2)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -60,7 +60,7 @@ class TestCalculateAIMetrics:
         user_target = 23000
         messages = [MockMessage(1)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -78,7 +78,7 @@ class TestCalculateAIMetrics:
         user_target = 23500
         messages = [MockMessage(1)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -96,7 +96,7 @@ class TestCalculateAIMetrics:
         user_target = 23000
         messages = [MockMessage(1)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -114,7 +114,7 @@ class TestCalculateAIMetrics:
         user_target = 23000
         messages = [MockMessage(1)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -132,7 +132,7 @@ class TestCalculateAIMetrics:
         user_target = 23000
         messages = [MockMessage(1)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -152,7 +152,7 @@ class TestCalculateAIMetrics:
         user_target = 23000
         messages = [MockMessage(1)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -170,7 +170,7 @@ class TestCalculateAIMetrics:
         user_target = 23000
         messages = [MockMessage(1)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -195,7 +195,7 @@ class TestCalculateAIMetrics:
             MockMessage(6),
         ]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -212,7 +212,7 @@ class TestCalculateAIMetrics:
         user_target = 23000
         messages = [MockMessage(1), MockMessage(2)]  # Only 2 rounds
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -230,7 +230,7 @@ class TestCalculateAIMetrics:
         user_target = 23000
         messages = [MockMessage(1), MockMessage(2)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -248,7 +248,7 @@ class TestCalculateAIMetrics:
         user_target = 23000
         messages = []
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -266,7 +266,7 @@ class TestCalculateAIMetrics:
         user_target = 50
         messages = [MockMessage(1)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -284,7 +284,7 @@ class TestCalculateAIMetrics:
         user_target = 22500  # Target is lower, but getting decent discount
         messages = [MockMessage(1)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,
@@ -301,7 +301,7 @@ class TestCalculateAIMetrics:
         user_target = 21000
         messages = [MockMessage(1), MockMessage(2), MockMessage(3)]
 
-        metrics = await negotiation_service._calculate_ai_metrics(
+        metrics = await negotiation_service.metrics._calculate_ai_metrics(
             session_id=1,
             deal=deal,
             current_price=current_price,

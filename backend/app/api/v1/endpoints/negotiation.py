@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
+from app.core.negotiation_config import NegotiationConfig
 from app.db.session import get_async_db
 from app.models.models import User
 from app.schemas.loan_schemas import (
@@ -24,7 +25,7 @@ from app.schemas.negotiation_schemas import (
     NextRoundRequest,
 )
 from app.services.lender_service import LenderService
-from app.services.negotiation_service import NegotiationService
+from app.services.negotiation import NegotiationService
 from app.services.websocket_manager import connection_manager
 from app.utils.error_handler import ApiError
 
@@ -225,7 +226,7 @@ async def get_lender_recommendations(
                 break
 
     # Calculate down payment using shared constant
-    down_payment = negotiated_price * NegotiationService.DEFAULT_DOWN_PAYMENT_PERCENT
+    down_payment = negotiated_price * NegotiationConfig.DEFAULT_DOWN_PAYMENT_PERCENT
     loan_amount = negotiated_price - down_payment
 
     # Create lender recommendation request
