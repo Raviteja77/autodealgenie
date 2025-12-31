@@ -4,7 +4,7 @@ import pytest
 import pytest_asyncio
 
 from app.models.models import Deal, DealStatus
-from app.services.negotiation_service import NegotiationService
+from app.services.negotiation import NegotiationService
 
 
 @pytest_asyncio.fixture
@@ -35,7 +35,7 @@ class TestFinancingOptions:
         service = NegotiationService(async_db)
         vehicle_price = 30000.0
 
-        financing_options = service._calculate_financing_options(vehicle_price)
+        financing_options = service.financing.calculate_financing_options(vehicle_price)
 
         # Should return options for 36, 48, 60, 72 months
         assert len(financing_options) == 4
@@ -54,7 +54,7 @@ class TestFinancingOptions:
         service = NegotiationService(async_db)
         vehicle_price = 25000.0
 
-        financing_options = service._calculate_financing_options(
+        financing_options = service.financing.calculate_financing_options(
             vehicle_price, credit_score_range="excellent"
         )
 
@@ -69,7 +69,7 @@ class TestFinancingOptions:
         service = NegotiationService(async_db)
         vehicle_price = 20000.0
 
-        financing_options = service._calculate_financing_options(
+        financing_options = service.financing.calculate_financing_options(
             vehicle_price, credit_score_range="poor"
         )
 
@@ -84,7 +84,7 @@ class TestFinancingOptions:
         service = NegotiationService(async_db)
         vehicle_price = 28000.0
 
-        financing_options = service._calculate_financing_options(vehicle_price)
+        financing_options = service.financing.calculate_financing_options(vehicle_price)
 
         # Get 36 and 72 month options
         option_36 = next((opt for opt in financing_options if opt["loan_term_months"] == 36), None)
@@ -102,7 +102,7 @@ class TestFinancingOptions:
         service = NegotiationService(async_db)
         vehicle_price = 25000.0
 
-        financing_options = service._calculate_financing_options(vehicle_price)
+        financing_options = service.financing.calculate_financing_options(vehicle_price)
 
         # Get baseline financing option (60 months)
         baseline = next((opt for opt in financing_options if opt["loan_term_months"] == 60), None)
@@ -134,7 +134,7 @@ async def test_negotiation_response_includes_financing(async_db, mock_deal):
 
     # Mock the LLM response
     with patch(
-        "app.services.negotiation_service.generate_text",
+        "app.services.negotiation.response_generator.generate_text",
         return_value="Here's my offer for this vehicle.",
     ):
         response = await service._generate_agent_response(

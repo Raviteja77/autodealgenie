@@ -451,6 +451,7 @@ async def test_send_chat_message(authenticated_client, mock_user, mock_deal, asy
             f"/api/v1/negotiations/{session.id}/chat", json=request_data
         )
 
+        print("Response JSON:", response)
         assert response.status_code == 200
         data = response.json()
         assert data["session_id"] == session.id

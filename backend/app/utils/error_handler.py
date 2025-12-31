@@ -67,3 +67,17 @@ class ApiError(Exception):
         if self.details is not None:
             error_dict["details"] = self.details
         return error_dict
+
+
+class NegotiationError(ApiError):
+    """Errors specifically occurring during the negotiation flow."""
+
+    def __init__(self, message: str, details: Any | None = None):
+        super().__init__(status_code=400, message=message, details=details)
+
+
+class MarketDataError(ApiError):
+    """Errors when fetching or processing market intelligence."""
+
+    def __init__(self, message: str, details: Any | None = None):
+        super().__init__(status_code=502, message=message, details=details)
