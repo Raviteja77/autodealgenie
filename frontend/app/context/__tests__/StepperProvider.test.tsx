@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, renderHook, act, waitFor } from '@testing-library/react';
-import { StepperProvider, useStepper, STEPS } from '../StepperProvider';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { StepperProvider, useStepper } from '../StepperProvider';
 import { useRouter, usePathname } from 'next/navigation';
 
 // Mock next/navigation
@@ -10,7 +10,10 @@ jest.mock('next/navigation', () => ({
 }));
 
 describe('StepperProvider', () => {
-  let mockRouter: any;
+  let mockRouter: {
+    push: jest.Mock;
+    back: jest.Mock;
+  };
   let mockPush: jest.Mock;
 
   beforeEach(() => {
@@ -50,6 +53,7 @@ describe('StepperProvider', () => {
 
       const stepData = result.current.getStepData(0);
       expect(stepData).toHaveProperty('queryString');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((stepData as any).queryString).toBe('make=Toyota&model=Camry&budgetMax=30000');
     });
 
@@ -171,6 +175,7 @@ describe('StepperProvider', () => {
       // Check that the data persisted
       const stepData = result2.current.getStepData(1);
       expect(stepData).toHaveProperty('queryString');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect((stepData as any).queryString).toBe('vin=ABC123&make=Toyota&model=Camry&year=2020&price=25000');
     });
   });

@@ -138,14 +138,18 @@ function FinalizeDealContent() {
     if (vehicleInfo && searchParams.toString()) {
       const existingData = getStepData(4) || {};
       // Only update if queryString is different or missing
-      if (!existingData || !(existingData as any).queryString || (existingData as any).queryString !== searchParams.toString()) {
+      const existingQueryString = existingData && typeof existingData === 'object' && 'queryString' in existingData
+        ? (existingData as { queryString?: string }).queryString
+        : undefined;
+      if (!existingQueryString || existingQueryString !== searchParams.toString()) {
         setStepData(4, {
           ...existingData,
           queryString: searchParams.toString(),
         });
       }
     }
-  }, [vehicleInfo, searchParams, getStepData, setStepData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleInfo, searchParams]);
 
   // Fetch insurance recommendations
   useEffect(() => {

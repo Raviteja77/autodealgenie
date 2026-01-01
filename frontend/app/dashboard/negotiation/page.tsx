@@ -277,14 +277,18 @@ function NegotiationContent() {
     if (vehicleData && searchParams.toString()) {
       const existingData = getStepData(3) || {};
       // Only update if queryString is different or missing
-      if (!existingData || !(existingData as any).queryString || (existingData as any).queryString !== searchParams.toString()) {
+      const existingQueryString = existingData && typeof existingData === 'object' && 'queryString' in existingData
+        ? (existingData as { queryString?: string }).queryString
+        : undefined;
+      if (!existingQueryString || existingQueryString !== searchParams.toString()) {
         setStepData(3, {
           ...existingData,
           queryString: searchParams.toString(),
         });
       }
     }
-  }, [vehicleData, searchParams, getStepData, setStepData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleData, searchParams]);
 
   // Memoize validation result to avoid unnecessary recalculations
   const isPriceValid = useMemo(() => {
