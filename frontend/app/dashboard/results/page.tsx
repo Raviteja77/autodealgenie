@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo, useCallback, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  Suspense,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
@@ -86,13 +93,13 @@ function ResultsContent() {
 
   // New state for enhanced features
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('score_high');
+  const [sortBy, setSortBy] = useState<SortOption>("score_high");
   const [isSaveSearchModalOpen, setIsSaveSearchModalOpen] = useState(false);
   const [showLenderSection, setShowLenderSection] = useState(false);
-  
+
   // Custom hooks
   const comparison = useComparison();
-  const { viewMode, setViewMode } = useViewMode('grid');
+  const { viewMode, setViewMode } = useViewMode("grid");
   const savedSearches = useSavedSearches();
 
   // Memoize query string for caching
@@ -114,7 +121,11 @@ function ResultsContent() {
   }, [searchParams]);
 
   const creditScore = useMemo(() => {
-    return (searchParams.get("creditScore") || "good") as "excellent" | "good" | "fair" | "poor";
+    return (searchParams.get("creditScore") || "good") as
+      | "excellent"
+      | "good"
+      | "fair"
+      | "poor";
   }, [searchParams]);
 
   const loanTerm = useMemo(() => {
@@ -149,7 +160,10 @@ function ResultsContent() {
 
   useEffect(() => {
     // Prevent duplicate calls for the same query
-    if (hasFetchedRef.current && currentQueryRef.current === currentQueryString) {
+    if (
+      hasFetchedRef.current &&
+      currentQueryRef.current === currentQueryString
+    ) {
       return;
     }
 
@@ -166,13 +180,13 @@ function ResultsContent() {
 
       try {
         // Check cache first
-        if(shouldUseCachedData()) {
+        if (shouldUseCachedData()) {
           const cachedData = getStepData<{
             queryString: string;
             vehicles: Vehicle[];
             message: string | null;
           }>(1);
-  
+
           if (
             cachedData &&
             cachedData.queryString === currentQueryString &&
@@ -181,7 +195,7 @@ function ResultsContent() {
             // Use cached data
             setVehicles(cachedData.vehicles);
             setIsLoading(false);
-            
+
             // Fetch favorites in background (non-blocking)
             fetchFavorites();
             return;
@@ -240,7 +254,6 @@ function ResultsContent() {
     vehicles: Vehicle[];
     message: string | null;
   }> => {
-    console.log("Fetching vehicles from API with params:", searchParams.toString());
     const searchRequest: CarSearchRequest = {};
 
     // Build search request from URL params
@@ -270,6 +283,12 @@ function ResultsContent() {
     }
     if (searchParams.get("userPriorities")) {
       searchRequest.user_priorities = searchParams.get("userPriorities")!;
+    }
+    if (searchParams.get("zipCode")) {
+      searchRequest.zip_code = searchParams.get("zipCode")!
+    }
+    if (searchParams.get("searchRadius")) {
+      searchRequest.search_radius_miles = parseInt(searchParams.get("searchRadius")!);
     }
 
     const response = await apiClient.searchCars(searchRequest);
@@ -307,7 +326,6 @@ function ResultsContent() {
   };
 
   const fetchFavorites = async (): Promise<Set<string>> => {
-    console.log("Fetching favorites from API");
     try {
       const favoritesData = await apiClient.getFavorites();
       const favoriteVins = new Set(favoritesData.map((fav) => fav.vin));
@@ -320,15 +338,7 @@ function ResultsContent() {
     }
   };
 
-
   const handleVehicleSelection = (vehicle: Vehicle, targetPath: string) => {
-    // Store the selected vehicle data for use in subsequent steps
-    const existingData = getStepData(1) || {};
-    setStepData(1, {
-      ...existingData,
-      selectedVehicle: vehicle,
-    });
-
     // Navigate to the target page
     const vehicleParams = new URLSearchParams({
       vin: vehicle.vin || "",
@@ -338,6 +348,13 @@ function ResultsContent() {
       price: vehicle.price.toString(),
       mileage: vehicle.mileage.toString(),
       fuelType: vehicle.fuelType || "",
+    });
+    // Store the selected vehicle data for use in subsequent steps
+    const existingData = getStepData(1) || {};
+    setStepData(1, {
+      ...existingData,
+      selectedVehicle: vehicle,
+      queryString: vehicleParams.toString(),
     });
     router.push(`${targetPath}?${vehicleParams.toString()}`);
   };
@@ -429,17 +446,27 @@ function ResultsContent() {
   // Get current search criteria for save modal
   const getCurrentSearchCriteria = (): Partial<SavedSearchCreate> => {
     return {
-      make: searchParams.get('make') || undefined,
-      model: searchParams.get('model') || undefined,
-      budget_min: searchParams.get('budgetMin') ? Number(searchParams.get('budgetMin')) : undefined,
-      budget_max: searchParams.get('budgetMax') ? Number(searchParams.get('budgetMax')) : undefined,
-      car_type: searchParams.get('carType') || undefined,
-      year_min: searchParams.get('yearMin') ? Number(searchParams.get('yearMin')) : undefined,
-      year_max: searchParams.get('yearMax') ? Number(searchParams.get('yearMax')) : undefined,
-      mileage_max: searchParams.get('mileageMax') ? Number(searchParams.get('mileageMax')) : undefined,
-      fuel_type: searchParams.get('fuelType') || undefined,
-      transmission: searchParams.get('transmission') || undefined,
-      user_priorities: searchParams.get('userPriorities') || undefined,
+      make: searchParams.get("make") || undefined,
+      model: searchParams.get("model") || undefined,
+      budget_min: searchParams.get("budgetMin")
+        ? Number(searchParams.get("budgetMin"))
+        : undefined,
+      budget_max: searchParams.get("budgetMax")
+        ? Number(searchParams.get("budgetMax"))
+        : undefined,
+      car_type: searchParams.get("carType") || undefined,
+      year_min: searchParams.get("yearMin")
+        ? Number(searchParams.get("yearMin"))
+        : undefined,
+      year_max: searchParams.get("yearMax")
+        ? Number(searchParams.get("yearMax"))
+        : undefined,
+      mileage_max: searchParams.get("mileageMax")
+        ? Number(searchParams.get("mileageMax"))
+        : undefined,
+      fuel_type: searchParams.get("fuelType") || undefined,
+      transmission: searchParams.get("transmission") || undefined,
+      user_priorities: searchParams.get("userPriorities") || undefined,
     };
   };
 
@@ -449,24 +476,25 @@ function ResultsContent() {
 
     // Apply sorting
     switch (sortBy) {
-      case 'price_low':
+      case "price_low":
         filtered.sort((a, b) => a.price - b.price);
         break;
-      case 'price_high':
+      case "price_high":
         filtered.sort((a, b) => b.price - a.price);
         break;
-      case 'mileage_low':
+      case "mileage_low":
         filtered.sort((a, b) => a.mileage - b.mileage);
         break;
-      case 'year_new':
+      case "year_new":
         filtered.sort((a, b) => b.year - a.year);
         break;
-      case 'score_high':
-        filtered.sort((a, b) => 
-          (b.recommendation_score || 0) - (a.recommendation_score || 0)
+      case "score_high":
+        filtered.sort(
+          (a, b) =>
+            (b.recommendation_score || 0) - (a.recommendation_score || 0)
         );
         break;
-      case 'recently_added':
+      case "recently_added":
         // Keep original order (assuming it's by recent)
         break;
     }
@@ -552,14 +580,14 @@ function ResultsContent() {
             <Card.Body>
               <Box
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
                   gap: 2,
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <Button
                     variant="outline"
                     size="sm"
@@ -574,7 +602,7 @@ function ResultsContent() {
                   </Typography>
                 </Box>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <SavedSearchesDropdown
                     searches={savedSearches.searches}
                     totalNewMatches={savedSearches.totalNewMatches}
@@ -679,13 +707,13 @@ function ResultsContent() {
               </Card.Body>
             </Card>
           ) : (
-            <Grid container spacing={viewMode === 'list' ? 2 : 3}>
+            <Grid container spacing={viewMode === "list" ? 2 : 3}>
               {sortedAndFilteredVehicles.map((vehicle) => (
                 <Grid
                   item
                   xs={12}
-                  md={viewMode === 'list' ? 12 : viewMode === 'compact' ? 6 : 6}
-                  lg={viewMode === 'list' ? 12 : viewMode === 'compact' ? 6 : 4}
+                  md={viewMode === "list" ? 12 : viewMode === "compact" ? 6 : 6}
+                  lg={viewMode === "list" ? 12 : viewMode === "compact" ? 6 : 4}
                   key={
                     vehicle.vin ||
                     `${vehicle.make}-${vehicle.model}-${vehicle.year}`
@@ -697,15 +725,20 @@ function ResultsContent() {
                     sx={{
                       height: "100%",
                       display: "flex",
-                      flexDirection: viewMode === 'list' ? 'row' : 'column',
+                      flexDirection: viewMode === "list" ? "row" : "column",
                     }}
                   >
                     {/* Vehicle Image */}
                     <Box
                       sx={{
                         position: "relative",
-                        width: viewMode === 'list' ? 300 : '100%',
-                        height: viewMode === 'list' ? 'auto' : viewMode === 'compact' ? 150 : 200,
+                        width: viewMode === "list" ? 300 : "100%",
+                        height:
+                          viewMode === "list"
+                            ? "auto"
+                            : viewMode === "compact"
+                            ? 150
+                            : 200,
                         bgcolor: "grey.200",
                         backgroundImage: `url(${vehicle.image})`,
                         backgroundSize: "cover",
@@ -722,8 +755,8 @@ function ResultsContent() {
                             left: 8,
                             bgcolor: "background.paper",
                             borderRadius: 1,
-                            display: 'flex',
-                            alignItems: 'center',
+                            display: "flex",
+                            alignItems: "center",
                           }}
                         >
                           <FormControlLabel
@@ -731,7 +764,10 @@ function ResultsContent() {
                               <Checkbox
                                 checked={comparison.isSelected(vehicle.vin)}
                                 onChange={() => handleToggleComparison(vehicle)}
-                                disabled={!comparison.canAddMore && !comparison.isSelected(vehicle.vin)}
+                                disabled={
+                                  !comparison.canAddMore &&
+                                  !comparison.isSelected(vehicle.vin)
+                                }
                                 size="small"
                               />
                             }
@@ -929,7 +965,13 @@ function ResultsContent() {
                     </Card.Body>
 
                     <Card.Footer>
-                      <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "center",
+                          width: "100%",
+                        }}
+                      >
                         <Button
                           variant="success"
                           fullWidth

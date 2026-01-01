@@ -55,6 +55,8 @@ async def search_cars(
             user_priorities=search_request.user_priorities,
             max_results=search_request.max_results,
             user_id=current_user.id,
+            zip_code=search_request.zip_code,
+            search_radius_miles=search_request.search_radius_miles,
             db_session=db,
         )
 

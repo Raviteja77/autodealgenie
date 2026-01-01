@@ -78,6 +78,10 @@ export default function DealsPage() {
     if (deal.vehicle_vin) {
       vehicleParams.set("vin", deal.vehicle_vin);
     }
+
+    if(deal.id) {
+      vehicleParams.set("dealId", deal.id.toString());
+    }
     
     // Add fuelType with fallback
     vehicleParams.set("fuelType", DEFAULT_FUEL_TYPE);
@@ -93,7 +97,7 @@ export default function DealsPage() {
     } else if (deal.status === "completed") {
       // Completed deals can view either evaluation or negotiation results
       // Default to evaluation page to show final assessment
-      router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
+      router.push(`/dashboard/finalize?${vehicleParams.toString()}`);
     }
   };
 
@@ -171,7 +175,7 @@ export default function DealsPage() {
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default", py: 4 }}>
       <Container maxWidth="lg">
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+        {/* <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
           <Box>
             <Typography variant="h3" gutterBottom fontWeight={700}>
               Deals
@@ -188,7 +192,7 @@ export default function DealsPage() {
               Refresh
             </Button>
           </Box>
-        </Box>
+        </Box> */}
 
         {!deals || deals.length === 0 ? (
           <Card padding="lg" shadow="md">
@@ -203,14 +207,13 @@ export default function DealsPage() {
         ) : (
           <Grid container spacing={3}>
             {deals.map((deal) => {
-              const isClickable = deal.status === "in_progress" || deal.status === "completed";
               return (
                 <Grid item xs={12} key={deal.id}>
                   <Card 
-                    hover={isClickable} 
+                    hover={true} 
                     shadow="md" 
-                    sx={{ cursor: isClickable ? "pointer" : "default" }} 
-                    onClick={isClickable ? () => handleDealClick(deal) : undefined}
+                    sx={{ cursor: "pointer" }} 
+                    onClick={() => handleDealClick(deal)}
                   >
                   <Card.Body>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>

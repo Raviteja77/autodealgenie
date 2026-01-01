@@ -15,9 +15,7 @@ class MarketCheckAPIClient:
     BASE_URL = "https://api.marketcheck.com/v2"
 
     def __init__(self, api_key: str | None = None):
-        self.api_key = (
-            api_key or hasattr(settings, "MARKET_CHECK_API_KEY") or settings.MARKET_CHECK_API_KEY
-        )
+        self.api_key = api_key or settings.MARKET_CHECK_API_KEY
         if not self.api_key:
             raise ValueError("MARKET_CHECK_API_KEY is required")
 
@@ -32,6 +30,8 @@ class MarketCheckAPIClient:
         max_year: int | None = None,
         max_mileage: int | None = None,
         rows: int = 10,
+        zip_code: str | None = None,
+        search_radius_miles: int | None = None,
     ) -> dict[str, Any]:
         """
         Search for cars using MarketCheck API
@@ -52,6 +52,7 @@ class MarketCheckAPIClient:
         """
         endpoint = f"{self.BASE_URL}/search/car/active"
 
+        print("api key for mark check ged: ", self.api_key)
         # Build query parameters
         params = {
             "api_key": self.api_key,
@@ -67,6 +68,10 @@ class MarketCheckAPIClient:
             params["model"] = model.lower()
         if car_type:
             params["car_type"] = car_type.lower()
+        if zip_code:
+            params["zip"] = zip_code
+        if search_radius_miles:
+            params["radius"] = search_radius_miles
         if min_price:
             params["min_price"] = min_price
         if max_price:

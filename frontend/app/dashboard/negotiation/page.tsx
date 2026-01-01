@@ -50,18 +50,16 @@ import {
   useNegotiationChat,
   NegotiationChatProvider,
 } from "@/app/context";
-import { useAuth } from "@/lib/auth/AuthProvider";
 import { Button, Card, Modal, Spinner } from "@/components";
-import { 
-  ChatInput, 
-  ConnectionStatusIndicator, 
-  FinancingComparisonModal 
+import {
+  ChatInput,
+  ConnectionStatusIndicator,
+  FinancingComparisonModal,
 } from "@/components";
 import { useNegotiationState } from "@/lib/hooks";
 import {
   apiClient,
   type NegotiationMessage,
-  type DealCreate,
   type LenderMatch,
 } from "@/lib/api";
 import { formatPrice, formatTimestamp } from "@/lib/utils/formatting";
@@ -69,10 +67,6 @@ import {
   getLatestNegotiatedPrice,
   validateNegotiatedPrice,
 } from "@/lib/utils/negotiation";
-import { NotFoundError } from "@/lib/errors";
-
-// Fallback VIN when actual VIN is not available
-const DEFAULT_VIN = "UNKNOWN00000000000";
 
 interface VehicleInfo {
   vin?: string;
@@ -89,7 +83,6 @@ function NegotiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { completeStep, canNavigateToStep, getStepData } = useStepper();
-  const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContext = useNegotiationChat();
   const hasInitializedRef = useRef(false);
@@ -98,7 +91,7 @@ function NegotiationContent() {
   // Local state for vehicle data and target price (derived from URL)
   const [vehicleData, setVehicleData] = useState<VehicleInfo | null>(null);
   const [targetPrice, setTargetPrice] = useState<number | null>(null);
-  
+
   // Get evaluation data from stepper context (step 2 - evaluation now comes before negotiation)
   const evaluationStepData = getStepData<{
     evaluation?: {
@@ -152,15 +145,31 @@ function NegotiationContent() {
       };
     }
 
-    const latestMsg = negotiationState.messages[negotiationState.messages.length - 1];
+    const latestMsg =
+      negotiationState.messages[negotiationState.messages.length - 1];
     const metadata = latestMsg.metadata || {};
 
     return {
-      recommendedAction: typeof metadata.recommended_action === "string" ? metadata.recommended_action : null,
-      strategyAdjustments: typeof metadata.strategy_adjustments === "string" ? metadata.strategy_adjustments : null,
-      dealerConcessionRate: typeof metadata.dealer_concession_rate === "number" ? metadata.dealer_concession_rate : null,
-      negotiationVelocity: typeof metadata.negotiation_velocity === "number" ? metadata.negotiation_velocity : null,
-      marketComparison: typeof metadata.market_comparison === "string" ? metadata.market_comparison : null,
+      recommendedAction:
+        typeof metadata.recommended_action === "string"
+          ? metadata.recommended_action
+          : null,
+      strategyAdjustments:
+        typeof metadata.strategy_adjustments === "string"
+          ? metadata.strategy_adjustments
+          : null,
+      dealerConcessionRate:
+        typeof metadata.dealer_concession_rate === "number"
+          ? metadata.dealer_concession_rate
+          : null,
+      negotiationVelocity:
+        typeof metadata.negotiation_velocity === "number"
+          ? metadata.negotiation_velocity
+          : null,
+      marketComparison:
+        typeof metadata.market_comparison === "string"
+          ? metadata.market_comparison
+          : null,
     };
   }, [negotiationState.messages]);
 
@@ -190,7 +199,12 @@ function NegotiationContent() {
 
     // Round to two decimals for stable display
     return Number(clamped.toFixed(2));
-  }, [targetPrice, latestPrice, negotiationState.currentRound, negotiationState.maxRounds]);
+  }, [
+    targetPrice,
+    latestPrice,
+    negotiationState.currentRound,
+    negotiationState.maxRounds,
+  ]);
 
   // UI state
   const [showCounterOfferModal, setShowCounterOfferModal] = useState(false);
@@ -222,7 +236,8 @@ function NegotiationContent() {
       const priceStr = searchParams.get("price");
       const mileageStr = searchParams.get("mileage");
       const fuelType = searchParams.get("fuelType");
-      const zipCode = searchParams.get("zipCode") || searchParams.get("zip_code");
+      const zipCode =
+        searchParams.get("zipCode") || searchParams.get("zip_code");
 
       if (!make || !model || !yearStr || !priceStr || !mileageStr) {
         setVehicleData(null);
@@ -248,7 +263,7 @@ function NegotiationContent() {
         fuelType: fuelType || "Unknown",
         zipCode: zipCode || undefined,
       };
-      
+
       setVehicleData(parsedVehicleData);
       setTargetPrice(price * 0.9);
     } catch (err) {
@@ -305,43 +320,8 @@ function NegotiationContent() {
         setLoading(true);
         setError(null);
 
-        // Check if deal already exists
-        let dealId: number;
-        const customerEmail = user?.email || "guest@autodealgenie.com";
-        const vehicleVin = vehicleData.vin || DEFAULT_VIN;
-
-        try {
-          const existingDeal = await apiClient.getDealByEmailAndVin(
-            customerEmail,
-            vehicleVin
-          );
-          dealId = existingDeal.id;
-        } catch (error: unknown) {
-          // Check if this is a legitimate 404 (deal not found) or another error
-          // Use the proper type guard from the errors module
-          if (error instanceof NotFoundError) {
-            // Deal not found (404), create new one
-            const dealData: DealCreate = {
-              customer_name: user?.full_name || user?.username || "Guest User",
-              customer_email: customerEmail,
-              vehicle_make: vehicleData.make,
-              vehicle_model: vehicleData.model,
-              vehicle_year: vehicleData.year,
-              vehicle_mileage: vehicleData.mileage,
-              vehicle_vin: vehicleVin,
-              asking_price: vehicleData.price,
-              status: "in_progress",
-              notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
-            };
-
-            const newDeal = await apiClient.createDeal(dealData);
-            dealId = newDeal.id;
-          } else {
-            // This is not a "deal not found" error - it could be network, auth, etc.
-            console.error("Unexpected error checking for existing deal:", error);
-            throw error; // Re-throw to be caught by outer catch
-          }
-        }
+        // Assuming deal already exists at this point, fetch deal id
+        const dealId: number = parseInt(searchParams.get("dealId")!) || 0;
 
         const response = await apiClient.createNegotiation({
           deal_id: dealId,
@@ -380,7 +360,7 @@ function NegotiationContent() {
             : "Failed to initialize negotiation session";
         setError(errorMessage);
         setLoading(false);
-        
+
         // Reset in progress flag on error so user can retry
         initializationInProgressRef.current = false;
       }
@@ -470,7 +450,9 @@ function NegotiationContent() {
       });
 
       // Fetch updated session
-      const session = await apiClient.getNegotiationSession(negotiationState.sessionId);
+      const session = await apiClient.getNegotiationSession(
+        negotiationState.sessionId
+      );
 
       setStatus("completed");
       setCurrentRound(session.current_round);
@@ -480,7 +462,9 @@ function NegotiationContent() {
 
       setNotification({
         type: "success",
-        message: `Congratulations! You've accepted the offer at ${formatPrice(priceToAccept)}!`,
+        message: `Congratulations! You've accepted the offer at ${formatPrice(
+          priceToAccept
+        )}!`,
       });
 
       // Fetch lender recommendations with loading state
@@ -545,7 +529,9 @@ function NegotiationContent() {
       });
 
       // Fetch updated session
-      const session = await apiClient.getNegotiationSession(negotiationState.sessionId);
+      const session = await apiClient.getNegotiationSession(
+        negotiationState.sessionId
+      );
 
       setStatus("cancelled");
       setCurrentRound(session.current_round);
@@ -594,13 +580,18 @@ function NegotiationContent() {
       setShowCounterOfferModal(false);
       setCounterOfferValue("");
 
-      const response = await apiClient.processNextRound(negotiationState.sessionId, {
-        user_action: "counter",
-        counter_offer: counterPrice,
-      });
+      const response = await apiClient.processNextRound(
+        negotiationState.sessionId,
+        {
+          user_action: "counter",
+          counter_offer: counterPrice,
+        }
+      );
 
       // Fetch updated session
-      const session = await apiClient.getNegotiationSession(negotiationState.sessionId);
+      const session = await apiClient.getNegotiationSession(
+        negotiationState.sessionId
+      );
 
       setCurrentRound(session.current_round);
       setMessages(session.messages);
@@ -674,12 +665,12 @@ function NegotiationContent() {
   }, [negotiationState.messages]);
 
   // Calculate progress
-  const progress = (negotiationState.currentRound / negotiationState.maxRounds) * 100;
+  const progress =
+    (negotiationState.currentRound / negotiationState.maxRounds) * 100;
   const priceProgress =
     vehicleData && latestPrice?.price
       ? ((vehicleData.price - latestPrice.price) /
-          (vehicleData.price -
-            (targetPrice || vehicleData.price * 0.9))) *
+          (vehicleData.price - (targetPrice || vehicleData.price * 0.9))) *
         100
       : 0;
 
@@ -698,8 +689,7 @@ function NegotiationContent() {
               </Typography>
               <Typography variant="body1" color="text.secondary" paragraph>
                 You&apos;ve successfully negotiated the deal for your{" "}
-                {vehicleData?.year} {vehicleData?.make}{" "}
-                {vehicleData?.model}!
+                {vehicleData?.year} {vehicleData?.make} {vehicleData?.model}!
               </Typography>
               <Divider sx={{ my: 3 }} />
               <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -867,17 +857,9 @@ function NegotiationContent() {
                   variant="success"
                   onClick={() => {
                     if (vehicleData) {
-                      const finalPrice = latestPrice?.price || vehicleData.price;
-                      
-                      // Complete negotiation step with final data
-                      completeStep(3, {
-                        status: 'completed',
-                        finalPrice,
-                        negotiatedPrice: finalPrice,
-                        savings: vehicleData.price - finalPrice,
-                        timestamp: new Date().toISOString(),
-                      });
-                      
+                      const finalPrice =
+                        latestPrice?.price || vehicleData.price;
+
                       const vehicleParams = new URLSearchParams({
                         vin: vehicleData.vin || "",
                         make: vehicleData.make,
@@ -887,12 +869,22 @@ function NegotiationContent() {
                         mileage: vehicleData.mileage.toString(),
                         fuelType: vehicleData.fuelType || "",
                       });
-                      
+
                       // Add zipCode if available
                       if (vehicleData.zipCode) {
                         vehicleParams.set("zipCode", vehicleData.zipCode);
                       }
-                      
+
+                      // Complete negotiation step with final data
+                      completeStep(3, {
+                        status: "completed",
+                        finalPrice,
+                        negotiatedPrice: finalPrice,
+                        savings: vehicleData.price - finalPrice,
+                        timestamp: new Date().toISOString(),
+                        queryString: vehicleParams.toString()
+                      });
+
                       router.push(
                         `/dashboard/finalize?${vehicleParams.toString()}`
                       );
@@ -991,21 +983,22 @@ function NegotiationContent() {
           )}
 
           {/* Loading State */}
-          {negotiationState.isLoading && negotiationState.messages.length === 0 && (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                py: 8,
-              }}
-            >
-              <Spinner size="lg" />
-              <Typography variant="h6" sx={{ ml: 2 }}>
-                Starting your negotiation...
-              </Typography>
-            </Box>
-          )}
+          {negotiationState.isLoading &&
+            negotiationState.messages.length === 0 && (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  py: 8,
+                }}
+              >
+                <Spinner size="lg" />
+                <Typography variant="h6" sx={{ ml: 2 }}>
+                  Starting your negotiation...
+                </Typography>
+              </Box>
+            )}
 
           {/* Main Content */}
           {vehicleData && negotiationState.messages.length > 0 && (
@@ -1053,24 +1046,35 @@ function NegotiationContent() {
                     {evaluationStepData?.evaluation?.score && (
                       <>
                         <Divider sx={{ my: 2 }} />
-                        <Box sx={{ 
-                          p: 2, 
-                          bgcolor: "success.50", 
-                          borderRadius: 2,
-                          border: "1px solid",
-                          borderColor: "success.200"
-                        }}>
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                        <Box
+                          sx={{
+                            p: 2,
+                            bgcolor: "success.50",
+                            borderRadius: 2,
+                            border: "1px solid",
+                            borderColor: "success.200",
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                            sx={{ mb: 0.5 }}
+                          >
                             AI Evaluation Score
                           </Typography>
-                          <Typography variant="h5" fontWeight="bold" color="success.dark">
+                          <Typography
+                            variant="h5"
+                            fontWeight="bold"
+                            color="success.dark"
+                          >
                             {evaluationStepData.evaluation.score.toFixed(1)}/10
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {evaluationStepData.evaluation.score >= 8 
-                              ? "Excellent Deal" 
-                              : evaluationStepData.evaluation.score >= 6.5 
-                              ? "Good Deal" 
+                            {evaluationStepData.evaluation.score >= 8
+                              ? "Excellent Deal"
+                              : evaluationStepData.evaluation.score >= 6.5
+                              ? "Good Deal"
                               : "Fair Deal"}
                           </Typography>
                         </Box>
@@ -1119,18 +1123,41 @@ function NegotiationContent() {
                             mb: 1,
                           }}
                         >
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                            <Typography variant="caption" color="text.secondary">
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
                               Current Offer
                             </Typography>
                             {latestPrice.source === "ai" && (
-                              <Chip label="AI" size="small" sx={{ height: 16, fontSize: "0.65rem" }} />
+                              <Chip
+                                label="AI"
+                                size="small"
+                                sx={{ height: 16, fontSize: "0.65rem" }}
+                              />
                             )}
                             {latestPrice.source === "dealer" && (
-                              <Chip label="Dealer" color="secondary" size="small" sx={{ height: 16, fontSize: "0.65rem" }} />
+                              <Chip
+                                label="Dealer"
+                                color="secondary"
+                                size="small"
+                                sx={{ height: 16, fontSize: "0.65rem" }}
+                              />
                             )}
                             {latestPrice.source === "user" && (
-                              <Chip label="You" color="info" size="small" sx={{ height: 16, fontSize: "0.65rem" }} />
+                              <Chip
+                                label="You"
+                                color="info"
+                                size="small"
+                                sx={{ height: 16, fontSize: "0.65rem" }}
+                              />
                             )}
                           </Box>
                           <Typography
@@ -1179,7 +1206,8 @@ function NegotiationContent() {
                         }}
                       >
                         <Typography variant="caption">
-                          Round {negotiationState.currentRound} of {negotiationState.maxRounds}
+                          Round {negotiationState.currentRound} of{" "}
+                          {negotiationState.maxRounds}
                         </Typography>
                         <Typography variant="caption">
                           {Math.round(progress)}%
@@ -1356,7 +1384,11 @@ function NegotiationContent() {
                                     {message.metadata?.message_type ===
                                       "dealer_info" && (
                                       <Chip
-                                        label={message.metadata?.info_type ? `${message.metadata.info_type}` : "Dealer Info"}
+                                        label={
+                                          message.metadata?.info_type
+                                            ? `${message.metadata.info_type}`
+                                            : "Dealer Info"
+                                        }
                                         size="small"
                                         color="info"
                                         sx={{ mb: 1 }}
@@ -1383,7 +1415,9 @@ function NegotiationContent() {
                                         }}
                                       >
                                         Suggested:{" "}
-                                        {formatPrice(message.metadata.suggested_price)}
+                                        {formatPrice(
+                                          message.metadata.suggested_price
+                                        )}
                                       </Typography>
                                     )}
                                     {message.metadata?.recommended_action ? (
@@ -1509,7 +1543,8 @@ function NegotiationContent() {
                           onClick={() => setShowCounterOfferModal(true)}
                           disabled={
                             negotiationState.isLoading ||
-                            negotiationState.currentRound >= negotiationState.maxRounds
+                            negotiationState.currentRound >=
+                              negotiationState.maxRounds
                           }
                         >
                           Counter Offer
@@ -1540,7 +1575,9 @@ function NegotiationContent() {
                       <ChatInput
                         onSendMessage={handleChatMessage}
                         onSendDealerInfo={handleDealerInfo}
-                        disabled={negotiationState.isLoading || chatContext.isSending}
+                        disabled={
+                          negotiationState.isLoading || chatContext.isSending
+                        }
                         placeholder="Ask me anything about this negotiation..."
                         maxLength={2000}
                       />
@@ -1610,11 +1647,12 @@ function NegotiationContent() {
                           sx={{ py: 0.5 }}
                         >
                           <Typography variant="caption" fontWeight="bold">
-                            AI Suggests: {aiMetadata.recommendedAction.toUpperCase()}
+                            AI Suggests:{" "}
+                            {aiMetadata.recommendedAction.toUpperCase()}
                           </Typography>
                         </Alert>
                       )}
-                      
+
                       {latestPrice &&
                         targetPrice &&
                         latestPrice.price <= targetPrice && (
@@ -1628,7 +1666,8 @@ function NegotiationContent() {
                             </Typography>
                           </Alert>
                         )}
-                      {negotiationState.currentRound > negotiationState.maxRounds * 0.7 && (
+                      {negotiationState.currentRound >
+                        negotiationState.maxRounds * 0.7 && (
                         <Alert
                           severity="warning"
                           icon={<Warning />}
@@ -1654,8 +1693,8 @@ function NegotiationContent() {
                     </Stack>
 
                     {/* Enhanced Negotiation Analytics */}
-                    {(aiMetadata.dealerConcessionRate !== null || 
-                      aiMetadata.negotiationVelocity !== null || 
+                    {(aiMetadata.dealerConcessionRate !== null ||
+                      aiMetadata.negotiationVelocity !== null ||
                       aiMetadata.marketComparison) && (
                       <>
                         <Divider sx={{ my: 2 }} />
@@ -1676,11 +1715,16 @@ function NegotiationContent() {
                                   alignItems: "center",
                                 }}
                               >
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   Dealer Flexibility
                                 </Typography>
                                 <Chip
-                                  label={`${(aiMetadata.dealerConcessionRate * 100).toFixed(1)}%`}
+                                  label={`${(
+                                    aiMetadata.dealerConcessionRate * 100
+                                  ).toFixed(1)}%`}
                                   size="small"
                                   color={
                                     aiMetadata.dealerConcessionRate > 0.05
@@ -1718,11 +1762,18 @@ function NegotiationContent() {
                                   alignItems: "center",
                                 }}
                               >
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   Price Movement
                                 </Typography>
                                 <Chip
-                                  label={formatPrice(Math.abs(aiMetadata.negotiationVelocity)) + "/round"}
+                                  label={
+                                    formatPrice(
+                                      Math.abs(aiMetadata.negotiationVelocity)
+                                    ) + "/round"
+                                  }
                                   size="small"
                                   color="info"
                                 />
@@ -1756,7 +1807,11 @@ function NegotiationContent() {
                         <Typography variant="subtitle2" gutterBottom>
                           AI Strategy Tip
                         </Typography>
-                        <Alert severity="info" icon={<SmartToy />} sx={{ mb: 3 }}>
+                        <Alert
+                          severity="info"
+                          icon={<SmartToy />}
+                          sx={{ mb: 3 }}
+                        >
                           <Typography variant="caption">
                             {aiMetadata.strategyAdjustments}
                           </Typography>
@@ -1790,64 +1845,64 @@ function NegotiationContent() {
                             </IconButton>
                           </Box>
                           <Stack spacing={1} sx={{ mb: 2 }}>
-                            {financingOptions
-                              .slice(0, 2)
-                              .map((option) => (
-                                <Paper
-                                  key={option.loan_term_months}
-                                  elevation={1}
-                                  sx={{ p: 1.5, bgcolor: "background.default" }}
+                            {financingOptions.slice(0, 2).map((option) => (
+                              <Paper
+                                key={option.loan_term_months}
+                                elevation={1}
+                                sx={{ p: 1.5, bgcolor: "background.default" }}
+                              >
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    mb: 0.5,
+                                  }}
                                 >
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      mb: 0.5,
-                                    }}
+                                  <Typography
+                                    variant="caption"
+                                    fontWeight="bold"
                                   >
-                                    <Typography
-                                      variant="caption"
-                                      fontWeight="bold"
-                                    >
-                                      {option.loan_term_months} months
-                                    </Typography>
-                                    <Typography
-                                      variant="caption"
-                                      color="primary.main"
-                                      fontWeight="bold"
-                                    >
-                                      {formatPrice(option.monthly_payment_estimate)}
-                                      /mo
-                                    </Typography>
-                                  </Box>
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                    }}
+                                    {option.loan_term_months} months
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    color="primary.main"
+                                    fontWeight="bold"
                                   >
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                    >
-                                      {(option.estimated_apr * 100).toFixed(2)}%
-                                      APR
-                                    </Typography>
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                    >
-                                      Total: {formatPrice(option.total_cost)}
-                                    </Typography>
-                                  </Box>
-                                </Paper>
-                              ))}
+                                    {formatPrice(
+                                      option.monthly_payment_estimate
+                                    )}
+                                    /mo
+                                  </Typography>
+                                </Box>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                  }}
+                                >
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
+                                    {(option.estimated_apr * 100).toFixed(2)}%
+                                    APR
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
+                                    Total: {formatPrice(option.total_cost)}
+                                  </Typography>
+                                </Box>
+                              </Paper>
+                            ))}
                           </Stack>
                           {cashSavings && cashSavings > 0 && (
                             <Alert severity="info" sx={{ py: 0.5, mb: 1 }}>
                               <Typography variant="caption">
-                                Save {formatPrice(cashSavings)} by
-                                paying cash vs 60-mo loan
+                                Save {formatPrice(cashSavings)} by paying cash
+                                vs 60-mo loan
                               </Typography>
                             </Alert>
                           )}
@@ -1929,24 +1984,31 @@ function NegotiationContent() {
                     </Stack>
 
                     {/* Evaluation Insights */}
-                    {evaluationStepData?.evaluation?.talking_points && 
-                     evaluationStepData.evaluation.talking_points.length > 0 && (
-                      <>
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="subtitle2" gutterBottom>
-                          💡 Evaluation Talking Points
-                        </Typography>
-                        <Stack spacing={1}>
-                          {evaluationStepData.evaluation.talking_points.slice(0, 3).map((point, idx) => (
-                            <Alert key={idx} severity="info" sx={{ py: 0.5 }}>
-                              <Typography variant="caption">
-                                {point}
-                              </Typography>
-                            </Alert>
-                          ))}
-                        </Stack>
-                      </>
-                    )}
+                    {evaluationStepData?.evaluation?.talking_points &&
+                      evaluationStepData.evaluation.talking_points.length >
+                        0 && (
+                        <>
+                          <Divider sx={{ my: 2 }} />
+                          <Typography variant="subtitle2" gutterBottom>
+                            💡 Evaluation Talking Points
+                          </Typography>
+                          <Stack spacing={1}>
+                            {evaluationStepData.evaluation.talking_points
+                              .slice(0, 3)
+                              .map((point, idx) => (
+                                <Alert
+                                  key={idx}
+                                  severity="info"
+                                  sx={{ py: 0.5 }}
+                                >
+                                  <Typography variant="caption">
+                                    {point}
+                                  </Typography>
+                                </Alert>
+                              ))}
+                          </Stack>
+                        </>
+                      )}
                   </Card.Body>
                 </Card>
               </Grid>
@@ -2053,11 +2115,12 @@ function NegotiationContent() {
                 )}
               </Box>
               <Typography variant="caption" color="text.secondary">
-                From Round {latestPrice.round} • {formatTimestamp(latestPrice.timestamp)}
+                From Round {latestPrice.round} •{" "}
+                {formatTimestamp(latestPrice.timestamp)}
               </Typography>
-              
+
               <Divider sx={{ my: 1.5 }} />
-              
+
               <Grid container spacing={1}>
                 <Grid item xs={6}>
                   <Typography variant="caption" color="text.secondary">
@@ -2082,7 +2145,7 @@ function NegotiationContent() {
           <Typography variant="body2" color="text.secondary" paragraph>
             This will complete the negotiation and move forward with the deal.
           </Typography>
-          
+
           <Stack direction="row" spacing={2}>
             <Button
               variant="outline"

@@ -75,6 +75,8 @@ export interface CarSearchRequest {
   mileage_max?: number;
   user_priorities?: string;
   max_results?: number; // Maximum number of results to analyze (default: 50)
+  zip_code?: string;
+  search_radius_miles?: number;
 }
 
 export interface SearchCriteria {
@@ -630,6 +632,13 @@ class ApiClient {
   async createDeal(deal: DealCreate): Promise<Deal> {
     return this.request<Deal>("/api/v1/deals", {
       method: "POST",
+      body: JSON.stringify(deal),
+    });
+  }
+
+  async updateDeal(dealId: number, deal: Partial<DealCreate>): Promise<Deal> {
+    return this.request<Deal>(`/api/v1/deals/${dealId}`, {
+      method: "PUT",
       body: JSON.stringify(deal),
     });
   }

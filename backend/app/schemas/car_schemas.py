@@ -20,6 +20,10 @@ class CarSearchRequest(BaseModel):
         None, description="User's specific priorities or preferences"
     )
     max_results: int = Field(50, description="Maximum number of results to return", ge=1, le=100)
+    zip_code: str | None = Field(None, description="Zip code for location-based search")
+    search_radius_miles: int | None = Field(
+        None, description="Search radius in miles", ge=1, le=500
+    )
 
 
 class SearchCriteria(BaseModel):
