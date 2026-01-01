@@ -68,7 +68,7 @@ interface SearchFormData {
 function DashboardSearchPageContent() {
   const { user } = useAuth();
   const router = useRouter();
-  const { completeStep, setStepData } = useStepper();
+  const { completeStep, setStepData, getStepData } = useStepper();
 
   const [searchParams, setSearchParams] = useState<SearchFormData>({
     make: "",
@@ -165,6 +165,17 @@ function DashboardSearchPageContent() {
       }
     }
   }, [searchParams.budgetMax, searchParams.downPayment]);
+
+  // Restore search params from stepper context if available (e.g. when navigating back)
+  useEffect(() => {
+    const savedData = getStepData<{ searchParams: SearchFormData }>(0);
+    if (savedData?.searchParams) {
+      setSearchParams(savedData.searchParams);
+      if (savedData.searchParams.paymentMethod !== "cash") {
+        setShowFinancingOptions(true);
+      }
+    }
+  }, [getStepData]);
 
   // Calculate estimated monthly payment
   const calculateMonthlyPayment = (

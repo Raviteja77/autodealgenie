@@ -77,12 +77,13 @@ interface VehicleInfo {
   mileage: number;
   fuelType: string;
   zipCode?: string;
+  dealId?: string;
 }
 
 function NegotiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeStep, canNavigateToStep, getStepData } = useStepper();
+  const { completeStep, canNavigateToStep, getStepData, setStepData } = useStepper();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContext = useNegotiationChat();
   const hasInitializedRef = useRef(false);
@@ -238,6 +239,7 @@ function NegotiationContent() {
       const fuelType = searchParams.get("fuelType");
       const zipCode =
         searchParams.get("zipCode") || searchParams.get("zip_code");
+      const dealId = searchParams.get("dealId") || undefined;
 
       if (!make || !model || !yearStr || !priceStr || !mileageStr) {
         setVehicleData(null);
@@ -262,6 +264,7 @@ function NegotiationContent() {
         mileage,
         fuelType: fuelType || "Unknown",
         zipCode: zipCode || undefined,
+        dealId,
       };
 
       setVehicleData(parsedVehicleData);
@@ -886,6 +889,7 @@ function NegotiationContent() {
                         price: finalPrice.toString(),
                         mileage: vehicleData.mileage.toString(),
                         fuelType: vehicleData.fuelType || "",
+                        dealId: vehicleData.dealId || ""
                       });
 
                       // Add zipCode if available

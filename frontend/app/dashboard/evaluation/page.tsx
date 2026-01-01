@@ -55,7 +55,8 @@ interface DealEvaluationResult {
 function EvaluationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeStep, getStepData, setStepData, goToPreviousStep } = useStepper();
+  const { completeStep, getStepData, setStepData, goToPreviousStep } =
+    useStepper();
 
   const { user } = useAuth();
   const hasEvaluatedRef = useRef(false);
@@ -118,10 +119,16 @@ function EvaluationContent() {
     if (vehicleData && searchParams.toString()) {
       const existingData = getStepData(2) || {};
       // Only update if queryString is different or missing
-      const existingQueryString = existingData && typeof existingData === 'object' && 'queryString' in existingData
-        ? (existingData as { queryString?: string }).queryString
-        : undefined;
-      if (!existingQueryString || existingQueryString !== searchParams.toString()) {
+      const existingQueryString =
+        existingData &&
+        typeof existingData === "object" &&
+        "queryString" in existingData
+          ? (existingData as { queryString?: string }).queryString
+          : undefined;
+      if (
+        !existingQueryString ||
+        existingQueryString !== searchParams.toString()
+      ) {
         setStepData(2, {
           ...existingData,
           queryString: searchParams.toString(),
@@ -145,66 +152,53 @@ function EvaluationContent() {
     const createOrGetDeal = async () => {
       // initializationInProgressRef.current = true;
 
+      setLoading(true);
+      setError(null);
+
+      // Check if deal already exists
+      let dealId: number;
+      const customerEmail = user?.email || "guest@autodealgenie.com";
+      const vehicleVin = vehicleData?.vin || DEFAULT_VIN;
+
       try {
-        setLoading(true);
-        setError(null);
+        const existingDeal = await apiClient.getDealByEmailAndVin(
+          customerEmail,
+          vehicleVin
+        );
+        dealId = existingDeal.id;
+        setDealId(dealId);
+      } catch (error: unknown) {
+        // Check if this is a legitimate 404 (deal not found) or another error
+        // Use the proper type guard from the errors module
+        if (error instanceof NotFoundError) {
+          // Deal not found (404), create new one
+          const dealData: DealCreate = {
+            customer_name: user?.full_name || user?.username || "Guest User",
+            customer_email: customerEmail,
+            vehicle_make: vehicleData.make,
+            vehicle_model: vehicleData.model,
+            vehicle_year: vehicleData.year,
+            vehicle_mileage: vehicleData.mileage,
+            vehicle_vin: vehicleVin,
+            asking_price: vehicleData.price,
+            status: "pending",
+            notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
+          };
 
-        // Check if deal already exists
-        let dealId: number;
-        const customerEmail = user?.email || "guest@autodealgenie.com";
-        const vehicleVin = vehicleData?.vin || DEFAULT_VIN;
-
-        try {
-          const existingDeal = await apiClient.getDealByEmailAndVin(
-            customerEmail,
-            vehicleVin
-          );
-          dealId = existingDeal.id;
+          const newDeal = await apiClient.createDeal(dealData);
+          dealId = newDeal.id;
           setDealId(dealId);
-        } catch (error: unknown) {
-          // Check if this is a legitimate 404 (deal not found) or another error
-          // Use the proper type guard from the errors module
-          if (error instanceof NotFoundError) {
-            // Deal not found (404), create new one
-            const dealData: DealCreate = {
-              customer_name: user?.full_name || user?.username || "Guest User",
-              customer_email: customerEmail,
-              vehicle_make: vehicleData.make,
-              vehicle_model: vehicleData.model,
-              vehicle_year: vehicleData.year,
-              vehicle_mileage: vehicleData.mileage,
-              vehicle_vin: vehicleVin,
-              asking_price: vehicleData.price,
-              status: "pending",
-              notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
-            };
-
-            const newDeal = await apiClient.createDeal(dealData);
-            dealId = newDeal.id;
-            setDealId(dealId);
-          } else {
-            // This is not a "deal not found" error - it could be network, auth, etc.
-            console.error(
-              "Unexpected error checking for existing deal:",
-              error
-            );
-            throw error; // Re-throw to be caught by outer catch
-          }
+        } else {
+          // This is not a "deal not found" error - it could be network, auth, etc.
+          console.error("Unexpected error checking for existing deal:", error);
+          throw error; // Re-throw to be caught by outer catch
         }
-
-        setLoading(false);
-
-        // Mark as initialized
-        hasInitializedDealRef.current = true;
-      } catch (err) {
-        console.error("Error creating or getting deal:", err);
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Failed to get the deal information";
-        setError(errorMessage);
-        setLoading(false);
       }
+
+      setLoading(false);
+
+      // Mark as initialized
+      hasInitializedDealRef.current = true;
     };
 
     createOrGetDeal();
@@ -258,7 +252,10 @@ function EvaluationContent() {
     }
   };
 
-  const handleVehicleSelection = async (vehicle: VehicleInfo, targetPath: string) => {
+  const handleVehicleSelection = async (
+    vehicle: VehicleInfo,
+    targetPath: string
+  ) => {
     // Navigate to the target page with all vehicle data
     const vehicleParams = new URLSearchParams({
       vin: vehicle.vin || "",
@@ -268,6 +265,7 @@ function EvaluationContent() {
       price: vehicle.price.toString(),
       mileage: vehicle.mileage.toString(),
       fuelType: vehicle.fuelType || "",
+      dealId: dealId ? dealId.toString() : "",
     });
 
     // Add zipCode if available
@@ -275,9 +273,8 @@ function EvaluationContent() {
       vehicleParams.set("zipCode", vehicle.zipCode);
     }
 
-    if(dealId !== null) {
+    if (dealId !== null) {
       await apiClient.updateDeal(dealId, { status: "in_progress" });
-      vehicleParams.set("dealId", dealId.toString());
     }
 
     // Store the selected vehicle data for use in subsequent steps
@@ -285,7 +282,7 @@ function EvaluationContent() {
     setStepData(2, {
       ...existingData,
       selectedVehicle: vehicle,
-      queryString: vehicleParams.toString()
+      queryString: vehicleParams.toString(),
     });
 
     router.push(`${targetPath}?${vehicleParams.toString()}`);

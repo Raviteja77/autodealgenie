@@ -57,6 +57,7 @@ interface VehicleInfo {
   mileage: string;
   vin?: string;
   zipCode?: string;
+  dealId?: string;
 }
 
 function FinalizeDealContent() {
@@ -119,6 +120,7 @@ function FinalizeDealContent() {
     const mileage = searchParams.get("mileage");
     const vin = searchParams.get("vin");
     const zipCode = searchParams.get("zipCode") || searchParams.get("zip_code");
+    const dealId = searchParams.get("dealId");
 
     if (make && model && year && price && mileage) {
       setVehicleInfo({
@@ -129,6 +131,7 @@ function FinalizeDealContent() {
         mileage,
         vin: vin || undefined,
         zipCode: zipCode || undefined,
+        dealId: dealId || undefined,
       });
     }
   }, [searchParams]);
