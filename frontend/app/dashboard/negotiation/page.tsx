@@ -302,7 +302,7 @@ function NegotiationContent() {
 
   // Check if user can access this step
   useEffect(() => {
-    if (!canNavigateToStep(2)) {
+    if (!canNavigateToStep(3)) {
       router.push("/dashboard/search");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -311,7 +311,7 @@ function NegotiationContent() {
   // Mark step as in-progress (separate effect)
   useEffect(() => {
     if (vehicleData) {
-      completeStep(2, {
+      completeStep(3, {
         status: "in-progress",
         vehicleData: vehicleData,
         timestamp: new Date().toISOString(),
