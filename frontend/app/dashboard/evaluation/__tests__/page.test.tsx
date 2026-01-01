@@ -14,6 +14,20 @@ jest.mock('@/app/context', () => ({
   }),
 }));
 
+jest.mock('@/lib/auth', () => ({
+  useAuth: () => ({
+    user: {
+      email: 'test@example.com',
+      full_name: 'Test User',
+      username: 'testuser',
+    },
+    isAuthenticated: true,
+    login: jest.fn(),
+    logout: jest.fn(),
+    signup: jest.fn(),
+  }),
+}));
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: jest.fn(),
@@ -54,6 +68,23 @@ const mockEvaluationData = {
 describe('EvaluationPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Mock API client methods
+    (apiClient.evaluateDeal as jest.Mock).mockResolvedValue(mockEvaluationData);
+    (apiClient.getDealByEmailAndVin as jest.Mock).mockResolvedValue({
+      id: 1,
+      customer_email: 'test@example.com',
+      vehicle_vin: 'TEST123456789',
+    });
+    (apiClient.createDeal as jest.Mock).mockResolvedValue({
+      id: 1,
+      customer_email: 'test@example.com',
+      vehicle_vin: 'TEST123456789',
+    });
+    (apiClient.updateDeal as jest.Mock).mockResolvedValue({
+      id: 1,
+      status: 'in_progress',
+    });
   });
 
   it('renders loading state initially', () => {
