@@ -81,7 +81,6 @@ class AIResponseRepository:
 
         self.db.add(record)
         try:
-
             await self.db.commit()
             await self.db.refresh(record)
 

@@ -133,7 +133,6 @@ class TestAgentOrchestrator:
                 new=AsyncMock(return_value=mock_llm_responses["qa"]),
             ),
         ):
-
             # Execute orchestration
             result = await orchestrator.negotiate_deal(
                 deal_id=1,
@@ -197,7 +196,6 @@ class TestAgentOrchestrator:
                 orchestrator, "_qa_review", new=AsyncMock(return_value={"is_valid": True})
             ),
         ):
-
             # Execute orchestration
             result = await orchestrator.negotiate_deal(deal_id=1, user_context={})
 

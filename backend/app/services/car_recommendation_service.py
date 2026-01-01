@@ -52,6 +52,8 @@ class CarRecommendationService:
         mileage_max: int | None = None,
         user_priorities: str | None = None,
         max_results: int | None = None,
+        zip_code: str | None = None,
+        search_radius_miles: int | None = None,
     ) -> str:
         """
         Generate a cache key for search parameters
@@ -74,6 +76,8 @@ class CarRecommendationService:
             "mileage_max": mileage_max,
             "user_priorities": user_priorities,
             "max_results": max_results,
+            "zip_code": zip_code,
+            "search_radius_miles": search_radius_miles,
         }
         # Sort keys for consistency
         params_str = json.dumps(params, sort_keys=True)
@@ -171,6 +175,8 @@ class CarRecommendationService:
         max_year: int | None = None,
         max_mileage: int | None = None,
         rows: int = 10,
+        zip_code: str | None = None,
+        search_radius_miles: int | None = None,
     ) -> dict[str, Any]:
         """
         Search MarketCheck API with retry logic for transient errors
@@ -195,6 +201,8 @@ class CarRecommendationService:
             max_year=max_year,
             max_mileage=max_mileage,
             rows=rows,
+            zip_code=zip_code,
+            search_radius_miles=search_radius_miles,
         )
 
     async def _trigger_webhooks(self, vehicles: list[dict[str, Any]], db_session=None) -> None:
@@ -252,6 +260,8 @@ class CarRecommendationService:
         user_priorities: str | None = None,
         max_results: int | None = None,
         user_id: int | None = None,
+        zip_code: str | None = None,
+        search_radius_miles: int | None = None,
         db_session=None,
     ) -> dict[str, Any]:
         """
@@ -289,6 +299,8 @@ class CarRecommendationService:
             mileage_max,
             user_priorities,
             max_results,
+            zip_code,
+            search_radius_miles,
         )
 
         # Multi-tier cache strategy: Redis (fast) → File (persistent fallback)
@@ -343,6 +355,8 @@ class CarRecommendationService:
                 min_year=year_min,
                 max_year=year_max,
                 max_mileage=mileage_max,
+                zip_code=zip_code,
+                search_radius_miles=search_radius_miles,
                 rows=rows,  # Use configurable limit for LLM analysis
             )
         except Exception as e:

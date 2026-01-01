@@ -26,7 +26,12 @@ import {
 import Link from "next/link";
 import { useStepper } from "@/app/context";
 import { Button, Card, Spinner } from "@/components";
-import { apiClient } from "@/lib/api";
+import { DealCreate, apiClient } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { NotFoundError } from "@/lib/errors";
+
+// Fallback VIN when actual VIN is not available
+const DEFAULT_VIN = "UNKNOWN00000000000";
 
 interface VehicleInfo {
   vin?: string;
@@ -52,20 +57,23 @@ function EvaluationContent() {
   const searchParams = useSearchParams();
   const { completeStep, getStepData, setStepData } = useStepper();
 
+  const { user } = useAuth();
   const hasEvaluatedRef = useRef(false);
+  const hasInitializedDealRef = useRef(false);
   const evaluationInProgressRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<DealEvaluationResult | null>(
     null
   );
+  const [dealId, setDealId] = useState<number | null>(null);
   // Driver age for insurance calculation - currently using default
   // const driverAge = 30;
 
   // Extract vehicle data from URL params
   const vehicleData: VehicleInfo | null = useMemo(() => {
     try {
-      const vin = searchParams.get("vin") || undefined;
+      const vin = searchParams.get("vin") || DEFAULT_VIN;
       const make = searchParams.get("make");
       const model = searchParams.get("model");
       const yearStr = searchParams.get("year");
@@ -73,7 +81,8 @@ function EvaluationContent() {
       const mileageStr = searchParams.get("mileage");
       const fuelType = searchParams.get("fuelType");
       const condition = searchParams.get("condition");
-      const zipCode = searchParams.get("zipCode") || searchParams.get("zip_code");
+      const zipCode =
+        searchParams.get("zipCode") || searchParams.get("zip_code");
 
       if (!make || !model || !yearStr || !priceStr || !mileageStr) {
         return null;
@@ -103,6 +112,86 @@ function EvaluationContent() {
       return null;
     }
   }, [searchParams]);
+
+  // Initialize negotiation session
+  useEffect(() => {
+    // Guard clauses to prevent duplicate calls
+    if (hasInitializedDealRef.current) {
+      return;
+    }
+
+    if (!vehicleData) {
+      return;
+    }
+
+    const createOrGetDeal = async () => {
+      // initializationInProgressRef.current = true;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Check if deal already exists
+        let dealId: number;
+        const customerEmail = user?.email || "guest@autodealgenie.com";
+        const vehicleVin = vehicleData?.vin || DEFAULT_VIN;
+
+        try {
+          const existingDeal = await apiClient.getDealByEmailAndVin(
+            customerEmail,
+            vehicleVin
+          );
+          dealId = existingDeal.id;
+          setDealId(dealId);
+        } catch (error: unknown) {
+          // Check if this is a legitimate 404 (deal not found) or another error
+          // Use the proper type guard from the errors module
+          if (error instanceof NotFoundError) {
+            // Deal not found (404), create new one
+            const dealData: DealCreate = {
+              customer_name: user?.full_name || user?.username || "Guest User",
+              customer_email: customerEmail,
+              vehicle_make: vehicleData.make,
+              vehicle_model: vehicleData.model,
+              vehicle_year: vehicleData.year,
+              vehicle_mileage: vehicleData.mileage,
+              vehicle_vin: vehicleVin,
+              asking_price: vehicleData.price,
+              status: "pending",
+              notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
+            };
+
+            const newDeal = await apiClient.createDeal(dealData);
+            dealId = newDeal.id;
+            setDealId(dealId);
+          } else {
+            // This is not a "deal not found" error - it could be network, auth, etc.
+            console.error(
+              "Unexpected error checking for existing deal:",
+              error
+            );
+            throw error; // Re-throw to be caught by outer catch
+          }
+        }
+
+        setLoading(false);
+
+        // Mark as initialized
+        hasInitializedDealRef.current = true;
+      } catch (err) {
+        console.error("Error creating or getting deal:", err);
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Failed to get the deal information";
+        setError(errorMessage);
+        setLoading(false);
+      }
+    };
+
+    createOrGetDeal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleData, user]); // Other dependencies are stable (setters, user, chatContext)
 
   const evaluateDeal = async (vehicleData: VehicleInfo | null) => {
     // Mark as in progress
@@ -136,6 +225,7 @@ function EvaluationContent() {
         vehicleData: vehicleData,
         evaluation: data,
         timestamp: new Date().toISOString(),
+        queryString: searchParams.toString(),
       });
     } catch (err: unknown) {
       console.error("Error evaluating deal:", err);
@@ -150,14 +240,7 @@ function EvaluationContent() {
     }
   };
 
-  const handleVehicleSelection = (vehicle: VehicleInfo, targetPath: string) => {
-    // Store the selected vehicle data for use in subsequent steps
-    const existingData = getStepData(2) || {};
-    setStepData(2, {
-      ...existingData,
-      selectedVehicle: vehicle,
-    });
-
+  const handleVehicleSelection = async (vehicle: VehicleInfo, targetPath: string) => {
     // Navigate to the target page with all vehicle data
     const vehicleParams = new URLSearchParams({
       vin: vehicle.vin || "",
@@ -168,12 +251,25 @@ function EvaluationContent() {
       mileage: vehicle.mileage.toString(),
       fuelType: vehicle.fuelType || "",
     });
-    
+
     // Add zipCode if available
     if (vehicle.zipCode) {
       vehicleParams.set("zipCode", vehicle.zipCode);
     }
-    
+
+    if(dealId !== null) {
+      await apiClient.updateDeal(dealId, { status: "in_progress" });
+      vehicleParams.set("dealId", dealId.toString());
+    }
+
+    // Store the selected vehicle data for use in subsequent steps
+    const existingData = getStepData(2) || {};
+    setStepData(2, {
+      ...existingData,
+      selectedVehicle: vehicle,
+      queryString: vehicleParams.toString()
+    });
+
     router.push(`${targetPath}?${vehicleParams.toString()}`);
   };
 
@@ -230,7 +326,6 @@ function EvaluationContent() {
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <Box sx={{ bgcolor: "background.default", flexGrow: 1, py: 4 }}>
         <Container maxWidth="lg">
-
           {/* Error Alert */}
           {error && (
             <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
@@ -325,8 +420,13 @@ function EvaluationContent() {
                     <TrendingUp color="primary" />
                     AI-Powered Market Analysis
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Real-time pricing intelligence based on market data and ML predictions
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    Real-time pricing intelligence based on market data and ML
+                    predictions
                   </Typography>
                   <Divider sx={{ my: 2 }} />
 
@@ -435,18 +535,44 @@ function EvaluationContent() {
               </Card>
 
               {/* Overall Score with Enhanced Visual */}
-              <Card shadow="lg" sx={{ mb: 3, border: "2px solid", borderColor: getScoreColor(evaluation.score) === "success" ? "success.main" : getScoreColor(evaluation.score) === "error" ? "error.main" : "warning.main" }}>
+              <Card
+                shadow="lg"
+                sx={{
+                  mb: 3,
+                  border: "2px solid",
+                  borderColor:
+                    getScoreColor(evaluation.score) === "success"
+                      ? "success.main"
+                      : getScoreColor(evaluation.score) === "error"
+                      ? "error.main"
+                      : "warning.main",
+                }}
+              >
                 <Card.Body>
                   <Box sx={{ textAlign: "center", py: 3 }}>
-                    <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 2 }}>
+                    <Typography
+                      variant="overline"
+                      color="text.secondary"
+                      sx={{ letterSpacing: 2 }}
+                    >
                       Deal Quality Score
                     </Typography>
                     <Box
-                      sx={{ display: "flex", justifyContent: "center", mb: 3, mt: 2 }}
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        mb: 3,
+                        mt: 2,
+                      }}
                     >
                       {getScoreIcon(evaluation.score)}
                     </Box>
-                    <Typography variant="h1" component="div" gutterBottom sx={{ fontWeight: "bold" }}>
+                    <Typography
+                      variant="h1"
+                      component="div"
+                      gutterBottom
+                      sx={{ fontWeight: "bold" }}
+                    >
                       {evaluation.score.toFixed(1)}
                       <Typography
                         variant="h4"
@@ -460,31 +586,83 @@ function EvaluationContent() {
                     <Chip
                       label={getRecommendation(evaluation.score)}
                       color={getScoreColor(evaluation.score)}
-                      sx={{ mt: 2, fontSize: "1.1rem", py: 3, px: 2, fontWeight: "bold" }}
+                      sx={{
+                        mt: 2,
+                        fontSize: "1.1rem",
+                        py: 3,
+                        px: 2,
+                        fontWeight: "bold",
+                      }}
                     />
-                    
+
                     {/* Score Breakdown */}
-                    <Box sx={{ mt: 4, textAlign: "left", bgcolor: "grey.50", p: 3, borderRadius: 2 }}>
-                      <Typography variant="subtitle2" gutterBottom sx={{ mb: 2 }}>
+                    <Box
+                      sx={{
+                        mt: 4,
+                        textAlign: "left",
+                        bgcolor: "grey.50",
+                        p: 3,
+                        borderRadius: 2,
+                      }}
+                    >
+                      <Typography
+                        variant="subtitle2"
+                        gutterBottom
+                        sx={{ mb: 2 }}
+                      >
                         Score Breakdown
                       </Typography>
                       <Grid container spacing={2}>
                         <Grid item xs={6}>
-                          <Box sx={{ textAlign: "center", p: 2, bgcolor: "white", borderRadius: 1 }}>
-                            <Typography variant="caption" color="text.secondary">
+                          <Box
+                            sx={{
+                              textAlign: "center",
+                              p: 2,
+                              bgcolor: "white",
+                              borderRadius: 1,
+                            }}
+                          >
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
                               Price Competitiveness
                             </Typography>
-                            <Typography variant="h6" color="success.main" sx={{ fontWeight: "bold" }}>
-                              {evaluation.score >= 8 ? "Excellent" : evaluation.score >= 6.5 ? "Good" : evaluation.score >= 5 ? "Fair" : "Poor"}
+                            <Typography
+                              variant="h6"
+                              color="success.main"
+                              sx={{ fontWeight: "bold" }}
+                            >
+                              {evaluation.score >= 8
+                                ? "Excellent"
+                                : evaluation.score >= 6.5
+                                ? "Good"
+                                : evaluation.score >= 5
+                                ? "Fair"
+                                : "Poor"}
                             </Typography>
                           </Box>
                         </Grid>
                         <Grid item xs={6}>
-                          <Box sx={{ textAlign: "center", p: 2, bgcolor: "white", borderRadius: 1 }}>
-                            <Typography variant="caption" color="text.secondary">
+                          <Box
+                            sx={{
+                              textAlign: "center",
+                              p: 2,
+                              bgcolor: "white",
+                              borderRadius: 1,
+                            }}
+                          >
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
                               Market Position
                             </Typography>
-                            <Typography variant="h6" color="primary.main" sx={{ fontWeight: "bold" }}>
+                            <Typography
+                              variant="h6"
+                              color="primary.main"
+                              sx={{ fontWeight: "bold" }}
+                            >
                               {priceDifference > 0 ? "Above" : "Below"}
                             </Typography>
                           </Box>
@@ -558,12 +736,27 @@ function EvaluationContent() {
 
               {/* Key Insights - Enhanced */}
               {evaluation.insights.length > 0 && (
-                <Card sx={{ mb: 3, bgcolor: "primary.50", border: "1px solid", borderColor: "primary.200" }}>
+                <Card
+                  sx={{
+                    mb: 3,
+                    bgcolor: "primary.50",
+                    border: "1px solid",
+                    borderColor: "primary.200",
+                  }}
+                >
                   <Card.Body>
-                    <Typography variant="h6" gutterBottom sx={{ color: "primary.dark" }}>
+                    <Typography
+                      variant="h6"
+                      gutterBottom
+                      sx={{ color: "primary.dark" }}
+                    >
                       📊 Key Market Insights
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 2 }}
+                    >
                       Important factors influencing this vehicle&apos;s value
                     </Typography>
                     <Divider sx={{ mb: 2 }} />
@@ -571,13 +764,13 @@ function EvaluationContent() {
                       {evaluation.insights.map((insight, index) => (
                         <Box
                           key={index}
-                          sx={{ 
-                            display: "flex", 
+                          sx={{
+                            display: "flex",
                             alignItems: "start",
                             p: 2,
                             bgcolor: "white",
                             borderRadius: 2,
-                            boxShadow: 1
+                            boxShadow: 1,
                           }}
                         >
                           <CheckCircle
@@ -595,63 +788,77 @@ function EvaluationContent() {
               )}
 
               {/* Negotiation Talking Points - Now Visible */}
-              {evaluation.talking_points && evaluation.talking_points.length > 0 && (
-                <Card sx={{ mb: 3, border: "2px solid", borderColor: "primary.main" }}>
-                  <Card.Body>
-                    <Typography 
-                      variant="h6" 
-                      gutterBottom
-                      sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                    >
-                      <TrendingUp color="primary" />
-                      Negotiation Talking Points
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Use these points to strengthen your negotiation position
-                    </Typography>
-                    <Divider sx={{ mb: 2 }} />
-                    <Stack spacing={2}>
-                      {evaluation.talking_points.map((point, index) => (
-                        <Box 
-                          key={index} 
-                          sx={{ 
-                            display: "flex", 
-                            alignItems: "start",
-                            p: 2,
-                            bgcolor: "grey.50",
-                            borderRadius: 2,
-                            border: "1px solid",
-                            borderColor: "grey.200"
-                          }}
-                        >
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              minWidth: 32, 
-                              height: 32,
-                              borderRadius: "50%",
-                              bgcolor: "primary.main",
-                              color: "white",
+              {evaluation.talking_points &&
+                evaluation.talking_points.length > 0 && (
+                  <Card
+                    sx={{
+                      mb: 3,
+                      border: "2px solid",
+                      borderColor: "primary.main",
+                    }}
+                  >
+                    <Card.Body>
+                      <Typography
+                        variant="h6"
+                        gutterBottom
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
+                        <TrendingUp color="primary" />
+                        Negotiation Talking Points
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 2 }}
+                      >
+                        Use these points to strengthen your negotiation position
+                      </Typography>
+                      <Divider sx={{ mb: 2 }} />
+                      <Stack spacing={2}>
+                        {evaluation.talking_points.map((point, index) => (
+                          <Box
+                            key={index}
+                            sx={{
                               display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              mr: 2,
-                              flexShrink: 0,
-                              fontWeight: "bold",
-                              fontSize: "1rem"
+                              alignItems: "start",
+                              p: 2,
+                              bgcolor: "grey.50",
+                              borderRadius: 2,
+                              border: "1px solid",
+                              borderColor: "grey.200",
                             }}
                           >
-                            {index + 1}
-                          </Typography>
-                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                            {point}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Stack>
-                  </Card.Body>
-                </Card>
-              )}
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                minWidth: 32,
+                                height: 32,
+                                borderRadius: "50%",
+                                bgcolor: "primary.main",
+                                color: "white",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                mr: 2,
+                                flexShrink: 0,
+                                fontWeight: "bold",
+                                fontSize: "1rem",
+                              }}
+                            >
+                              {index + 1}
+                            </Typography>
+                            <Typography
+                              variant="body1"
+                              sx={{ fontWeight: 500 }}
+                            >
+                              {point}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Card.Body>
+                  </Card>
+                )}
 
               {/* Insurance Recommendations */}
               {/* <Card sx={{ mb: 3 }}>
@@ -680,7 +887,7 @@ function EvaluationContent() {
                   bgcolor: "grey.50",
                   borderRadius: 2,
                   border: "1px solid",
-                  borderColor: "grey.200"
+                  borderColor: "grey.200",
                 }}
               >
                 <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
@@ -741,8 +948,10 @@ function EvaluationContent() {
                 {!shouldSearchMore(evaluation.score) && (
                   <Alert severity="info" sx={{ mt: 3 }} icon={<TrendingUp />}>
                     <Typography variant="body2">
-                      <strong>Next Step:</strong> Our AI negotiation assistant will help you get the best possible price. 
-                      You&apos;ll receive talking points and real-time guidance throughout the negotiation process.
+                      <strong>Next Step:</strong> Our AI negotiation assistant
+                      will help you get the best possible price. You&apos;ll
+                      receive talking points and real-time guidance throughout
+                      the negotiation process.
                     </Typography>
                   </Alert>
                 )}

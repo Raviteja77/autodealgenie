@@ -277,17 +277,30 @@ export function StepperProvider({ children }: { children: ReactNode }) {
         );
         return;
       }
-
+  
       const targetStep = STEPS.find((s) => s.id === stepId);
       if (targetStep) {
         setState((prev) => ({ ...prev, isNavigating: true }));
-        router.push(targetStep.path);
+        
+        // Get stored data for this step to restore query params
+        const stepData = state.stepData[stepId];
+        let targetUrl = targetStep.path;
+        
+        // Restore query string if it was saved
+        if (stepData && typeof stepData === 'object' && 'queryString' in stepData) {
+          const queryString = stepData.queryString as string;
+          if (queryString) {
+            targetUrl = `${targetStep.path}?${queryString}`;
+          }
+        }
+
+        router.push(targetUrl);
         setTimeout(() => {
           setState((prev) => ({ ...prev, isNavigating: false }));
         }, 100);
       }
     },
-    [canNavigateToStep, router]
+    [canNavigateToStep, router, state.stepData]
   );
 
   /**

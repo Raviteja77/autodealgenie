@@ -194,7 +194,8 @@ export function BasicVehicleFilters({
               }}
             />
           </Grid>
-          <Grid item xs={12} md={4}>
+          {zipCode && (
+            <Grid item xs={12} md={4}>
             <FormControl fullWidth>
               <InputLabel>Search Radius</InputLabel>
               <Select
@@ -211,7 +212,7 @@ export function BasicVehicleFilters({
                 <MenuItem value={200}>200 miles</MenuItem>
               </Select>
             </FormControl>
-          </Grid>
+          </Grid>)}
         </Grid>
       </Grid>
     </>

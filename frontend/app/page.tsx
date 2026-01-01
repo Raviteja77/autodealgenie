@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
@@ -35,16 +35,23 @@ export default function Home() {
   const theme = useTheme();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const hasFetchedRef = useRef(false);
 
   // Fetch dashboard stats when user is logged in
   useEffect(() => {
     if (!user) {
       // Reset stats for non-authenticated users
       setStats(null);
+      hasFetchedRef.current = false;
+      return;
+    }
+
+    if (hasFetchedRef.current) {
       return;
     }
 
     const fetchStats = async () => {
+      hasFetchedRef.current = true;
       setLoading(true);
       try {
         // Fetch deals and favorites in parallel
@@ -167,14 +174,14 @@ export default function Home() {
       description: "Manage and track all your automotive deals",
       icon: DirectionsCarIcon,
       color: "warning",
-      href: user ? "/deals" : "/auth/login",
+      href: user ? "/dashboard/deals" : "/auth/login",
     },
     {
       title: "Favorites",
       description: "View your saved vehicles and watchlist",
       icon: FavoriteIcon,
       color: "error",
-      href: "/dashboard/favorites",
+      href: user? "/dashboard/favorites": "/auth/login",
     },
   ];
 
