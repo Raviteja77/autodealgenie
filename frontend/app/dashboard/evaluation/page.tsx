@@ -55,7 +55,7 @@ interface DealEvaluationResult {
 function EvaluationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeStep, getStepData, setStepData } = useStepper();
+  const { completeStep, getStepData, setStepData, goToPreviousStep } = useStepper();
 
   const { user } = useAuth();
   const hasEvaluatedRef = useRef(false);
@@ -112,6 +112,20 @@ function EvaluationContent() {
       return null;
     }
   }, [searchParams]);
+
+  // Save query parameters to step data when page loads with valid vehicle data
+  useEffect(() => {
+    if (vehicleData && searchParams.toString()) {
+      const existingData = getStepData(2) || {};
+      // Only update if queryString is different or missing
+      if (!existingData || !(existingData as any).queryString || (existingData as any).queryString !== searchParams.toString()) {
+        setStepData(2, {
+          ...existingData,
+          queryString: searchParams.toString(),
+        });
+      }
+    }
+  }, [vehicleData, searchParams, getStepData, setStepData]);
 
   // Initialize negotiation session
   useEffect(() => {
@@ -904,7 +918,7 @@ function EvaluationContent() {
                   <Button
                     variant="outline"
                     size="lg"
-                    onClick={() => router.back()}
+                    onClick={() => goToPreviousStep()}
                   >
                     ← Go Back
                   </Button>

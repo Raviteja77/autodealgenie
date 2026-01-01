@@ -62,7 +62,7 @@ interface VehicleInfo {
 function FinalizeDealContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeStep, getStepData } = useStepper();
+  const { completeStep, getStepData, goToPreviousStep, setStepData } = useStepper();
   const { user } = useAuth();
 
   const [vehicleInfo, setVehicleInfo] = useState<VehicleInfo | null>(null);
@@ -132,6 +132,20 @@ function FinalizeDealContent() {
       });
     }
   }, [searchParams]);
+
+  // Save query parameters to step data when page loads with valid vehicle data
+  useEffect(() => {
+    if (vehicleInfo && searchParams.toString()) {
+      const existingData = getStepData(4) || {};
+      // Only update if queryString is different or missing
+      if (!existingData || !(existingData as any).queryString || (existingData as any).queryString !== searchParams.toString()) {
+        setStepData(4, {
+          ...existingData,
+          queryString: searchParams.toString(),
+        });
+      }
+    }
+  }, [vehicleInfo, searchParams, getStepData, setStepData]);
 
   // Fetch insurance recommendations
   useEffect(() => {
@@ -773,7 +787,7 @@ function FinalizeDealContent() {
           You can review financing and insurance options before completing your purchase.
         </Typography>
         <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-          <Button variant="outline" onClick={() => router.back()}>
+          <Button variant="outline" onClick={() => goToPreviousStep()}>
             ← Back to Negotiation
           </Button>
           <Button variant="success" size="lg" onClick={handleFinalizeDeal} sx={{ px: 4 }}>

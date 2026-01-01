@@ -272,6 +272,20 @@ function NegotiationContent() {
     }
   }, [searchParams]);
 
+  // Save query parameters to step data when page loads with valid vehicle data
+  useEffect(() => {
+    if (vehicleData && searchParams.toString()) {
+      const existingData = getStepData(3) || {};
+      // Only update if queryString is different or missing
+      if (!existingData || !(existingData as any).queryString || (existingData as any).queryString !== searchParams.toString()) {
+        setStepData(3, {
+          ...existingData,
+          queryString: searchParams.toString(),
+        });
+      }
+    }
+  }, [vehicleData, searchParams, getStepData, setStepData]);
+
   // Memoize validation result to avoid unnecessary recalculations
   const isPriceValid = useMemo(() => {
     if (!latestPrice || !vehicleData) return false;
