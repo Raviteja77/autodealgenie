@@ -70,12 +70,12 @@ class TestDealEvaluationService:
             mock_client.generate_structured_json.return_value = mock_llm_evaluation
 
             with patch(
-                "app.services.deal_evaluation_service.marketcheck_service"
+                "app.services.evaluation.pricing.marketcheck_service"
             ) as mock_marketcheck:
                 mock_marketcheck.is_available.return_value = False
 
                 with patch(
-                    "app.services.deal_evaluation_service.generate_structured_json"
+                    "app.services.evaluation.pricing.generate_structured_json"
                 ) as mock_gen:
                     mock_gen.return_value = mock_llm_evaluation
 
@@ -103,11 +103,11 @@ class TestDealEvaluationService:
         """Test deal evaluation fallback when LLM is not available"""
         service = DealEvaluationService()
 
-        with patch("app.services.deal_evaluation_service.llm_client") as mock_client:
+        with patch("app.services.evaluation.pricing.llm_client") as mock_client:
             mock_client.is_available.return_value = False
 
             with patch(
-                "app.services.deal_evaluation_service.marketcheck_service"
+                "app.services.evaluation.pricing.marketcheck_service"
             ) as mock_marketcheck:
                 # Make sure the mock returns False for is_available
                 mock_marketcheck.is_available.return_value = False
@@ -133,9 +133,11 @@ class TestDealEvaluationService:
     @pytest.mark.asyncio
     async def test_fallback_evaluation_excellent_condition(self):
         """Test fallback evaluation with excellent condition"""
-        service = DealEvaluationService()
+        from app.services.evaluation.pricing import PricingEvaluator
 
-        result = service._fallback_evaluation(
+        evaluator = PricingEvaluator()
+
+        result = evaluator._heuristic_evaluation(
             vehicle_vin="1HGBH41JXMN109186",
             asking_price=30000.00,
             condition="excellent",
@@ -153,9 +155,11 @@ class TestDealEvaluationService:
     @pytest.mark.asyncio
     async def test_fallback_evaluation_poor_condition(self):
         """Test fallback evaluation with poor condition"""
-        service = DealEvaluationService()
+        from app.services.evaluation.pricing import PricingEvaluator
 
-        result = service._fallback_evaluation(
+        evaluator = PricingEvaluator()
+
+        result = evaluator._heuristic_evaluation(
             vehicle_vin="1HGBH41JXMN109186",
             asking_price=15000.00,
             condition="poor",
@@ -172,7 +176,7 @@ class TestDealEvaluationService:
         """Test deal evaluation handles LLM errors gracefully"""
         service = DealEvaluationService()
 
-        with patch("app.services.deal_evaluation_service.generate_structured_json") as mock_gen:
+        with patch("app.services.evaluation.pricing.generate_structured_json") as mock_gen:
             # Mock generate_structured_json to raise an exception
             mock_gen.side_effect = Exception("LLM API Error")
 
@@ -180,7 +184,7 @@ class TestDealEvaluationService:
                 mock_client.is_available.return_value = True
 
                 with patch(
-                    "app.services.deal_evaluation_service.marketcheck_service"
+                    "app.services.evaluation.pricing.marketcheck_service"
                 ) as mock_marketcheck:
                     mock_marketcheck.is_available.return_value = False
 
@@ -201,7 +205,7 @@ class TestDealEvaluationService:
         """Test deal evaluation handles invalid responses from LLM"""
         service = DealEvaluationService()
 
-        with patch("app.services.deal_evaluation_service.generate_structured_json") as mock_gen:
+        with patch("app.services.evaluation.pricing.generate_structured_json") as mock_gen:
             # Mock invalid response
             mock_gen.side_effect = ValueError("Invalid JSON")
 
@@ -209,7 +213,7 @@ class TestDealEvaluationService:
                 mock_client.is_available.return_value = True
 
                 with patch(
-                    "app.services.deal_evaluation_service.marketcheck_service"
+                    "app.services.evaluation.pricing.marketcheck_service"
                 ) as mock_marketcheck:
                     mock_marketcheck.is_available.return_value = False
 
@@ -242,7 +246,7 @@ class TestDealEvaluationEndpoint:
             mock_client.is_available.return_value = False  # Use fallback for predictable results
 
             with patch(
-                "app.services.deal_evaluation_service.marketcheck_service"
+                "app.services.evaluation.pricing.marketcheck_service"
             ) as mock_marketcheck:
                 mock_marketcheck.is_available.return_value = False
 
@@ -404,23 +408,23 @@ class TestDealEvaluationCaching:
         """Test that cached data is returned on cache hit without calling LLM"""
         service = DealEvaluationService()
 
-        with patch("app.services.deal_evaluation_service.redis_client") as mock_redis_client:
+        with patch("app.services.evaluation.core.redis_client") as mock_redis_client:
             mock_redis = AsyncMock()
             mock_redis.get = AsyncMock(
                 return_value='{"fair_value": 24000.0, "score": 8.0, "insights": ["Cached insight"], "talking_points": ["Cached point"]}'
             )
             mock_redis_client.get_client.return_value = mock_redis
 
-            with patch("app.services.deal_evaluation_service.llm_client") as mock_client:
+            with patch("app.llm.llm_client.llm_client") as mock_client:
                 mock_client.is_available.return_value = True
 
                 with patch(
-                    "app.services.deal_evaluation_service.marketcheck_service"
+                    "app.services.evaluation.pricing.marketcheck_service"
                 ) as mock_marketcheck:
                     mock_marketcheck.is_available.return_value = False
 
                     with patch(
-                        "app.services.deal_evaluation_service.generate_structured_json"
+                        "app.services.evaluation.pricing.generate_structured_json"
                     ) as mock_gen:
                         # LLM should NOT be called on cache hit
                         mock_gen.return_value = mock_llm_evaluation
@@ -444,22 +448,22 @@ class TestDealEvaluationCaching:
         """Test that LLM is called on cache miss and result is cached"""
         service = DealEvaluationService()
 
-        with patch("app.services.deal_evaluation_service.redis_client") as mock_redis_client:
+        with patch("app.services.evaluation.core.redis_client") as mock_redis_client:
             mock_redis = AsyncMock()
             mock_redis.get = AsyncMock(return_value=None)  # Ensure get returns None
             mock_redis.setex = AsyncMock(return_value=True)
             mock_redis_client.get_client.return_value = mock_redis
 
-            with patch("app.services.deal_evaluation_service.llm_client") as mock_client:
+            with patch("app.services.evaluation.pricing.llm_client") as mock_client:
                 mock_client.is_available.return_value = True
 
                 with patch(
-                    "app.services.deal_evaluation_service.marketcheck_service"
+                    "app.services.evaluation.pricing.marketcheck_service"
                 ) as mock_marketcheck:
                     mock_marketcheck.is_available.return_value = False
 
                     with patch(
-                        "app.services.deal_evaluation_service.generate_structured_json"
+                        "app.services.evaluation.pricing.generate_structured_json"
                     ) as mock_gen:
                         # Generate_structured_json is synchronous, not async
                         mock_gen.return_value = mock_llm_evaluation
@@ -484,20 +488,20 @@ class TestDealEvaluationCaching:
         """Test graceful degradation when Redis is unavailable"""
         service = DealEvaluationService()
 
-        with patch("app.services.deal_evaluation_service.redis_client") as mock_redis_client:
+        with patch("app.services.evaluation.core.redis_client") as mock_redis_client:
             # Redis not available
             mock_redis_client.get_client.return_value = None
 
-            with patch("app.services.deal_evaluation_service.llm_client") as mock_client:
+            with patch("app.services.evaluation.pricing.llm_client") as mock_client:
                 mock_client.is_available.return_value = True
 
                 with patch(
-                    "app.services.deal_evaluation_service.marketcheck_service"
+                    "app.services.evaluation.pricing.marketcheck_service"
                 ) as mock_marketcheck:
                     mock_marketcheck.is_available.return_value = False
 
                     with patch(
-                        "app.services.deal_evaluation_service.generate_structured_json"
+                        "app.services.evaluation.pricing.generate_structured_json"
                     ) as mock_gen:
                         # Generate_structured_json is synchronous, not async
                         mock_gen.return_value = mock_llm_evaluation
