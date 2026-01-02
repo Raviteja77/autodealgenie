@@ -55,7 +55,6 @@ import {
   ChatInput,
   ConnectionStatusIndicator,
   FinancingComparisonModal,
-  NegotiationCompletedScreen,
   NegotiationCancelledScreen,
 } from "@/components";
 import { useNegotiationState } from "@/lib/hooks";
