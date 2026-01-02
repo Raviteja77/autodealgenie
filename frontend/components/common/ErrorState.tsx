@@ -87,7 +87,6 @@ export function ErrorState({
           {showRetry && onRetry && (
             <Button
               variant="outline"
-              color="error"
               onClick={onRetry}
               size="sm"
             >
