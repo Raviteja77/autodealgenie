@@ -18,6 +18,7 @@ interface VehicleInfo {
   make: string;
   model: string;
   price: number;
+  mileage?: number;
   vin?: string;
 }
 
@@ -120,7 +121,7 @@ export function NegotiationCompletedScreen({
 
             <Box sx={{ mt: 4 }}>
               <Link
-                href={`${ROUTES.FINALIZE}?vin=${vehicleData.vin || ""}&make=${vehicleData.make}&model=${vehicleData.model}&year=${vehicleData.year}&price=${latestPrice.price}&mileage=${vehicleData.price}`}
+                href={`${ROUTES.FINALIZE}?vin=${vehicleData.vin || ""}&make=${vehicleData.make}&model=${vehicleData.model}&year=${vehicleData.year}&price=${latestPrice.price}&mileage=${vehicleData.mileage || ""}`}
                 style={{ textDecoration: "none" }}
               >
                 <Button variant="primary" size="lg" fullWidth>
