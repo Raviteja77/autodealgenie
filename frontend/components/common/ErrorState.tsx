@@ -86,10 +86,10 @@ export function ErrorState({
           </Typography>
           {showRetry && onRetry && (
             <Button
-              variant="outlined"
+              variant="outline"
               color="error"
               onClick={onRetry}
-              size="small"
+              size="sm"
             >
               {retryLabel}
             </Button>
