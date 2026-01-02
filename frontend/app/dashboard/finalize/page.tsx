@@ -57,12 +57,13 @@ interface VehicleInfo {
   mileage: string;
   vin?: string;
   zipCode?: string;
+  dealId?: string;
 }
 
 function FinalizeDealContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeStep, getStepData } = useStepper();
+  const { completeStep, getStepData, goToPreviousStep, setStepData } = useStepper();
   const { user } = useAuth();
 
   const [vehicleInfo, setVehicleInfo] = useState<VehicleInfo | null>(null);
@@ -119,6 +120,7 @@ function FinalizeDealContent() {
     const mileage = searchParams.get("mileage");
     const vin = searchParams.get("vin");
     const zipCode = searchParams.get("zipCode") || searchParams.get("zip_code");
+    const dealId = searchParams.get("dealId");
 
     if (make && model && year && price && mileage) {
       setVehicleInfo({
@@ -129,9 +131,28 @@ function FinalizeDealContent() {
         mileage,
         vin: vin || undefined,
         zipCode: zipCode || undefined,
+        dealId: dealId || undefined,
       });
     }
   }, [searchParams]);
+
+  // Save query parameters to step data when page loads with valid vehicle data
+  useEffect(() => {
+    if (vehicleInfo && searchParams.toString()) {
+      const existingData = getStepData(4) || {};
+      // Only update if queryString is different or missing
+      const existingQueryString = existingData && typeof existingData === 'object' && 'queryString' in existingData
+        ? (existingData as { queryString?: string }).queryString
+        : undefined;
+      if (!existingQueryString || existingQueryString !== searchParams.toString()) {
+        setStepData(4, {
+          ...existingData,
+          queryString: searchParams.toString(),
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleInfo, searchParams]);
 
   // Fetch insurance recommendations
   useEffect(() => {
@@ -773,7 +794,7 @@ function FinalizeDealContent() {
           You can review financing and insurance options before completing your purchase.
         </Typography>
         <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-          <Button variant="outline" onClick={() => router.back()}>
+          <Button variant="outline" onClick={() => goToPreviousStep()}>
             ← Back to Negotiation
           </Button>
           <Button variant="success" size="lg" onClick={handleFinalizeDeal} sx={{ px: 4 }}>

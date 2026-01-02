@@ -77,12 +77,13 @@ interface VehicleInfo {
   mileage: number;
   fuelType: string;
   zipCode?: string;
+  dealId?: string;
 }
 
 function NegotiationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeStep, canNavigateToStep, getStepData } = useStepper();
+  const { completeStep, canNavigateToStep, getStepData, setStepData } = useStepper();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContext = useNegotiationChat();
   const hasInitializedRef = useRef(false);
@@ -238,6 +239,7 @@ function NegotiationContent() {
       const fuelType = searchParams.get("fuelType");
       const zipCode =
         searchParams.get("zipCode") || searchParams.get("zip_code");
+      const dealId = searchParams.get("dealId") || undefined;
 
       if (!make || !model || !yearStr || !priceStr || !mileageStr) {
         setVehicleData(null);
@@ -262,6 +264,7 @@ function NegotiationContent() {
         mileage,
         fuelType: fuelType || "Unknown",
         zipCode: zipCode || undefined,
+        dealId,
       };
 
       setVehicleData(parsedVehicleData);
@@ -271,6 +274,24 @@ function NegotiationContent() {
       setVehicleData(null);
     }
   }, [searchParams]);
+
+  // Save query parameters to step data when page loads with valid vehicle data
+  useEffect(() => {
+    if (vehicleData && searchParams.toString()) {
+      const existingData = getStepData(3) || {};
+      // Only update if queryString is different or missing
+      const existingQueryString = existingData && typeof existingData === 'object' && 'queryString' in existingData
+        ? (existingData as { queryString?: string }).queryString
+        : undefined;
+      if (!existingQueryString || existingQueryString !== searchParams.toString()) {
+        setStepData(3, {
+          ...existingData,
+          queryString: searchParams.toString(),
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicleData, searchParams]);
 
   // Memoize validation result to avoid unnecessary recalculations
   const isPriceValid = useMemo(() => {
@@ -284,7 +305,7 @@ function NegotiationContent() {
 
   // Check if user can access this step
   useEffect(() => {
-    if (!canNavigateToStep(2)) {
+    if (!canNavigateToStep(3)) {
       router.push("/dashboard/search");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -293,7 +314,7 @@ function NegotiationContent() {
   // Mark step as in-progress (separate effect)
   useEffect(() => {
     if (vehicleData) {
-      completeStep(2, {
+      completeStep(3, {
         status: "in-progress",
         vehicleData: vehicleData,
         timestamp: new Date().toISOString(),
@@ -868,6 +889,7 @@ function NegotiationContent() {
                         price: finalPrice.toString(),
                         mileage: vehicleData.mileage.toString(),
                         fuelType: vehicleData.fuelType || "",
+                        dealId: vehicleData.dealId || ""
                       });
 
                       // Add zipCode if available

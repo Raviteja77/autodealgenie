@@ -142,7 +142,7 @@ export function VehicleCard({
         >
           {vehicle.image ? (
             <Image
-              fill
+              fill={true}
               src={vehicle.image}
               alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
               style={{ objectFit: "cover" }}
