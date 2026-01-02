@@ -69,14 +69,10 @@ class TestDealEvaluationService:
             mock_client.is_available.return_value = True
             mock_client.generate_structured_json.return_value = mock_llm_evaluation
 
-            with patch(
-                "app.services.evaluation.pricing.marketcheck_service"
-            ) as mock_marketcheck:
+            with patch("app.services.evaluation.pricing.marketcheck_service") as mock_marketcheck:
                 mock_marketcheck.is_available.return_value = False
 
-                with patch(
-                    "app.services.evaluation.pricing.generate_structured_json"
-                ) as mock_gen:
+                with patch("app.services.evaluation.pricing.generate_structured_json") as mock_gen:
                     mock_gen.return_value = mock_llm_evaluation
 
                     result = await service.evaluate_deal(
@@ -106,9 +102,7 @@ class TestDealEvaluationService:
         with patch("app.services.evaluation.pricing.llm_client") as mock_client:
             mock_client.is_available.return_value = False
 
-            with patch(
-                "app.services.evaluation.pricing.marketcheck_service"
-            ) as mock_marketcheck:
+            with patch("app.services.evaluation.pricing.marketcheck_service") as mock_marketcheck:
                 # Make sure the mock returns False for is_available
                 mock_marketcheck.is_available.return_value = False
 
@@ -245,9 +239,7 @@ class TestDealEvaluationEndpoint:
         with patch("app.llm.llm_client.llm_client") as mock_client:
             mock_client.is_available.return_value = False  # Use fallback for predictable results
 
-            with patch(
-                "app.services.evaluation.pricing.marketcheck_service"
-            ) as mock_marketcheck:
+            with patch("app.services.evaluation.pricing.marketcheck_service") as mock_marketcheck:
                 mock_marketcheck.is_available.return_value = False
 
                 response = authenticated_client.post("/api/v1/deals/evaluate", json=evaluation_data)
