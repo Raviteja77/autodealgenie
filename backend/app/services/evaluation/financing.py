@@ -198,7 +198,11 @@ class FinancingEvaluator:
         }
 
     def _generate_recommendation(
-        self, price_score: float, interest_rate: float, total_interest: float, affordability_score: float
+        self,
+        price_score: float,
+        interest_rate: float,
+        total_interest: float,
+        affordability_score: float,
     ) -> tuple[str, str]:
         """
         Generate financing recommendation based on multiple factors.

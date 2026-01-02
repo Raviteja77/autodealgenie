@@ -2,7 +2,7 @@
 Tests for modular evaluation service components
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -31,9 +31,7 @@ class TestConditionEvaluator:
         with patch("app.services.evaluation.condition.llm_client") as mock_client:
             mock_client.is_available.return_value = True
 
-            with patch(
-                "app.services.evaluation.condition.generate_structured_json"
-            ) as mock_gen:
+            with patch("app.services.evaluation.condition.generate_structured_json") as mock_gen:
                 mock_gen.return_value = mock_assessment
 
                 result = await evaluator.evaluate(
@@ -131,15 +129,11 @@ class TestPricingEvaluator:
             talking_points=["Strong leverage"],
         )
 
-        with patch.object(
-            evaluator, "_get_market_data", return_value=mock_market_data
-        ) as mock_get:
+        with patch.object(evaluator, "_get_market_data", return_value=mock_market_data):
             with patch("app.services.evaluation.pricing.llm_client") as mock_client:
                 mock_client.is_available.return_value = True
 
-                with patch(
-                    "app.services.evaluation.pricing.generate_structured_json"
-                ) as mock_gen:
+                with patch("app.services.evaluation.pricing.generate_structured_json") as mock_gen:
                     mock_gen.return_value = mock_evaluation
 
                     result = await evaluator.evaluate(
@@ -315,7 +309,10 @@ class TestRiskEvaluator:
             vehicle_mileage=80000,
             asking_price=10000.0,
         )
-        assert any("old" in factor.lower() or "age" in factor.lower() for factor in result_old["risk_factors"])
+        assert any(
+            "old" in factor.lower() or "age" in factor.lower()
+            for factor in result_old["risk_factors"]
+        )
 
 
 class TestIntegration:

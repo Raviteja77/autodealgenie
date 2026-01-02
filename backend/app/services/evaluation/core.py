@@ -142,9 +142,7 @@ class DealEvaluationService(BaseService):
                 logger.debug("Redis client not available, skipping cache set")
                 return
 
-            await redis.setex(
-                cache_key, EvaluationConfig.CACHE_TTL, json.dumps(evaluation)
-            )
+            await redis.setex(cache_key, EvaluationConfig.CACHE_TTL, json.dumps(evaluation))
             logger.info(
                 f"Cached evaluation for key: {cache_key} (TTL: {EvaluationConfig.CACHE_TTL}s)"
             )

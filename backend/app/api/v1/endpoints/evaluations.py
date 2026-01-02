@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
+from app.core.evaluation_config import EvaluationConfig
 from app.db.session import get_async_db
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import User
@@ -20,7 +21,6 @@ from app.schemas.loan_schemas import (
     LenderRecommendationRequest,
     LenderRecommendationResponse,
 )
-from app.core.evaluation_config import EvaluationConfig
 from app.services.evaluation import deal_evaluation_service
 from app.services.lender_service import LenderService
 

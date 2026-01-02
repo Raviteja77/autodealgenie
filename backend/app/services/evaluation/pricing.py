@@ -11,7 +11,7 @@ from app.core.evaluation_config import EvaluationConfig
 from app.llm import generate_structured_json, llm_client
 from app.llm.schemas import DealEvaluation
 from app.services.marketcheck_service import marketcheck_service
-from app.utils.error_handler import ApiError, MarketDataError
+from app.utils.error_handler import ApiError
 
 logger = logging.getLogger(__name__)
 
@@ -108,9 +108,7 @@ class PricingEvaluator:
             )
             return market_data
         except ApiError as e:
-            logger.warning(
-                f"MarketCheck API error: {e.message}. Continuing without market data."
-            )
+            logger.warning(f"MarketCheck API error: {e.message}. Continuing without market data.")
             # Don't raise - gracefully degrade
             return None
         except Exception as e:
@@ -256,9 +254,7 @@ class PricingEvaluator:
         insights = self._generate_market_insights(
             predicted_price, confidence, price_range, price_diff, price_diff_pct, mileage, condition
         )
-        talking_points = self._generate_market_talking_points(
-            predicted_price, price_diff, mileage
-        )
+        talking_points = self._generate_market_talking_points(predicted_price, price_diff, mileage)
 
         logger.info(
             f"MarketCheck evaluation completed - VIN: {vehicle_vin}, "
