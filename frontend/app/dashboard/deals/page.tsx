@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Box, Container, Typography, Chip, Grid } from "@mui/material";
 import { apiClient, Deal } from "@/lib/api";
@@ -16,7 +15,7 @@ import {
   getStatusLabel,
   getNavigationHint,
 } from "@/lib/constants";
-import { Button, Card, LoadingState, ErrorState, EmptyState } from "@/components";
+import { Card, LoadingState, ErrorState, EmptyState } from "@/components";
 
 export default function DealsPage() {
   const router = useRouter();

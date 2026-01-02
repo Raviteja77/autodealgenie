@@ -5,8 +5,8 @@
  * Provides helpers for parsing, updating, and managing query parameters.
  */
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useSearchParams, useRouter, ReadonlyURLSearchParams } from "next/navigation";
+import { useCallback } from "react";
 import {
   parseStringParam,
   parseNumericParam,
