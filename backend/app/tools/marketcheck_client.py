@@ -3,6 +3,9 @@ MarketCheck API Client for fetching vehicle listings
 """
 
 from typing import Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 import httpx
 
@@ -17,7 +20,8 @@ class MarketCheckAPIClient:
     def __init__(self, api_key: str | None = None):
         self.api_key = api_key or settings.MARKET_CHECK_API_KEY
         if not self.api_key:
-            raise ValueError("MARKET_CHECK_API_KEY is required")
+            # Log a warning instead of raising an error
+            logger.warning("MARKET_CHECK_API_KEY is not set. MarketCheck features will be disabled.")
 
     async def search_cars(
         self,
