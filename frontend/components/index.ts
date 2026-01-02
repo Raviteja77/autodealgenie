@@ -7,6 +7,7 @@
  * - Organisms: Complex UI sections
  * - Common: Shared layout components
  * - Vehicle: Reusable vehicle-related components
+ * - Evaluation: Evaluation page specific components
  */
 
 // Export atoms - basic building blocks
@@ -57,6 +58,9 @@ export { EmptyState } from './common/EmptyState';
 
 // Export vehicle components
 export * from './vehicle';
+
+// Export evaluation components
+export * from './evaluation';
 
 // Export negotiation components
 export { CurrentOfferStatus } from './negotiation/CurrentOfferStatus';
