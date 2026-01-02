@@ -78,12 +78,12 @@ def test_llm_json_parsing_with_markdown():
 
 def test_deal_evaluation_fallback():
     """Test that deal evaluation service provides fallback when LLM fails"""
-    from app.services.deal_evaluation_service import DealEvaluationService
+    from app.services.evaluation.pricing import PricingEvaluator
 
-    service = DealEvaluationService()
+    pricing_evaluator = PricingEvaluator()
 
     # Test fallback evaluation
-    result = service._fallback_evaluation(
+    result = pricing_evaluator._heuristic_evaluation(
         vehicle_vin="TEST123456", asking_price=25000.0, condition="good", mileage=50000
     )
 

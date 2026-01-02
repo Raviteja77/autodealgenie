@@ -16,7 +16,7 @@ from app.schemas.schemas import (
     DealResponse,
     DealUpdate,
 )
-from app.services.deal_evaluation_service import deal_evaluation_service
+from app.services.evaluation import deal_evaluation_service
 
 router = APIRouter()
 

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
+from app.core.evaluation_config import EvaluationConfig
 from app.db.session import get_async_db
 from app.models.evaluation import EvaluationStatus, PipelineStep
 from app.models.models import User
@@ -20,7 +21,7 @@ from app.schemas.loan_schemas import (
     LenderRecommendationRequest,
     LenderRecommendationResponse,
 )
-from app.services.deal_evaluation_service import deal_evaluation_service
+from app.services.evaluation import deal_evaluation_service
 from app.services.lender_service import LenderService
 
 router = APIRouter()
@@ -285,7 +286,7 @@ async def get_evaluation_lenders(
         price_data = result_json.get("price", {})
         overall_score = price_data.get("assessment", {}).get("score", 0)
 
-    min_score = deal_evaluation_service.LENDER_RECOMMENDATION_MIN_SCORE
+    min_score = EvaluationConfig.LENDER_RECOMMENDATION_MIN_SCORE
     if overall_score < min_score:
         return LenderRecommendationResponse(
             recommendations=[],
@@ -327,7 +328,7 @@ async def get_evaluation_lenders(
     lender_request = LenderRecommendationRequest(
         loan_amount=loan_amount,
         credit_score_range=credit_score_range,
-        loan_term_months=deal_evaluation_service.DEFAULT_LOAN_TERM_MONTHS,
+        loan_term_months=EvaluationConfig.DEFAULT_LOAN_TERM_MONTHS,
     )
 
     # Get lender recommendations
