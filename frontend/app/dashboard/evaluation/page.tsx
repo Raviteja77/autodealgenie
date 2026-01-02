@@ -7,16 +7,13 @@ import {
   Container,
   Typography,
   Alert,
-  Divider,
   Grid,
   LinearProgress,
   Stack,
   Chip,
 } from "@mui/material";
 import {
-  CheckCircle,
   Warning,
-  Cancel,
   TrendingUp,
   TrendingDown,
   AttachMoney,
@@ -25,7 +22,15 @@ import {
 } from "@mui/icons-material";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
-import { Button, Card, Spinner } from "@/components";
+import { 
+  Button, 
+  Card, 
+  Spinner,
+  EvaluationScoreCard,
+  MarketAnalysisCard,
+  KeyInsightsList,
+  TalkingPointsList,
+} from "@/components";
 import { DealCreate, apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { NotFoundError } from "@/lib/errors";
@@ -315,28 +320,6 @@ function EvaluationContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicleData, evaluation]);
 
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return "success";
-    if (score >= 6.5) return "info";
-    if (score >= 5) return "warning";
-    return "error";
-  };
-
-  const getScoreIcon = (score: number) => {
-    if (score >= 8) return <CheckCircle color="success" />;
-    if (score >= 6.5) return <TrendingUp color="info" />;
-    if (score >= 5) return <Warning color="warning" />;
-    return <Cancel color="error" />;
-  };
-
-  const getRecommendation = (score: number) => {
-    if (score >= 8) return "Excellent Deal - Highly Recommended";
-    if (score >= 6.5)
-      return "Good Deal - Recommended with Minor Considerations";
-    if (score >= 5) return "Fair Deal - Proceed with Caution";
-    return "Poor Deal - Consider Other Options";
-  };
-
   const shouldSearchMore = (score: number) => score < 5.0;
 
   const priceDifference =
@@ -429,266 +412,17 @@ function EvaluationContent() {
                 </Card.Body>
               </Card>
 
-              <Card shadow="lg" sx={{ mb: 3 }}>
-                <Card.Body>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                  >
-                    <TrendingUp color="primary" />
-                    {EVALUATION_TEXT.TITLES.MARKET_ANALYSIS}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 2 }}
-                  >
-                    {EVALUATION_TEXT.DESCRIPTIONS.MARKET_ANALYSIS}
-                  </Typography>
-                  <Divider sx={{ my: 2 }} />
+              {/* Market Analysis */}
+              <MarketAnalysisCard 
+                vehicleData={vehicleData}
+                fairValue={evaluation.fair_value}
+              />
 
-                  <Grid container spacing={3}>
-                    {/* Price Comparison Visual */}
-                    <Grid item xs={12} md={6}>
-                      <Box
-                        sx={{
-                          background:
-                            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                          borderRadius: 2,
-                          p: 3,
-                          color: "white",
-                        }}
-                      >
-                        <Typography variant="subtitle2" sx={{ opacity: 0.9, mb: 1 }}>
-                          {EVALUATION_TEXT.LABELS.MARKET_POSITION}
-                        </Typography>
-                        <Typography
-                          variant="h3"
-                          sx={{ fontWeight: "bold", mb: 2 }}
-                        >
-                          {priceDifference > 0 
-                            ? EVALUATION_TEXT.LABELS.ABOVE_MARKET 
-                            : EVALUATION_TEXT.LABELS.BELOW_MARKET}
-                        </Typography>
-                        <Typography variant="h4" sx={{ fontWeight: "bold" }}>
-                          ${Math.abs(priceDifference).toLocaleString()}
-                        </Typography>
-                        <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                          {(
-                            (Math.abs(priceDifference) / vehicleData.price) *
-                            100
-                          ).toFixed(1)}
-                          % difference
-                        </Typography>
-                      </Box>
-                    </Grid>
-
-                    {/* Quick Stats */}
-                    <Grid item xs={12} md={6}>
-                      <Stack spacing={2}>
-                        <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Days on Market
-                          </Typography>
-                          <Typography variant="h6" fontWeight="bold">
-                            32 days
-                          </Typography>
-                          <Typography variant="caption" color="success.main">
-                            Faster than average
-                          </Typography>
-                        </Box>
-                        <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Similar Vehicles
-                          </Typography>
-                          <Typography variant="h6" fontWeight="bold">
-                            12 in your area
-                          </Typography>
-                          <Typography variant="caption" color="primary.main">
-                            Average: ${vehicleData.price.toLocaleString()}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Grid>
-                  </Grid>
-
-                  {/* Negotiation Leverage Indicator */}
-                  <Box
-                    sx={{
-                      mt: 3,
-                      p: 3,
-                      bgcolor: "success.50",
-                      borderRadius: 2,
-                      border: "1px solid",
-                      borderColor: "success.200",
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        mb: 1,
-                      }}
-                    >
-                      <CheckCircle color="success" />
-                      <Typography
-                        variant="subtitle1"
-                        fontWeight="bold"
-                        color="success.dark"
-                      >
-                        Strong Negotiation Position
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      This vehicle is priced{" "}
-                      {priceDifference > 0 ? "above" : "competitively with"}{" "}
-                      similar listings. You have good leverage to negotiate{" "}
-                      {priceDifference > 0 ? "down" : "for additional value"}.
-                    </Typography>
-                  </Box>
-                </Card.Body>
-              </Card>
-
-              {/* Overall Score with Enhanced Visual */}
-              <Card
-                shadow="lg"
-                sx={{
-                  mb: 3,
-                  border: "2px solid",
-                  borderColor:
-                    getScoreColor(evaluation.score) === "success"
-                      ? "success.main"
-                      : getScoreColor(evaluation.score) === "error"
-                      ? "error.main"
-                      : "warning.main",
-                }}
-              >
-                <Card.Body>
-                  <Box sx={{ textAlign: "center", py: 3 }}>
-                    <Typography
-                      variant="overline"
-                      color="text.secondary"
-                      sx={{ letterSpacing: 2 }}
-                    >
-                      Deal Quality Score
-                    </Typography>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "center",
-                        mb: 3,
-                        mt: 2,
-                      }}
-                    >
-                      {getScoreIcon(evaluation.score)}
-                    </Box>
-                    <Typography
-                      variant="h1"
-                      component="div"
-                      gutterBottom
-                      sx={{ fontWeight: "bold" }}
-                    >
-                      {evaluation.score.toFixed(1)}
-                      <Typography
-                        variant="h4"
-                        component="span"
-                        color="text.secondary"
-                        sx={{ ml: 1 }}
-                      >
-                        /10
-                      </Typography>
-                    </Typography>
-                    <Chip
-                      label={getRecommendation(evaluation.score)}
-                      color={getScoreColor(evaluation.score)}
-                      sx={{
-                        mt: 2,
-                        fontSize: "1.1rem",
-                        py: 3,
-                        px: 2,
-                        fontWeight: "bold",
-                      }}
-                    />
-
-                    {/* Score Breakdown */}
-                    <Box
-                      sx={{
-                        mt: 4,
-                        textAlign: "left",
-                        bgcolor: "grey.50",
-                        p: 3,
-                        borderRadius: 2,
-                      }}
-                    >
-                      <Typography
-                        variant="subtitle2"
-                        gutterBottom
-                        sx={{ mb: 2 }}
-                      >
-                        Score Breakdown
-                      </Typography>
-                      <Grid container spacing={2}>
-                        <Grid item xs={6}>
-                          <Box
-                            sx={{
-                              textAlign: "center",
-                              p: 2,
-                              bgcolor: "white",
-                              borderRadius: 1,
-                            }}
-                          >
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                            >
-                              Price Competitiveness
-                            </Typography>
-                            <Typography
-                              variant="h6"
-                              color="success.main"
-                              sx={{ fontWeight: "bold" }}
-                            >
-                              {evaluation.score >= 8
-                                ? "Excellent"
-                                : evaluation.score >= 6.5
-                                ? "Good"
-                                : evaluation.score >= 5
-                                ? "Fair"
-                                : "Poor"}
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Box
-                            sx={{
-                              textAlign: "center",
-                              p: 2,
-                              bgcolor: "white",
-                              borderRadius: 1,
-                            }}
-                          >
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                            >
-                              Market Position
-                            </Typography>
-                            <Typography
-                              variant="h6"
-                              color="primary.main"
-                              sx={{ fontWeight: "bold" }}
-                            >
-                              {priceDifference > 0 ? "Above" : "Below"}
-                            </Typography>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </Box>
-                  </Box>
-                </Card.Body>
-              </Card>
+              {/* Evaluation Score */}
+              <EvaluationScoreCard
+                score={evaluation.score}
+                priceDifference={priceDifference}
+              />
 
               {/* Price Analysis */}
               <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -751,131 +485,11 @@ function EvaluationContent() {
                 </Grid>
               </Grid>
 
-              {/* Key Insights - Enhanced */}
-              {evaluation.insights.length > 0 && (
-                <Card
-                  sx={{
-                    mb: 3,
-                    bgcolor: "primary.50",
-                    border: "1px solid",
-                    borderColor: "primary.200",
-                  }}
-                >
-                  <Card.Body>
-                    <Typography
-                      variant="h6"
-                      gutterBottom
-                      sx={{ color: "primary.dark" }}
-                    >
-                      📊 Key Market Insights
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mb: 2 }}
-                    >
-                      Important factors influencing this vehicle&apos;s value
-                    </Typography>
-                    <Divider sx={{ mb: 2 }} />
-                    <Stack spacing={2}>
-                      {evaluation.insights.map((insight, index) => (
-                        <Box
-                          key={index}
-                          sx={{
-                            display: "flex",
-                            alignItems: "start",
-                            p: 2,
-                            bgcolor: "white",
-                            borderRadius: 2,
-                            boxShadow: 1,
-                          }}
-                        >
-                          <CheckCircle
-                            color="success"
-                            sx={{ mr: 2, mt: 0.2, fontSize: 24, flexShrink: 0 }}
-                          />
-                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                            {insight}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Stack>
-                  </Card.Body>
-                </Card>
-              )}
+              {/* Key Insights */}
+              <KeyInsightsList insights={evaluation.insights} />
 
-              {/* Negotiation Talking Points - Now Visible */}
-              {evaluation.talking_points &&
-                evaluation.talking_points.length > 0 && (
-                  <Card
-                    sx={{
-                      mb: 3,
-                      border: "2px solid",
-                      borderColor: "primary.main",
-                    }}
-                  >
-                    <Card.Body>
-                      <Typography
-                        variant="h6"
-                        gutterBottom
-                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                      >
-                        <TrendingUp color="primary" />
-                        Negotiation Talking Points
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mb: 2 }}
-                      >
-                        Use these points to strengthen your negotiation position
-                      </Typography>
-                      <Divider sx={{ mb: 2 }} />
-                      <Stack spacing={2}>
-                        {evaluation.talking_points.map((point, index) => (
-                          <Box
-                            key={index}
-                            sx={{
-                              display: "flex",
-                              alignItems: "start",
-                              p: 2,
-                              bgcolor: "grey.50",
-                              borderRadius: 2,
-                              border: "1px solid",
-                              borderColor: "grey.200",
-                            }}
-                          >
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                minWidth: 32,
-                                height: 32,
-                                borderRadius: "50%",
-                                bgcolor: "primary.main",
-                                color: "white",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                mr: 2,
-                                flexShrink: 0,
-                                fontWeight: "bold",
-                                fontSize: "1rem",
-                              }}
-                            >
-                              {index + 1}
-                            </Typography>
-                            <Typography
-                              variant="body1"
-                              sx={{ fontWeight: 500 }}
-                            >
-                              {point}
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Stack>
-                    </Card.Body>
-                  </Card>
-                )}
+              {/* Negotiation Talking Points */}
+              <TalkingPointsList talkingPoints={evaluation.talking_points} />
 
               {/* Insurance Recommendations */}
               {/* <Card sx={{ mb: 3 }}>
