@@ -1,209 +1,85 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
-import { apiClient, Deal } from "@/lib/api";
-import { Button, Card, Spinner } from "@/components";
-import { getUserFriendlyErrorMessage } from "@/lib/errors";
-import { useApi } from "@/lib/hooks";
-import Box from "@mui/material/Box";
-import Container from "@mui/material/Container";
-import Typography from "@mui/material/Typography";
-import Chip from "@mui/material/Chip";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import Grid from "@mui/material/Grid";
 import { useRouter } from "next/navigation";
-
-// Constants for fallback values when data is unavailable
-const DEFAULT_FUEL_TYPE = "Unknown";
-const DEFAULT_CONDITION = "good";
+import { Box, Container, Typography, Chip, Grid } from "@mui/material";
+import { apiClient, Deal } from "@/lib/api";
+import { getUserFriendlyErrorMessage } from "@/lib/errors";
+import { useApi, useFetchOnce } from "@/lib/hooks";
+import {
+  buildVehicleQueryString,
+  ROUTES,
+  FUEL_TYPE,
+  VEHICLE_CONDITION,
+  getStatusColor,
+  getStatusLabel,
+  getNavigationHint,
+} from "@/lib/constants";
+import { Button, Card, LoadingState, ErrorState, EmptyState } from "@/components";
 
 export default function DealsPage() {
   const router = useRouter();
   const { data: deals, isLoading, error, execute } = useApi<Deal[]>();
-  const hasFetchedRef = useRef(false);
+  const { executeFetch, shouldFetch } = useFetchOnce();
 
   useEffect(() => {
-    if (hasFetchedRef.current) {
-      return;
-    }
+    if (!shouldFetch()) return;
     
-    hasFetchedRef.current = true;  
-    execute(() => apiClient.getDeals());
+    executeFetch(() => execute(() => apiClient.getDeals()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // execute is stable from useAsyncAction hook
-
-  const getStatusColor = (status: string): "warning" | "info" | "success" | "error" | "default" => {
-    switch (status) {
-      case "pending":
-        return "warning";
-      case "in_progress":
-        return "info";
-      case "completed":
-        return "success";
-      case "cancelled":
-        return "error";
-      default:
-        return "default";
-    }
-  };
-
-  const getNavigationHint = (status: string): string | null => {
-    switch (status) {
-      case "pending":
-        return "Click to evaluate deal";
-      case "in_progress":
-        return "Click to continue negotiation";
-      case "completed":
-        return "Click to view deal details";
-      default:
-        return null;
-    }
-  };
+  }, []);
 
   const handleDealClick = (deal: Deal) => {
-    // Use offer_price if available (negotiated price), otherwise asking_price
-    // Using nullish coalescing to only fallback when offer_price is null/undefined, not 0
     const finalPrice = deal.offer_price ?? deal.asking_price;
     
-    const vehicleParams = new URLSearchParams({
+    const queryString = buildVehicleQueryString({
+      vin: deal.vehicle_vin,
       make: deal.vehicle_make,
       model: deal.vehicle_model,
-      year: deal.vehicle_year.toString(),
-      price: finalPrice.toString(),
-      mileage: deal.vehicle_mileage.toString(),
+      year: deal.vehicle_year,
+      price: finalPrice,
+      mileage: deal.vehicle_mileage,
+      fuelType: FUEL_TYPE.DEFAULT,
+      condition: VEHICLE_CONDITION.DEFAULT,
+      dealId: deal.id,
     });
     
-    // Add VIN if available
-    if (deal.vehicle_vin) {
-      vehicleParams.set("vin", deal.vehicle_vin);
-    }
-
-    if(deal.id) {
-      vehicleParams.set("dealId", deal.id.toString());
-    }
-    
-    // Add fuelType with fallback
-    vehicleParams.set("fuelType", DEFAULT_FUEL_TYPE);
-    vehicleParams.set("condition", DEFAULT_CONDITION);
-    
-    // Navigate based on deal status - evaluation must come before negotiation
+    // Navigate based on deal status
     if (deal.status === "pending") {
-      // New deals go to evaluation first
-      router.push(`/dashboard/evaluation?${vehicleParams.toString()}`);
+      router.push(`${ROUTES.EVALUATION}?${queryString}`);
     } else if (deal.status === "in_progress") {
-      // Deals in progress (after evaluation) go to negotiation
-      router.push(`/dashboard/negotiation?${vehicleParams.toString()}`);
+      router.push(`${ROUTES.NEGOTIATION}?${queryString}`);
     } else if (deal.status === "completed") {
-      // Completed deals can view either evaluation or negotiation results
-      // Default to evaluation page to show final assessment
-      router.push(`/dashboard/finalize?${vehicleParams.toString()}`);
+      router.push(`${ROUTES.FINALIZE}?${queryString}`);
     }
   };
 
   if (isLoading) {
-    return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          bgcolor: "background.default",
-        }}
-      >
-        <Spinner size="lg" text="Loading deals..." />
-      </Box>
-    );
+    return <LoadingState message="Loading deals..." />;
   }
 
   if (error) {
     return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          bgcolor: "background.default",
-          p: 2,
-        }}
-      >
-        <Card padding="lg" shadow="lg" sx={{ maxWidth: 500, width: "100%" }}>
-          <Card.Body>
-            <Box sx={{ textAlign: "center" }}>
-              <Box
-                sx={{
-                  width: 48,
-                  height: 48,
-                  bgcolor: "error.light",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  mx: "auto",
-                  mb: 2,
-                }}
-              >
-                <ErrorOutlineIcon color="error" />
-              </Box>
-              <Typography variant="h5" gutterBottom fontWeight={600}>
-                Error Loading Deals
-              </Typography>
-              <Typography color="error" sx={{ mb: 2 }}>
-                {getUserFriendlyErrorMessage(error)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Make sure the backend API is running at{" "}
-                {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}
-              </Typography>
-              <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
-                <Link href="/" style={{ textDecoration: "none" }}>
-                  <Button variant="outline">Go Home</Button>
-                </Link>
-                <Button onClick={() => execute(() => apiClient.getDeals())}>
-                  Retry
-                </Button>
-              </Box>
-            </Box>
-          </Card.Body>
-        </Card>
-      </Box>
+      <ErrorState
+        title="Error Loading Deals"
+        message={getUserFriendlyErrorMessage(error)}
+        showRetry
+        onRetry={() => execute(() => apiClient.getDeals())}
+      />
     );
   }
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default", py: 4 }}>
       <Container maxWidth="lg">
-        {/* <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
-          <Box>
-            <Typography variant="h3" gutterBottom fontWeight={700}>
-              Deals
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Manage your automotive deals
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Link href="/" style={{ textDecoration: "none" }}>
-              <Button variant="secondary">Home</Button>
-            </Link>
-            <Button variant="success" onClick={() => execute(() => apiClient.getDeals())}>
-              Refresh
-            </Button>
-          </Box>
-        </Box> */}
-
         {!deals || deals.length === 0 ? (
-          <Card padding="lg" shadow="md">
-            <Card.Body>
-              <Box sx={{ textAlign: "center", py: 4 }}>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-                  No deals found.
-                </Typography>
-              </Box>
-            </Card.Body>
-          </Card>
+          <EmptyState
+            message="No deals found"
+            description="Start browsing vehicles and create your first deal"
+            actionLabel="Search Vehicles"
+            onAction={() => router.push(ROUTES.SEARCH)}
+          />
         ) : (
           <Grid container spacing={3}>
             {deals.map((deal) => {
@@ -226,7 +102,7 @@ export default function DealsPage() {
                         </Typography>
                       </Box>
                       <Chip
-                        label={deal.status.replace("_", " ").toUpperCase()}
+                        label={getStatusLabel(deal.status)}
                         color={getStatusColor(deal.status)}
                         size="small"
                       />
