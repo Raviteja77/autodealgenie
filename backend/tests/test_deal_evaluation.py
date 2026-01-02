@@ -7,7 +7,7 @@ import pytest
 from app.api.dependencies import get_current_user
 from app.llm.schemas import DealEvaluation
 from app.models.models import User
-from app.services.deal_evaluation_service import DealEvaluationService
+from app.services.evaluation import DealEvaluationService
 
 
 @pytest.fixture

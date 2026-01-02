@@ -78,7 +78,7 @@ def test_llm_json_parsing_with_markdown():
 
 def test_deal_evaluation_fallback():
     """Test that deal evaluation service provides fallback when LLM fails"""
-    from app.services.deal_evaluation_service import DealEvaluationService
+    from app.services.evaluation import DealEvaluationService
 
     service = DealEvaluationService()
 
