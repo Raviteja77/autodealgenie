@@ -259,6 +259,25 @@ frontend/
   - Export from `components/ui/index.ts`
 - For one-off UI needs or layouts, use Material-UI components directly (Grid, Box, Typography, Stack, etc.)
 
+### Component Architecture & Organization
+- Follow **Atomic Design** principles: Atoms → Molecules → Organisms → Templates → Pages
+- **Atoms**: Basic UI elements (Button, Input, Card, Spinner) in `components/atoms/`
+- **Molecules**: Combinations of atoms (PriceDisplay, VehicleTitle) in `components/molecules/`
+- **Organisms**: Complex UI sections (FilterPanel, VehicleCard) in `components/organisms/`
+- **Feature Components**: Page-specific components in `components/{feature}/` (e.g., `components/evaluation/`, `components/negotiation/`)
+- **Page Files**: Should be thin orchestration layers (<400 LOC) that compose components
+- **No Hardcoded Values**: Extract all magic numbers, strings, and configuration to `lib/constants/`
+- **No Hardcoded Text in HTML/JSX**: All UI text, labels, messages, and button text must come from `lib/constants/text.ts`
+  - Never use hardcoded strings like "Search", "Loading...", "Error", "Back", etc. in JSX
+  - All user-facing text should be defined in constants with descriptive names
+  - Group related text by feature/page (e.g., `EVALUATION_TEXT`, `SEARCH_TEXT`, `DEALS_TEXT`)
+  - Use constants for: titles, descriptions, button labels, error messages, empty states, tooltips, alerts
+  - Example: Instead of `<Button>Start Negotiation</Button>`, use `<Button>{EVALUATION_TEXT.ACTIONS.START_NEGOTIATION}</Button>`
+- **Centralize Logic**: Move business logic to custom hooks in `lib/hooks/` or utilities in `lib/utils/`
+- **Component Reusability**: If a component is used in 2+ pages, extract it to a shared location
+- **Single Responsibility**: Each component should have one clear purpose
+- **Composition Over Inheritance**: Build complex UIs by composing simple components
+
 ### File Naming Conventions
 - Components: `PascalCase.tsx`
 - Hooks: `usePascalCase.ts`
@@ -319,6 +338,24 @@ When generating code:
 14. Use React Context Providers and custom hooks for state management
 15. Keep components under ~5 props; prefer composition over props drilling
 16. When creating new reusable components, add them to `components/ui/` with proper TypeScript interfaces
+
+### Code Quality Best Practices
+17. **No Hardcoded Values**: Extract all magic numbers, strings, and configuration to `lib/constants/`
+18. **No Hardcoded Text in UI**: All user-facing text must come from `lib/constants/text.ts` - no strings in JSX/HTML
+19. **Centralize Logic**: Move business logic to custom hooks (`lib/hooks/`) or utilities (`lib/utils/`)
+20. **Component Size**: Keep page files under 400 LOC; extract UI sections to feature components
+21. **Atomic Design**: Follow atoms → molecules → organisms → pages hierarchy
+22. **Single Responsibility**: Each component should do one thing well
+23. **Reusability**: Extract components used in 2+ places to shared locations
+24. **Type Safety**: Use TypeScript interfaces for all props and return values
+25. **Error Boundaries**: Wrap feature areas with error boundaries for graceful failures
+26. **Consistent Naming**: Use PascalCase for components, camelCase for functions/variables, UPPER_CASE for constants
+27. **API Layer**: Use custom hooks for API calls, never call apiClient directly from components
+28. **URL State**: Use custom hooks (`useVehicleFromParams`, `useQueryParams`) for URL parameter handling
+29. **Loading States**: Use `LoadingState`, `ErrorState`, `EmptyState` components for consistent UX
+30. **Constants Organization**: Group related constants in feature-specific files under `lib/constants/`
+31. **Text Constants**: Group UI text by feature in `lib/constants/text.ts` (e.g., `EVALUATION_TEXT`, `SEARCH_TEXT`)
+32. **Utility Functions**: Extract repeated logic to `lib/utils/` with clear function names and JSDoc comments
 
 ## Future Roadmap
 

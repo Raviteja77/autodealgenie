@@ -29,9 +29,14 @@ import { Button, Card, Spinner } from "@/components";
 import { DealCreate, apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { NotFoundError } from "@/lib/errors";
-
-// Fallback VIN when actual VIN is not available
-const DEFAULT_VIN = "UNKNOWN00000000000";
+import { 
+  DEFAULT_VIN, 
+  FUEL_TYPE, 
+  VEHICLE_CONDITION, 
+  STEPPER_STEPS,
+  EVALUATION_TEXT,
+  ROUTES,
+} from "@/lib/constants";
 
 interface VehicleInfo {
   vin?: string;
@@ -104,8 +109,8 @@ function EvaluationContent() {
         year,
         price,
         mileage,
-        fuelType: fuelType || "Unknown",
-        condition: condition || "good",
+        fuelType: fuelType || FUEL_TYPE.DEFAULT,
+        condition: condition || VEHICLE_CONDITION.DEFAULT,
         zipCode: zipCode || undefined,
       };
     } catch (err) {
@@ -117,7 +122,7 @@ function EvaluationContent() {
   // Save query parameters to step data when page loads with valid vehicle data
   useEffect(() => {
     if (vehicleData && searchParams.toString()) {
-      const existingData = getStepData(2) || {};
+      const existingData = getStepData(STEPPER_STEPS.EVALUATION) || {};
       // Only update if queryString is different or missing
       const existingQueryString =
         existingData &&
@@ -129,7 +134,7 @@ function EvaluationContent() {
         !existingQueryString ||
         existingQueryString !== searchParams.toString()
       ) {
-        setStepData(2, {
+        setStepData(STEPPER_STEPS.EVALUATION, {
           ...existingData,
           queryString: searchParams.toString(),
         });
@@ -232,7 +237,7 @@ function EvaluationContent() {
       hasEvaluatedRef.current = true;
 
       // Complete the evaluation step (step 2 - evaluation now comes before negotiation)
-      completeStep(2, {
+      completeStep(STEPPER_STEPS.EVALUATION, {
         status: "completed",
         vehicleData: vehicleData,
         evaluation: data,
@@ -278,8 +283,8 @@ function EvaluationContent() {
     }
 
     // Store the selected vehicle data for use in subsequent steps
-    const existingData = getStepData(2) || {};
-    setStepData(2, {
+    const existingData = getStepData(STEPPER_STEPS.EVALUATION) || {};
+    setStepData(STEPPER_STEPS.EVALUATION, {
       ...existingData,
       selectedVehicle: vehicle,
       queryString: vehicleParams.toString(),
@@ -345,7 +350,7 @@ function EvaluationContent() {
           {error && (
             <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
               <Typography variant="h6" gutterBottom>
-                Evaluation Error
+                {EVALUATION_TEXT.TITLES.EVALUATION_ERROR}
               </Typography>
               <Typography variant="body2" sx={{ mb: 2 }}>
                 {error}
@@ -355,7 +360,7 @@ function EvaluationContent() {
                 size="sm"
                 onClick={() => evaluateDeal(vehicleData)}
               >
-                Retry Evaluation
+                {EVALUATION_TEXT.ACTIONS.RETRY_EVALUATION}
               </Button>
             </Alert>
           )}
@@ -364,15 +369,14 @@ function EvaluationContent() {
           {!vehicleData && (
             <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
               <Typography variant="h6" gutterBottom>
-                Unable to Load Vehicle Data
+                {EVALUATION_TEXT.TITLES.INVALID_VEHICLE_DATA}
               </Typography>
               <Typography variant="body2" sx={{ mb: 2 }}>
-                Invalid vehicle data. Please select a vehicle from the search
-                results.
+                {EVALUATION_TEXT.DESCRIPTIONS.INVALID_DATA}
               </Typography>
-              <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
+              <Link href={ROUTES.SEARCH} style={{ textDecoration: "none" }}>
                 <Button variant="success" size="sm">
-                  Back to Search
+                  {EVALUATION_TEXT.ACTIONS.BACK_TO_SEARCH}
                 </Button>
               </Link>
             </Alert>
@@ -385,10 +389,10 @@ function EvaluationContent() {
                 <Box sx={{ textAlign: "center", py: 4 }}>
                   <Spinner size="lg" />
                   <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                    Evaluating Deal...
+                    {EVALUATION_TEXT.TITLES.EVALUATING}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Analyzing pricing, market value, and vehicle condition
+                    {EVALUATION_TEXT.DESCRIPTIONS.ANALYZING}
                   </Typography>
                   <Box sx={{ mt: 3, maxWidth: 400, mx: "auto" }}>
                     <LinearProgress />
@@ -433,15 +437,14 @@ function EvaluationContent() {
                     sx={{ display: "flex", alignItems: "center", gap: 1 }}
                   >
                     <TrendingUp color="primary" />
-                    AI-Powered Market Analysis
+                    {EVALUATION_TEXT.TITLES.MARKET_ANALYSIS}
                   </Typography>
                   <Typography
                     variant="body2"
                     color="text.secondary"
                     sx={{ mb: 2 }}
                   >
-                    Real-time pricing intelligence based on market data and ML
-                    predictions
+                    {EVALUATION_TEXT.DESCRIPTIONS.MARKET_ANALYSIS}
                   </Typography>
                   <Divider sx={{ my: 2 }} />
 
@@ -457,17 +460,16 @@ function EvaluationContent() {
                           color: "white",
                         }}
                       >
-                        <Typography
-                          variant="subtitle2"
-                          sx={{ opacity: 0.9, mb: 1 }}
-                        >
-                          Market Position
+                        <Typography variant="subtitle2" sx={{ opacity: 0.9, mb: 1 }}>
+                          {EVALUATION_TEXT.LABELS.MARKET_POSITION}
                         </Typography>
                         <Typography
                           variant="h3"
                           sx={{ fontWeight: "bold", mb: 2 }}
                         >
-                          {priceDifference > 0 ? "Above" : "Below"} Market
+                          {priceDifference > 0 
+                            ? EVALUATION_TEXT.LABELS.ABOVE_MARKET 
+                            : EVALUATION_TEXT.LABELS.BELOW_MARKET}
                         </Typography>
                         <Typography variant="h4" sx={{ fontWeight: "bold" }}>
                           ${Math.abs(priceDifference).toLocaleString()}

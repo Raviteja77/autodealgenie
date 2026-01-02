@@ -6,6 +6,8 @@
  * - Molecules: Simple combinations of atoms
  * - Organisms: Complex UI sections
  * - Common: Shared layout components
+ * - Vehicle: Reusable vehicle-related components
+ * - Evaluation: Evaluation page specific components
  */
 
 // Export atoms - basic building blocks
@@ -50,6 +52,18 @@ export { ErrorBoundary } from './ErrorBoundary';
 export { default as Header } from './common/Header';
 export { default as Footer } from './common/Footer';
 export { default as ProgressStepper } from './common/ProgressStepper';
+export { LoadingState } from './common/LoadingState';
+export { ErrorState } from './common/ErrorState';
+export { EmptyState } from './common/EmptyState';
+
+// Export vehicle components
+export * from './vehicle';
+
+// Export evaluation components
+export * from './evaluation';
+
+// Export negotiation components
+export { CurrentOfferStatus } from './negotiation/CurrentOfferStatus';
 
 // Export types
 export type {

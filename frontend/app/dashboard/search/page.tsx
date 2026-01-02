@@ -35,6 +35,14 @@ import {
   AdvancedFilters,
   FinancingOptionsForm,
 } from "@/components";
+import {
+  BUDGET,
+  VEHICLE_YEAR,
+  MILEAGE,
+  SEARCH_RADIUS,
+  SEARCH_RESULTS,
+  DEBOUNCE_DELAY,
+} from "@/lib/constants";
 
 interface SearchFormData {
   // Vehicle criteria
@@ -73,9 +81,9 @@ function DashboardSearchPageContent() {
   const [searchParams, setSearchParams] = useState<SearchFormData>({
     make: "",
     model: "",
-    yearMin: 2015,
-    yearMax: 2025,
-    mileageMax: 100000,
+    yearMin: VEHICLE_YEAR.DEFAULT_MIN,
+    yearMax: VEHICLE_YEAR.DEFAULT_MAX,
+    mileageMax: MILEAGE.DEFAULT_MAX,
     carType: "",
     bodyType: "",
     fuelType: "",
@@ -84,11 +92,11 @@ function DashboardSearchPageContent() {
     mustHaveFeatures: [],
     userPriorities: "",
     zipCode: "",
-    searchRadius: 50,
+    searchRadius: SEARCH_RADIUS.DEFAULT,
     paymentMethod: "cash",
-    budgetMin: 10000,
-    budgetMax: 50000,
-    maxResults: 50,
+    budgetMin: BUDGET.DEFAULT_MIN,
+    budgetMax: BUDGET.DEFAULT_MAX,
+    maxResults: SEARCH_RESULTS.DEFAULT_MAX,
   });
 
   const [showFinancingOptions, setShowFinancingOptions] = useState(false);
@@ -99,11 +107,11 @@ function DashboardSearchPageContent() {
   // Debounce slider values for performance
   const debouncedBudget = useDebounce(
     { min: searchParams.budgetMin, max: searchParams.budgetMax },
-    { delay: 300 }
+    { delay: DEBOUNCE_DELAY.SLIDER }
   );
   const debouncedYear = useDebounce(
     { min: searchParams.yearMin, max: searchParams.yearMax },
-    { delay: 300 }
+    { delay: DEBOUNCE_DELAY.SLIDER }
   );
 
   // Validate on debounced value changes
@@ -514,7 +522,7 @@ function DashboardSearchPageContent() {
                     setSearchParams((prev) => {
                       if (value.toLowerCase() === "new") {
                         // Reset year and mileage for new cars
-                        return { ...prev, carType: value, yearMin: 2025, yearMax: 2025, mileageMax: 0 };
+                        return { ...prev, carType: value, yearMin: VEHICLE_YEAR.MAX, yearMax: VEHICLE_YEAR.MAX, mileageMax: 0 };
                       } 
                       return { ...prev, carType: value }})
                   }
@@ -648,9 +656,9 @@ function DashboardSearchPageContent() {
                         setSearchParams({
                           make: "",
                           model: "",
-                          yearMin: 2015,
-                          yearMax: 2025,
-                          mileageMax: 100000,
+                          yearMin: VEHICLE_YEAR.DEFAULT_MIN,
+                          yearMax: VEHICLE_YEAR.DEFAULT_MAX,
+                          mileageMax: MILEAGE.DEFAULT_MAX,
                           carType: "",
                           bodyType: "",
                           fuelType: "",
@@ -659,11 +667,11 @@ function DashboardSearchPageContent() {
                           mustHaveFeatures: [],
                           userPriorities: "",
                           zipCode: "",
-                          searchRadius: 50,
+                          searchRadius: SEARCH_RADIUS.DEFAULT,
                           paymentMethod: "cash",
-                          budgetMin: 10000,
-                          budgetMax: 50000,
-                          maxResults: 50,
+                          budgetMin: BUDGET.DEFAULT_MIN,
+                          budgetMax: BUDGET.DEFAULT_MAX,
+                          maxResults: SEARCH_RESULTS.DEFAULT_MAX,
                         })
                       }
                     >

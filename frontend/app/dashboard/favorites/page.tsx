@@ -1,84 +1,63 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
-import Container from "@mui/material/Container";
-import Typography from "@mui/material/Typography";
-import Grid from "@mui/material/Grid";
-import { Button, Card, Spinner } from "@/components";
-import IconButton from "@mui/material/IconButton";
-import DeleteIcon from "@mui/icons-material/Delete";
-import SpeedIcon from "@mui/icons-material/Speed";
-import LocalGasStationIcon from "@mui/icons-material/LocalGasStation";
-import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
-import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
-import Alert from "@mui/material/Alert";
-import Divider from "@mui/material/Divider";
+import { Box, Container, Typography, Grid, IconButton, Alert, Divider } from "@mui/material";
+import {
+  Delete as DeleteIcon,
+  Speed as SpeedIcon,
+  LocalGasStation as LocalGasStationIcon,
+  CalendarToday as CalendarTodayIcon,
+  DirectionsCar as DirectionsCarIcon,
+  LocationOn as LocationOnIcon,
+  FavoriteBorder as FavoritesIcon,
+} from "@mui/icons-material";
 import Link from "next/link";
 import { apiClient, Favorite } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import DashboardLayout from "../layout";
+import { useFetchOnce } from "@/lib/hooks";
+import { buildVehicleQueryString, ROUTES, NOTIFICATION_DURATION } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/utils";
+import { Button, Card, LoadingState, ErrorState, EmptyState } from "@/components";
 
 export default function FavoritesPage() {
   const router = useRouter();
   const { user } = useAuth();
-  
-  // Use refs to prevent duplicate API calls
-  const hasFetchedRef = useRef(false);
-  const fetchInProgressRef = useRef(false);
+  const { executeFetch, shouldFetch } = useFetchOnce();
   
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
 
-  // Separate effect for auth check (runs once)
+  // Auth check
   useEffect(() => {
     if (!user) {
-      router.push("/auth/login");
+      router.push(ROUTES.AUTH.LOGIN);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount, router.push and user are stable
+  }, []);
 
-  // Single effect for fetching favorites
+  // Fetch favorites using custom hook
   useEffect(() => {
-    // Guard: Already fetched or in progress
-    if (hasFetchedRef.current || fetchInProgressRef.current) {
-      return;
-    }
+    if (!user || !shouldFetch()) return;
 
-    // Guard: No user yet
-    if (!user) {
-      return;
-    }
-
-    const fetchFavorites = async () => {
-      fetchInProgressRef.current = true;
+    executeFetch(async () => {
       setIsLoading(true);
       setError(null);
 
       try {
         const data = await apiClient.getFavorites();
         setFavorites(data);
-        hasFetchedRef.current = true; // Mark as fetched
       } catch (err: unknown) {
         console.error("Error fetching favorites:", err);
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Failed to load favorites. Please try again.";
-        setError(errorMessage);
-        // Don't mark as fetched on error, allow retry
-        fetchInProgressRef.current = false;
+        setError(getErrorMessage(err));
+        throw err;
       } finally {
         setIsLoading(false);
       }
-    };
-
-    fetchFavorites();
-  }, [user]); // Only depends on user (which is stable)
+    });
+  }, [user, shouldFetch, executeFetch]);
 
   const handleRemoveFavorite = async (vin: string) => {
     setRemoveError(null);
@@ -91,83 +70,34 @@ export default function FavoritesPage() {
       await apiClient.removeFavorite(vin);
     } catch (err: unknown) {
       console.error("Error removing favorite:", err);
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "Failed to remove favorite. Please try again.";
-
-      // Revert optimistic update
       setFavorites(previousFavorites);
-
-      // Show temporary error message
-      setRemoveError(errorMessage);
-      setTimeout(() => setRemoveError(null), 5000);
+      setRemoveError(getErrorMessage(err));
+      setTimeout(() => setRemoveError(null), NOTIFICATION_DURATION.ERROR);
     }
   };
 
   const handleNavigateToNegotiation = (favorite: Favorite) => {
-    const params = new URLSearchParams({
-      vin: favorite.vin,
-      make: favorite.make,
-      model: favorite.model,
-      year: favorite.year.toString(),
-      price: favorite.price.toString(),
-      mileage: favorite.mileage.toString(),
-    });
-    router.push(`/negotiation?${params.toString()}`);
+    const queryString = buildVehicleQueryString(favorite);
+    router.push(`${ROUTES.NEGOTIATION}?${queryString}`);
   };
 
   const handleNavigateToEvaluation = (favorite: Favorite) => {
-    const params = new URLSearchParams({
-      vin: favorite.vin,
-      make: favorite.make,
-      model: favorite.model,
-      year: favorite.year.toString(),
-      price: favorite.price.toString(),
-      mileage: favorite.mileage.toString(),
-    });
-    router.push(`/evaluation?${params.toString()}`);
+    const queryString = buildVehicleQueryString(favorite);
+    router.push(`${ROUTES.EVALUATION}?${queryString}`);
   };
 
   if (isLoading) {
-    return (
-      <DashboardLayout>
-        <Box
-          sx={{
-            minHeight: "100vh",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            bgcolor: "background.default",
-          }}
-        >
-          <Spinner size="lg" text="Loading your favorites..." />
-        </Box>
-      </DashboardLayout>
-    );
+    return <LoadingState message="Loading your favorites..." />;
   }
 
   if (error) {
     return (
-      <Box
-        sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
-      >
-        <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
-          <Container maxWidth="lg">
-            <Alert severity="error" sx={{ mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Error Loading Favorites
-              </Typography>
-              <Typography variant="body2">{error}</Typography>
-            </Alert>
-            <Box sx={{ textAlign: "center" }}>
-              <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
-                <Button variant="success">Back to Search</Button>
-              </Link>
-            </Box>
-          </Container>
-        </Box>
-      </Box>
+      <ErrorState
+        title="Error Loading Favorites"
+        message={error}
+        showRetry
+        onRetry={() => window.location.reload()}
+      />
     );
   }
 
@@ -198,7 +128,7 @@ export default function FavoritesPage() {
               </Typography>
             </Box>
             <Box sx={{ display: "flex", gap: 2 }}>
-              <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
+              <Link href={ROUTES.SEARCH} style={{ textDecoration: "none" }}>
                 <Button variant="outline">Search Cars</Button>
               </Link>
             </Box>
@@ -217,28 +147,14 @@ export default function FavoritesPage() {
 
           {/* Empty State */}
           {favorites.length === 0 ? (
-            <Card padding="lg">
-              <Card.Body>
-                <Box sx={{ textAlign: "center", py: 4 }}>
-                  <Typography variant="h6" color="text.secondary" gutterBottom>
-                    No favorites yet
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 3 }}
-                  >
-                    Start browsing and save your favorite vehicles
-                  </Typography>
-                  <Link
-                    href="/dashboard/search"
-                    style={{ textDecoration: "none" }}
-                  >
-                    <Button variant="success">Browse Cars</Button>
-                  </Link>
-                </Box>
-              </Card.Body>
-            </Card>
+            <EmptyState
+              icon={<FavoritesIcon />}
+              message="No favorites yet"
+              description="Start browsing and save your favorite vehicles"
+              actionLabel="Browse Cars"
+              onAction={() => router.push(ROUTES.SEARCH)}
+              minHeight="400px"
+            />
           ) : (
             /* Results Grid */
             <Grid container spacing={3}>

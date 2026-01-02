@@ -16,6 +16,11 @@ export { useNegotiationState } from './useNegotiationState';
 export { useFinancingCalculation, useAffordability } from './useFinancing';
 export { useDisplayMode } from './useDisplayMode';
 
+// New hooks
+export * from './useFetchOnce';
+export * from './useVehicleFromParams';
+export * from './useQueryParams';
+
 export type { CurrentOfferStatus, OfferInfo, NegotiationStateData } from './useNegotiationState';
 export type { FilterState } from './useFilters';
 export type { ComparisonVehicle } from './useComparison';
