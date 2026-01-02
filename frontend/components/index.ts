@@ -29,6 +29,10 @@ export {
   PaymentMethodSelector,
   BudgetRangeSlider,
   SearchSidebar,
+  DealScoreDisplay,
+  KeyInsightsList,
+  TalkingPointsList,
+  MarketInsights,
 } from './molecules';
 export type { SortOption } from './molecules';
 
@@ -45,6 +49,15 @@ export {
   BasicVehicleFilters,
   AdvancedFilters,
   FinancingOptionsForm,
+  EvaluationScoreCard,
+  MarketAnalysisCard,
+  MarketPosition,
+  NegotiationTips,
+  PriceComparison,
+  PriceTrackingPanel,
+  CurrentOfferStatus,
+  NegotiationCompletedScreen,
+  NegotiationCancelledScreen,
 } from './organisms';
 
 // Export common components
@@ -58,13 +71,6 @@ export { EmptyState } from './common/EmptyState';
 
 // Export vehicle components
 export * from './vehicle';
-
-// Export evaluation components
-export * from './evaluation';
-
-// Export negotiation components
-export { CurrentOfferStatus } from './negotiation/CurrentOfferStatus';
-export * from './negotiation';
 
 // Export types
 export type {
