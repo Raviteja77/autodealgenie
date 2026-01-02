@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, useEffect, useMemo } from "react";
+import { useState, Suspense, useEffect, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Box,
@@ -9,6 +9,7 @@ import {
   Alert,
   Divider,
   Grid,
+  LinearProgress,
   Stack,
   Chip,
 } from "@mui/material";
@@ -19,24 +20,28 @@ import {
   TrendingUp,
   TrendingDown,
   AttachMoney,
+  Speed,
+  Security,
 } from "@mui/icons-material";
 import Link from "next/link";
 import { useStepper } from "@/app/context";
-import { Button, Card, LoadingState, ErrorState } from "@/components";
-import { VehicleHeader, PriceBreakdown } from "@/components/vehicle";
+import { Button, Card, Spinner } from "@/components";
 import { DealCreate, apiClient } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { NotFoundError } from "@/lib/errors";
-import { useVehicleFromParams, useFetchOnce } from "@/lib/hooks";
-import {
-  DEFAULT_VIN,
-  FUEL_TYPE,
-  VEHICLE_CONDITION,
-  ROUTES,
-  STEPPER_STEPS,
-  buildVehicleQueryString,
-} from "@/lib/constants";
-import { getErrorMessage } from "@/lib/utils";
+import { DEFAULT_VIN, FUEL_TYPE, VEHICLE_CONDITION, STEPPER_STEPS } from "@/lib/constants";
+
+interface VehicleInfo {
+  vin?: string;
+  make: string;
+  model: string;
+  year: number;
+  price: number;
+  mileage: number;
+  fuelType: string;
+  condition?: string;
+  zipCode?: string;
+}
 
 interface DealEvaluationResult {
   fair_value: number;
@@ -48,31 +53,80 @@ interface DealEvaluationResult {
 function EvaluationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { completeStep, getStepData, setStepData, goToPreviousStep } = useStepper();
-  const { user } = useAuth();
-  
-  // Use custom hooks for common patterns
-  const { vehicle: vehicleData, isValid, error: vehicleError } = useVehicleFromParams({
-    useDefaultVin: true,
-  });
-  const { executeFetch: executeEvaluation, shouldFetch: shouldEvaluate } = useFetchOnce();
-  const { executeFetch: executeDealInit, shouldFetch: shouldInitDeal } = useFetchOnce();
+  const { completeStep, getStepData, setStepData, goToPreviousStep } =
+    useStepper();
 
+  const { user } = useAuth();
+  const hasEvaluatedRef = useRef(false);
+  const hasInitializedDealRef = useRef(false);
+  const evaluationInProgressRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [evaluation, setEvaluation] = useState<DealEvaluationResult | null>(null);
+  const [evaluation, setEvaluation] = useState<DealEvaluationResult | null>(
+    null
+  );
   const [dealId, setDealId] = useState<number | null>(null);
+  // Driver age for insurance calculation - currently using default
+  // const driverAge = 30;
 
-  // Save query parameters to step data
+  // Extract vehicle data from URL params
+  const vehicleData: VehicleInfo | null = useMemo(() => {
+    try {
+      const vin = searchParams.get("vin") || DEFAULT_VIN;
+      const make = searchParams.get("make");
+      const model = searchParams.get("model");
+      const yearStr = searchParams.get("year");
+      const priceStr = searchParams.get("price");
+      const mileageStr = searchParams.get("mileage");
+      const fuelType = searchParams.get("fuelType");
+      const condition = searchParams.get("condition");
+      const zipCode =
+        searchParams.get("zipCode") || searchParams.get("zip_code");
+
+      if (!make || !model || !yearStr || !priceStr || !mileageStr) {
+        return null;
+      }
+
+      const year = parseInt(yearStr);
+      const price = parseFloat(priceStr);
+      const mileage = parseInt(mileageStr);
+
+      if (isNaN(year) || isNaN(price) || isNaN(mileage)) {
+        return null;
+      }
+
+      return {
+        vin,
+        make,
+        model,
+        year,
+        price,
+        mileage,
+        fuelType: fuelType || FUEL_TYPE.DEFAULT,
+        condition: condition || VEHICLE_CONDITION.DEFAULT,
+        zipCode: zipCode || undefined,
+      };
+    } catch (err) {
+      console.error("Error parsing vehicle data:", err);
+      return null;
+    }
+  }, [searchParams]);
+
+  // Save query parameters to step data when page loads with valid vehicle data
   useEffect(() => {
     if (vehicleData && searchParams.toString()) {
       const existingData = getStepData(STEPPER_STEPS.EVALUATION) || {};
+      // Only update if queryString is different or missing
       const existingQueryString =
-        existingData && typeof existingData === "object" && "queryString" in existingData
+        existingData &&
+        typeof existingData === "object" &&
+        "queryString" in existingData
           ? (existingData as { queryString?: string }).queryString
           : undefined;
-      
-      if (!existingQueryString || existingQueryString !== searchParams.toString()) {
+      if (
+        !existingQueryString ||
+        existingQueryString !== searchParams.toString()
+      ) {
         setStepData(STEPPER_STEPS.EVALUATION, {
           ...existingData,
           queryString: searchParams.toString(),
@@ -82,31 +136,16 @@ function EvaluationContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicleData, searchParams]);
 
-  // Initialize deal
+  // Initialize negotiation session
   useEffect(() => {
-    if (!vehicleData || !user || !shouldInitDeal()) return;
+    // Guard clauses to prevent duplicate calls
+    if (hasInitializedDealRef.current) {
+      return;
+    }
 
-    executeDealInit(async () => {
-      try {
-        const dealData: DealCreate = {
-          customer_name: user.full_name || user.username,
-          customer_email: user.email,
-          vehicle_vin: vehicleData.vin || DEFAULT_VIN,
-          vehicle_make: vehicleData.make,
-          vehicle_model: vehicleData.model,
-          vehicle_year: vehicleData.year,
-          vehicle_mileage: vehicleData.mileage,
-          asking_price: vehicleData.price,
-          status: "pending",
-        };
-
-        const deal = await apiClient.createDeal(dealData);
-        setDealId(deal.id!);
-      } catch (err) {
-        console.error("Error initializing deal:", err);
-      }
-    });
-  }, [vehicleData, user, shouldInitDeal, executeDealInit]);
+    if (!vehicleData) {
+      return;
+    }
 
     const createOrGetDeal = async () => {
       // initializationInProgressRef.current = true;
@@ -191,7 +230,7 @@ function EvaluationContent() {
       hasEvaluatedRef.current = true;
 
       // Complete the evaluation step (step 2 - evaluation now comes before negotiation)
-      completeStep(2, {
+      completeStep(STEPPER_STEPS.EVALUATION, {
         status: "completed",
         vehicleData: vehicleData,
         evaluation: data,
@@ -237,8 +276,8 @@ function EvaluationContent() {
     }
 
     // Store the selected vehicle data for use in subsequent steps
-    const existingData = getStepData(2) || {};
-    setStepData(2, {
+    const existingData = getStepData(STEPPER_STEPS.EVALUATION) || {};
+    setStepData(STEPPER_STEPS.EVALUATION, {
       ...existingData,
       selectedVehicle: vehicle,
       queryString: vehicleParams.toString(),
