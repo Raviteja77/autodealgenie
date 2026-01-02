@@ -19,3 +19,6 @@ export * from "./status";
 
 // Route constants
 export * from "./routes";
+
+// Text/Label constants
+export * from "./text";
