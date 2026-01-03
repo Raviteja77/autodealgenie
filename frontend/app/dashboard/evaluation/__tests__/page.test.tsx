@@ -94,7 +94,7 @@ describe('EvaluationPage', () => {
 
     render(<EvaluationPage />);
     
-    expect(screen.getByText(/Evaluating Deal/i)).toBeInTheDocument();
+    expect(screen.getByText(/Evaluating Vehicle/i)).toBeInTheDocument();
   });
 
   it('displays evaluation results after successful API call', async () => {
@@ -168,7 +168,7 @@ describe('EvaluationPage', () => {
 
     // Wait for error to be displayed
     await waitFor(() => {
-      expect(screen.queryByText(/Evaluating Deal/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Error Loading Evaluation/i)).not.toBeInTheDocument();
     });
 
     // After error, component should show error state or allow retry
