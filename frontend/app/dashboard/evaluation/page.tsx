@@ -119,7 +119,7 @@ function EvaluationContent() {
         zipCode: zipCode || undefined,
       };
     } catch (err) {
-      console.error("Error parsing vehicle data:", err);
+      console.error(EVALUATION_TEXT.ERRORS.PARSING_VEHICLE_DATA, err);
       return null;
     }
   }, [searchParams]);
@@ -223,7 +223,7 @@ function EvaluationContent() {
 
     try {
       if (!vehicleData) {
-        throw new Error("Invalid vehicle data for evaluation");
+        throw new Error(EVALUATION_TEXT.ERRORS.INVALID_VEHICLE_DATA);
       }
       const data = await apiClient.evaluateDeal({
         vehicle_vin: vehicleData.vin || "UNKNOWN",
@@ -250,9 +250,9 @@ function EvaluationContent() {
         queryString: searchParams.toString(),
       });
     } catch (err: unknown) {
-      console.error("Error evaluating deal:", err);
+      console.error(EVALUATION_TEXT.ERRORS.EVALUATING_DEAL, err);
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to evaluate deal";
+        err instanceof Error ? err.message : EVALUATION_TEXT.ERRORS.FAILED_TO_EVALUATE;
       setError(errorMessage);
 
       // Reset in progress flag on error so user can retry
@@ -570,7 +570,7 @@ function EvaluationContent() {
                           }
                           sx={{ fontSize: "1.1rem", px: 4 }}
                         >
-                          🤝 Start Negotiation
+                          {EVALUATION_TEXT.ACTIONS.START_NEGOTIATION}
                         </Button>
                       </>
                     )}

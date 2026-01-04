@@ -45,6 +45,13 @@ export const EVALUATION_TEXT = {
   ACTIONS: {
     BACK_TO_SEARCH: "Back to Search",
     RETRY_EVALUATION: "Retry Evaluation",
+    START_NEGOTIATION: "🤝 Start Negotiation",
+  },
+  ERRORS: {
+    PARSING_VEHICLE_DATA: "Error parsing vehicle data:",
+    EVALUATING_DEAL: "Error evaluating deal:",
+    INVALID_VEHICLE_DATA: "Invalid vehicle data for evaluation",
+    FAILED_TO_EVALUATE: "Failed to evaluate deal",
   },
 } as const;
 
@@ -319,6 +326,12 @@ export const FINALIZE_TEXT = {
     LOADING_INSURANCE: "Loading insurance recommendations...",
     LOADING_FINANCING: "Loading financing options...",
     CALCULATING: "Calculating your best options...",
+    DEAL_SCORE_PREFIX: "Deal Quality Score:",
+    EXCELLENT_DEAL: "Excellent deal! This is well below market value.",
+    GOOD_DEAL: "Good deal! Fair price for this vehicle.",
+    CONSIDER_NEGOTIATING: "Consider negotiating further or exploring other options.",
+    FINAL_DEAL_SUMMARY: "🎉 Final Deal Summary",
+    REVIEW_DETAILS: "Review your deal details and explore financing & insurance options before finalizing",
   },
   DESCRIPTIONS: {
     INSURANCE_INTRO: "Compare insurance quotes for your new vehicle",
