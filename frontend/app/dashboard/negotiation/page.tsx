@@ -68,6 +68,7 @@ import {
   getLatestNegotiatedPrice,
   validateNegotiatedPrice,
 } from "@/lib/utils/negotiation";
+import { NEGOTIATION_TEXT } from "@/lib/constants";
 
 interface VehicleInfo {
   vin?: string;
@@ -372,7 +373,7 @@ function NegotiationContent() {
 
         setNotification({
           type: "success",
-          message: "Negotiation session started! Let's get you the best deal.",
+          message: NEGOTIATION_TEXT.MESSAGES.SESSION_STARTED,
         });
       } catch (err) {
         console.error("Failed to initialize negotiation:", err);
@@ -432,7 +433,7 @@ function NegotiationContent() {
     if (!priceToAccept) {
       setNotification({
         type: "error",
-        message: "No valid price available to accept",
+        message: NEGOTIATION_TEXT.MESSAGES.NO_VALID_PRICE,
       });
       return;
     }
@@ -446,7 +447,7 @@ function NegotiationContent() {
     if (!validation.isValid) {
       setNotification({
         type: "error",
-        message: validation.error || "Cannot accept offer with invalid price",
+        message: validation.error || NEGOTIATION_TEXT.MESSAGES.CANNOT_ACCEPT_INVALID,
       });
       return;
     }
@@ -518,7 +519,7 @@ function NegotiationContent() {
     } catch (err) {
       console.error("Failed to accept offer:", err);
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to accept offer";
+        err instanceof Error ? err.message : NEGOTIATION_TEXT.MESSAGES.FAILED_TO_ACCEPT;
       setError(errorMessage);
       setLoading(false);
       setTyping(false);
@@ -563,12 +564,12 @@ function NegotiationContent() {
 
       setNotification({
         type: "info",
-        message: "Negotiation cancelled. You can start a new one anytime.",
+        message: NEGOTIATION_TEXT.MESSAGES.CANCELLED_CAN_RESTART,
       });
     } catch (err) {
       console.error("Failed to reject offer:", err);
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to reject offer";
+        err instanceof Error ? err.message : NEGOTIATION_TEXT.MESSAGES.FAILED_TO_REJECT;
       setError(errorMessage);
       setLoading(false);
       setTyping(false);
@@ -591,7 +592,7 @@ function NegotiationContent() {
     if (isNaN(counterPrice) || counterPrice <= 0) {
       setNotification({
         type: "error",
-        message: "Please enter a valid price",
+        message: NEGOTIATION_TEXT.MESSAGES.ENTER_VALID_PRICE,
       });
       return;
     }
@@ -625,12 +626,12 @@ function NegotiationContent() {
 
       setNotification({
         type: "info",
-        message: `Counter offer of ${formatPrice(counterPrice)} submitted!`,
+        message: `${NEGOTIATION_TEXT.MESSAGES.COUNTER_OFFER_SUBMITTED.replace("Counter offer submitted!", `Counter offer of ${formatPrice(counterPrice)} submitted!`)}`,
       });
     } catch (err) {
       console.error("Failed to submit counter offer:", err);
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to submit counter offer";
+        err instanceof Error ? err.message : NEGOTIATION_TEXT.MESSAGES.FAILED_TO_COUNTER;
       setError(errorMessage);
       setLoading(false);
       setTyping(false);
@@ -806,7 +807,7 @@ function NegotiationContent() {
                             <Box>
                               {match.rank === 1 && (
                                 <Chip
-                                  label="Best Match"
+                                  label={NEGOTIATION_TEXT.LABELS.BEST_MATCH}
                                   color="primary"
                                   size="small"
                                   sx={{ mb: 1 }}
@@ -1124,14 +1125,14 @@ function NegotiationContent() {
                             </Typography>
                             {latestPrice.source === "ai" && (
                               <Chip
-                                label="AI"
+                                label={NEGOTIATION_TEXT.LABELS.AI}
                                 size="small"
                                 sx={{ height: 16, fontSize: "0.65rem" }}
                               />
                             )}
                             {latestPrice.source === "dealer" && (
                               <Chip
-                                label="Dealer"
+                                label={NEGOTIATION_TEXT.LABELS.DEALER}
                                 color="secondary"
                                 size="small"
                                 sx={{ height: 16, fontSize: "0.65rem" }}
@@ -1139,7 +1140,7 @@ function NegotiationContent() {
                             )}
                             {latestPrice.source === "user" && (
                               <Chip
-                                label="You"
+                                label={NEGOTIATION_TEXT.LABELS.YOU}
                                 color="info"
                                 size="small"
                                 sx={{ height: 16, fontSize: "0.65rem" }}
@@ -1271,12 +1272,12 @@ function NegotiationContent() {
                       onChange={(_, v) => setChatTabValue(v)}
                     >
                       <Tab
-                        label="Actions"
+                        label={NEGOTIATION_TEXT.LABELS.ACTIONS}
                         icon={<AttachMoney />}
                         iconPosition="start"
                       />
                       <Tab
-                        label="Chat"
+                        label={NEGOTIATION_TEXT.LABELS.CHAT}
                         icon={<ChatIcon />}
                         iconPosition="start"
                       />
@@ -2010,17 +2011,16 @@ function NegotiationContent() {
           setShowCounterOfferModal(false);
           setCounterOfferValue("");
         }}
-        title="Make Counter Offer"
+        title={NEGOTIATION_TEXT.TITLES.MAKE_COUNTER_OFFER}
         size="sm"
       >
         <Box sx={{ p: 2 }}>
           <Typography variant="body2" color="text.secondary" paragraph>
-            Enter your counter offer price. Be realistic and strategic to keep
-            the negotiation moving forward.
+            {NEGOTIATION_TEXT.DESCRIPTIONS.ENTER_COUNTER_AMOUNT}
           </Typography>
           <TextField
             fullWidth
-            label="Counter Offer Price"
+            label={NEGOTIATION_TEXT.LABELS.COUNTER_OFFER_PRICE}
             type="number"
             value={counterOfferValue}
             onChange={(e) => setCounterOfferValue(e.target.value)}
@@ -2041,7 +2041,7 @@ function NegotiationContent() {
               fullWidth
               onClick={() => setShowCounterOfferModal(false)}
             >
-              Cancel
+              {NEGOTIATION_TEXT.ACTIONS.CANCEL}
             </Button>
             <Button
               variant="primary"
@@ -2049,7 +2049,7 @@ function NegotiationContent() {
               onClick={handleCounterOffer}
               disabled={!counterOfferValue || negotiationState.isLoading}
             >
-              Submit Offer
+              {NEGOTIATION_TEXT.ACTIONS.SEND_COUNTER}
             </Button>
           </Stack>
         </Box>
@@ -2059,7 +2059,7 @@ function NegotiationContent() {
       <Modal
         isOpen={showAcceptDialog}
         onClose={() => setShowAcceptDialog(false)}
-        title="Accept Offer?"
+        title={NEGOTIATION_TEXT.TITLES.ACCEPT_OFFER}
         size="sm"
       >
         <Box sx={{ p: 2 }}>
@@ -2091,17 +2091,17 @@ function NegotiationContent() {
                   {formatPrice(latestPrice.price)}
                 </Typography>
                 {latestPrice.source === "ai" && (
-                  <Chip label="AI Suggested" color="primary" size="small" />
+                  <Chip label={NEGOTIATION_TEXT.LABELS.AI_SUGGESTED} color="primary" size="small" />
                 )}
                 {latestPrice.source === "dealer" && (
-                  <Chip label="Dealer Price" color="secondary" size="small" />
+                  <Chip label={NEGOTIATION_TEXT.LABELS.DEALER_PRICE} color="secondary" size="small" />
                 )}
                 {latestPrice.source === "user" && (
-                  <Chip label="Your Counter" color="info" size="small" />
+                  <Chip label={NEGOTIATION_TEXT.LABELS.YOUR_COUNTER} color="info" size="small" />
                 )}
               </Box>
               <Typography variant="caption" color="text.secondary">
-                From Round {latestPrice.round} •{" "}
+                {NEGOTIATION_TEXT.LABELS.FROM_ROUND} {latestPrice.round} •{" "}
                 {formatTimestamp(latestPrice.timestamp)}
               </Typography>
 
@@ -2110,7 +2110,7 @@ function NegotiationContent() {
               <Grid container spacing={1}>
                 <Grid item xs={6}>
                   <Typography variant="caption" color="text.secondary">
-                    Original Price
+                    {NEGOTIATION_TEXT.LABELS.ORIGINAL_PRICE}
                   </Typography>
                   <Typography variant="body2">
                     {formatPrice(vehicleData.price)}
@@ -2118,7 +2118,7 @@ function NegotiationContent() {
                 </Grid>
                 <Grid item xs={6}>
                   <Typography variant="caption" color="text.secondary">
-                    You Save
+                    {NEGOTIATION_TEXT.LABELS.YOU_SAVE}
                   </Typography>
                   <Typography variant="body2" color="success.main">
                     {formatPrice(vehicleData.price - latestPrice.price)}
@@ -2129,7 +2129,7 @@ function NegotiationContent() {
           )}
 
           <Typography variant="body2" color="text.secondary" paragraph>
-            This will complete the negotiation and move forward with the deal.
+            {NEGOTIATION_TEXT.DESCRIPTIONS.ACCEPT_DEAL_CONFIRMATION}
           </Typography>
 
           <Stack direction="row" spacing={2}>
@@ -2138,7 +2138,7 @@ function NegotiationContent() {
               fullWidth
               onClick={() => setShowAcceptDialog(false)}
             >
-              Cancel
+              {NEGOTIATION_TEXT.ACTIONS.CANCEL}
             </Button>
             <Button
               variant="success"
