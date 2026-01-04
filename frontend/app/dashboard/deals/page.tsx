@@ -14,6 +14,7 @@ import {
   getStatusColor,
   getStatusLabel,
   getNavigationHint,
+  DEALS_TEXT,
 } from "@/lib/constants";
 import { Card, LoadingState, ErrorState, EmptyState } from "@/components";
 
@@ -55,13 +56,13 @@ export default function DealsPage() {
   };
 
   if (isLoading) {
-    return <LoadingState message="Loading deals..." />;
+    return <LoadingState message={DEALS_TEXT.MESSAGES.LOADING} />;
   }
 
   if (error) {
     return (
       <ErrorState
-        title="Error Loading Deals"
+        title={DEALS_TEXT.TITLES.ERROR_LOADING}
         message={getUserFriendlyErrorMessage(error)}
         showRetry
         onRetry={() => execute(() => apiClient.getDeals())}
@@ -74,9 +75,9 @@ export default function DealsPage() {
       <Container maxWidth="lg">
         {!deals || deals.length === 0 ? (
           <EmptyState
-            message="No deals found"
-            description="Start browsing vehicles and create your first deal"
-            actionLabel="Search Vehicles"
+            message={DEALS_TEXT.EMPTY_STATES.MESSAGE}
+            description={DEALS_TEXT.EMPTY_STATES.DESCRIPTION}
+            actionLabel={DEALS_TEXT.ACTIONS.SEARCH_VEHICLES}
             onAction={() => router.push(ROUTES.SEARCH)}
           />
         ) : (
@@ -109,15 +110,15 @@ export default function DealsPage() {
                     <Grid container spacing={2} sx={{ mb: 2 }}>
                       <Grid item xs={12} md={4}>
                         <Typography variant="caption" color="text.secondary">
-                          Mileage:
+                          {DEALS_TEXT.LABELS.MILEAGE}
                         </Typography>
                         <Typography variant="body2" fontWeight={600}>
-                          {deal.vehicle_mileage.toLocaleString()} miles
+                          {deal.vehicle_mileage.toLocaleString()} {DEALS_TEXT.LABELS.MILES_SUFFIX}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} md={4}>
                         <Typography variant="caption" color="text.secondary">
-                          Asking Price:
+                          {DEALS_TEXT.LABELS.ASKING_PRICE}
                         </Typography>
                         <Typography variant="body2" fontWeight={600}>
                           ${deal.asking_price.toLocaleString()}
@@ -126,7 +127,7 @@ export default function DealsPage() {
                       {deal.offer_price && (
                         <Grid item xs={12} md={4}>
                           <Typography variant="caption" color="text.secondary">
-                            Offer Price:
+                            {DEALS_TEXT.LABELS.OFFER_PRICE}
                           </Typography>
                           <Typography variant="body2" fontWeight={600}>
                             ${deal.offer_price.toLocaleString()}
@@ -143,7 +144,7 @@ export default function DealsPage() {
                     )}
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
                       <Typography variant="caption" color="text.secondary">
-                        Created: {new Date(deal.created_at).toLocaleString()}
+                        {DEALS_TEXT.LABELS.CREATED}: {new Date(deal.created_at).toLocaleString()}
                       </Typography>
                       {getNavigationHint(deal.status) && (
                         <Typography variant="caption" color="primary" fontWeight={600}>

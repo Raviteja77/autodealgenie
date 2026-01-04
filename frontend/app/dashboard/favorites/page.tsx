@@ -16,7 +16,7 @@ import Link from "next/link";
 import { apiClient, Favorite } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useFetchOnce } from "@/lib/hooks";
-import { buildVehicleQueryString, ROUTES, NOTIFICATION_DURATION } from "@/lib/constants";
+import { buildVehicleQueryString, ROUTES, NOTIFICATION_DURATION, FAVORITES_TEXT } from "@/lib/constants";
 import { getErrorMessage } from "@/lib/utils";
 import { Button, Card, LoadingState, ErrorState, EmptyState } from "@/components";
 
@@ -50,7 +50,7 @@ export default function FavoritesPage() {
         const data = await apiClient.getFavorites();
         setFavorites(data);
       } catch (err: unknown) {
-        console.error("Error fetching favorites:", err);
+        console.error(FAVORITES_TEXT.ERRORS.FETCH_FAILED, err);
         setError(getErrorMessage(err));
         throw err;
       } finally {
@@ -69,7 +69,7 @@ export default function FavoritesPage() {
     try {
       await apiClient.removeFavorite(vin);
     } catch (err: unknown) {
-      console.error("Error removing favorite:", err);
+      console.error(FAVORITES_TEXT.ERRORS.REMOVE_FAILED, err);
       setFavorites(previousFavorites);
       setRemoveError(getErrorMessage(err));
       setTimeout(() => setRemoveError(null), NOTIFICATION_DURATION.ERROR);
@@ -93,13 +93,13 @@ export default function FavoritesPage() {
   };
 
   if (isLoading) {
-    return <LoadingState message="Loading your favorites..." />;
+    return <LoadingState message={FAVORITES_TEXT.MESSAGES.LOADING} />;
   }
 
   if (error) {
     return (
       <ErrorState
-        title="Error Loading Favorites"
+        title={FAVORITES_TEXT.TITLES.ERROR_LOADING}
         message={error}
         showRetry
         onRetry={() => window.location.reload()}
@@ -123,19 +123,19 @@ export default function FavoritesPage() {
           >
             <Box>
               <Typography variant="h3" gutterBottom fontWeight={700}>
-                My Favorites
+                {FAVORITES_TEXT.TITLES.MY_FAVORITES}
               </Typography>
               <Typography variant="body1" color="text.secondary">
                 {favorites.length === 0
-                  ? "You haven't added any favorites yet"
-                  : `You have ${favorites.length} saved ${
-                      favorites.length === 1 ? "vehicle" : "vehicles"
+                  ? FAVORITES_TEXT.MESSAGES.NO_FAVORITES
+                  : `${FAVORITES_TEXT.MESSAGES.YOU_HAVE} ${favorites.length} ${FAVORITES_TEXT.MESSAGES.SAVED} ${
+                      favorites.length === 1 ? FAVORITES_TEXT.LABELS.VEHICLE : FAVORITES_TEXT.LABELS.VEHICLES
                     }`}
               </Typography>
             </Box>
             <Box sx={{ display: "flex", gap: 2 }}>
               <Link href={ROUTES.SEARCH} style={{ textDecoration: "none" }}>
-                <Button variant="outline">Search Cars</Button>
+                <Button variant="outline">{FAVORITES_TEXT.ACTIONS.SEARCH_CARS}</Button>
               </Link>
             </Box>
           </Box>
@@ -155,9 +155,9 @@ export default function FavoritesPage() {
           {favorites.length === 0 ? (
             <EmptyState
               icon={<FavoritesIcon />}
-              message="No favorites yet"
-              description="Start browsing and save your favorite vehicles"
-              actionLabel="Browse Cars"
+              message={FAVORITES_TEXT.EMPTY_STATES.MESSAGE}
+              description={FAVORITES_TEXT.EMPTY_STATES.DESCRIPTION}
+              actionLabel={FAVORITES_TEXT.ACTIONS.BROWSE_CARS}
               onAction={() => router.push(ROUTES.SEARCH)}
               minHeight="400px"
             />
@@ -233,7 +233,7 @@ export default function FavoritesPage() {
                           >
                             <SpeedIcon fontSize="small" color="action" />
                             <Typography variant="body2" color="text.secondary">
-                              {favorite.mileage.toLocaleString()} mi
+                              {favorite.mileage.toLocaleString()} {FAVORITES_TEXT.LABELS.MILEAGE_SUFFIX}
                             </Typography>
                           </Box>
                         </Grid>
@@ -250,7 +250,7 @@ export default function FavoritesPage() {
                               color="action"
                             />
                             <Typography variant="body2" color="text.secondary">
-                              {favorite.fuel_type || "N/A"}
+                              {favorite.fuel_type || FAVORITES_TEXT.FALLBACK.NOT_AVAILABLE}
                             </Typography>
                           </Box>
                         </Grid>
@@ -284,7 +284,7 @@ export default function FavoritesPage() {
                               color="action"
                             />
                             <Typography variant="body2" color="text.secondary">
-                              {favorite.color || "N/A"}
+                              {favorite.color || FAVORITES_TEXT.FALLBACK.NOT_AVAILABLE}
                             </Typography>
                           </Box>
                         </Grid>
@@ -311,7 +311,7 @@ export default function FavoritesPage() {
                       {favorite.condition && (
                         <Box sx={{ mt: 2 }}>
                           <Typography variant="caption" color="text.secondary">
-                            Condition: {favorite.condition}
+                            {FAVORITES_TEXT.LABELS.CONDITION} {favorite.condition}
                           </Typography>
                         </Box>
                       )}
@@ -325,7 +325,7 @@ export default function FavoritesPage() {
                           size="sm"
                           onClick={() => handleNavigateToNegotiation(favorite)}
                         >
-                          Negotiate
+                          {FAVORITES_TEXT.ACTIONS.NEGOTIATE}
                         </Button>
                         <Button
                           variant="primary"
@@ -333,7 +333,7 @@ export default function FavoritesPage() {
                           size="sm"
                           onClick={() => handleNavigateToEvaluation(favorite)}
                         >
-                          View Details
+                          {FAVORITES_TEXT.ACTIONS.VIEW_DETAILS}
                         </Button>
                       </Box>
                     </Card.Footer>

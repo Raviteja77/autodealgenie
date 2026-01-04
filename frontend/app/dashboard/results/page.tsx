@@ -53,6 +53,7 @@ import type { SortOption } from "@/components";
 import { useComparison, ComparisonVehicle } from "@/lib/hooks/useComparison";
 import { useViewMode } from "@/lib/hooks/useViewMode";
 import { useSavedSearches } from "@/lib/hooks/useSavedSearches";
+import { RESULTS_TEXT } from "@/lib/constants";
 
 interface Vehicle {
   vin?: string;
@@ -513,7 +514,7 @@ function ResultsContent() {
           bgcolor: "background.default",
         }}
       >
-        <Spinner size="lg" text="Finding the best deals for you..." />
+        <Spinner size="lg" text={RESULTS_TEXT.MESSAGES.LOADING} />
       </Box>
     );
   }
@@ -527,13 +528,13 @@ function ResultsContent() {
           <Container maxWidth="lg">
             <Alert severity="error" sx={{ mb: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Error Loading Vehicles
+                {RESULTS_TEXT.TITLES.ERROR_LOADING}
               </Typography>
               <Typography variant="body2">{error}</Typography>
             </Alert>
             <Box sx={{ textAlign: "center" }}>
               <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
-                <Button variant="success">Back to Search</Button>
+                <Button variant="success">{RESULTS_TEXT.ACTIONS.BACK_TO_SEARCH}</Button>
               </Link>
             </Box>
           </Container>
@@ -594,11 +595,11 @@ function ResultsContent() {
                     leftIcon={<FilterListIcon />}
                     onClick={() => setIsFilterPanelOpen(true)}
                   >
-                    Filters
+                    {RESULTS_TEXT.LABELS.FILTERS}
                   </Button>
                   <SortDropdown value={sortBy} onChange={setSortBy} />
                   <Typography variant="body2" color="text.secondary">
-                    {sortedAndFilteredVehicles.length} vehicles
+                    {sortedAndFilteredVehicles.length} {RESULTS_TEXT.LABELS.VEHICLES_COUNT}
                   </Typography>
                 </Box>
 
@@ -614,7 +615,7 @@ function ResultsContent() {
                     leftIcon={<BookmarkAddIcon />}
                     onClick={() => setIsSaveSearchModalOpen(true)}
                   >
-                    Save Search
+                    {RESULTS_TEXT.ACTIONS.SAVE_SEARCH}
                   </Button>
                   <ViewModeToggle value={viewMode} onChange={setViewMode} />
                 </Box>
@@ -627,7 +628,7 @@ function ResultsContent() {
             <Card shadow="sm" sx={{ mb: 3 }}>
               <Card.Body>
                 <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                  Active Filters:
+                  {RESULTS_TEXT.TITLES.ACTIVE_FILTERS}
                 </Typography>
                 <Box
                   sx={{
@@ -688,14 +689,14 @@ function ResultsContent() {
               <Card.Body>
                 <Box sx={{ textAlign: "center", py: 4 }}>
                   <Typography variant="h6" color="text.secondary" gutterBottom>
-                    No vehicles found matching your criteria
+                    {RESULTS_TEXT.MESSAGES.NO_VEHICLES}
                   </Typography>
                   <Typography
                     variant="body2"
                     color="text.secondary"
                     sx={{ mb: 3 }}
                   >
-                    Try adjusting your filters or search again
+                    {RESULTS_TEXT.MESSAGES.NO_VEHICLES_DESCRIPTION}
                   </Typography>
                   <Link
                     href="/dashboard/search"
@@ -1042,7 +1043,7 @@ function ResultsContent() {
 
 export default function DashboardResultsPage() {
   return (
-    <Suspense fallback={<Spinner fullScreen text="Loading results..." />}>
+    <Suspense fallback={<Spinner fullScreen text={RESULTS_TEXT.MESSAGES.LOADING_RESULTS} />}>
       <ResultsContent />
     </Suspense>
   );

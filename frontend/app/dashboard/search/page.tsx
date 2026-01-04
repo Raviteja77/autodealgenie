@@ -42,6 +42,7 @@ import {
   SEARCH_RADIUS,
   SEARCH_RESULTS,
   DEBOUNCE_DELAY,
+  SEARCH_TEXT,
 } from "@/lib/constants";
 
 interface SearchFormData {
@@ -568,7 +569,7 @@ function DashboardSearchPageContent() {
                       Advanced Filters
                     </Typography>
                     <IconButton 
-                      aria-label="Toggle advanced filters"
+                      aria-label={SEARCH_TEXT.LABELS.TOGGLE_ADVANCED}
                       aria-expanded={showAdvancedFilters}
                       component="span"
                       tabIndex={-1}
