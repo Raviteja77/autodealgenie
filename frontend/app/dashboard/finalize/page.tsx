@@ -48,7 +48,7 @@ import {
   type LenderMatch,
 } from "@/lib/api";
 import { formatPrice } from "@/lib/utils/formatting";
-import { FINALIZE_TEXT } from "@/lib/constants";
+import { FINALIZE_TEXT, TAX_RATES, FINANCIAL_DEFAULTS, FEES } from "@/lib/constants";
 
 interface VehicleInfo {
   make: string;
@@ -188,14 +188,14 @@ function FinalizeDealContent() {
     hasFetchedLendersRef.current = true;
 
     const finalPrice = negotiationData?.finalPrice || parseFloat(vehicleInfo.price);
-    const downPayment = finalPrice * 0.2; // 20% down payment
+    const downPayment = finalPrice * FINANCIAL_DEFAULTS.DOWN_PAYMENT_PERCENT;
     const loanAmount = finalPrice - downPayment;
 
     fetchLenders(() =>
       apiClient.getLenderRecommendations(
         loanAmount,
         "good", // Default credit score range
-        60 // 60 months loan term
+        FINANCIAL_DEFAULTS.LOAN_TERM_MONTHS
       )
     );
   }, [vehicleInfo, user, negotiationData, fetchLenders]);
@@ -209,9 +209,9 @@ function FinalizeDealContent() {
   const dealScore = evaluation?.score || 0;
 
   // Calculate total cost breakdown
-  const salesTax = finalPrice * 0.08; // 8% sales tax (example)
-  const registrationFee = 300; // Example registration fee
-  const documentFee = 150; // Example doc fee
+  const salesTax = finalPrice * TAX_RATES.DEFAULT;
+  const registrationFee = FEES.REGISTRATION;
+  const documentFee = FEES.DOCUMENTATION;
   const totalCost = finalPrice + salesTax + registrationFee + documentFee;
 
   const handleFinalizeDeal = () => {
