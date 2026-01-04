@@ -77,12 +77,18 @@ export default function FavoritesPage() {
   };
 
   const handleNavigateToNegotiation = (favorite: Favorite) => {
-    const queryString = buildVehicleQueryString(favorite);
+    const queryString = buildVehicleQueryString({
+      ...favorite,
+      condition: favorite.condition ?? undefined,
+    });
     router.push(`${ROUTES.NEGOTIATION}?${queryString}`);
   };
 
   const handleNavigateToEvaluation = (favorite: Favorite) => {
-    const queryString = buildVehicleQueryString(favorite);
+    const queryString = buildVehicleQueryString({
+      ...favorite,
+      condition: favorite.condition ?? undefined,
+    });
     router.push(`${ROUTES.EVALUATION}?${queryString}`);
   };
 

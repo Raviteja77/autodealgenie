@@ -55,6 +55,7 @@ import {
   ChatInput,
   ConnectionStatusIndicator,
   FinancingComparisonModal,
+  NegotiationCancelledScreen,
 } from "@/components";
 import { useNegotiationState } from "@/lib/hooks";
 import {
@@ -929,45 +930,8 @@ function NegotiationContent() {
     );
   }
 
-  if (negotiationState.status === "cancelled") {
-    return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Card shadow="lg">
-          <Card.Body>
-            <Box sx={{ textAlign: "center", py: 4 }}>
-              <Cancel sx={{ fontSize: 80, color: "warning.main", mb: 2 }} />
-              <Typography variant="h4" gutterBottom>
-                Negotiation Cancelled
-              </Typography>
-              <Typography variant="body1" color="text.secondary" paragraph>
-                You&apos;ve cancelled the negotiation for this vehicle.
-                Don&apos;t worry, there are plenty of other great deals waiting
-                for you!
-              </Typography>
-              <Stack
-                direction="row"
-                spacing={2}
-                justifyContent="center"
-                sx={{ mt: 3 }}
-              >
-                <Link
-                  href="/dashboard/search"
-                  style={{ textDecoration: "none" }}
-                >
-                  <Button variant="primary">Search More Vehicles</Button>
-                </Link>
-                <Link
-                  href="/dashboard/results"
-                  style={{ textDecoration: "none" }}
-                >
-                  <Button variant="outline">Back to Results</Button>
-                </Link>
-              </Stack>
-            </Box>
-          </Card.Body>
-        </Card>
-      </Container>
-    );
+  if (negotiationState.status === "cancelled" && vehicleData) {
+    return <NegotiationCancelledScreen vehicleData={vehicleData} />;
   }
 
   // Main negotiation UI

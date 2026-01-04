@@ -16,6 +16,12 @@ export { PaymentMethodSelector } from './PaymentMethodSelector';
 export { BudgetRangeSlider } from './BudgetRangeSlider';
 export { SearchSidebar } from './SearchSidebar';
 
+// Evaluation-related molecules
+export { DealScoreDisplay } from './DealScoreDisplay';
+export { KeyInsightsList } from './KeyInsightsList';
+export { TalkingPointsList } from './TalkingPointsList';
+export { MarketInsights } from './MarketInsights';
+
 export type {
   PriceDisplayProps,
   MonthlyPaymentDisplayProps,

@@ -5,6 +5,7 @@
  * Centralizes duplicate URL parsing logic from dashboard pages.
  */
 
+import { ReadonlyURLSearchParams } from "next/navigation";
 import { QUERY_PARAMS, DEFAULT_VIN, FUEL_TYPE } from "@/lib/constants";
 
 /**
