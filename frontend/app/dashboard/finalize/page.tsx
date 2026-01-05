@@ -48,6 +48,7 @@ import {
   type LenderMatch,
 } from "@/lib/api";
 import { formatPrice } from "@/lib/utils/formatting";
+import { FINALIZE_TEXT, TAX_RATES, FINANCIAL_DEFAULTS, FEES } from "@/lib/constants";
 
 interface VehicleInfo {
   make: string;
@@ -187,14 +188,14 @@ function FinalizeDealContent() {
     hasFetchedLendersRef.current = true;
 
     const finalPrice = negotiationData?.finalPrice || parseFloat(vehicleInfo.price);
-    const downPayment = finalPrice * 0.2; // 20% down payment
+    const downPayment = finalPrice * FINANCIAL_DEFAULTS.DOWN_PAYMENT_PERCENT;
     const loanAmount = finalPrice - downPayment;
 
     fetchLenders(() =>
       apiClient.getLenderRecommendations(
         loanAmount,
         "good", // Default credit score range
-        60 // 60 months loan term
+        FINANCIAL_DEFAULTS.LOAN_TERM_MONTHS
       )
     );
   }, [vehicleInfo, user, negotiationData, fetchLenders]);
@@ -208,9 +209,9 @@ function FinalizeDealContent() {
   const dealScore = evaluation?.score || 0;
 
   // Calculate total cost breakdown
-  const salesTax = finalPrice * 0.08; // 8% sales tax (example)
-  const registrationFee = 300; // Example registration fee
-  const documentFee = 150; // Example doc fee
+  const salesTax = finalPrice * TAX_RATES.DEFAULT;
+  const registrationFee = FEES.REGISTRATION;
+  const documentFee = FEES.DOCUMENTATION;
   const totalCost = finalPrice + salesTax + registrationFee + documentFee;
 
   const handleFinalizeDeal = () => {
@@ -247,16 +248,16 @@ function FinalizeDealContent() {
       {/* Header with breadcrumb-like context */}
       <Box sx={{ mb: 4 }}>
         <Chip 
-          label="Step 4 of 4" 
+          label={FINALIZE_TEXT.LABELS.STEP_LABEL} 
           size="small" 
           color="primary" 
           sx={{ mb: 2 }} 
         />
         <Typography variant="h4" gutterBottom fontWeight="bold" sx={{ color: "primary.dark" }}>
-          🎉 Final Deal Summary
+          {FINALIZE_TEXT.MESSAGES.FINAL_DEAL_SUMMARY}
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Review your deal details and explore financing & insurance options before finalizing
+          {FINALIZE_TEXT.MESSAGES.REVIEW_DETAILS}
         </Typography>
       </Box>
 
@@ -269,13 +270,13 @@ function FinalizeDealContent() {
           icon={<Verified />}
           sx={{ mb: 3 }}
         >
-          <AlertTitle>Deal Quality Score: {dealScore.toFixed(1)}/10</AlertTitle>
-          {dealScore >= 8 && "Excellent deal! This is well below market value."}
+          <AlertTitle>{FINALIZE_TEXT.MESSAGES.DEAL_SCORE_PREFIX} {dealScore.toFixed(1)}/10</AlertTitle>
+          {dealScore >= 8 && FINALIZE_TEXT.MESSAGES.EXCELLENT_DEAL}
           {dealScore >= 6.5 &&
             dealScore < 8 &&
-            "Good deal! Fair price for this vehicle."}
+            FINALIZE_TEXT.MESSAGES.GOOD_DEAL}
           {dealScore < 6.5 &&
-            "Consider negotiating further or exploring other options."}
+            FINALIZE_TEXT.MESSAGES.CONSIDER_NEGOTIATING}
         </Alert>
       )}
 
@@ -519,8 +520,8 @@ function FinalizeDealContent() {
                 onChange={(_, newValue) => setActiveTab(newValue)}
                 sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
               >
-                <Tab label="Insurance" icon={<Shield />} iconPosition="start" />
-                <Tab label="Financing" icon={<AccountBalance />} iconPosition="start" />
+                <Tab label={FINALIZE_TEXT.LABELS.INSURANCE} icon={<Shield />} iconPosition="start" />
+                <Tab label={FINALIZE_TEXT.LABELS.FINANCING} icon={<AccountBalance />} iconPosition="start" />
               </Tabs>
 
               {/* Insurance Tab Content */}
@@ -570,7 +571,7 @@ function FinalizeDealContent() {
                                 </Typography>
                                 {index === 0 && (
                                   <Chip
-                                    label="Best Match"
+                                    label={FINALIZE_TEXT.LABELS.BEST_MATCH}
                                     size="small"
                                     color="primary"
                                     icon={<Star />}
@@ -702,7 +703,7 @@ function FinalizeDealContent() {
                               <Box>
                                 {match.rank === 1 && (
                                   <Chip
-                                    label="Best Match"
+                                    label={FINALIZE_TEXT.LABELS.BEST_MATCH}
                                     color="primary"
                                     size="small"
                                     icon={<Star />}
