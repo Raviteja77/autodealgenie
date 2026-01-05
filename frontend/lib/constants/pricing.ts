@@ -64,7 +64,7 @@ export const PRICE_THRESHOLDS = {
 /**
  * Negotiation Constants
  */
-export const NEGOTIATION = {
+export const PRICE_NEGOTIATION = {
   /** Maximum number of negotiation rounds */
   MAX_ROUNDS: 10,
   /** Minimum price reduction per counter offer (5%) */
@@ -112,19 +112,3 @@ export function calculateTotalFees(): number {
   );
 }
 
-/**
- * Helper function to calculate monthly payment
- */
-export function calculateMonthlyPayment(
-  principal: number,
-  annualRate: number,
-  termMonths: number
-): number {
-  const monthlyRate = annualRate / 12;
-  if (monthlyRate === 0) return principal / termMonths;
-  
-  return (
-    (principal * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) /
-    (Math.pow(1 + monthlyRate, termMonths) - 1)
-  );
-}
