@@ -373,7 +373,7 @@ function DashboardSearchPageContent() {
         {/* Display validation errors at the top */}
         {Object.keys(validationErrors).length > 0 && (
           <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
-            <AlertTitle>Please fix the following errors:</AlertTitle>
+            <AlertTitle>{SEARCH_TEXT.ERRORS.VALIDATION_ERROR}</AlertTitle>
             <ul style={{ margin: 0, paddingLeft: 20 }}>
               {Object.entries(validationErrors).map(([field, error]) => (
                 <li key={field}>
@@ -566,7 +566,7 @@ function DashboardSearchPageContent() {
                       sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}
                     >
                       <SpeedIcon color="primary" />
-                      Advanced Filters
+                      {SEARCH_TEXT.TITLES.ADVANCED_FILTERS}
                     </Typography>
                     <IconButton 
                       aria-label={SEARCH_TEXT.LABELS.TOGGLE_ADVANCED}
@@ -676,7 +676,7 @@ function DashboardSearchPageContent() {
                         })
                       }
                     >
-                      Reset
+                      {SEARCH_TEXT.ACTIONS.RESET}
                     </Button>
                     <Button
                       variant="success"
@@ -684,7 +684,7 @@ function DashboardSearchPageContent() {
                       leftIcon={<SearchIcon />}
                       onClick={handleSearch}
                     >
-                      Search Cars
+                      {SEARCH_TEXT.ACTIONS.SEARCH}
                     </Button>
                   </Box>
                 </Grid>

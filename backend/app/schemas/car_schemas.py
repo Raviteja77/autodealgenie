@@ -76,6 +76,7 @@ class CarSearchResponse(BaseModel):
 
     search_criteria: SearchCriteria
     top_vehicles: list[VehicleRecommendation]
+    other_vehicles: list[VehicleRecommendation] = Field(default_factory=list)
     total_found: int = 0
     total_analyzed: int = 0
     message: str | None = None

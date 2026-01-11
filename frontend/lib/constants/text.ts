@@ -173,7 +173,7 @@ export const SEARCH_TEXT = {
     SEARCH_INTRO: "Find your perfect vehicle by customizing your search criteria",
   },
   ACTIONS: {
-    SEARCH: "Search",
+    SEARCH: "Search Cars",
     CLEAR_FILTERS: "Clear Filters",
     APPLY_FILTERS: "Apply Filters",
     SEARCH_VEHICLES: "Search Vehicles",
@@ -182,6 +182,7 @@ export const SEARCH_TEXT = {
   ERRORS: {
     SEARCH_FAILED: "Search failed. Please try again.",
     INVALID_CRITERIA: "Invalid search criteria",
+    VALIDATION_ERROR: "Please fix the following errors:",
   },
 } as const;
 
