@@ -871,7 +871,7 @@ function ResultsContent() {
                 creditScore={creditScore}
                 loanTermMonths={loanTerm}
                 onLenderSelect={(lender) => {
-                  setStepData(1, (prevStepData: any) => ({
+                  setStepData(1, (prevStepData: {selectedVehicle?: Vehicle, queryString?: string}) => ({
                     ...prevStepData,
                     selectedLender: lender,
                   }));
