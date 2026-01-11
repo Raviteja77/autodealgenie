@@ -13,7 +13,7 @@ import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Grid from "@mui/material/Grid";
-import { Button, Card, Spinner } from "@/components";
+import { Button, Card, Spinner, Badge, Pagination } from "@/components";
 import Chip from "@mui/material/Chip";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -87,10 +87,17 @@ function ResultsContent() {
 
   const hasFetchedRef = useRef(false);
   const currentQueryRef = useRef<string>("");
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  
+  // Separate state for top and other vehicles
+  const [topVehicles, setTopVehicles] = useState<Vehicle[]>([]);
+  const [otherVehicles, setOtherVehicles] = useState<Vehicle[]>([]);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination state for other vehicles
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   // New state for enhanced features
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -149,7 +156,8 @@ function ResultsContent() {
   const shouldUseCachedData = useCallback(() => {
     const cachedData = getStepData<{
       queryString: string;
-      vehicles: Vehicle[];
+      topVehicles: Vehicle[];
+      otherVehicles: Vehicle[];
       message: string | null;
     }>(1);
     return (
@@ -184,7 +192,8 @@ function ResultsContent() {
         if (shouldUseCachedData()) {
           const cachedData = getStepData<{
             queryString: string;
-            vehicles: Vehicle[];
+            topVehicles: Vehicle[];
+            otherVehicles: Vehicle[];
             message: string | null;
           }>(1);
 
@@ -194,7 +203,8 @@ function ResultsContent() {
             isStepCompleted(1)
           ) {
             // Use cached data
-            setVehicles(cachedData.vehicles);
+            setTopVehicles(cachedData.topVehicles);
+            setOtherVehicles(cachedData.otherVehicles || []);
             setIsLoading(false);
 
             // Fetch favorites in background (non-blocking)
@@ -214,13 +224,15 @@ function ResultsContent() {
 
         // Handle vehicles result
         if (vehiclesResult.status === "fulfilled") {
-          const { vehicles: fetchedVehicles, message } = vehiclesResult.value;
-          setVehicles(fetchedVehicles);
+          const { topVehicles: fetchedTop, otherVehicles: fetchedOther, message } = vehiclesResult.value;
+          setTopVehicles(fetchedTop);
+          setOtherVehicles(fetchedOther);
 
           // Cache the results
           completeStep(1, {
             queryString: currentQueryString,
-            vehicles: fetchedVehicles,
+            topVehicles: fetchedTop,
+            otherVehicles: fetchedOther,
             message: message || null,
           });
         } else {
@@ -249,10 +261,11 @@ function ResultsContent() {
 
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentQueryString]); // Other dependencies are stable or intentionally excluded
+  }, [currentQueryString]);
 
   const fetchVehiclesData = async (): Promise<{
-    vehicles: Vehicle[];
+    topVehicles: Vehicle[];
+    otherVehicles: Vehicle[];
     message: string | null;
   }> => {
     const searchRequest: CarSearchRequest = {};
@@ -286,7 +299,7 @@ function ResultsContent() {
       searchRequest.user_priorities = searchParams.get("userPriorities")!;
     }
     if (searchParams.get("zipCode")) {
-      searchRequest.zip_code = searchParams.get("zipCode")!
+      searchRequest.zip_code = searchParams.get("zipCode")!;
     }
     if (searchParams.get("searchRadius")) {
       searchRequest.search_radius_miles = parseInt(searchParams.get("searchRadius")!);
@@ -294,34 +307,36 @@ function ResultsContent() {
 
     const response = await apiClient.searchCars(searchRequest);
 
-    const transformedVehicles: Vehicle[] = response.top_vehicles.map(
-      (v: VehicleRecommendation) => ({
-        vin: v.vin || undefined,
-        make: v.make || "Unknown",
-        model: v.model || "Unknown",
-        year: v.year || new Date().getFullYear(),
-        price: v.price || 0,
-        mileage: v.mileage || 0,
-        fuelType: v.fuel_type || "Unknown",
-        location: v.location || "Unknown",
-        color: v.exterior_color || "Unknown",
-        condition: v.inventory_type || "Used",
-        image:
-          v.photo_links && v.photo_links.length > 0
-            ? v.photo_links[0]
-            : `/api/placeholder/400/300?text=${encodeURIComponent(
-                (v.make || "") + " " + (v.model || "")
-              )}`,
-        highlights: v.highlights || [],
-        recommendation_score: v.recommendation_score,
-        recommendation_summary: v.recommendation_summary,
-        dealer_name: v.dealer_name,
-        vdp_url: v.vdp_url,
-      })
-    );
+    const transformVehicle = (v: VehicleRecommendation): Vehicle => ({
+      vin: v.vin || undefined,
+      make: v.make || "Unknown",
+      model: v.model || "Unknown",
+      year: v.year || new Date().getFullYear(),
+      price: v.price || 0,
+      mileage: v.mileage || 0,
+      fuelType: v.fuel_type || "Unknown",
+      location: v.location || "Unknown",
+      color: v.exterior_color || "Unknown",
+      condition: v.inventory_type || "Used",
+      image:
+        v.photo_links && v.photo_links.length > 0
+          ? v.photo_links[0]
+          : `/api/placeholder/400/300?text=${encodeURIComponent(
+              (v.make || "") + " " + (v.model || "")
+            )}`,
+      highlights: v.highlights || [],
+      recommendation_score: v.recommendation_score,
+      recommendation_summary: v.recommendation_summary,
+      dealer_name: v.dealer_name,
+      vdp_url: v.vdp_url,
+    });
+
+    const transformedTopVehicles = response.top_vehicles.map(transformVehicle);
+    const transformedOtherVehicles = (response.other_vehicles || []).map(transformVehicle);
 
     return {
-      vehicles: transformedVehicles,
+      topVehicles: transformedTopVehicles,
+      otherVehicles: transformedOtherVehicles,
       message: response.message || null,
     };
   };
@@ -334,13 +349,11 @@ function ResultsContent() {
       return favoriteVins;
     } catch (err) {
       console.error("Error fetching favorites:", err);
-      // Non-critical error, return empty set
       return new Set();
     }
   };
 
   const handleVehicleSelection = (vehicle: Vehicle, targetPath: string) => {
-    // Navigate to the target page
     const vehicleParams = new URLSearchParams({
       vin: vehicle.vin || "",
       make: vehicle.make,
@@ -350,7 +363,6 @@ function ResultsContent() {
       mileage: vehicle.mileage.toString(),
       fuelType: vehicle.fuelType || "",
     });
-    // Store the selected vehicle data for use in subsequent steps
     const existingData = getStepData(1) || {};
     setStepData(1, {
       ...existingData,
@@ -366,7 +378,6 @@ function ResultsContent() {
     const vin = vehicle.vin;
     const isFavorited = favorites.has(vin);
 
-    // Optimistic UI update
     const newFavorites = new Set(favorites);
     if (isFavorited) {
       newFavorites.delete(vin);
@@ -377,10 +388,8 @@ function ResultsContent() {
 
     try {
       if (isFavorited) {
-        // Remove from favorites
         await apiClient.removeFavorite(vin);
       } else {
-        // Add to favorites
         const favoriteData: FavoriteCreate = {
           vin: vin,
           make: vehicle.make,
@@ -398,13 +407,10 @@ function ResultsContent() {
       }
     } catch (err: unknown) {
       console.error("Error toggling favorite:", err);
-      // Revert optimistic update on error
       setFavorites(favorites);
-      // Optionally show an error message to the user
     }
   };
 
-  // Handler for toggling vehicle comparison
   const handleToggleComparison = (vehicle: Vehicle) => {
     if (!vehicle.vin) return;
 
@@ -425,7 +431,6 @@ function ResultsContent() {
     comparison.toggleVehicle(comparisonVehicle);
   };
 
-  // Handler for saving search
   const handleSaveSearch = async (search: SavedSearchCreate) => {
     try {
       await savedSearches.createSearch(search);
@@ -435,7 +440,6 @@ function ResultsContent() {
     }
   };
 
-  // Handler for deleting saved search
   const handleDeleteSavedSearch = async (searchId: number) => {
     try {
       await savedSearches.deleteSearch(searchId);
@@ -444,7 +448,6 @@ function ResultsContent() {
     }
   };
 
-  // Get current search criteria for save modal
   const getCurrentSearchCriteria = (): Partial<SavedSearchCreate> => {
     return {
       make: searchParams.get("make") || undefined,
@@ -471,11 +474,10 @@ function ResultsContent() {
     };
   };
 
-  // Sort and filter vehicles
-  const sortedAndFilteredVehicles = useMemo(() => {
-    const filtered = [...vehicles];
+  // Sort only other vehicles - top vehicles stay in AI order
+  const sortedOtherVehicles = useMemo(() => {
+    const filtered = [...otherVehicles];
 
-    // Apply sorting
     switch (sortBy) {
       case "price_low":
         filtered.sort((a, b) => a.price - b.price);
@@ -496,12 +498,248 @@ function ResultsContent() {
         );
         break;
       case "recently_added":
-        // Keep original order (assuming it's by recent)
         break;
     }
 
     return filtered;
-  }, [vehicles, sortBy]);
+  }, [otherVehicles, sortBy]);
+
+  // Paginate sorted other vehicles
+  const paginatedOtherVehicles = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return sortedOtherVehicles.slice(startIndex, endIndex);
+  }, [sortedOtherVehicles, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(sortedOtherVehicles.length / itemsPerPage);
+
+  // Reset page when sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortBy]);
+
+  const renderVehicleCard = (vehicle: Vehicle, isAIRecommended: boolean = false) => (
+    <Card
+      hover
+      shadow="md"
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: viewMode === "list" ? "row" : "column",
+        ...(isAIRecommended && {
+          border: 2,
+          borderColor: "primary.main",
+        }),
+      }}
+    >
+      <Box
+        sx={{
+          position: "relative",
+          width: viewMode === "list" ? 300 : "100%",
+          height:
+            viewMode === "list"
+              ? "auto"
+              : viewMode === "compact"
+              ? 150
+              : 200,
+          bgcolor: "grey.200",
+          backgroundImage: `url(${vehicle.image})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          flexShrink: 0,
+        }}
+      >
+        {isAIRecommended && (
+          <Badge
+            variant="ai-recommended"
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              zIndex: 1,
+            }}
+          />
+        )}
+        {vehicle.vin && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              bgcolor: "background.paper",
+              borderRadius: 1,
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={comparison.isSelected(vehicle.vin)}
+                  onChange={() => handleToggleComparison(vehicle)}
+                  disabled={
+                    !comparison.canAddMore &&
+                    !comparison.isSelected(vehicle.vin)
+                  }
+                  size="small"
+                />
+              }
+              label=""
+              sx={{ m: 0, p: 0.5 }}
+            />
+          </Box>
+        )}
+        <IconButton
+          sx={{
+            position: "absolute",
+            top: isAIRecommended ? 48 : 8,
+            right: 8,
+            bgcolor: "background.paper",
+            "&:hover": { bgcolor: "background.paper" },
+          }}
+          onClick={() => toggleFavorite(vehicle)}
+        >
+          {vehicle.vin && favorites.has(vehicle.vin) ? (
+            <FavoriteIcon color="error" />
+          ) : (
+            <FavoriteBorderIcon />
+          )}
+        </IconButton>
+        <Chip
+          label={vehicle.condition || "Used"}
+          size="small"
+          color="primary"
+          sx={{ position: "absolute", bottom: 8, left: 8 }}
+        />
+        {vehicle.recommendation_score && !isAIRecommended && (
+          <Chip
+            label={`Score: ${vehicle.recommendation_score.toFixed(1)}/10`}
+            size="small"
+            color="success"
+            sx={{ position: "absolute", top: 8, left: 8 }}
+          />
+        )}
+      </Box>
+
+      <Card.Body sx={{ flexGrow: 1 }}>
+        <Typography variant="h6" gutterBottom fontWeight={600}>
+          {vehicle.year} {vehicle.make} {vehicle.model}
+        </Typography>
+
+        <Typography
+          variant="h5"
+          color="primary"
+          gutterBottom
+          fontWeight={700}
+        >
+          ${vehicle.price.toLocaleString()}
+        </Typography>
+
+        {vehicle.recommendation_summary && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ mb: 2, fontStyle: "italic" }}
+          >
+            {vehicle.recommendation_summary}
+          </Typography>
+        )}
+
+        <Divider sx={{ my: 2 }} />
+
+        <Grid container spacing={1}>
+          <Grid item xs={6}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <SpeedIcon fontSize="small" color="action" />
+              <Typography variant="body2" color="text.secondary">
+                {vehicle.mileage.toLocaleString()} mi
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={6}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <LocalGasStationIcon fontSize="small" color="action" />
+              <Typography variant="body2" color="text.secondary">
+                {vehicle.fuelType}
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={6}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <CalendarTodayIcon fontSize="small" color="action" />
+              <Typography variant="body2" color="text.secondary">
+                {vehicle.year}
+              </Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={6}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <DirectionsCarIcon fontSize="small" color="action" />
+              <Typography variant="body2" color="text.secondary">
+                {vehicle.color}
+              </Typography>
+            </Box>
+          </Grid>
+        </Grid>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 2 }}>
+          <LocationOnIcon fontSize="small" color="action" />
+          <Typography variant="body2" color="text.secondary">
+            {vehicle.location || "Location not specified"}
+          </Typography>
+        </Box>
+
+        {vehicle.highlights && vehicle.highlights.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+              Highlights:
+            </Typography>
+            <Stack
+              direction="row"
+              spacing={0.5}
+              flexWrap="wrap"
+              sx={{ gap: 0.5 }}
+            >
+              {vehicle.highlights
+                .slice(0, 3)
+                .map((highlight: string, index: number) => (
+                  <Chip
+                    key={index}
+                    label={highlight}
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                  />
+                ))}
+            </Stack>
+          </Box>
+        )}
+
+        {vehicle.dealer_name && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="caption" color="text.secondary">
+              Dealer: {vehicle.dealer_name}
+            </Typography>
+          </Box>
+        )}
+      </Card.Body>
+
+      <Card.Footer>
+        <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>
+          <Button
+            variant="success"
+            fullWidth
+            size="sm"
+            onClick={() =>
+              handleVehicleSelection(vehicle, "/dashboard/evaluation")
+            }
+          >
+            Evaluate Deal
+          </Button>
+        </Box>
+      </Card.Footer>
+    </Card>
+  );
 
   if (isLoading) {
     return (
@@ -547,36 +785,6 @@ function ResultsContent() {
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <Box sx={{ bgcolor: "background.default", flexGrow: 1 }}>
         <Container maxWidth="lg">
-          {/* Header */}
-          {/* <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
-            <Box>
-            <Typography variant="h3" gutterBottom fontWeight={700}>
-              Search Results
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Found {vehicles.length} vehicles matching your criteria
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Link href="/favorites" style={{ textDecoration: "none" }}>
-              <Button variant="primary" leftIcon={<FavoriteIcon />}>
-                View Favorites
-              </Button>
-            </Link>
-            <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
-              <Button variant="outline">Refine Search</Button>
-            </Link>
-          </Box>
-        </Box> */}
-
-          {/* AI Message */}
-          {/* {searchMessage && (
-            <Alert severity="info" sx={{ mb: 3 }}>
-              {searchMessage}
-            </Alert>
-          )} */}
-
-          {/* Toolbar with controls */}
           <Card shadow="sm" sx={{ mb: 3, mt: 3 }}>
             <Card.Body>
               <Box
@@ -599,7 +807,7 @@ function ResultsContent() {
                   </Button>
                   <SortDropdown value={sortBy} onChange={setSortBy} />
                   <Typography variant="body2" color="text.secondary">
-                    {sortedAndFilteredVehicles.length} {RESULTS_TEXT.LABELS.VEHICLES_COUNT}
+                    {topVehicles.length + sortedOtherVehicles.length} {RESULTS_TEXT.LABELS.VEHICLES_COUNT}
                   </Typography>
                 </Box>
 
@@ -623,7 +831,6 @@ function ResultsContent() {
             </Card.Body>
           </Card>
 
-          {/* Applied Filters */}
           {searchParams.toString() && (
             <Card shadow="sm" sx={{ mb: 3 }}>
               <Card.Body>
@@ -652,18 +859,11 @@ function ResultsContent() {
                       />
                     ))}
                   </Stack>
-                  {/* <Link
-                    href="/dashboard/search"
-                    style={{ textDecoration: "none" }}
-                  >
-                    <Button variant="outline">Refine Search</Button>
-                  </Link> */}
                 </Box>
               </Card.Body>
             </Card>
           )}
 
-          {/* Lender Recommendations Section */}
           {showLenderSection && (
             <Box sx={{ mb: 3 }}>
               <LenderRecommendations
@@ -671,9 +871,7 @@ function ResultsContent() {
                 creditScore={creditScore}
                 loanTermMonths={loanTerm}
                 onLenderSelect={(lender) => {
-                  // Store selected lender in stepper context for later use in deal evaluation
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  setStepData(1, (prevStepData: any) => ({
+                  setStepData(1, (prevStepData: {selectedVehicle?: Vehicle, queryString?: string}) => ({
                     ...prevStepData,
                     selectedLender: lender,
                   }));
@@ -683,8 +881,77 @@ function ResultsContent() {
             </Box>
           )}
 
-          {/* Results Grid */}
-          {sortedAndFilteredVehicles.length === 0 ? (
+          {/* AI Recommended Section */}
+          {topVehicles.length > 0 && (
+            <Box sx={{ mb: 6 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+                <Typography variant="h5" fontWeight={600}>
+                  AI Recommended For You
+                </Typography>
+                <Chip
+                  label={`${topVehicles.length} vehicles`}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                />
+              </Box>
+              <Grid container spacing={viewMode === "list" ? 2 : 3}>
+                {topVehicles.map((vehicle) => (
+                  <Grid
+                    item
+                    xs={12}
+                    md={viewMode === "list" ? 12 : viewMode === "compact" ? 6 : 6}
+                    lg={viewMode === "list" ? 12 : viewMode === "compact" ? 6 : 4}
+                    key={vehicle.vin || `top-${vehicle.make}-${vehicle.model}-${vehicle.year}`}
+                  >
+                    {renderVehicleCard(vehicle, true)}
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          )}
+
+          {/* Other Vehicles Section */}
+          {sortedOtherVehicles.length > 0 && (
+            <Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+                <Typography variant="h5" fontWeight={600}>
+                  More Options
+                </Typography>
+                <Chip
+                  label={`${sortedOtherVehicles.length} vehicles`}
+                  size="small"
+                  variant="outlined"
+                />
+              </Box>
+              <Grid container spacing={viewMode === "list" ? 2 : 3}>
+                {paginatedOtherVehicles.map((vehicle) => (
+                  <Grid
+                    item
+                    xs={12}
+                    md={viewMode === "list" ? 12 : viewMode === "compact" ? 6 : 6}
+                    lg={viewMode === "list" ? 12 : viewMode === "compact" ? 6 : 4}
+                    key={vehicle.vin || `other-${vehicle.make}-${vehicle.model}-${vehicle.year}`}
+                  >
+                    {renderVehicleCard(vehicle, false)}
+                  </Grid>
+                ))}
+              </Grid>
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={sortedOtherVehicles.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={setItemsPerPage}
+                itemsPerPageOptions={[12, 24, 36, 48]}
+              />
+            </Box>
+          )}
+
+          {/* No results message */}
+          {topVehicles.length === 0 && sortedOtherVehicles.length === 0 && (
             <Card padding="lg">
               <Card.Body>
                 <Box sx={{ textAlign: "center", py: 4 }}>
@@ -707,313 +974,16 @@ function ResultsContent() {
                 </Box>
               </Card.Body>
             </Card>
-          ) : (
-            <Grid container spacing={viewMode === "list" ? 2 : 3}>
-              {sortedAndFilteredVehicles.map((vehicle) => (
-                <Grid
-                  item
-                  xs={12}
-                  md={viewMode === "list" ? 12 : viewMode === "compact" ? 6 : 6}
-                  lg={viewMode === "list" ? 12 : viewMode === "compact" ? 6 : 4}
-                  key={
-                    vehicle.vin ||
-                    `${vehicle.make}-${vehicle.model}-${vehicle.year}`
-                  }
-                >
-                  <Card
-                    hover
-                    shadow="md"
-                    sx={{
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: viewMode === "list" ? "row" : "column",
-                    }}
-                  >
-                    {/* Vehicle Image */}
-                    <Box
-                      sx={{
-                        position: "relative",
-                        width: viewMode === "list" ? 300 : "100%",
-                        height:
-                          viewMode === "list"
-                            ? "auto"
-                            : viewMode === "compact"
-                            ? 150
-                            : 200,
-                        bgcolor: "grey.200",
-                        backgroundImage: `url(${vehicle.image})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {/* Comparison Checkbox */}
-                      {vehicle.vin && (
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            top: 8,
-                            left: 8,
-                            bgcolor: "background.paper",
-                            borderRadius: 1,
-                            display: "flex",
-                            alignItems: "center",
-                          }}
-                        >
-                          <FormControlLabel
-                            control={
-                              <Checkbox
-                                checked={comparison.isSelected(vehicle.vin)}
-                                onChange={() => handleToggleComparison(vehicle)}
-                                disabled={
-                                  !comparison.canAddMore &&
-                                  !comparison.isSelected(vehicle.vin)
-                                }
-                                size="small"
-                              />
-                            }
-                            label=""
-                            sx={{ m: 0, p: 0.5 }}
-                          />
-                        </Box>
-                      )}
-                      <IconButton
-                        sx={{
-                          position: "absolute",
-                          top: 8,
-                          right: 8,
-                          bgcolor: "background.paper",
-                          "&:hover": { bgcolor: "background.paper" },
-                        }}
-                        onClick={() => toggleFavorite(vehicle)}
-                      >
-                        {vehicle.vin && favorites.has(vehicle.vin) ? (
-                          <FavoriteIcon color="error" />
-                        ) : (
-                          <FavoriteBorderIcon />
-                        )}
-                      </IconButton>
-                      <Chip
-                        label={vehicle.condition || "Used"}
-                        size="small"
-                        color="primary"
-                        sx={{ position: "absolute", bottom: 8, left: 8 }}
-                      />
-                      {vehicle.recommendation_score && (
-                        <Chip
-                          label={`Score: ${vehicle.recommendation_score.toFixed(
-                            1
-                          )}/10`}
-                          size="small"
-                          color="success"
-                          sx={{ position: "absolute", top: 8, left: 8 }}
-                        />
-                      )}
-                    </Box>
-
-                    <Card.Body sx={{ flexGrow: 1 }}>
-                      {/* Vehicle Title */}
-                      <Typography variant="h6" gutterBottom fontWeight={600}>
-                        {vehicle.year} {vehicle.make} {vehicle.model}
-                      </Typography>
-
-                      {/* Price */}
-                      <Typography
-                        variant="h5"
-                        color="primary"
-                        gutterBottom
-                        fontWeight={700}
-                      >
-                        ${vehicle.price.toLocaleString()}
-                      </Typography>
-
-                      {/* Recommendation Summary */}
-                      {vehicle.recommendation_summary && (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mb: 2, fontStyle: "italic" }}
-                        >
-                          {vehicle.recommendation_summary}
-                        </Typography>
-                      )}
-
-                      <Divider sx={{ my: 2 }} />
-
-                      {/* Details */}
-                      <Grid container spacing={1}>
-                        <Grid item xs={6}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                            }}
-                          >
-                            <SpeedIcon fontSize="small" color="action" />
-                            <Typography variant="body2" color="text.secondary">
-                              {vehicle.mileage.toLocaleString()} mi
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                            }}
-                          >
-                            <LocalGasStationIcon
-                              fontSize="small"
-                              color="action"
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                              {vehicle.fuelType}
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                            }}
-                          >
-                            <CalendarTodayIcon
-                              fontSize="small"
-                              color="action"
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                              {vehicle.year}
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                            }}
-                          >
-                            <DirectionsCarIcon
-                              fontSize="small"
-                              color="action"
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                              {vehicle.color}
-                            </Typography>
-                          </Box>
-                        </Grid>
-                      </Grid>
-
-                      {/* Location */}
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 0.5,
-                          mt: 2,
-                        }}
-                      >
-                        <LocationOnIcon fontSize="small" color="action" />
-                        <Typography variant="body2" color="text.secondary">
-                          {vehicle.location || "Location not specified"}
-                        </Typography>
-                      </Box>
-
-                      {/* Highlights/Features */}
-                      {vehicle.highlights && vehicle.highlights.length > 0 && (
-                        <Box sx={{ mt: 2 }}>
-                          <Typography
-                            variant="subtitle2"
-                            gutterBottom
-                            fontWeight={600}
-                          >
-                            Highlights:
-                          </Typography>
-                          <Stack
-                            direction="row"
-                            spacing={0.5}
-                            flexWrap="wrap"
-                            sx={{ gap: 0.5 }}
-                          >
-                            {vehicle.highlights
-                              .slice(0, 3)
-                              .map((highlight: string, index: number) => (
-                                <Chip
-                                  key={index}
-                                  label={highlight}
-                                  size="small"
-                                  variant="outlined"
-                                  color="primary"
-                                />
-                              ))}
-                          </Stack>
-                        </Box>
-                      )}
-
-                      {/* Dealer Info */}
-                      {vehicle.dealer_name && (
-                        <Box sx={{ mt: 2 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Dealer: {vehicle.dealer_name}
-                          </Typography>
-                        </Box>
-                      )}
-                    </Card.Body>
-
-                    <Card.Footer>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "center",
-                          width: "100%",
-                        }}
-                      >
-                        <Button
-                          variant="success"
-                          fullWidth
-                          size="sm"
-                          onClick={() =>
-                            handleVehicleSelection(
-                              vehicle,
-                              "/dashboard/evaluation"
-                            )
-                          }
-                        >
-                          Evaluate Deal
-                        </Button>
-                        {/* <Button
-                          variant="primary"
-                          fullWidth
-                          size="sm"
-                          onClick={() =>
-                            handleVehicleSelection(vehicle, "/evaluation")
-                          }
-                        >
-                          View Details
-                        </Button> */}
-                      </Box>
-                    </Card.Footer>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
           )}
         </Container>
       </Box>
 
-      {/* Filter Panel */}
       <FilterPanel
         isOpen={isFilterPanelOpen}
         onClose={() => setIsFilterPanelOpen(false)}
-        vehicleCount={sortedAndFilteredVehicles.length}
+        vehicleCount={topVehicles.length + sortedOtherVehicles.length}
       />
 
-      {/* Comparison Bar */}
       <ComparisonBar
         selectedVehicles={comparison.selectedVehicles}
         onRemove={comparison.removeVehicle}
@@ -1023,14 +993,12 @@ function ResultsContent() {
         canCompare={comparison.canCompare}
       />
 
-      {/* Comparison Modal */}
       <ComparisonModal
         isOpen={comparison.isModalOpen}
         onClose={comparison.closeModal}
         vehicles={comparison.selectedVehicles}
       />
 
-      {/* Save Search Modal */}
       <SaveSearchModal
         isOpen={isSaveSearchModalOpen}
         onClose={() => setIsSaveSearchModalOpen(false)}

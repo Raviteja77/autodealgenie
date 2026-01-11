@@ -3,33 +3,32 @@
  * These are relatively simple components that combine a few atoms together.
  */
 
-export { PriceDisplay, MonthlyPaymentDisplay, PriceSwitcher } from './PriceDisplay';
-export { VehicleTitle, VehicleDetails, VehicleImage } from './VehicleInfo';
-export { ViewModeToggle } from './ViewModeToggle';
-export { SortDropdown, type SortOption } from './SortDropdown';
-export { SavedSearchesDropdown } from './SavedSearchesDropdown';
 export { ConnectionStatusIndicator } from './ConnectionStatusIndicator';
+export { Pagination } from './Pagination';
+export { MonthlyPaymentDisplay, PriceDisplay, PriceSwitcher } from './PriceDisplay';
 export { SaveSearchModal } from './SaveSearchModal';
+export { SavedSearchesDropdown } from './SavedSearchesDropdown';
+export { SortDropdown, type SortOption } from './SortDropdown';
+export { VehicleDetails, VehicleImage, VehicleTitle } from './VehicleInfo';
+export { ViewModeToggle } from './ViewModeToggle';
 
 // Search-related molecules
-export { PaymentMethodSelector } from './PaymentMethodSelector';
 export { BudgetRangeSlider } from './BudgetRangeSlider';
+export { PaymentMethodSelector } from './PaymentMethodSelector';
 export { SearchSidebar } from './SearchSidebar';
 
 // Evaluation-related molecules
 export { DealScoreDisplay } from './DealScoreDisplay';
 export { KeyInsightsList } from './KeyInsightsList';
-export { TalkingPointsList } from './TalkingPointsList';
 export { MarketInsights } from './MarketInsights';
+export { TalkingPointsList } from './TalkingPointsList';
 
 export type {
-  PriceDisplayProps,
-  MonthlyPaymentDisplayProps,
-  PriceSwitcherProps,
+  MonthlyPaymentDisplayProps, PriceDisplayProps, PriceSwitcherProps
 } from './PriceDisplay.types';
 
 export type {
-  VehicleDetailsProps,
-  VehicleTitleProps,
-  VehicleImageProps,
+  VehicleDetailsProps, VehicleImageProps, VehicleTitleProps
 } from './VehicleInfo.types';
+
+export type { PaginationProps } from './Pagination';

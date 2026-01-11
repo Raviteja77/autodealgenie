@@ -1,16 +1,15 @@
+export { Badge } from './Badge';
 export { Button } from './Button';
-export { Input } from './Input';
 export { Card } from './Card';
-export { Spinner } from './Spinner';
+export { Input } from './Input';
 export { Modal } from './Modal';
+export { Spinner } from './Spinner';
 
-export type { ButtonProps, ButtonVariant, ButtonSize } from './Button.types';
-export type { InputProps } from './Input.types';
-export type { 
-  CardComponentProps, 
-  CardHeaderComponentProps, 
-  CardBodyProps, 
-  CardFooterProps 
+export type { BadgeProps } from './Badge';
+export type { ButtonProps, ButtonSize, ButtonVariant } from './Button.types';
+export type {
+  CardBodyProps, CardComponentProps, CardFooterProps, CardHeaderComponentProps
 } from './Card.types';
-export type { SpinnerProps } from './Spinner.types';
+export type { InputProps } from './Input.types';
 export type { ModalProps } from './Modal.types';
+export type { SpinnerProps } from './Spinner.types';

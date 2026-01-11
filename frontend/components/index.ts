@@ -11,87 +11,50 @@
  */
 
 // Export atoms - basic building blocks
-export { Button, Input, Card, Spinner, Modal } from './atoms';
+export { Badge, Button, Card, Input, Modal, Spinner } from './atoms';
 
 // Export molecules
 export {
-  PriceDisplay,
-  MonthlyPaymentDisplay,
-  PriceSwitcher,
-  VehicleTitle,
-  VehicleDetails,
-  VehicleImage,
-  ViewModeToggle,
-  SortDropdown,
-  SavedSearchesDropdown,
-  ConnectionStatusIndicator,
-  SaveSearchModal,
-  PaymentMethodSelector,
-  BudgetRangeSlider,
-  SearchSidebar,
-  DealScoreDisplay,
-  KeyInsightsList,
-  TalkingPointsList,
-  MarketInsights,
+  BudgetRangeSlider, ConnectionStatusIndicator, DealScoreDisplay,
+  KeyInsightsList, MarketInsights, MonthlyPaymentDisplay, Pagination, PaymentMethodSelector, PriceDisplay, PriceSwitcher, SaveSearchModal, SavedSearchesDropdown, SearchSidebar, SortDropdown, TalkingPointsList, VehicleDetails,
+  VehicleImage, VehicleTitle, ViewModeToggle
 } from './molecules';
 export type { SortOption } from './molecules';
 
 // Export organisms
 export {
-  VehicleCard,
-  FilterPanel,
-  ComparisonModal,
-  ComparisonBar,
-  ChatInput,
-  FinancingComparisonModal,
-  InsuranceRecommendations,
-  LenderRecommendations,
-  BasicVehicleFilters,
-  AdvancedFilters,
-  FinancingOptionsForm,
-  EvaluationScoreCard,
-  MarketAnalysisCard,
-  MarketPosition,
-  NegotiationTips,
+  AdvancedFilters, BasicVehicleFilters, ChatInput, ComparisonBar, ComparisonModal, CurrentOfferStatus, EvaluationScoreCard, FilterPanel, FinancingComparisonModal, FinancingOptionsForm, InsuranceRecommendations,
+  LenderRecommendations, MarketAnalysisCard,
+  MarketPosition, NegotiationCancelledScreen, NegotiationCompletedScreen, NegotiationTips,
   PriceComparison,
-  PriceTrackingPanel,
-  CurrentOfferStatus,
-  NegotiationCompletedScreen,
-  NegotiationCancelledScreen,
+  PriceTrackingPanel, VehicleCard
 } from './organisms';
 
 // Export common components
 export { ErrorBoundary } from './ErrorBoundary';
-export { default as Header } from './common/Header';
-export { default as Footer } from './common/Footer';
-export { default as ProgressStepper } from './common/ProgressStepper';
-export { LoadingState } from './common/LoadingState';
-export { ErrorState } from './common/ErrorState';
 export { EmptyState } from './common/EmptyState';
+export { ErrorState } from './common/ErrorState';
+export { default as Footer } from './common/Footer';
+export { default as Header } from './common/Header';
+export { LoadingState } from './common/LoadingState';
+export { default as ProgressStepper } from './common/ProgressStepper';
 
 // Export vehicle components
 export * from './vehicle';
 
 // Export types
 export type {
-  ButtonProps,
-  ButtonVariant,
-  ButtonSize,
-  InputProps,
-  CardComponentProps,
-  SpinnerProps,
-  ModalProps,
+  ButtonProps, ButtonSize, ButtonVariant, CardComponentProps, InputProps, ModalProps, SpinnerProps
 } from './atoms';
 
 export type {
-  PriceDisplayProps,
-  MonthlyPaymentDisplayProps,
-  PriceSwitcherProps,
-  VehicleDetailsProps,
-  VehicleTitleProps,
-  VehicleImageProps,
+  MonthlyPaymentDisplayProps, PriceDisplayProps, PriceSwitcherProps,
+  VehicleDetailsProps, VehicleImageProps, VehicleTitleProps
 } from './molecules';
 
 export type {
-  VehicleDisplayProps,
+  VehicleDisplayProps
 } from './organisms';
+
+export type { BadgeProps } from './atoms/Badge';
+export type { PaginationProps } from './molecules/Pagination';

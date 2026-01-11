@@ -417,11 +417,18 @@ class CarRecommendationService:
             # Fallback: simple sorting by price and mileage
             top_vehicles = self._fallback_recommendations(parsed_listings)
 
+        top_limit = 5
+        final_top = top_vehicles[:top_limit]
+        # Build other_vehicles by excluding top recommendations (match by VIN when possible)
+        top_vins = {v.get("vin") for v in final_top if v.get("vin")}
+        other_vehicles = [v for v in parsed_listings if v.get("vin") not in top_vins]
+
         result = {
             "search_criteria": search_criteria,
-            "top_vehicles": top_vehicles[:5],  # Limit to top 5
+            "top_vehicles": final_top,
+            "other_vehicles": other_vehicles,
             "total_found": num_found,
-            "total_analyzed": len(listings),
+            "total_analyzed": len(parsed_listings),
         }
 
         # Cache result

@@ -123,6 +123,7 @@ export interface VehicleRecommendation {
 export interface CarSearchResponse {
   search_criteria: SearchCriteria;
   top_vehicles: VehicleRecommendation[];
+  other_vehicles?: VehicleRecommendation[];
   total_found: number;
   total_analyzed: number;
   message?: string | null;
