@@ -54,34 +54,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const checkAuth = async () => {
       checkInProgressRef.current = true;
-  
-      try {
-        // Check if we have a token
-        const token = localStorage.getItem("auth_token");
-        
-        if (!token) {
-          setUser(null);
-          hasCheckedAuthRef.current = true;
-          setLoading(false);
-          return;
-        }
 
-        getCurrentUser();
+      try {
+        // Auth is cookie-based — just try to fetch the current user.
+        // The browser sends the HTTP-only access_token cookie automatically.
+        const userData = await apiClient.getCurrentUser();
+        setUser(userData);
         hasCheckedAuthRef.current = true;
-      } catch (err) {
-        console.error("Auth check failed:", err);
-        // Token is invalid, clear it
-        localStorage.removeItem("auth_token");
+      } catch {
+        // No valid session — not an error, just unauthenticated
         setUser(null);
         hasCheckedAuthRef.current = true;
       } finally {
         setLoading(false);
+        checkInProgressRef.current = false;
       }
     };
 
     checkAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // getCurrentUser is intentionally excluded to avoid infinite loops
+  }, []);
 
   const getCurrentUser = useCallback(async () => {
     // Verify token with backend
@@ -99,12 +91,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
 
     try {
-      const response = await apiClient.login(email, password);
-      if(response.access_token) {
-        getCurrentUser();
-        // Reset auth check ref so future checks can run if needed
-        hasCheckedAuthRef.current = true;
-      }
+      // Backend sets HTTP-only cookies on success; also returns tokens in body.
+      // Fetch the user immediately after — the cookie will be present.
+      await apiClient.login(email, password);
+      const userData = await apiClient.getCurrentUser();
+      setUser(userData);
+      hasCheckedAuthRef.current = true;
     } catch (err) {
       const errorMessage =
         err instanceof Error
@@ -115,8 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // getCurrentUser is intentionally excluded to avoid circular dependencies
+  }, []);
 
   const signup = useCallback(
     async (email: string, username: string, password: string) => {
@@ -124,14 +115,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
 
       try {
-        await apiClient.signup(
-          email,
-          username,
-          password,
-        );
-        
-        login(email, password); // Auto-login after signup
-        
+        await apiClient.signup(email, username, password);
+        // Auto-login: backend sets cookies on login, then fetch user
+        await apiClient.login(email, password);
+        const userData = await apiClient.getCurrentUser();
+        setUser(userData);
         hasCheckedAuthRef.current = true;
       } catch (err) {
         const errorMessage =
@@ -144,9 +132,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
-  ); // login is intentionally excluded to avoid circular dependencies
+  );
 
   const logout = useCallback(async () => {
     setLoading(true);
@@ -159,9 +146,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Ignore logout errors, still clear local state
         console.error("Logout API call failed:", err);
       }
-      
-      // Clear token
-      localStorage.removeItem("auth_token");
       
       // Clear user
       setUser(null);

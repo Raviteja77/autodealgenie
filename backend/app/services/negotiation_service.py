@@ -2,6 +2,7 @@
 Negotiation service with LLM integration for multi-round negotiations
 """
 
+import asyncio
 import logging
 import uuid
 from typing import TYPE_CHECKING, Any
@@ -537,8 +538,10 @@ class NegotiationService:
         logger.info(f"[{request_id}] Generating agent response for session {session.id}")
 
         try:
-            # Use centralized LLM client
-            response_content = generate_text(
+            # generate_text is sync (blocking OpenAI SDK); run in thread to avoid
+            # blocking the asyncio event loop.
+            response_content = await asyncio.to_thread(
+                generate_text,
                 prompt_id="negotiation_initial",
                 variables={
                     "make": deal.vehicle_make,
@@ -730,8 +733,8 @@ class NegotiationService:
                 offer_history.append(f"${msg.message_metadata['suggested_price']:,.2f}")
 
         try:
-            # Use centralized LLM client
-            response_content = generate_text(
+            response_content = await asyncio.to_thread(
+                generate_text,
                 prompt_id="negotiation_counter",
                 variables={
                     "make": deal.vehicle_make,
@@ -1053,8 +1056,8 @@ class NegotiationService:
         suggested_price = self._get_latest_suggested_price(session.id, deal.asking_price)
 
         try:
-            # Use centralized LLM client
-            response_content = generate_text(
+            response_content = await asyncio.to_thread(
+                generate_text,
                 prompt_id="negotiation_chat",
                 variables={
                     "make": deal.vehicle_make,
@@ -1240,8 +1243,8 @@ class NegotiationService:
                 break
 
         try:
-            # Use centralized LLM client
-            response_content = generate_text(
+            response_content = await asyncio.to_thread(
+                generate_text,
                 prompt_id="dealer_info_analysis",
                 variables={
                     "make": deal.vehicle_make,

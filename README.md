@@ -48,6 +48,9 @@ AI-powered automotive deal management platform built with Next.js 14 and Python 
 3. **Start all services**
    ```bash
    docker-compose up -d
+
+   stop native Postgres:
+   sudo -u postgres /Library/PostgreSQL/18/bin/pg_ctl stop -D /Library/PostgreSQL/18/data
    ```
 
 4. **Run database migrations**
