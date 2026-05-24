@@ -48,6 +48,9 @@ AI-powered automotive deal management platform built with Next.js 14 and Python 
 3. **Start all services**
    ```bash
    docker-compose up -d
+
+   stop native Postgres:
+   sudo -u postgres /Library/PostgreSQL/18/bin/pg_ctl stop -D /Library/PostgreSQL/18/data
    ```
 
 4. **Run database migrations**
@@ -397,12 +400,34 @@ See [GCP_DEPLOYMENT.md](GCP_DEPLOYMENT.md) for comprehensive deployment guide in
 - Monitoring and logging setup
 - Cost optimization strategies
 
+## 📖 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [PROJECT_GUIDE.md](PROJECT_GUIDE.md) | **Start here** — Complete newcomer guide covering architecture, user flows, services, database design, API catalog, and current implementation status |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture blueprint, module dependency maps, data flows, design patterns, coding conventions, and extension points — designed to be given to AI assistants for context |
+| [ROADMAP.md](ROADMAP.md) | Strategic development plan with phased features, AI-promptable task descriptions, partner ecosystem strategy, and technical debt tracker |
+| [DOCUMENTATION.md](DOCUMENTATION.md) | Detailed technical reference (models, schemas, API examples) |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Production deployment checklist |
+| [GCP_DEPLOYMENT.md](GCP_DEPLOYMENT.md) | GCP Cloud Run deployment guide |
+
 ## 🎯 Roadmap
 
 - [x] User authentication and authorization (JWT-based with HTTP-only cookies)
 - [x] GCP Free Tier deployment support
-- [ ] Advanced AI features (vehicle valuation, market analysis)
-- [ ] Real-time notifications via WebSockets
-- [ ] Mobile application
-- [ ] Advanced analytics dashboard
-- [ ] Integration with third-party automotive APIs
+- [x] AI-powered car search with LLM ranking
+- [x] Deal management with status tracking
+- [x] Lender and insurance recommendations
+- [x] Real-time WebSocket negotiation chat
+- [x] Monitoring stack (Prometheus + Grafana + Alertmanager)
+- [ ] Complete deal evaluation pipeline (Phase 1 — see [ROADMAP.md](ROADMAP.md))
+- [ ] Complete AI negotiation agent (Phase 1)
+- [ ] Deal summary page (Phase 2)
+- [ ] Dynamic partner management (Phase 3)
+- [ ] Partner API integration framework (Phase 3)
+- [ ] Loan pre-approval flow (Phase 3)
+- [ ] Vehicle history integration (Phase 4)
+- [ ] Price prediction engine (Phase 4)
+- [ ] Mobile application (Phase 5)
+
+> See [ROADMAP.md](ROADMAP.md) for the full strategic plan with AI-promptable task descriptions.

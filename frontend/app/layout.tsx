@@ -1,24 +1,19 @@
 import type { Metadata } from "next";
-import { Inter, Roboto_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import ThemeRegistry from "@/lib/theme/ThemeProvider";
-import { StepperProvider } from "@/app/context";
 
-const geistSans = Inter({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
-});
-const geistMono = Roboto_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
+  variable: "--font-inter",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "AutoDealGenie - AI-Powered Automotive Deal Management",
+  title: "AutoDealGenie — AI-Powered Car Buying",
   description:
-    "Streamline your automotive deals with AI technology, real-time analytics, and intelligent automation.",
+    "Search vehicles, evaluate deals with an AI score, and negotiate with an AI coach. No dealer tricks.",
 };
 
 export default function RootLayout({
@@ -27,17 +22,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <ThemeRegistry>
-          <ErrorBoundary>
-            <AuthProvider>
-              <StepperProvider>{children}</StepperProvider>
-            </AuthProvider>
-          </ErrorBoundary>
-        </ThemeRegistry>
+    <html lang="en" className={inter.variable}>
+      <body className="antialiased">
+        <ErrorBoundary>
+          <AuthProvider>{children}</AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

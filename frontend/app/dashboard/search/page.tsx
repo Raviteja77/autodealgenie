@@ -1,678 +1,294 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Box,
-  Container,
-  Grid,
-  Paper,
-  Divider,
-  Collapse,
-  Alert,
-  AlertTitle,
-  IconButton,
-  Typography,
-} from "@mui/material";
-import {
-  Search as SearchIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  Speed as SpeedIcon,
-} from "@mui/icons-material";
-import { Button } from "@/components";
-import { useAuth } from "@/lib/auth";
-import { useStepper } from "@/app/context";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { SearchFormSchema, validateSearchField } from "@/lib/validation/searchFormSchema";
-import { useDebounce } from "@/lib/hooks";
-import { z } from "zod";
-import {
-  PaymentMethodSelector,
-  BudgetRangeSlider,
-  SearchSidebar,
-  BasicVehicleFilters,
-  AdvancedFilters,
-  FinancingOptionsForm,
-} from "@/components";
+import { ArrowRight, AlertTriangle, Sparkles } from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
 
-interface SearchFormData {
-  // Vehicle criteria
+interface SearchForm {
   make: string;
   model: string;
-  yearMin: number;
-  yearMax: number;
-  mileageMax: number;
-  carType: string;
-  bodyType: string;
-  fuelType: string;
-  transmission: string;
-  drivetrain: string;
-  mustHaveFeatures: string[];
-  userPriorities: string;
-  maxResults: number;
-
-  // Financing criteria
-  paymentMethod: "cash" | "finance" | "both";
-  budgetMin: number;
-  budgetMax: number;
-  downPayment?: number;
-  loanTerm?: number;
-  creditScore?: "excellent" | "good" | "fair" | "poor";
-  monthlyPaymentMax?: number;
-  tradeInValue?: number;
+  yearMin: string;
+  yearMax: string;
+  maxMileage: string;
+  condition: string;
+  maxPrice: string;
+  paymentMethod: "cash" | "financing";
+  creditScore: string;
+  downPayment: string;
+  loanTerm: string;
 }
 
-function DashboardSearchPageContent() {
-  const { user } = useAuth();
+export default function SearchPage() {
   const router = useRouter();
-  const { completeStep, setStepData } = useStepper();
-
-  const [searchParams, setSearchParams] = useState<SearchFormData>({
+  const [form, setForm] = useState<SearchForm>({
     make: "",
     model: "",
-    yearMin: 2015,
-    yearMax: 2025,
-    mileageMax: 100000,
-    carType: "",
-    bodyType: "",
-    fuelType: "",
-    transmission: "",
-    drivetrain: "",
-    mustHaveFeatures: [],
-    userPriorities: "",
-    paymentMethod: "cash",
-    budgetMin: 10000,
-    budgetMax: 50000,
-    maxResults: 50,
+    yearMin: "2018",
+    yearMax: "2024",
+    maxMileage: "",
+    condition: "",
+    maxPrice: "",
+    paymentMethod: "financing",
+    creditScore: "good",
+    downPayment: "",
+    loanTerm: "60",
   });
+  const [priceError, setPriceError] = useState(false);
 
-  const [showFinancingOptions, setShowFinancingOptions] = useState(false);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [estimatedPayment, setEstimatedPayment] = useState<number | null>(null);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  
-  // Debounce slider values for performance
-  const debouncedBudget = useDebounce(
-    { min: searchParams.budgetMin, max: searchParams.budgetMax },
-    { delay: 300 }
-  );
-  const debouncedYear = useDebounce(
-    { min: searchParams.yearMin, max: searchParams.yearMax },
-    { delay: 300 }
-  );
+  function set<K extends keyof SearchForm>(key: K, value: SearchForm[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+    if (key === "maxPrice" && value) setPriceError(false);
+  }
 
-  // Validate on debounced value changes
-  useEffect(() => {
-    const result = validateSearchField("budgetMax", debouncedBudget.max, {
-      ...searchParams,
-      budgetMin: debouncedBudget.min,
-      budgetMax: debouncedBudget.max,
-      paymentMethod: searchParams.paymentMethod,
-      downPayment: searchParams.downPayment,
-    });
-    if (!result.success && result.error) {
-      setValidationErrors((prev) => ({ ...prev, budgetMax: result.error! }));
-    } else {
-      setValidationErrors((prev) => {
-        // Remove unused budgetMax variable
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { budgetMax, ...rest } = prev;
-        return rest;
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedBudget, searchParams.paymentMethod, searchParams.downPayment]); // searchParams is intentionally excluded to avoid circular dependencies
-
-  useEffect(() => {
-    const result = validateSearchField("yearMax", debouncedYear.max, {
-      ...searchParams, // Include all existing search params
-      yearMin: debouncedYear.min,
-      yearMax: debouncedYear.max,
-    });
-    if (!result.success && result.error) {
-      setValidationErrors((prev) => ({ ...prev, yearMax: result.error! }));
-    } else {
-      setValidationErrors((prev) => {
-        // Remove unused yearMax variable
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { yearMax, ...rest } = prev;
-        return rest;
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedYear]); // searchParams is intentionally excluded to avoid circular dependencies
-
-  // Validate down payment when budget changes
-  useEffect(() => {
-    if (searchParams.downPayment !== undefined && searchParams.downPayment > 0) {
-      const result = validateSearchField("downPayment", searchParams.downPayment, {
-        budgetMax: searchParams.budgetMax,
-        downPayment: searchParams.downPayment,
-      });
-      if (!result.success && result.error) {
-        setValidationErrors((prev) => ({ ...prev, downPayment: result.error! }));
-      } else {
-        setValidationErrors((prev) => {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { downPayment: _, ...rest } = prev;
-          return rest;
-        });
-      }
-    }
-  }, [searchParams.budgetMax, searchParams.downPayment]);
-
-  // Calculate estimated monthly payment
-  const calculateMonthlyPayment = (
-    price: number,
-    downPayment: number,
-    term: number,
-    creditScore: string
-  ) => {
-    // Validate inputs to prevent division by zero
-    if (term <= 0) {
-      return 0;
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.maxPrice.trim()) {
+      setPriceError(true);
+      return;
     }
 
-    // Interest rates based on credit score
-    const interestRates = {
-      excellent: 0.039, // 3.9%
-      good: 0.059, // 5.9%
-      fair: 0.089, // 8.9%
-      poor: 0.129, // 12.9%
-    };
-
-    const rate =
-      interestRates[creditScore as keyof typeof interestRates] || 0.059;
-    const principal = price - downPayment;
-    const monthlyRate = rate / 12;
-
-    // Handle edge case where monthly rate is 0
-    if (monthlyRate === 0) {
-      return Math.round(principal / term);
+    const params = new URLSearchParams();
+    if (form.make) params.set("make", form.make);
+    if (form.model) params.set("model", form.model);
+    if (form.yearMin) params.set("yearMin", form.yearMin);
+    if (form.yearMax) params.set("yearMax", form.yearMax);
+    if (form.maxMileage) params.set("maxMileage", form.maxMileage.replace(/,/g, ""));
+    if (form.condition) params.set("condition", form.condition);
+    params.set("maxPrice", form.maxPrice.replace(/[$,]/g, ""));
+    params.set("paymentMethod", form.paymentMethod);
+    if (form.paymentMethod === "financing") {
+      params.set("creditScore", form.creditScore);
+      if (form.downPayment) params.set("downPayment", form.downPayment.replace(/[$,]/g, ""));
+      params.set("loanTerm", form.loanTerm);
     }
 
-    const denominator = Math.pow(1 + monthlyRate, term) - 1;
-    
-    // Additional safety check for division by zero
-    if (denominator === 0) {
-      return Math.round(principal / term);
-    }
-
-    const payment =
-      (principal * monthlyRate * Math.pow(1 + monthlyRate, term)) / denominator;
-
-    return Math.round(payment);
-  };
-
-  // Auto-update estimated payment when financing parameters change
-  useEffect(() => {
-    if (
-      searchParams.paymentMethod === "finance" &&
-      searchParams.downPayment !== undefined &&
-      searchParams.loanTerm &&
-      searchParams.creditScore
-    ) {
-      const avgPrice = (searchParams.budgetMin + searchParams.budgetMax) / 2;
-      const payment = calculateMonthlyPayment(
-        avgPrice,
-        searchParams.downPayment,
-        searchParams.loanTerm,
-        searchParams.creditScore
-      );
-      setEstimatedPayment(payment);
-    }
-  }, [
-    searchParams.paymentMethod,
-    searchParams.downPayment,
-    searchParams.loanTerm,
-    searchParams.creditScore,
-    searchParams.budgetMin,
-    searchParams.budgetMax,
-  ]);
-
-  const handleSearch = useCallback(() => {
-    // Validate the form before search
-    try {
-      SearchFormSchema.parse(searchParams);
-      setValidationErrors({});
-
-      // Convert search params to query string
-      const queryParams = new URLSearchParams();
-
-      // Vehicle params
-      Object.entries(searchParams).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "") {
-          queryParams.append(key, value.toString());
-        }
-      });
-
-      // Mark search step as completed and store search params
-      completeStep(0, { searchParams, queryString: queryParams.toString() });
-      setStepData(0, { searchParams, queryString: queryParams.toString() });
-
-      // Navigate to results
-      if (user) {
-        router.push(`/dashboard/results?${queryParams.toString()}`);
-      } else {
-        router.push(`/auth/login`);
-      }
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errors: Record<string, string> = {};
-        error.issues.forEach((issue) => {
-          if (issue.path[0]) {
-            errors[issue.path[0].toString()] = issue.message;
-          }
-        });
-        setValidationErrors(errors);
-      }
-    }
-  }, [searchParams, completeStep, setStepData, router, user]);
-
-  // Data for dropdowns
-  const makes = [
-    "Toyota",
-    "Honda",
-    "Ford",
-    "Chevrolet",
-    "Nissan",
-    "BMW",
-    "Mercedes-Benz",
-    "Volkswagen",
-    "Audi",
-    "Hyundai",
-  ];
-
-  const models: Record<string, string[]> = {
-    toyota: ["Corolla", "Camry", "Rav4", "Tacoma", "Prius"],
-    honda: ["Civic", "Accord", "CR-V", "Pilot", "Odyssey"],
-    ford: ["F-150", "Escape", "Explorer", "Mustang", "Focus"],
-    chevrolet: ["Silverado", "Equinox", "Malibu", "Tahoe", "Camaro"],
-    nissan: ["Altima", "Sentra", "Rogue", "Pathfinder", "Leaf"],
-    bmw: ["3 Series", "5 Series", "X3", "X5", "i3"],
-    mercedes: ["C-Class", "E-Class", "GLC", "GLE", "A-Class"],
-    volkswagen: ["Jetta", "Passat", "Tiguan", "Golf", "Atlas"],
-    audi: ["A3", "A4", "A6", "Q5", "Q7"],
-    hyundai: ["Elantra", "Sonata", "Tucson", "Santa Fe", "Kona"],
-  };
-
-  const carTypes = ["New", "Used", "Certified Pre-Owned"];
-
-  const bodyTypes = [
-    "Sedan",
-    "SUV",
-    "Truck",
-    "Coupe",
-    "Wagon",
-    "Van",
-    "Convertible",
-    "Hatchback",
-  ];
-
-  const fuelTypes = [
-    "Gasoline",
-    "Diesel",
-    "Electric",
-    "Hybrid",
-    "Plug-in Hybrid",
-  ];
-
-  const transmissions = ["Automatic", "Manual", "CVT"];
-
-  const drivetrains = ["FWD", "RWD", "AWD", "4WD"];
-
-  const featureOptions = [
-    "Backup Camera",
-    "Bluetooth",
-    "Navigation",
-    "Sunroof",
-    "Leather Seats",
-    "Heated Seats",
-    "Apple CarPlay",
-    "Android Auto",
-    "Adaptive Cruise Control",
-    "Lane Keep Assist",
-    "Blind Spot Monitor",
-    "Parking Sensors",
-  ];
-
-  // Conditional filter logic: hide year and mileage for new cars
-  const normalizedCarType = (searchParams.carType || "").trim().toLowerCase();
-  const isNewCar = normalizedCarType === "new";
-  const showYearFilter = !isNewCar;
-  const showMileageFilter = !isNewCar;
+    router.push(`/dashboard/results?${params.toString()}`);
+  }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Container maxWidth="lg">
-        {/* Display validation errors at the top */}
-        {Object.keys(validationErrors).length > 0 && (
-          <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
-            <AlertTitle>Please fix the following errors:</AlertTitle>
-            <ul style={{ margin: 0, paddingLeft: 20 }}>
-              {Object.entries(validationErrors).map(([field, error]) => (
-                <li key={field}>
-                  <strong>{field}:</strong> {error}
-                </li>
-              ))}
-            </ul>
-          </Alert>
-        )}
+    <AppShell>
+      <div className="max-w-[760px] mx-auto">
+        {/* Header */}
+        <div className="mb-7">
+          <h1 className="text-[28px] font-bold text-navy-900 tracking-tight">
+            What kind of car are you looking for?
+          </h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-slate-500">
+            We&apos;ll score every matching listing and surface the best deals first. You can refine later.
+          </p>
+        </div>
 
-        <Grid container spacing={4} sx={{ mt: 1 }}>
-          {/* Main Search Form */}
-          <Grid item xs={12} md={9}>
-            <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
-              <Grid container spacing={3}>
-                {/* Payment Method Selection */}
-                <Grid item xs={12}>
-                  <PaymentMethodSelector
-                    value={searchParams.paymentMethod}
-                    onChange={(value) => {
-                      setSearchParams({
-                        ...searchParams,
-                        paymentMethod: value,
-                      });
-                      setShowFinancingOptions(value !== "cash");
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Divider />
-                </Grid>
-
-                {/* Budget Section */}
-                <Grid item xs={12}>
-                  <BudgetRangeSlider
-                    min={searchParams.budgetMin}
-                    max={searchParams.budgetMax}
-                    onChange={(min, max) => {
-                      setSearchParams((prev) => ({
-                        ...prev,
-                        budgetMin: min,
-                        budgetMax: max,
-                      }));
-                    }}
-                    paymentMethod={searchParams.paymentMethod}
-                    error={validationErrors.budgetMax}
-                  />
-                </Grid>
-
-                {/* Financing Options */}
-                <Grid item xs={12}>
-                  <Collapse in={showFinancingOptions}>
-                    <FinancingOptionsForm
-                      downPayment={searchParams.downPayment}
-                      tradeInValue={searchParams.tradeInValue}
-                      loanTerm={searchParams.loanTerm}
-                      creditScore={searchParams.creditScore}
-                      monthlyPaymentMax={searchParams.monthlyPaymentMax}
-                      estimatedPayment={estimatedPayment}
-                      onDownPaymentChange={(value) => {
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          downPayment: value,
-                        }));
-                        // Validate down payment
-                        const result = validateSearchField(
-                          "downPayment",
-                          value,
-                          { ...searchParams, downPayment: value }
-                        );
-                        if (!result.success && result.error) {
-                          setValidationErrors((prev) => ({
-                            ...prev,
-                            downPayment: result.error!,
-                          }));
-                        } else {
-                          setValidationErrors((prev) => {
-                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                            const { downPayment: _, ...rest } = prev;
-                            return rest;
-                          });
-                        }
-                      }}
-                      onTradeInValueChange={(value) =>
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          tradeInValue: value,
-                        }))
-                      }
-                      onLoanTermChange={(value) =>
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          loanTerm: value,
-                        }))
-                      }
-                      onCreditScoreChange={(value) =>
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          creditScore: value,
-                        }))
-                      }
-                      onMonthlyPaymentMaxChange={(value) =>
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          monthlyPaymentMax: value,
-                        }))
-                      }
-                      downPaymentError={validationErrors.downPayment}
-                    />
-                  </Collapse>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Divider />
-                </Grid>
-
-                {/* Basic Vehicle Filters */}
-                <BasicVehicleFilters
-                  make={searchParams.make}
-                  model={searchParams.model}
-                  carType={searchParams.carType}
-                  bodyType={searchParams.bodyType}
-                  maxResults={searchParams.maxResults}
-                  onMaxResultsChange={(value) =>
-                    setSearchParams((prev) => ({ ...prev, maxResults: value }))
-                  }
-                  onMakeChange={(value) =>
-                    setSearchParams((prev) => ({
-                      ...prev,
-                      make: value,
-                      model: "", // Reset model when make changes
-                    }))
-                  }
-                  onModelChange={(value) =>
-                    setSearchParams((prev) => ({ ...prev, model: value }))
-                  }
-                  onCarTypeChange={(value) =>
-                    setSearchParams((prev) => {
-                      if (value.toLowerCase() === "new") {
-                        // Reset year and mileage for new cars
-                        return { ...prev, carType: value, yearMin: 2025, yearMax: 2025, mileageMax: 0 };
-                      } 
-                      return { ...prev, carType: value }})
-                  }
-                  onBodyTypeChange={(value) =>
-                    setSearchParams((prev) => ({ ...prev, bodyType: value }))
-                  }
-                  makes={makes}
-                  models={models}
-                  carTypes={carTypes}
-                  bodyTypes={bodyTypes}
+        <form onSubmit={handleSubmit}>
+          <div className="bg-white border border-slate-200 rounded-xl p-7">
+            {/* Vehicle section */}
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Vehicle</div>
+            <div className="grid grid-cols-2 gap-3.5 mt-3">
+              <Field label="Make">
+                <select
+                  className={selectCls}
+                  value={form.make}
+                  onChange={(e) => set("make", e.target.value)}
+                >
+                  <option value="">Any make</option>
+                  <option value="Honda">Honda</option>
+                  <option value="Toyota">Toyota</option>
+                  <option value="Mazda">Mazda</option>
+                  <option value="Subaru">Subaru</option>
+                  <option value="Hyundai">Hyundai</option>
+                  <option value="Ford">Ford</option>
+                  <option value="Chevrolet">Chevrolet</option>
+                  <option value="BMW">BMW</option>
+                  <option value="Mercedes-Benz">Mercedes-Benz</option>
+                  <option value="Volkswagen">Volkswagen</option>
+                  <option value="Kia">Kia</option>
+                  <option value="Nissan">Nissan</option>
+                </select>
+              </Field>
+              <Field label="Model">
+                <input
+                  className={inputCls}
+                  placeholder="e.g. Civic, Corolla"
+                  value={form.model}
+                  onChange={(e) => set("model", e.target.value)}
                 />
+              </Field>
+              <Field label="Year (min)">
+                <select
+                  className={selectCls}
+                  value={form.yearMin}
+                  onChange={(e) => set("yearMin", e.target.value)}
+                >
+                  {[2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022].map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Year (max)">
+                <select
+                  className={selectCls}
+                  value={form.yearMax}
+                  onChange={(e) => set("yearMax", e.target.value)}
+                >
+                  {[2024, 2023, 2022, 2021, 2020, 2019].map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Max mileage">
+                <input
+                  className={inputCls}
+                  placeholder="e.g. 60,000"
+                  value={form.maxMileage}
+                  onChange={(e) => set("maxMileage", e.target.value)}
+                />
+              </Field>
+              <Field label="Condition">
+                <select
+                  className={selectCls}
+                  value={form.condition}
+                  onChange={(e) => set("condition", e.target.value)}
+                >
+                  <option value="">Any</option>
+                  <option value="Excellent">Excellent</option>
+                  <option value="Good">Good</option>
+                  <option value="Fair">Fair</option>
+                </select>
+              </Field>
+            </div>
 
-                {/* Advanced Filters - Collapsible Section */}
-                <Grid item xs={12}>
-                  <Box
-                    component="button"
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      cursor: "pointer",
-                      mt: 2,
-                      width: "100%",
-                      border: "none",
-                      background: "none",
-                      padding: 0,
-                      textAlign: "left",
-                    }}
-                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setShowAdvancedFilters(!showAdvancedFilters);
-                      }
-                    }}
-                    aria-expanded={showAdvancedFilters}
-                    aria-controls="advanced-filters-section"
+            {/* Budget section */}
+            <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 mt-7">Budget</div>
+            <div className="grid grid-cols-2 gap-3.5 mt-3">
+              <Field label="Max price">
+                <input
+                  className={`${inputCls} ${priceError ? "border-red-600 focus:ring-red-600/20 focus:border-red-600" : ""}`}
+                  placeholder="$22,000"
+                  value={form.maxPrice}
+                  onChange={(e) => set("maxPrice", e.target.value)}
+                />
+                {priceError && (
+                  <div className="flex items-center gap-1.5 text-xs text-red-600 font-medium mt-1">
+                    <AlertTriangle size={12} /> Enter a max price to continue.
+                  </div>
+                )}
+              </Field>
+              <Field label="Payment method">
+                <div className="flex gap-2">
+                  <PillButton
+                    active={form.paymentMethod === "cash"}
+                    onClick={() => set("paymentMethod", "cash")}
                   >
-                    <Typography
-                      variant="h6"
-                      sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1 }}
-                    >
-                      <SpeedIcon color="primary" />
-                      Advanced Filters
-                    </Typography>
-                    <IconButton 
-                      aria-label="Toggle advanced filters"
-                      aria-expanded={showAdvancedFilters}
-                      component="span"
-                      tabIndex={-1}
-                    >
-                      {showAdvancedFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    </IconButton>
-                  </Box>
-                </Grid>
+                    Cash
+                  </PillButton>
+                  <PillButton
+                    active={form.paymentMethod === "financing"}
+                    onClick={() => set("paymentMethod", "financing")}
+                  >
+                    Financing
+                  </PillButton>
+                </div>
+              </Field>
+            </div>
 
-                <Grid item xs={12}>
-                  <Collapse in={showAdvancedFilters}>
-                    <AdvancedFilters
-                      yearMin={searchParams.yearMin}
-                      yearMax={searchParams.yearMax}
-                      mileageMax={searchParams.mileageMax}
-                      fuelType={searchParams.fuelType}
-                      transmission={searchParams.transmission}
-                      drivetrain={searchParams.drivetrain}
-                      mustHaveFeatures={searchParams.mustHaveFeatures}
-                      userPriorities={searchParams.userPriorities}
-                      showYearFilter={showYearFilter}
-                      showMileageFilter={showMileageFilter}
-                      onYearChange={(min, max) =>
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          yearMin: min,
-                          yearMax: max,
-                        }))
-                      }
-                      onMileageChange={(value) =>
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          mileageMax: value,
-                        }))
-                      }
-                      onFuelTypeChange={(value) =>
-                        setSearchParams((prev) => ({ ...prev, fuelType: value }))
-                      }
-                      onTransmissionChange={(value) =>
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          transmission: value,
-                        }))
-                      }
-                      onDrivetrainChange={(value) =>
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          drivetrain: value,
-                        }))
-                      }
-                      onMustHaveFeaturesChange={(value) =>
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          mustHaveFeatures: value,
-                        }))
-                      }
-                      onUserPrioritiesChange={(value) =>
-                        setSearchParams((prev) => ({
-                          ...prev,
-                          userPriorities: value,
-                        }))
-                      }
-                      yearError={validationErrors.yearMax}
-                      fuelTypes={fuelTypes}
-                      transmissions={transmissions}
-                      drivetrains={drivetrains}
-                      featureOptions={featureOptions}
+            {/* Financing section */}
+            {form.paymentMethod === "financing" && (
+              <>
+                <div className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 mt-7">Financing</div>
+                <div className="grid grid-cols-3 gap-3.5 mt-3">
+                  <Field label="Credit score">
+                    <select
+                      className={selectCls}
+                      value={form.creditScore}
+                      onChange={(e) => set("creditScore", e.target.value)}
+                    >
+                      <option value="excellent">Excellent (740+)</option>
+                      <option value="good">Good (670–739)</option>
+                      <option value="fair">Fair (580–669)</option>
+                    </select>
+                  </Field>
+                  <Field label="Down payment">
+                    <input
+                      className={inputCls}
+                      placeholder="$3,500"
+                      value={form.downPayment}
+                      onChange={(e) => set("downPayment", e.target.value)}
                     />
-                  </Collapse>
-                </Grid>
-
-                {/* Search Button */}
-                <Grid item xs={12}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 2,
-                      justifyContent: "flex-end",
-                      mt: 3,
-                    }}
-                  >
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        setSearchParams({
-                          make: "",
-                          model: "",
-                          yearMin: 2015,
-                          yearMax: 2025,
-                          mileageMax: 100000,
-                          carType: "",
-                          bodyType: "",
-                          fuelType: "",
-                          transmission: "",
-                          drivetrain: "",
-                          mustHaveFeatures: [],
-                          userPriorities: "",
-                          paymentMethod: "cash",
-                          budgetMin: 10000,
-                          budgetMax: 50000,
-                          maxResults: 50,
-                        })
-                      }
+                  </Field>
+                  <Field label="Preferred term">
+                    <select
+                      className={selectCls}
+                      value={form.loanTerm}
+                      onChange={(e) => set("loanTerm", e.target.value)}
                     >
-                      Reset
-                    </Button>
-                    <Button
-                      variant="success"
-                      size="lg"
-                      leftIcon={<SearchIcon />}
-                      onClick={handleSearch}
-                    >
-                      Search Cars
-                    </Button>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Paper>
-          </Grid>
+                      <option value="48">48 months</option>
+                      <option value="60">60 months</option>
+                      <option value="72">72 months</option>
+                    </select>
+                  </Field>
+                </div>
+              </>
+            )}
 
-          {/* Sidebar */}
-          <Grid item xs={12} md={3}>
-            <SearchSidebar />
-          </Grid>
-        </Grid>
-      </Container>
-    </Box>
+            {/* Actions */}
+            <div className="mt-8 pt-5 border-t border-slate-200 flex justify-end">
+              <button
+                type="submit"
+                className="h-[46px] px-6 rounded-lg bg-blue-600 text-white font-semibold text-[15px] hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                Find my car <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        </form>
+
+        {/* Tip */}
+        <div className="mt-5 p-4 bg-blue-50 rounded-xl flex gap-3 items-start">
+          <Sparkles size={18} className="text-blue-700 mt-0.5 shrink-0" />
+          <div className="text-[13px] leading-relaxed text-slate-700">
+            <strong className="text-blue-700">Tip:</strong> the broader your search, the more comparisons we can run. You can save a search and return any time.
+          </div>
+        </div>
+      </div>
+    </AppShell>
   );
 }
 
-// Wrap with ErrorBoundary for graceful error handling
-export default function DashboardSearchPage() {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <ErrorBoundary>
-      <DashboardSearchPageContent />
-    </ErrorBoundary>
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[13px] font-medium text-navy-900">{label}</label>
+      {children}
+    </div>
   );
 }
+
+function PillButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 h-10 rounded-lg border text-[13px] font-semibold transition-all ${
+        active
+          ? "border-blue-600 bg-blue-50 text-blue-700"
+          : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+const inputCls =
+  "h-10 px-3 border border-slate-300 rounded-lg text-sm text-navy-900 bg-white placeholder:text-slate-400 w-full focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all";
+
+const selectCls =
+  "h-10 px-3 pr-8 border border-slate-300 rounded-lg text-sm text-navy-900 bg-white w-full focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all appearance-none";

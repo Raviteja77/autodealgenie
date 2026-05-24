@@ -3,6 +3,7 @@ Deal Evaluation Service
 Provides fair market value analysis and negotiation insights for vehicle deals
 """
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -193,8 +194,11 @@ class DealEvaluationService:
                 f"Year: {year or 'Unknown'}, Condition: {condition}"
             )
 
-            # Use centralized LLM client with the evaluation prompt
-            evaluation = await generate_structured_json(
+            # Use centralized LLM client with the evaluation prompt.
+            # generate_structured_json is sync (blocking OpenAI SDK); run in thread
+            # to avoid blocking the asyncio event loop.
+            evaluation = await asyncio.to_thread(
+                generate_structured_json,
                 prompt_id="evaluation",
                 variables={
                     "vin": vehicle_vin,
@@ -469,7 +473,8 @@ class DealEvaluationService:
         # Use LLM to evaluate condition
         if llm_client.is_available():
             try:
-                assessment_result = generate_structured_json(
+                assessment_result = await asyncio.to_thread(
+                    generate_structured_json,
                     prompt_id="vehicle_condition",
                     variables={
                         "make": deal.vehicle_make or "Unknown",

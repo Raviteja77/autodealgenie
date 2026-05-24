@@ -1,1007 +1,421 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo, useCallback, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import Box from "@mui/material/Box";
-import Container from "@mui/material/Container";
-import Typography from "@mui/material/Typography";
-import Grid from "@mui/material/Grid";
-import { Button, Card, Spinner } from "@/components";
-import Chip from "@mui/material/Chip";
-import Checkbox from "@mui/material/Checkbox";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
-import LocalGasStationIcon from "@mui/icons-material/LocalGasStation";
-import SpeedIcon from "@mui/icons-material/Speed";
-import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
-import FavoriteIcon from "@mui/icons-material/Favorite";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-import FilterListIcon from "@mui/icons-material/FilterList";
-import BookmarkAddIcon from "@mui/icons-material/BookmarkAdd";
-import IconButton from "@mui/material/IconButton";
-import Link from "next/link";
-import Divider from "@mui/material/Divider";
-import Stack from "@mui/material/Stack";
-import Alert from "@mui/material/Alert";
-import {
-  apiClient,
-  VehicleRecommendation,
-  CarSearchRequest,
-  FavoriteCreate,
-  SavedSearchCreate,
-} from "@/lib/api";
-import { useStepper } from "@/app/context";
-import {
-  FilterPanel,
-  ComparisonBar,
-  ComparisonModal,
-  LenderRecommendations,
-  SortDropdown,
-  ViewModeToggle,
-  SaveSearchModal,
-  SavedSearchesDropdown,
-} from "@/components";
-import type { SortOption } from "@/components";
-import { useComparison, ComparisonVehicle } from "@/lib/hooks/useComparison";
-import { useViewMode } from "@/lib/hooks/useViewMode";
-import { useSavedSearches } from "@/lib/hooks/useSavedSearches";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Heart, Search, AlertTriangle } from "lucide-react";
+import { ScoreBadge } from "@/components/ui/ScoreBadge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { AppShell } from "@/components/layout/AppShell";
+import { apiClient, type VehicleRecommendation } from "@/lib/api";
+import { MOCK_SEARCH_RESPONSE } from "@/lib/mock/mockData";
+import { flowState } from "@/lib/flowState";
 
-interface Vehicle {
-  vin?: string;
-  make: string;
-  model: string;
-  year: number;
-  price: number;
-  mileage: number;
-  fuelType?: string;
-  location?: string;
-  color?: string;
-  condition?: string;
-  image?: string;
-  highlights?: string[];
-  recommendation_score?: number | null;
-  recommendation_summary?: string | null;
-  dealer_name?: string | null;
-  vdp_url?: string | null;
+const IS_DEMO = process.env.NEXT_PUBLIC_USE_MOCK === "true";
+
+type SortKey = "score" | "price_asc" | "price_desc" | "days";
+
+function sortVehicles(vehicles: VehicleRecommendation[], sort: SortKey) {
+  return [...vehicles].sort((a, b) => {
+    if (sort === "score") return (b.recommendation_score ?? 0) - (a.recommendation_score ?? 0);
+    if (sort === "price_asc") return (a.price ?? 0) - (b.price ?? 0);
+    if (sort === "price_desc") return (b.price ?? 0) - (a.price ?? 0);
+    if (sort === "days") return (a.days_on_market ?? 999) - (b.days_on_market ?? 999);
+    return 0;
+  });
 }
 
 function ResultsContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const {
-    completeStep,
-    setStepData,
-    getStepData,
-    canNavigateToStep,
-    isStepCompleted,
-  } = useStepper();
-
-  const hasFetchedRef = useRef(false);
-  const currentQueryRef = useRef<string>("");
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
+  const params = useSearchParams();
+  const [vehicles, setVehicles] = useState<VehicleRecommendation[]>([]);
+  const [totalFound, setTotalFound] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  const [compare, setCompare] = useState<Record<string, boolean>>({});
+  const [sort, setSort] = useState<SortKey>("score");
 
-  // New state for enhanced features
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('score_high');
-  const [isSaveSearchModalOpen, setIsSaveSearchModalOpen] = useState(false);
-  const [showLenderSection, setShowLenderSection] = useState(false);
-  
-  // Custom hooks
-  const comparison = useComparison();
-  const { viewMode, setViewMode } = useViewMode('grid');
-  const savedSearches = useSavedSearches();
-
-  // Memoize query string for caching
-  const currentQueryString = useMemo(
-    () => searchParams.toString(),
-    [searchParams]
-  );
-
-  // Extract financing data from search params
-  const loanAmount = useMemo(() => {
-    const budgetMax = searchParams.get("budgetMax");
-    const downPayment = searchParams.get("downPayment");
-    if (budgetMax) {
-      const budget = parseFloat(budgetMax);
-      const down = downPayment ? parseFloat(downPayment) : 0;
-      return budget - down;
-    }
-    return 0;
-  }, [searchParams]);
-
-  const creditScore = useMemo(() => {
-    return (searchParams.get("creditScore") || "good") as "excellent" | "good" | "fair" | "poor";
-  }, [searchParams]);
-
-  const loanTerm = useMemo(() => {
-    const term = searchParams.get("loanTerm");
-    return term ? parseInt(term) : 60;
-  }, [searchParams]);
-
-  const paymentMethod = useMemo(() => {
-    return searchParams.get("paymentMethod") || "cash";
-  }, [searchParams]);
-
-  // Show lender section if user is financing
-  useEffect(() => {
-    setShowLenderSection(paymentMethod === "finance" && loanAmount > 0);
-  }, [paymentMethod, loanAmount]);
-
-  /**
-   * Check if we should use cached data instead of making a new API call
-   */
-  const shouldUseCachedData = useCallback(() => {
-    const cachedData = getStepData<{
-      queryString: string;
-      vehicles: Vehicle[];
-      message: string | null;
-    }>(1);
-    return (
-      cachedData &&
-      cachedData.queryString === currentQueryString &&
-      isStepCompleted(1)
-    );
-  }, [getStepData, currentQueryString, isStepCompleted]);
+  const make = params.get("make") ?? "";
+  const model = params.get("model") ?? "";
+  const yearMin = params.get("yearMin");
+  const yearMax = params.get("yearMax");
+  const maxMileage = params.get("maxMileage");
+  const maxPrice = params.get("maxPrice");
+  const condition = params.get("condition");
 
   useEffect(() => {
-    // Prevent duplicate calls for the same query
-    if (hasFetchedRef.current && currentQueryRef.current === currentQueryString) {
-      return;
-    }
-
-    // Check if user can access this step
-    if (!canNavigateToStep(1)) {
-      router.push("/dashboard/search");
-      return;
-    }
-
-    const fetchData = async () => {
-      // Mark as fetching to prevent duplicate calls
-      hasFetchedRef.current = true;
-      currentQueryRef.current = currentQueryString;
-
+    async function load() {
+      setLoading(true);
+      setError(null);
       try {
-        // Check cache first
-        if(shouldUseCachedData()) {
-          const cachedData = getStepData<{
-            queryString: string;
-            vehicles: Vehicle[];
-            message: string | null;
-          }>(1);
-  
-          if (
-            cachedData &&
-            cachedData.queryString === currentQueryString &&
-            isStepCompleted(1)
-          ) {
-            // Use cached data
-            setVehicles(cachedData.vehicles);
-            setIsLoading(false);
-            
-            // Fetch favorites in background (non-blocking)
-            fetchFavorites();
-            return;
-          }
-        }
-
-        setIsLoading(true);
-        setError(null);
-
-        // Parallel API calls with Promise.allSettled (won't fail if one fails)
-        const [vehiclesResult, favoritesResult] = await Promise.allSettled([
-          fetchVehiclesData(),
-          fetchFavorites(),
-        ]);
-
-        // Handle vehicles result
-        if (vehiclesResult.status === "fulfilled") {
-          const { vehicles: fetchedVehicles, message } = vehiclesResult.value;
-          setVehicles(fetchedVehicles);
-
-          // Cache the results
-          completeStep(1, {
-            queryString: currentQueryString,
-            vehicles: fetchedVehicles,
-            message: message || null,
-          });
+        if (IS_DEMO) {
+          await new Promise((r) => setTimeout(r, 800)); // simulate network
+          setVehicles(MOCK_SEARCH_RESPONSE.top_vehicles);
+          setTotalFound(MOCK_SEARCH_RESPONSE.total_found);
         } else {
-          const errorMessage =
-            vehiclesResult.reason instanceof Error
-              ? vehiclesResult.reason.message
-              : "Failed to load vehicles. Please try again.";
-          setError(errorMessage);
-        }
-
-        // Handle favorites result (non-critical, don't show error)
-        if (favoritesResult.status === "fulfilled") {
-          setFavorites(favoritesResult.value);
+          const res = await apiClient.searchCars({
+            make: make || undefined,
+            model: model || undefined,
+            year_min: yearMin ? parseInt(yearMin) : undefined,
+            year_max: yearMax ? parseInt(yearMax) : undefined,
+            mileage_max: maxMileage ? parseInt(maxMileage) : undefined,
+            budget_max: maxPrice ? parseInt(maxPrice) : undefined,
+            user_priorities: condition || undefined,
+          });
+          setVehicles(res.top_vehicles);
+          setTotalFound(res.total_found);
         }
       } catch (err) {
-        console.error("Error fetching data:", err);
-        const errorMessage =
+        setError(
           err instanceof Error
             ? err.message
-            : "Failed to load data. Please try again.";
-        setError(errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentQueryString]); // Other dependencies are stable or intentionally excluded
-
-  const fetchVehiclesData = async (): Promise<{
-    vehicles: Vehicle[];
-    message: string | null;
-  }> => {
-    console.log("Fetching vehicles from API with params:", searchParams.toString());
-    const searchRequest: CarSearchRequest = {};
-
-    // Build search request from URL params
-    if (searchParams.get("make")) {
-      searchRequest.make = searchParams.get("make")!;
-    }
-    if (searchParams.get("model")) {
-      searchRequest.model = searchParams.get("model")!;
-    }
-    if (searchParams.get("budgetMin")) {
-      searchRequest.budget_min = parseInt(searchParams.get("budgetMin")!);
-    }
-    if (searchParams.get("budgetMax")) {
-      searchRequest.budget_max = parseInt(searchParams.get("budgetMax")!);
-    }
-    if (searchParams.get("carType")) {
-      searchRequest.car_type = searchParams.get("carType")!;
-    }
-    if (searchParams.get("yearMin")) {
-      searchRequest.year_min = parseInt(searchParams.get("yearMin")!);
-    }
-    if (searchParams.get("yearMax")) {
-      searchRequest.year_max = parseInt(searchParams.get("yearMax")!);
-    }
-    if (searchParams.get("mileageMax")) {
-      searchRequest.mileage_max = parseInt(searchParams.get("mileageMax")!);
-    }
-    if (searchParams.get("userPriorities")) {
-      searchRequest.user_priorities = searchParams.get("userPriorities")!;
-    }
-
-    const response = await apiClient.searchCars(searchRequest);
-
-    const transformedVehicles: Vehicle[] = response.top_vehicles.map(
-      (v: VehicleRecommendation) => ({
-        vin: v.vin || undefined,
-        make: v.make || "Unknown",
-        model: v.model || "Unknown",
-        year: v.year || new Date().getFullYear(),
-        price: v.price || 0,
-        mileage: v.mileage || 0,
-        fuelType: v.fuel_type || "Unknown",
-        location: v.location || "Unknown",
-        color: v.exterior_color || "Unknown",
-        condition: v.inventory_type || "Used",
-        image:
-          v.photo_links && v.photo_links.length > 0
-            ? v.photo_links[0]
-            : `/api/placeholder/400/300?text=${encodeURIComponent(
-                (v.make || "") + " " + (v.model || "")
-              )}`,
-        highlights: v.highlights || [],
-        recommendation_score: v.recommendation_score,
-        recommendation_summary: v.recommendation_summary,
-        dealer_name: v.dealer_name,
-        vdp_url: v.vdp_url,
-      })
-    );
-
-    return {
-      vehicles: transformedVehicles,
-      message: response.message || null,
-    };
-  };
-
-  const fetchFavorites = async (): Promise<Set<string>> => {
-    console.log("Fetching favorites from API");
-    try {
-      const favoritesData = await apiClient.getFavorites();
-      const favoriteVins = new Set(favoritesData.map((fav) => fav.vin));
-      setFavorites(favoriteVins);
-      return favoriteVins;
-    } catch (err) {
-      console.error("Error fetching favorites:", err);
-      // Non-critical error, return empty set
-      return new Set();
-    }
-  };
-
-
-  const handleVehicleSelection = (vehicle: Vehicle, targetPath: string) => {
-    // Store the selected vehicle data for use in subsequent steps
-    const existingData = getStepData(1) || {};
-    setStepData(1, {
-      ...existingData,
-      selectedVehicle: vehicle,
-    });
-
-    // Navigate to the target page
-    const vehicleParams = new URLSearchParams({
-      vin: vehicle.vin || "",
-      make: vehicle.make,
-      model: vehicle.model,
-      year: vehicle.year.toString(),
-      price: vehicle.price.toString(),
-      mileage: vehicle.mileage.toString(),
-      fuelType: vehicle.fuelType || "",
-    });
-    router.push(`${targetPath}?${vehicleParams.toString()}`);
-  };
-
-  const toggleFavorite = async (vehicle: Vehicle) => {
-    if (!vehicle.vin) return;
-
-    const vin = vehicle.vin;
-    const isFavorited = favorites.has(vin);
-
-    // Optimistic UI update
-    const newFavorites = new Set(favorites);
-    if (isFavorited) {
-      newFavorites.delete(vin);
-    } else {
-      newFavorites.add(vin);
-    }
-    setFavorites(newFavorites);
-
-    try {
-      if (isFavorited) {
-        // Remove from favorites
-        await apiClient.removeFavorite(vin);
-      } else {
-        // Add to favorites
-        const favoriteData: FavoriteCreate = {
-          vin: vin,
-          make: vehicle.make,
-          model: vehicle.model,
-          year: vehicle.year,
-          price: vehicle.price,
-          mileage: vehicle.mileage,
-          fuel_type: vehicle.fuelType || null,
-          location: vehicle.location || null,
-          color: vehicle.color || null,
-          condition: vehicle.condition || null,
-          image: vehicle.image || null,
-        };
-        await apiClient.addFavorite(favoriteData);
-      }
-    } catch (err: unknown) {
-      console.error("Error toggling favorite:", err);
-      // Revert optimistic update on error
-      setFavorites(favorites);
-      // Optionally show an error message to the user
-    }
-  };
-
-  // Handler for toggling vehicle comparison
-  const handleToggleComparison = (vehicle: Vehicle) => {
-    if (!vehicle.vin) return;
-
-    const comparisonVehicle: ComparisonVehicle = {
-      vin: vehicle.vin,
-      make: vehicle.make,
-      model: vehicle.model,
-      year: vehicle.year,
-      price: vehicle.price,
-      mileage: vehicle.mileage,
-      fuelType: vehicle.fuelType,
-      condition: vehicle.condition,
-      image: vehicle.image,
-      highlights: vehicle.highlights,
-      recommendation_score: vehicle.recommendation_score,
-    };
-
-    comparison.toggleVehicle(comparisonVehicle);
-  };
-
-  // Handler for saving search
-  const handleSaveSearch = async (search: SavedSearchCreate) => {
-    try {
-      await savedSearches.createSearch(search);
-    } catch (err: unknown) {
-      console.error("Error saving search:", err);
-      throw err;
-    }
-  };
-
-  // Handler for deleting saved search
-  const handleDeleteSavedSearch = async (searchId: number) => {
-    try {
-      await savedSearches.deleteSearch(searchId);
-    } catch (err: unknown) {
-      console.error("Error deleting saved search:", err);
-    }
-  };
-
-  // Get current search criteria for save modal
-  const getCurrentSearchCriteria = (): Partial<SavedSearchCreate> => {
-    return {
-      make: searchParams.get('make') || undefined,
-      model: searchParams.get('model') || undefined,
-      budget_min: searchParams.get('budgetMin') ? Number(searchParams.get('budgetMin')) : undefined,
-      budget_max: searchParams.get('budgetMax') ? Number(searchParams.get('budgetMax')) : undefined,
-      car_type: searchParams.get('carType') || undefined,
-      year_min: searchParams.get('yearMin') ? Number(searchParams.get('yearMin')) : undefined,
-      year_max: searchParams.get('yearMax') ? Number(searchParams.get('yearMax')) : undefined,
-      mileage_max: searchParams.get('mileageMax') ? Number(searchParams.get('mileageMax')) : undefined,
-      fuel_type: searchParams.get('fuelType') || undefined,
-      transmission: searchParams.get('transmission') || undefined,
-      user_priorities: searchParams.get('userPriorities') || undefined,
-    };
-  };
-
-  // Sort and filter vehicles
-  const sortedAndFilteredVehicles = useMemo(() => {
-    const filtered = [...vehicles];
-
-    // Apply sorting
-    switch (sortBy) {
-      case 'price_low':
-        filtered.sort((a, b) => a.price - b.price);
-        break;
-      case 'price_high':
-        filtered.sort((a, b) => b.price - a.price);
-        break;
-      case 'mileage_low':
-        filtered.sort((a, b) => a.mileage - b.mileage);
-        break;
-      case 'year_new':
-        filtered.sort((a, b) => b.year - a.year);
-        break;
-      case 'score_high':
-        filtered.sort((a, b) => 
-          (b.recommendation_score || 0) - (a.recommendation_score || 0)
+            : "Search is temporarily unavailable. Please try again."
         );
-        break;
-      case 'recently_added':
-        // Keep original order (assuming it's by recent)
-        break;
+      } finally {
+        setLoading(false);
+      }
     }
+    load();
+  }, [make, model, yearMin, yearMax, maxMileage, maxPrice, condition]);
 
-    return filtered;
-  }, [vehicles, sortBy]);
+  const sorted = sortVehicles(vehicles, sort);
+  const compareCount = Object.values(compare).filter(Boolean).length;
 
-  if (isLoading) {
-    return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          bgcolor: "background.default",
-        }}
-      >
-        <Spinner size="lg" text="Finding the best deals for you..." />
-      </Box>
-    );
-  }
+  const headerRight = (
+    <select
+      className={selCls}
+      value={sort}
+      onChange={(e) => setSort(e.target.value as SortKey)}
+      style={{ width: 170 }}
+    >
+      <option value="score">Sort: Best match</option>
+      <option value="price_asc">Price: low → high</option>
+      <option value="price_desc">Price: high → low</option>
+      <option value="days">Newest listing</option>
+    </select>
+  );
 
-  if (error) {
-    return (
-      <Box
-        sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
-      >
-        <Box sx={{ pt: 10, pb: 4, bgcolor: "background.default", flexGrow: 1 }}>
-          <Container maxWidth="lg">
-            <Alert severity="error" sx={{ mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Error Loading Vehicles
-              </Typography>
-              <Typography variant="body2">{error}</Typography>
-            </Alert>
-            <Box sx={{ textAlign: "center" }}>
-              <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
-                <Button variant="success">Back to Search</Button>
-              </Link>
-            </Box>
-          </Container>
-        </Box>
-      </Box>
-    );
-  }
+  const searchLabel = [
+    make || "Any make",
+    model,
+    yearMin && yearMax ? `${yearMin}–${yearMax}` : null,
+    maxPrice ? `under $${parseInt(maxPrice).toLocaleString()}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Box sx={{ bgcolor: "background.default", flexGrow: 1 }}>
-        <Container maxWidth="lg">
-          {/* Header */}
-          {/* <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
-            <Box>
-            <Typography variant="h3" gutterBottom fontWeight={700}>
-              Search Results
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Found {vehicles.length} vehicles matching your criteria
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Link href="/favorites" style={{ textDecoration: "none" }}>
-              <Button variant="primary" leftIcon={<FavoriteIcon />}>
-                View Favorites
-              </Button>
-            </Link>
-            <Link href="/dashboard/search" style={{ textDecoration: "none" }}>
-              <Button variant="outline">Refine Search</Button>
-            </Link>
-          </Box>
-        </Box> */}
-
-          {/* AI Message */}
-          {/* {searchMessage && (
-            <Alert severity="info" sx={{ mb: 3 }}>
-              {searchMessage}
-            </Alert>
-          )} */}
-
-          {/* Toolbar with controls */}
-          <Card shadow="sm" sx={{ mb: 3, mt: 3 }}>
-            <Card.Body>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: 2,
-                }}
+    <AppShell headerRight={headerRight}>
+      <div className="grid grid-cols-[260px_1fr] gap-6">
+        {/* Filter sidebar */}
+        <aside className="self-start sticky top-[84px]">
+          <div className="bg-white border border-slate-200 rounded-xl p-5">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-semibold text-navy-900">Filters</h3>
+              <button
+                onClick={() => router.push("/dashboard/search")}
+                className="text-xs font-semibold text-blue-700 hover:opacity-80"
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    leftIcon={<FilterListIcon />}
-                    onClick={() => setIsFilterPanelOpen(true)}
-                  >
-                    Filters
-                  </Button>
-                  <SortDropdown value={sortBy} onChange={setSortBy} />
-                  <Typography variant="body2" color="text.secondary">
-                    {sortedAndFilteredVehicles.length} vehicles
-                  </Typography>
-                </Box>
+                New search
+              </button>
+            </div>
+            <div className="mt-4 pt-3.5 border-t border-slate-200">
+              <div className="text-[12px] font-semibold uppercase tracking-wider text-navy-900 mb-2">
+                Score filter
+              </div>
+              <FilterGroup label="">
+                <CheckRow defaultChecked>Great (8.5+)</CheckRow>
+                <CheckRow defaultChecked>Good (7–8.4)</CheckRow>
+                <CheckRow>Fair (5–6.9)</CheckRow>
+              </FilterGroup>
+            </div>
+            {IS_DEMO && (
+              <div className="mt-4 pt-3.5 border-t border-slate-200">
+                <div className="text-[11px] text-amber-700 bg-amber-50 rounded-lg px-3 py-2 font-medium">
+                  Demo mode — showing sample listings
+                </div>
+              </div>
+            )}
+          </div>
+        </aside>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <SavedSearchesDropdown
-                    searches={savedSearches.searches}
-                    totalNewMatches={savedSearches.totalNewMatches}
-                    onDelete={handleDeleteSavedSearch}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    leftIcon={<BookmarkAddIcon />}
-                    onClick={() => setIsSaveSearchModalOpen(true)}
-                  >
-                    Save Search
-                  </Button>
-                  <ViewModeToggle value={viewMode} onChange={setViewMode} />
-                </Box>
-              </Box>
-            </Card.Body>
-          </Card>
+        {/* Main */}
+        <div>
+          <div className="flex justify-between items-end mb-4">
+            <div>
+              <h1 className="text-[22px] font-bold text-navy-900 tracking-tight">
+                {loading
+                  ? "Scanning listings…"
+                  : error
+                  ? "Search failed"
+                  : vehicles.length === 0
+                  ? "No matches yet"
+                  : `${totalFound} listings, scored for you`}
+              </h1>
+              <p className="text-[13px] text-slate-500 mt-1">{searchLabel}</p>
+            </div>
+          </div>
 
-          {/* Applied Filters */}
-          {searchParams.toString() && (
-            <Card shadow="sm" sx={{ mb: 3 }}>
-              <Card.Body>
-                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                  Active Filters:
-                </Typography>
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
+          {loading && <ResultsSkeleton />}
+
+          {!loading && error && (
+            <div className="bg-white border border-red-200 rounded-xl p-6 flex gap-3 items-start">
+              <AlertTriangle size={18} className="text-red-600 mt-0.5 shrink-0" />
+              <div>
+                <div className="font-semibold text-red-700">Search unavailable</div>
+                <div className="text-sm text-slate-600 mt-1">{error}</div>
+                <button
+                  onClick={() => router.push("/dashboard/search")}
+                  className="mt-3 text-sm font-semibold text-blue-700 hover:opacity-80"
                 >
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    flexWrap="wrap"
-                    sx={{ gap: 1 }}
-                  >
-                    {Array.from(searchParams.entries()).map(([key, value]) => (
-                      <Chip
-                        key={key}
-                        label={`${key}: ${value}`}
-                        size="small"
-                        variant="outlined"
-                      />
-                    ))}
-                  </Stack>
-                  {/* <Link
-                    href="/dashboard/search"
-                    style={{ textDecoration: "none" }}
-                  >
-                    <Button variant="outline">Refine Search</Button>
-                  </Link> */}
-                </Box>
-              </Card.Body>
-            </Card>
+                  Go back and try again
+                </button>
+              </div>
+            </div>
           )}
 
-          {/* Lender Recommendations Section */}
-          {showLenderSection && (
-            <Box sx={{ mb: 3 }}>
-              <LenderRecommendations
-                loanAmount={loanAmount}
-                creditScore={creditScore}
-                loanTermMonths={loanTerm}
-                onLenderSelect={(lender) => {
-                  // Store selected lender in stepper context for later use in deal evaluation
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  setStepData(1, (prevStepData: any) => ({
-                    ...prevStepData,
-                    selectedLender: lender,
-                  }));
-                }}
-                showApplyButton={true}
+          {!loading && !error && vehicles.length === 0 && (
+            <div className="bg-white border border-slate-200 rounded-xl">
+              <EmptyState
+                icon={<Search size={28} />}
+                title="No cars matched these criteria."
+                body="Try widening your year range or raising your max price. We'll keep scanning new listings."
+                cta="Adjust search"
               />
-            </Box>
+            </div>
           )}
 
-          {/* Results Grid */}
-          {sortedAndFilteredVehicles.length === 0 ? (
-            <Card padding="lg">
-              <Card.Body>
-                <Box sx={{ textAlign: "center", py: 4 }}>
-                  <Typography variant="h6" color="text.secondary" gutterBottom>
-                    No vehicles found matching your criteria
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 3 }}
-                  >
-                    Try adjusting your filters or search again
-                  </Typography>
-                  <Link
-                    href="/dashboard/search"
-                    style={{ textDecoration: "none" }}
-                  >
-                    <Button variant="primary">New Search</Button>
-                  </Link>
-                </Box>
-              </Card.Body>
-            </Card>
-          ) : (
-            <Grid container spacing={viewMode === 'list' ? 2 : 3}>
-              {sortedAndFilteredVehicles.map((vehicle) => (
-                <Grid
-                  item
-                  xs={12}
-                  md={viewMode === 'list' ? 12 : viewMode === 'compact' ? 6 : 6}
-                  lg={viewMode === 'list' ? 12 : viewMode === 'compact' ? 6 : 4}
-                  key={
-                    vehicle.vin ||
-                    `${vehicle.make}-${vehicle.model}-${vehicle.year}`
-                  }
-                >
-                  <Card
-                    hover
-                    shadow="md"
-                    sx={{
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: viewMode === 'list' ? 'row' : 'column',
+          {!loading && !error && sorted.length > 0 && (
+            <div className="grid grid-cols-2 gap-4">
+              {sorted.map((v) => {
+                const key = v.vin ?? `${v.make}-${v.model}-${v.year}`;
+                return (
+                  <VehicleCard
+                    key={key}
+                    v={v}
+                    fav={!!favorites[key]}
+                    onFav={() => setFavorites((f) => ({ ...f, [key]: !f[key] }))}
+                    cmp={!!compare[key]}
+                    onCmp={() => setCompare((c) => ({ ...c, [key]: !c[key] }))}
+                    onEvaluate={() => {
+                      flowState.setVehicle({
+                        vin: v.vin,
+                        make: v.make,
+                        model: v.model,
+                        year: v.year,
+                        mileage: v.mileage,
+                        price: v.price,
+                        msrp: v.msrp,
+                        trim: v.trim,
+                        location: v.location,
+                        dealer_name: v.dealer_name,
+                        recommendation_score: v.recommendation_score,
+                        recommendation_summary: v.recommendation_summary,
+                      });
+                      // Clear stale evaluation/negotiation from a previous flow
+                      sessionStorage.removeItem("adg_evaluation");
+                      sessionStorage.removeItem("adg_negotiation");
+                      router.push("/dashboard/evaluation");
                     }}
-                  >
-                    {/* Vehicle Image */}
-                    <Box
-                      sx={{
-                        position: "relative",
-                        width: viewMode === 'list' ? 300 : '100%',
-                        height: viewMode === 'list' ? 'auto' : viewMode === 'compact' ? 150 : 200,
-                        bgcolor: "grey.200",
-                        backgroundImage: `url(${vehicle.image})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {/* Comparison Checkbox */}
-                      {vehicle.vin && (
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            top: 8,
-                            left: 8,
-                            bgcolor: "background.paper",
-                            borderRadius: 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <FormControlLabel
-                            control={
-                              <Checkbox
-                                checked={comparison.isSelected(vehicle.vin)}
-                                onChange={() => handleToggleComparison(vehicle)}
-                                disabled={!comparison.canAddMore && !comparison.isSelected(vehicle.vin)}
-                                size="small"
-                              />
-                            }
-                            label=""
-                            sx={{ m: 0, p: 0.5 }}
-                          />
-                        </Box>
-                      )}
-                      <IconButton
-                        sx={{
-                          position: "absolute",
-                          top: 8,
-                          right: 8,
-                          bgcolor: "background.paper",
-                          "&:hover": { bgcolor: "background.paper" },
-                        }}
-                        onClick={() => toggleFavorite(vehicle)}
-                      >
-                        {vehicle.vin && favorites.has(vehicle.vin) ? (
-                          <FavoriteIcon color="error" />
-                        ) : (
-                          <FavoriteBorderIcon />
-                        )}
-                      </IconButton>
-                      <Chip
-                        label={vehicle.condition || "Used"}
-                        size="small"
-                        color="primary"
-                        sx={{ position: "absolute", bottom: 8, left: 8 }}
-                      />
-                      {vehicle.recommendation_score && (
-                        <Chip
-                          label={`Score: ${vehicle.recommendation_score.toFixed(
-                            1
-                          )}/10`}
-                          size="small"
-                          color="success"
-                          sx={{ position: "absolute", top: 8, left: 8 }}
-                        />
-                      )}
-                    </Box>
-
-                    <Card.Body sx={{ flexGrow: 1 }}>
-                      {/* Vehicle Title */}
-                      <Typography variant="h6" gutterBottom fontWeight={600}>
-                        {vehicle.year} {vehicle.make} {vehicle.model}
-                      </Typography>
-
-                      {/* Price */}
-                      <Typography
-                        variant="h5"
-                        color="primary"
-                        gutterBottom
-                        fontWeight={700}
-                      >
-                        ${vehicle.price.toLocaleString()}
-                      </Typography>
-
-                      {/* Recommendation Summary */}
-                      {vehicle.recommendation_summary && (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mb: 2, fontStyle: "italic" }}
-                        >
-                          {vehicle.recommendation_summary}
-                        </Typography>
-                      )}
-
-                      <Divider sx={{ my: 2 }} />
-
-                      {/* Details */}
-                      <Grid container spacing={1}>
-                        <Grid item xs={6}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                            }}
-                          >
-                            <SpeedIcon fontSize="small" color="action" />
-                            <Typography variant="body2" color="text.secondary">
-                              {vehicle.mileage.toLocaleString()} mi
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                            }}
-                          >
-                            <LocalGasStationIcon
-                              fontSize="small"
-                              color="action"
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                              {vehicle.fuelType}
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                            }}
-                          >
-                            <CalendarTodayIcon
-                              fontSize="small"
-                              color="action"
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                              {vehicle.year}
-                            </Typography>
-                          </Box>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                            }}
-                          >
-                            <DirectionsCarIcon
-                              fontSize="small"
-                              color="action"
-                            />
-                            <Typography variant="body2" color="text.secondary">
-                              {vehicle.color}
-                            </Typography>
-                          </Box>
-                        </Grid>
-                      </Grid>
-
-                      {/* Location */}
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 0.5,
-                          mt: 2,
-                        }}
-                      >
-                        <LocationOnIcon fontSize="small" color="action" />
-                        <Typography variant="body2" color="text.secondary">
-                          {vehicle.location || "Location not specified"}
-                        </Typography>
-                      </Box>
-
-                      {/* Highlights/Features */}
-                      {vehicle.highlights && vehicle.highlights.length > 0 && (
-                        <Box sx={{ mt: 2 }}>
-                          <Typography
-                            variant="subtitle2"
-                            gutterBottom
-                            fontWeight={600}
-                          >
-                            Highlights:
-                          </Typography>
-                          <Stack
-                            direction="row"
-                            spacing={0.5}
-                            flexWrap="wrap"
-                            sx={{ gap: 0.5 }}
-                          >
-                            {vehicle.highlights
-                              .slice(0, 3)
-                              .map((highlight: string, index: number) => (
-                                <Chip
-                                  key={index}
-                                  label={highlight}
-                                  size="small"
-                                  variant="outlined"
-                                  color="primary"
-                                />
-                              ))}
-                          </Stack>
-                        </Box>
-                      )}
-
-                      {/* Dealer Info */}
-                      {vehicle.dealer_name && (
-                        <Box sx={{ mt: 2 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Dealer: {vehicle.dealer_name}
-                          </Typography>
-                        </Box>
-                      )}
-                    </Card.Body>
-
-                    <Card.Footer>
-                      <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>
-                        <Button
-                          variant="success"
-                          fullWidth
-                          size="sm"
-                          onClick={() =>
-                            handleVehicleSelection(
-                              vehicle,
-                              "/dashboard/negotiation"
-                            )
-                          }
-                        >
-                          Negotiate
-                        </Button>
-                        {/* <Button
-                          variant="primary"
-                          fullWidth
-                          size="sm"
-                          onClick={() =>
-                            handleVehicleSelection(vehicle, "/evaluation")
-                          }
-                        >
-                          View Details
-                        </Button> */}
-                      </Box>
-                    </Card.Footer>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
+                  />
+                );
+              })}
+            </div>
           )}
-        </Container>
-      </Box>
+        </div>
+      </div>
 
-      {/* Filter Panel */}
-      <FilterPanel
-        isOpen={isFilterPanelOpen}
-        onClose={() => setIsFilterPanelOpen(false)}
-        vehicleCount={sortedAndFilteredVehicles.length}
-      />
-
-      {/* Comparison Bar */}
-      <ComparisonBar
-        selectedVehicles={comparison.selectedVehicles}
-        onRemove={comparison.removeVehicle}
-        onCompare={comparison.openModal}
-        onClear={comparison.clearAll}
-        maxCount={comparison.maxCount}
-        canCompare={comparison.canCompare}
-      />
-
-      {/* Comparison Modal */}
-      <ComparisonModal
-        isOpen={comparison.isModalOpen}
-        onClose={comparison.closeModal}
-        vehicles={comparison.selectedVehicles}
-      />
-
-      {/* Save Search Modal */}
-      <SaveSearchModal
-        isOpen={isSaveSearchModalOpen}
-        onClose={() => setIsSaveSearchModalOpen(false)}
-        onSave={handleSaveSearch}
-        currentSearchCriteria={getCurrentSearchCriteria()}
-      />
-    </Box>
+      {/* Comparison bar */}
+      {compareCount >= 2 && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-navy-900 text-white px-5 py-3 rounded-xl flex items-center gap-4 z-40"
+          style={{ boxShadow: "0 24px 48px -12px rgba(15,22,41,0.4)" }}
+        >
+          <span className="text-sm font-medium">{compareCount} cars selected</span>
+          <button className="h-8 px-4 rounded-lg bg-white text-navy-900 text-sm font-semibold hover:bg-slate-100 transition-colors">
+            Compare side-by-side
+          </button>
+          <button
+            onClick={() => setCompare({})}
+            className="text-slate-400 text-sm hover:text-slate-200 transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+    </AppShell>
   );
 }
 
-export default function DashboardResultsPage() {
+export default function ResultsPage() {
   return (
-    <Suspense fallback={<Spinner fullScreen text="Loading results..." />}>
+    <Suspense fallback={<AppShell><ResultsSkeleton /></AppShell>}>
       <ResultsContent />
     </Suspense>
   );
 }
+
+function VehicleCard({
+  v,
+  fav,
+  onFav,
+  cmp,
+  onCmp,
+  onEvaluate,
+}: {
+  v: VehicleRecommendation;
+  fav: boolean;
+  onFav: () => void;
+  cmp: boolean;
+  onCmp: () => void;
+  onEvaluate: () => void;
+}) {
+  const score = v.recommendation_score ?? 0;
+  const delta = v.msrp != null && v.price != null ? v.msrp - v.price : null;
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col">
+      <div className="relative">
+        <VehicleThumb />
+        <div
+          className="absolute top-2.5 right-2.5 bg-white rounded-full flex items-center gap-1.5 pl-2.5 pr-1 py-1"
+          style={{ boxShadow: "0 2px 8px rgba(15,22,41,0.12)" }}
+        >
+          <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Deal</span>
+          <ScoreBadge score={score} size="sm" />
+        </div>
+        <button
+          onClick={onFav}
+          aria-label="Favorite"
+          className="absolute top-2.5 left-2.5 w-8 h-8 rounded-full bg-white/95 flex items-center justify-center hover:bg-white transition-colors"
+          style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.1)" }}
+        >
+          <Heart size={15} className={fav ? "text-red-600 fill-red-600" : "text-navy-900"} />
+        </button>
+      </div>
+
+      <div className="p-3.5 flex flex-col gap-2.5 flex-1">
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="text-[14px] font-semibold text-navy-900">
+              {v.year} {v.make} {v.model} {v.trim}
+            </div>
+            <div className="text-[12px] text-slate-500 mt-0.5 tabular-nums">
+              {v.mileage?.toLocaleString()} mi
+              {v.location ? ` · ${v.location}` : ""}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-[16px] font-bold text-navy-900 tabular-nums">
+              ${v.price?.toLocaleString() ?? "—"}
+            </div>
+            {delta != null && (
+              <div
+                className={`text-[11px] font-medium mt-0.5 tabular-nums ${
+                  delta >= 0 ? "text-green-600" : "text-amber-600"
+                }`}
+              >
+                {delta >= 0
+                  ? `$${delta.toLocaleString()} under FMV`
+                  : `$${Math.abs(delta).toLocaleString()} over FMV`}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {v.recommendation_summary && (
+          <div className="p-2.5 bg-blue-50 rounded-lg text-[12px] leading-relaxed text-slate-700">
+            <span className="font-semibold text-blue-700">Why this car? </span>
+            {v.recommendation_summary}
+          </div>
+        )}
+
+        {v.highlights && v.highlights.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {v.highlights.map((h) => (
+              <span
+                key={h}
+                className="text-[11px] font-medium px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full"
+              >
+                {h}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2.5 mt-auto">
+          <button
+            onClick={onEvaluate}
+            className="flex-1 h-8 rounded-lg bg-blue-600 text-white text-[13px] font-semibold hover:bg-blue-700 transition-colors"
+          >
+            Evaluate deal
+          </button>
+          <label className="flex items-center gap-1.5 text-[12px] font-medium text-slate-600 cursor-pointer shrink-0">
+            <input type="checkbox" checked={cmp} onChange={onCmp} className="m-0" />
+            Compare
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VehicleThumb() {
+  return (
+    <div className="h-[150px] bg-slate-100 flex items-center justify-center">
+      <svg width="120" height="60" viewBox="0 0 120 60" fill="none" className="text-slate-300">
+        <rect x="10" y="20" width="100" height="30" rx="6" fill="currentColor" opacity="0.5" />
+        <rect x="25" y="10" width="70" height="24" rx="4" fill="currentColor" opacity="0.35" />
+        <circle cx="30" cy="50" r="10" fill="currentColor" opacity="0.6" />
+        <circle cx="90" cy="50" r="10" fill="currentColor" opacity="0.6" />
+      </svg>
+    </div>
+  );
+}
+
+function ResultsSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="skel h-[150px] rounded-none" />
+          <div className="p-3.5 flex flex-col gap-2.5">
+            <div className="skel h-4 w-3/5" />
+            <div className="skel h-3 w-2/5" />
+            <div className="skel h-14 w-full" />
+            <div className="skel h-8 w-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      {label && (
+        <div className="text-[12px] font-semibold uppercase tracking-wider text-navy-900 mb-2">{label}</div>
+      )}
+      <div className="flex flex-col gap-2">{children}</div>
+    </div>
+  );
+}
+
+function CheckRow({
+  children,
+  defaultChecked,
+}: {
+  children: React.ReactNode;
+  defaultChecked?: boolean;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-[13px] text-slate-700 cursor-pointer">
+      <input type="checkbox" defaultChecked={defaultChecked} className="m-0" />
+      {children}
+    </label>
+  );
+}
+
+const selCls =
+  "h-8 px-2 text-xs border border-slate-300 rounded-lg bg-white text-navy-900 focus:outline-none focus:border-blue-600";

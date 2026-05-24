@@ -1,2094 +1,422 @@
 "use client";
 
-import {
-  Suspense,
-  useMemo,
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-} from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import {
-  Box,
-  Container,
-  Paper,
-  Typography,
-  TextField,
-  Avatar,
-  Grid,
-  Divider,
-  Alert,
-  LinearProgress,
-  Chip,
-  Stack,
-  AlertTitle,
-  Collapse,
-  IconButton,
-  Tabs,
-  Tab,
-} from "@mui/material";
-import {
-  SmartToy,
-  Person,
-  AttachMoney,
-  DirectionsCar,
-  Speed,
-  LocalGasStation,
-  Warning,
-  CheckCircle,
-  Cancel,
-  TrendingUp,
-  TrendingDown,
-  ExpandMore,
-  ExpandLess,
-  Chat as ChatIcon,
-} from "@mui/icons-material";
-import Link from "next/link";
-import {
-  useStepper,
-  useNegotiationChat,
-  NegotiationChatProvider,
-} from "@/app/context";
-import { useAuth } from "@/lib/auth/AuthProvider";
-import { Button, Card, Modal, Spinner } from "@/components";
-import { 
-  ChatInput, 
-  ConnectionStatusIndicator, 
-  FinancingComparisonModal 
-} from "@/components";
-import { useNegotiationState } from "@/lib/hooks";
-import {
-  apiClient,
-  type NegotiationMessage,
-  type DealCreate,
-  type LenderMatch,
-} from "@/lib/api";
-import { formatPrice, formatTimestamp } from "@/lib/utils/formatting";
-import {
-  getLatestNegotiatedPrice,
-  validateNegotiatedPrice,
-} from "@/lib/utils/negotiation";
-import { NotFoundError } from "@/lib/errors";
-
-// Fallback VIN when actual VIN is not available
-const DEFAULT_VIN = "UNKNOWN00000000000";
-
-interface VehicleInfo {
-  vin?: string;
-  make: string;
-  model: string;
-  year: number;
-  price: number;
-  mileage: number;
-  fuelType: string;
-}
-
-function NegotiationContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { completeStep, canNavigateToStep } = useStepper();
-  const { user } = useAuth();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatContext = useNegotiationChat();
-  const hasInitializedRef = useRef(false);
-  const initializationInProgressRef = useRef(false);
-
-  // Local state for vehicle data and target price (derived from URL)
-  const [vehicleData, setVehicleData] = useState<VehicleInfo | null>(null);
-  const [targetPrice, setTargetPrice] = useState<number | null>(null);
-
-  // Use centralized negotiation state hook
-  const {
-    state: negotiationState,
-    financingOptions,
-    cashSavings,
-    setSessionId,
-    setStatus,
-    setMessages,
-    addMessages,
-    setLoading,
-    setError,
-    setTyping,
-    setCurrentRound,
-  } = useNegotiationState(targetPrice, {
-    maxRounds: 10,
-  });
-
-  // Extract latest price info from messages
-  // This returns an object with price, source, round, and timestamp
-  const latestPrice = useMemo(() => {
-    return getLatestNegotiatedPrice(negotiationState.messages);
-  }, [negotiationState.messages]);
-
-  // Extract AI metadata from latest message for UI display
-  const aiMetadata = useMemo(() => {
-    if (negotiationState.messages.length === 0) {
-      return {
-        recommendedAction: null,
-        strategyAdjustments: null,
-        dealerConcessionRate: null,
-        negotiationVelocity: null,
-        marketComparison: null,
-      };
-    }
-
-    const latestMsg = negotiationState.messages[negotiationState.messages.length - 1];
-    const metadata = latestMsg.metadata || {};
-
-    return {
-      recommendedAction: typeof metadata.recommended_action === "string" ? metadata.recommended_action : null,
-      strategyAdjustments: typeof metadata.strategy_adjustments === "string" ? metadata.strategy_adjustments : null,
-      dealerConcessionRate: typeof metadata.dealer_concession_rate === "number" ? metadata.dealer_concession_rate : null,
-      negotiationVelocity: typeof metadata.negotiation_velocity === "number" ? metadata.negotiation_velocity : null,
-      marketComparison: typeof metadata.market_comparison === "string" ? metadata.market_comparison : null,
-    };
-  }, [negotiationState.messages]);
-
-  // Computed confidence score based on negotiation progress
-  const confidence = useMemo(() => {
-    // Base confidence if we don't have enough data yet
-    if (targetPrice == null || latestPrice == null) {
-      return 0.5;
-    }
-
-    // How far along we are in the negotiation (earlier rounds generally lower confidence)
-    const currentRound = negotiationState.currentRound;
-    const maxRounds = negotiationState.maxRounds;
-    const roundProgress = Math.min(Math.max(currentRound - 1, 0), maxRounds);
-    const roundFactor = 1 - roundProgress / maxRounds; // 1.0 at start, decreases over time
-
-    // How close the latest offer is to the user's target price
-    const priceDiffRatio = Math.min(
-      1,
-      Math.abs(targetPrice - latestPrice.price) / Math.max(targetPrice, 1)
-    );
-    const priceFactor = 1 - priceDiffRatio; // 1.0 when equal, lower as we move away
-
-    // Blend factors into a confidence score between 0 and 1
-    const rawConfidence = 0.3 + 0.7 * (roundFactor * 0.5 + priceFactor * 0.5);
-    const clamped = Math.min(Math.max(rawConfidence, 0), 1);
-
-    // Round to two decimals for stable display
-    return Number(clamped.toFixed(2));
-  }, [targetPrice, latestPrice, negotiationState.currentRound, negotiationState.maxRounds]);
-
-  // UI state
-  const [showCounterOfferModal, setShowCounterOfferModal] = useState(false);
-  const [counterOfferValue, setCounterOfferValue] = useState("");
-  const [showAcceptDialog, setShowAcceptDialog] = useState(false);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [expandedRounds, setExpandedRounds] = useState<Set<number>>(
-    new Set([1])
-  );
-  const [showFinancingPanel, setShowFinancingPanel] = useState(true);
-  const [lenderRecommendations, setLenderRecommendations] = useState<
-    LenderMatch[] | null
-  >(null);
-  const [loadingLenders, setLoadingLenders] = useState(false);
-  const [chatTabValue, setChatTabValue] = useState(0); // 0 = Negotiation Actions, 1 = Free Chat
-  const [notification, setNotification] = useState<{
-    type: "success" | "warning" | "info" | "error";
-    message: string;
-  } | null>(null);
-  const [showFinancingComparison, setShowFinancingComparison] = useState(false);
-
-  // Extract vehicle data from URL params - effect to set vehicle data state
-  useEffect(() => {
-    try {
-      const vin = searchParams.get("vin") || undefined;
-      const make = searchParams.get("make");
-      const model = searchParams.get("model");
-      const yearStr = searchParams.get("year");
-      const priceStr = searchParams.get("price");
-      const mileageStr = searchParams.get("mileage");
-      const fuelType = searchParams.get("fuelType");
-
-      if (!make || !model || !yearStr || !priceStr || !mileageStr) {
-        setVehicleData(null);
-        return;
-      }
-
-      const year = parseInt(yearStr);
-      const price = parseFloat(priceStr);
-      const mileage = parseInt(mileageStr);
-
-      if (isNaN(year) || isNaN(price) || isNaN(mileage)) {
-        setVehicleData(null);
-        return;
-      }
-
-      const parsedVehicleData = {
-        vin,
-        make,
-        model,
-        year,
-        price,
-        mileage,
-        fuelType: fuelType || "Unknown",
-      };
-      
-      setVehicleData(parsedVehicleData);
-      setTargetPrice(price * 0.9);
-    } catch (err) {
-      console.error("Error parsing vehicle data:", err);
-      setVehicleData(null);
-    }
-  }, [searchParams]);
-
-  // Memoize validation result to avoid unnecessary recalculations
-  const isPriceValid = useMemo(() => {
-    if (!latestPrice || !vehicleData) return false;
-    return validateNegotiatedPrice(
-      latestPrice.price,
-      vehicleData.price,
-      targetPrice
-    ).isValid;
-  }, [latestPrice, vehicleData, targetPrice]);
-
-  // Check if user can access this step
-  useEffect(() => {
-    if (!canNavigateToStep(2)) {
-      router.push("/dashboard/search");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount, canNavigateToStep and router are stable
-
-  // Mark step as in-progress (separate effect)
-  useEffect(() => {
-    if (vehicleData) {
-      completeStep(2, {
-        status: "in-progress",
-        vehicleData: vehicleData,
-        timestamp: new Date().toISOString(),
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicleData]); // completeStep is stable from context
-
-  // Initialize negotiation session
-  useEffect(() => {
-    // Guard clauses to prevent duplicate calls
-    if (hasInitializedRef.current || initializationInProgressRef.current) {
-      return;
-    }
-
-    if (!vehicleData || !targetPrice || negotiationState.sessionId !== null) {
-      return;
-    }
-
-    const initializeNegotiation = async () => {
-      initializationInProgressRef.current = true;
-
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Check if deal already exists
-        let dealId: number;
-        const customerEmail = user?.email || "guest@autodealgenie.com";
-        const vehicleVin = vehicleData.vin || DEFAULT_VIN;
-
-        try {
-          const existingDeal = await apiClient.getDealByEmailAndVin(
-            customerEmail,
-            vehicleVin
-          );
-          dealId = existingDeal.id;
-        } catch (error: unknown) {
-          // Check if this is a legitimate 404 (deal not found) or another error
-          // Use the proper type guard from the errors module
-          if (error instanceof NotFoundError) {
-            // Deal not found (404), create new one
-            const dealData: DealCreate = {
-              customer_name: user?.full_name || user?.username || "Guest User",
-              customer_email: customerEmail,
-              vehicle_make: vehicleData.make,
-              vehicle_model: vehicleData.model,
-              vehicle_year: vehicleData.year,
-              vehicle_mileage: vehicleData.mileage,
-              vehicle_vin: vehicleVin,
-              asking_price: vehicleData.price,
-              status: "in_progress",
-              notes: `Negotiation started for ${vehicleData.year} ${vehicleData.make} ${vehicleData.model}`,
-            };
-
-            const newDeal = await apiClient.createDeal(dealData);
-            dealId = newDeal.id;
-          } else {
-            // This is not a "deal not found" error - it could be network, auth, etc.
-            console.error("Unexpected error checking for existing deal:", error);
-            throw error; // Re-throw to be caught by outer catch
-          }
-        }
-
-        const response = await apiClient.createNegotiation({
-          deal_id: dealId,
-          user_target_price: targetPrice,
-          strategy: "moderate",
-        });
-
-        const session = await apiClient.getNegotiationSession(
-          response.session_id
-        );
-
-        // Update negotiation state
-        setSessionId(session.id);
-        setStatus(session.status);
-        setCurrentRound(session.current_round);
-        setMessages(session.messages);
-        setLoading(false);
-
-        // Initialize chat context
-        chatContext.setSessionId(session.id);
-        chatContext.setMessages(session.messages);
-
-        // Mark as initialized
-        hasInitializedRef.current = true;
-
-        setNotification({
-          type: "success",
-          message: "Negotiation session started! Let's get you the best deal.",
-        });
-      } catch (err) {
-        console.error("Failed to initialize negotiation:", err);
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Failed to initialize negotiation session";
-        setError(errorMessage);
-        setLoading(false);
-        
-        // Reset in progress flag on error so user can retry
-        initializationInProgressRef.current = false;
-      }
-    };
-
-    initializeNegotiation();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicleData, targetPrice]); // Other dependencies are stable (setters, user, chatContext)
-
-  // Auto-scroll to bottom when messages change
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
-  // Effect: Sync chat messages and typing indicator
-  useEffect(() => {
-    // Sync messages from chat context
-    if (chatContext.messages.length > 0) {
-      addMessages(chatContext.messages);
-    }
-
-    // Sync typing indicator
-    if (chatContext.isTyping) {
-      setTyping(true);
-    }
-  }, [chatContext.messages, chatContext.isTyping, addMessages, setTyping]);
-
-  // Effect: Auto-scroll when messages change
-  useEffect(() => {
-    scrollToBottom();
-  }, [negotiationState.messages, scrollToBottom]);
-
-  // Clear notifications after 5 seconds
-  useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(() => setNotification(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
-
-  // Handle accept offer
-  const handleAcceptOffer = useCallback(async () => {
-    if (!negotiationState.sessionId || !vehicleData) return;
-
-    // Validate the latest price before accepting
-    const priceToAccept = latestPrice?.price;
-    if (!priceToAccept) {
-      setNotification({
-        type: "error",
-        message: "No valid price available to accept",
-      });
-      return;
-    }
-
-    const validation = validateNegotiatedPrice(
-      priceToAccept,
-      vehicleData.price,
-      targetPrice
-    );
-
-    if (!validation.isValid) {
-      setNotification({
-        type: "error",
-        message: validation.error || "Cannot accept offer with invalid price",
-      });
-      return;
-    }
-
-    // Show warning if price is above target
-    if (validation.error && targetPrice) {
-      const shouldContinue = window.confirm(
-        `${validation.error}\n\nDo you want to continue with accepting this offer?`
-      );
-      if (!shouldContinue) {
-        setShowAcceptDialog(false);
-        return;
-      }
-    }
-
-    try {
-      setLoading(true);
-      setTyping(true);
-      setShowAcceptDialog(false);
-
-      await apiClient.processNextRound(negotiationState.sessionId, {
-        user_action: "confirm",
-      });
-
-      // Fetch updated session
-      const session = await apiClient.getNegotiationSession(negotiationState.sessionId);
-
-      setStatus("completed");
-      setCurrentRound(session.current_round);
-      setMessages(session.messages);
-      setLoading(false);
-      setTyping(false);
-
-      setNotification({
-        type: "success",
-        message: `Congratulations! You've accepted the offer at ${formatPrice(priceToAccept)}!`,
-      });
-
-      // Fetch lender recommendations with loading state
-      setLoadingLenders(true);
-      try {
-        // Use financing options from state if available, otherwise use defaults
-        const preferredTerm =
-          financingOptions && financingOptions.length > 0
-            ? financingOptions.find((opt) => opt.loan_term_months === 60)
-                ?.loan_term_months || 60
-            : 60;
-
-        const lenderRecs = await apiClient.getNegotiationLenderRecommendations(
-          negotiationState.sessionId,
-          preferredTerm,
-          "good"
-        );
-        setLenderRecommendations(lenderRecs.recommendations);
-      } catch (lenderErr) {
-        console.error("Failed to fetch lender recommendations:", lenderErr);
-        setNotification({
-          type: "warning",
-          message:
-            "Financing options are temporarily unavailable. Your deal is still complete!",
-        });
-      } finally {
-        setLoadingLenders(false);
-      }
-    } catch (err) {
-      console.error("Failed to accept offer:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to accept offer";
-      setError(errorMessage);
-      setLoading(false);
-      setTyping(false);
-    }
-  }, [
-    negotiationState.sessionId,
-    vehicleData,
-    latestPrice,
-    targetPrice,
-    financingOptions,
-    setLoading,
-    setTyping,
-    setStatus,
-    setCurrentRound,
-    setMessages,
-    setError,
-  ]);
-
-  // Handle reject offer
-  const handleRejectOffer = useCallback(async () => {
-    if (!negotiationState.sessionId) return;
-
-    try {
-      setLoading(true);
-      setTyping(true);
-      setShowRejectDialog(false);
-
-      await apiClient.processNextRound(negotiationState.sessionId, {
-        user_action: "reject",
-      });
-
-      // Fetch updated session
-      const session = await apiClient.getNegotiationSession(negotiationState.sessionId);
-
-      setStatus("cancelled");
-      setCurrentRound(session.current_round);
-      setMessages(session.messages);
-      setLoading(false);
-      setTyping(false);
-
-      setNotification({
-        type: "info",
-        message: "Negotiation cancelled. You can start a new one anytime.",
-      });
-    } catch (err) {
-      console.error("Failed to reject offer:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to reject offer";
-      setError(errorMessage);
-      setLoading(false);
-      setTyping(false);
-    }
-  }, [
-    negotiationState.sessionId,
-    setLoading,
-    setTyping,
-    setStatus,
-    setCurrentRound,
-    setMessages,
-    setError,
-  ]);
-
-  // Handle counter offer
-  const handleCounterOffer = useCallback(async () => {
-    if (!negotiationState.sessionId || !counterOfferValue) return;
-
-    const counterPrice = parseFloat(counterOfferValue);
-    if (isNaN(counterPrice) || counterPrice <= 0) {
-      setNotification({
-        type: "error",
-        message: "Please enter a valid price",
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setTyping(true);
-      setShowCounterOfferModal(false);
-      setCounterOfferValue("");
-
-      const response = await apiClient.processNextRound(negotiationState.sessionId, {
-        user_action: "counter",
-        counter_offer: counterPrice,
-      });
-
-      // Fetch updated session
-      const session = await apiClient.getNegotiationSession(negotiationState.sessionId);
-
-      setCurrentRound(session.current_round);
-      setMessages(session.messages);
-      setLoading(false);
-      setTyping(false);
-
-      // Expand the new round
-      setExpandedRounds((prev) => new Set(prev).add(response.current_round));
-
-      setNotification({
-        type: "info",
-        message: `Counter offer of ${formatPrice(counterPrice)} submitted!`,
-      });
-    } catch (err) {
-      console.error("Failed to submit counter offer:", err);
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to submit counter offer";
-      setError(errorMessage);
-      setLoading(false);
-      setTyping(false);
-    }
-  }, [
-    negotiationState.sessionId,
-    counterOfferValue,
-    setLoading,
-    setTyping,
-    setCurrentRound,
-    setMessages,
-    setError,
-  ]);
-
-  // Toggle round expansion
-  const toggleRoundExpansion = useCallback((round: number) => {
-    setExpandedRounds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(round)) {
-        newSet.delete(round);
-      } else {
-        newSet.add(round);
-      }
-      return newSet;
-    });
-  }, []);
-
-  // Handle chat message
-  const handleChatMessage = useCallback(
-    async (message: string, messageType?: string) => {
-      await chatContext.sendChatMessage(message, messageType);
-    },
-    [chatContext]
-  );
-
-  // Handle dealer info
-  const handleDealerInfo = useCallback(
-    async (infoType: string, content: string, priceMentioned?: number) => {
-      await chatContext.sendDealerInfo(infoType, content, priceMentioned);
-    },
-    [chatContext]
-  );
-
-  // Group messages by round
-  const messagesByRound = useMemo(() => {
-    const grouped: Record<number, NegotiationMessage[]> = {};
-    negotiationState.messages.forEach((msg) => {
-      if (!grouped[msg.round_number]) {
-        grouped[msg.round_number] = [];
-      }
-      grouped[msg.round_number].push(msg);
-    });
-    return grouped;
-  }, [negotiationState.messages]);
-
-  // Calculate progress
-  const progress = (negotiationState.currentRound / negotiationState.maxRounds) * 100;
-  const priceProgress =
-    vehicleData && latestPrice?.price
-      ? ((vehicleData.price - latestPrice.price) /
-          (vehicleData.price -
-            (targetPrice || vehicleData.price * 0.9))) *
-        100
-      : 0;
-
-  // Render deal outcome screens
-  if (negotiationState.status === "completed") {
-    return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Card shadow="lg">
-          <Card.Body>
-            <Box sx={{ textAlign: "center", py: 4 }}>
-              <CheckCircle
-                sx={{ fontSize: 80, color: "success.main", mb: 2 }}
-              />
-              <Typography variant="h4" gutterBottom>
-                Congratulations!
-              </Typography>
-              <Typography variant="body1" color="text.secondary" paragraph>
-                You&apos;ve successfully negotiated the deal for your{" "}
-                {vehicleData?.year} {vehicleData?.make}{" "}
-                {vehicleData?.model}!
-              </Typography>
-              <Divider sx={{ my: 3 }} />
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Original Price
-                  </Typography>
-                  <Typography variant="h6">
-                    {formatPrice(vehicleData?.price || 0)}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Final Price
-                  </Typography>
-                  <Typography variant="h6" color="success.main">
-                    {formatPrice(latestPrice?.price || 0)}
-                  </Typography>
-                </Grid>
-              </Grid>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                You saved{" "}
-                {formatPrice(
-                  (vehicleData?.price || 0) - (latestPrice?.price || 0)
-                )}
-                !
-              </Typography>
-
-              {/* Lender Recommendations */}
-              {loadingLenders && (
-                <>
-                  <Divider sx={{ my: 3 }} />
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      py: 4,
-                    }}
-                  >
-                    <Spinner size="md" />
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ ml: 2 }}
-                    >
-                      Finding the best financing options for you...
-                    </Typography>
-                  </Box>
-                </>
-              )}
-              {!loadingLenders &&
-                lenderRecommendations &&
-                lenderRecommendations.length > 0 && (
-                  <>
-                    <Divider sx={{ my: 3 }} />
-                    <Typography
-                      variant="h6"
-                      gutterBottom
-                      sx={{ textAlign: "left" }}
-                    >
-                      Financing Options
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      paragraph
-                      sx={{ textAlign: "left" }}
-                    >
-                      Top lenders matched to your profile
-                    </Typography>
-                    <Stack spacing={2} sx={{ mb: 3 }}>
-                      {lenderRecommendations.slice(0, 3).map((match) => (
-                        <Paper
-                          key={match.lender.lender_id}
-                          elevation={2}
-                          sx={{
-                            p: 2,
-                            border: match.rank === 1 ? 2 : 1,
-                            borderColor:
-                              match.rank === 1 ? "primary.main" : "divider",
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "start",
-                              mb: 1,
-                            }}
-                          >
-                            <Box>
-                              {match.rank === 1 && (
-                                <Chip
-                                  label="Best Match"
-                                  color="primary"
-                                  size="small"
-                                  sx={{ mb: 1 }}
-                                />
-                              )}
-                              <Typography variant="subtitle1" fontWeight="bold">
-                                {match.lender.name}
-                              </Typography>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                {match.recommendation_reason}
-                              </Typography>
-                            </Box>
-                            <Typography variant="h6" color="primary.main">
-                              {(match.estimated_apr * 100).toFixed(2)}% APR
-                            </Typography>
-                          </Box>
-                          <Divider sx={{ my: 1 }} />
-                          <Grid container spacing={2}>
-                            <Grid item xs={6}>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                Estimated Payment
-                              </Typography>
-                              <Typography variant="body2" fontWeight="medium">
-                                {formatPrice(match.estimated_monthly_payment)}
-                                /mo
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={6}>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                Match Score
-                              </Typography>
-                              <Typography variant="body2" fontWeight="medium">
-                                {match.match_score.toFixed(0)}/100
-                              </Typography>
-                            </Grid>
-                          </Grid>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            fullWidth
-                            sx={{ mt: 2 }}
-                            onClick={() =>
-                              window.open(match.lender.affiliate_url, "_blank")
-                            }
-                          >
-                            Apply Now
-                          </Button>
-                        </Paper>
-                      ))}
-                    </Stack>
-                  </>
-                )}
-
-              <Stack
-                direction="row"
-                spacing={2}
-                justifyContent="center"
-                sx={{ mt: 3 }}
-              >
-                <Button
-                  variant="success"
-                  onClick={() => {
-                    if (vehicleData) {
-                      const finalPrice = latestPrice?.price || vehicleData.price;
-                      const vehicleParams = new URLSearchParams({
-                        vin: vehicleData.vin || "",
-                        make: vehicleData.make,
-                        model: vehicleData.model,
-                        year: vehicleData.year.toString(),
-                        price: finalPrice.toString(),
-                        mileage: vehicleData.mileage.toString(),
-                        fuelType: vehicleData.fuelType || "",
-                      });
-                      router.push(
-                        `/dashboard/evaluation?${vehicleParams.toString()}`
-                      );
-                    }
-                  }}
-                >
-                  Evaluate Deal
-                </Button>
-                <Link
-                  href="/dashboard/search"
-                  style={{ textDecoration: "none" }}
-                >
-                  <Button variant="outline">Search More Vehicles</Button>
-                </Link>
-              </Stack>
-            </Box>
-          </Card.Body>
-        </Card>
-      </Container>
-    );
-  }
-
-  if (negotiationState.status === "cancelled") {
-    return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Card shadow="lg">
-          <Card.Body>
-            <Box sx={{ textAlign: "center", py: 4 }}>
-              <Cancel sx={{ fontSize: 80, color: "warning.main", mb: 2 }} />
-              <Typography variant="h4" gutterBottom>
-                Negotiation Cancelled
-              </Typography>
-              <Typography variant="body1" color="text.secondary" paragraph>
-                You&apos;ve cancelled the negotiation for this vehicle.
-                Don&apos;t worry, there are plenty of other great deals waiting
-                for you!
-              </Typography>
-              <Stack
-                direction="row"
-                spacing={2}
-                justifyContent="center"
-                sx={{ mt: 3 }}
-              >
-                <Link
-                  href="/dashboard/search"
-                  style={{ textDecoration: "none" }}
-                >
-                  <Button variant="primary">Search More Vehicles</Button>
-                </Link>
-                <Link
-                  href="/dashboard/results"
-                  style={{ textDecoration: "none" }}
-                >
-                  <Button variant="outline">Back to Results</Button>
-                </Link>
-              </Stack>
-            </Box>
-          </Card.Body>
-        </Card>
-      </Container>
-    );
-  }
-
-  // Main negotiation UI
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <Box sx={{ bgcolor: "background.default", flexGrow: 1, py: 3 }}>
-        <Container maxWidth="xl">
-          {/* Notification */}
-          <Collapse in={!!notification}>
-            <Alert
-              severity={notification?.type || "info"}
-              onClose={() => setNotification(null)}
-              sx={{ mb: 3 }}
-            >
-              {notification?.message}
-            </Alert>
-          </Collapse>
-
-          {/* Error Alert */}
-          {negotiationState.error && (
-            <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
-              <AlertTitle>Unable to Load Negotiation</AlertTitle>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                {negotiationState.error}
-              </Typography>
-              <Link
-                href="/dashboard/results"
-                style={{ textDecoration: "none" }}
-              >
-                <Button variant="primary" size="sm">
-                  Back to Results
-                </Button>
-              </Link>
-            </Alert>
-          )}
-
-          {/* Loading State */}
-          {negotiationState.isLoading && negotiationState.messages.length === 0 && (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                py: 8,
-              }}
-            >
-              <Spinner size="lg" />
-              <Typography variant="h6" sx={{ ml: 2 }}>
-                Starting your negotiation...
-              </Typography>
-            </Box>
-          )}
-
-          {/* Main Content */}
-          {vehicleData && negotiationState.messages.length > 0 && (
-            <Grid container spacing={3}>
-              {/* Current Offer Status - Top Banner */}
-              {/* <Grid item xs={12}>
-                <CurrentOfferStatus
-                  offerStatus={currentOfferStatus}
-                  vehiclePrice={vehicleData.price}
-                />
-              </Grid> */}
-
-              {/* Price Tracking Panel - Left Sidebar */}
-              <Grid item xs={12} md={3}>
-                <Card shadow="md" sx={{ position: "sticky", top: 16 }}>
-                  <Card.Body>
-                    <Typography variant="h6" gutterBottom>
-                      Vehicle Details
-                    </Typography>
-                    <Box sx={{ mb: 2 }}>
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", mb: 1 }}
-                      >
-                        <DirectionsCar
-                          sx={{ mr: 1, color: "primary.main", fontSize: 20 }}
-                        />
-                        <Typography variant="body2" fontWeight="medium">
-                          {vehicleData.year} {vehicleData.make}{" "}
-                          {vehicleData.model}
-                        </Typography>
-                      </Box>
-                      {vehicleData.vin && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          display="block"
-                          sx={{ ml: 3 }}
-                        >
-                          VIN: {vehicleData.vin}
-                        </Typography>
-                      )}
-                    </Box>
-
-                    <Divider sx={{ my: 2 }} />
-
-                    <Typography variant="subtitle2" gutterBottom>
-                      Price Tracking
-                    </Typography>
-                    <Box sx={{ mb: 2 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          mb: 1,
-                        }}
-                      >
-                        <Typography variant="caption" color="text.secondary">
-                          Asking Price
-                        </Typography>
-                        <Typography variant="body2" fontWeight="medium">
-                          {formatPrice(vehicleData.price)}
-                        </Typography>
-                      </Box>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          mb: 1,
-                        }}
-                      >
-                        <Typography variant="caption" color="text.secondary">
-                          Your Target
-                        </Typography>
-                        <Typography variant="body2" color="primary.main">
-                          {formatPrice(targetPrice || 0)}
-                        </Typography>
-                      </Box>
-                      {latestPrice && (
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            mb: 1,
-                          }}
-                        >
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                            <Typography variant="caption" color="text.secondary">
-                              Current Offer
-                            </Typography>
-                            {latestPrice.source === "ai" && (
-                              <Chip label="AI" size="small" sx={{ height: 16, fontSize: "0.65rem" }} />
-                            )}
-                            {latestPrice.source === "dealer" && (
-                              <Chip label="Dealer" color="secondary" size="small" sx={{ height: 16, fontSize: "0.65rem" }} />
-                            )}
-                            {latestPrice.source === "user" && (
-                              <Chip label="You" color="info" size="small" sx={{ height: 16, fontSize: "0.65rem" }} />
-                            )}
-                          </Box>
-                          <Typography
-                            variant="body2"
-                            color="success.main"
-                            fontWeight="bold"
-                          >
-                            {formatPrice(latestPrice.price)}
-                          </Typography>
-                        </Box>
-                      )}
-                    </Box>
-
-                    {/* Price Progress */}
-                    <Box sx={{ mb: 2 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          mb: 0.5,
-                        }}
-                      >
-                        <Typography variant="caption">Progress</Typography>
-                        <Typography variant="caption">
-                          {Math.round(priceProgress)}%
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={Math.min(priceProgress, 100)}
-                        sx={{ height: 8, borderRadius: 1 }}
-                      />
-                    </Box>
-
-                    <Divider sx={{ my: 2 }} />
-
-                    <Typography variant="subtitle2" gutterBottom>
-                      Negotiation Progress
-                    </Typography>
-                    <Box sx={{ mb: 2 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          mb: 0.5,
-                        }}
-                      >
-                        <Typography variant="caption">
-                          Round {negotiationState.currentRound} of {negotiationState.maxRounds}
-                        </Typography>
-                        <Typography variant="caption">
-                          {Math.round(progress)}%
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={progress}
-                        color={progress > 80 ? "warning" : "primary"}
-                        sx={{ height: 6, borderRadius: 1 }}
-                      />
-                    </Box>
-
-                    <Divider sx={{ my: 2 }} />
-
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-                      <Speed
-                        sx={{ mr: 1, color: "text.secondary", fontSize: 18 }}
-                      />
-                      <Typography variant="caption">
-                        {vehicleData.mileage.toLocaleString()} miles
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center" }}>
-                      <LocalGasStation
-                        sx={{ mr: 1, color: "text.secondary", fontSize: 18 }}
-                      />
-                      <Typography variant="caption">
-                        {vehicleData.fuelType}
-                      </Typography>
-                    </Box>
-                  </Card.Body>
-                </Card>
-              </Grid>
-
-              {/* Chat Interface - Center */}
-              <Grid item xs={12} md={6}>
-                <Paper
-                  elevation={3}
-                  sx={{
-                    height: "700px",
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  {/* Header with Tabs */}
-                  <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-                    <Box
-                      sx={{
-                        px: 2,
-                        pt: 2,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <Box>
-                        <Typography variant="h6">Negotiation Chat</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Communicate with the AI negotiation assistant
-                        </Typography>
-                      </Box>
-                      {/* WebSocket Connection Status */}
-                      <ConnectionStatusIndicator
-                        status={chatContext.connectionStatus}
-                        reconnectAttempts={chatContext.reconnectAttempts}
-                        maxReconnectAttempts={5}
-                        messageQueueSize={chatContext.messageQueue.length}
-                        isUsingHttpFallback={chatContext.isUsingHttpFallback}
-                        onManualReconnect={chatContext.manualReconnect}
-                      />
-                    </Box>
-                    <Tabs
-                      value={chatTabValue}
-                      onChange={(_, v) => setChatTabValue(v)}
-                    >
-                      <Tab
-                        label="Actions"
-                        icon={<AttachMoney />}
-                        iconPosition="start"
-                      />
-                      <Tab
-                        label="Chat"
-                        icon={<ChatIcon />}
-                        iconPosition="start"
-                      />
-                    </Tabs>
-                  </Box>
-
-                  {/* Messages Area */}
-                  <Box
-                    sx={{
-                      flexGrow: 1,
-                      overflow: "auto",
-                      p: 2,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 2,
-                      bgcolor: "grey.50",
-                    }}
-                  >
-                    {Object.entries(messagesByRound).map(
-                      ([round, roundMessages]) => (
-                        <Box key={round}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              mb: 1,
-                            }}
-                          >
-                            <Chip
-                              label={`Round ${round}`}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                            />
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                toggleRoundExpansion(Number(round))
-                              }
-                            >
-                              {expandedRounds.has(Number(round)) ? (
-                                <ExpandLess />
-                              ) : (
-                                <ExpandMore />
-                              )}
-                            </IconButton>
-                          </Box>
-
-                          <Collapse in={expandedRounds.has(Number(round))}>
-                            <Stack spacing={1.5}>
-                              {roundMessages.map((message) => (
-                                <Box
-                                  key={message.id}
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent:
-                                      message.role === "user"
-                                        ? "flex-end"
-                                        : "flex-start",
-                                    gap: 1,
-                                  }}
-                                >
-                                  {message.role === "agent" && (
-                                    <Avatar
-                                      sx={{
-                                        bgcolor: "primary.main",
-                                        width: 36,
-                                        height: 36,
-                                      }}
-                                    >
-                                      <SmartToy fontSize="small" />
-                                    </Avatar>
-                                  )}
-                                  <Paper
-                                    elevation={2}
-                                    sx={{
-                                      p: 1.5,
-                                      maxWidth: "75%",
-                                      bgcolor:
-                                        message.role === "user"
-                                          ? "primary.main"
-                                          : "white",
-                                      color:
-                                        message.role === "user"
-                                          ? "primary.contrastText"
-                                          : "text.primary",
-                                      borderRadius: 2,
-                                    }}
-                                  >
-                                    {message.metadata?.message_type ===
-                                      "dealer_info" && (
-                                      <Chip
-                                        label={message.metadata?.info_type ? `${message.metadata.info_type}` : "Dealer Info"}
-                                        size="small"
-                                        color="info"
-                                        sx={{ mb: 1 }}
-                                      />
-                                    )}
-                                    <Typography
-                                      variant="body2"
-                                      sx={{ whiteSpace: "pre-wrap" }}
-                                    >
-                                      {message.content}
-                                    </Typography>
-                                    {typeof message.metadata
-                                      ?.suggested_price === "number" && (
-                                      <Typography
-                                        variant="caption"
-                                        sx={{
-                                          display: "block",
-                                          mt: 0.5,
-                                          fontWeight: "bold",
-                                          color:
-                                            message.role === "user"
-                                              ? "inherit"
-                                              : "success.main",
-                                        }}
-                                      >
-                                        Suggested:{" "}
-                                        {formatPrice(message.metadata.suggested_price)}
-                                      </Typography>
-                                    )}
-                                    {message.metadata?.recommended_action ? (
-                                      <Chip
-                                        label={`Recommended: ${message.metadata.recommended_action}`}
-                                        size="small"
-                                        color="success"
-                                        sx={{ mt: 1 }}
-                                      />
-                                    ) : (
-                                      ""
-                                    )}
-                                    <Typography
-                                      variant="caption"
-                                      sx={{
-                                        display: "block",
-                                        mt: 0.5,
-                                        opacity: 0.7,
-                                      }}
-                                    >
-                                      {new Date(
-                                        message.created_at
-                                      ).toLocaleTimeString([], {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </Typography>
-                                  </Paper>
-                                  {message.role === "user" && (
-                                    <Avatar
-                                      sx={{
-                                        bgcolor: "secondary.main",
-                                        width: 36,
-                                        height: 36,
-                                      }}
-                                    >
-                                      <Person fontSize="small" />
-                                    </Avatar>
-                                  )}
-                                </Box>
-                              ))}
-                            </Stack>
-                          </Collapse>
-                        </Box>
-                      )
-                    )}
-
-                    {negotiationState.isTyping && (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          gap: 1,
-                          alignItems: "flex-start",
-                        }}
-                      >
-                        <Avatar
-                          sx={{
-                            bgcolor: "primary.main",
-                            width: 36,
-                            height: 36,
-                          }}
-                        >
-                          <SmartToy fontSize="small" />
-                        </Avatar>
-                        <Paper elevation={2} sx={{ p: 1.5, borderRadius: 2 }}>
-                          <Typography variant="body2">
-                            AI is thinking...
-                          </Typography>
-                        </Paper>
-                      </Box>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </Box>
-
-                  {/* Chat Error Display */}
-                  {chatContext.error && (
-                    <Alert
-                      severity="error"
-                      onClose={chatContext.clearError}
-                      sx={{ m: 1 }}
-                    >
-                      {chatContext.error}
-                    </Alert>
-                  )}
-
-                  {/* Action Buttons or Chat Input */}
-                  {chatTabValue === 0 && (
-                    <Box
-                      sx={{
-                        p: 2,
-                        borderTop: 1,
-                        borderColor: "divider",
-                        bgcolor: "background.paper",
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        gutterBottom
-                        display="block"
-                      >
-                        Choose your negotiation action:
-                      </Typography>
-                      <Stack
-                        direction={{ xs: "column", sm: "row" }}
-                        spacing={1}
-                      >
-                        <Button
-                          variant="success"
-                          size="sm"
-                          fullWidth
-                          leftIcon={<CheckCircle />}
-                          onClick={() => setShowAcceptDialog(true)}
-                          disabled={negotiationState.isLoading || !isPriceValid}
-                        >
-                          Accept Offer
-                        </Button>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          fullWidth
-                          leftIcon={<AttachMoney />}
-                          onClick={() => setShowCounterOfferModal(true)}
-                          disabled={
-                            negotiationState.isLoading ||
-                            negotiationState.currentRound >= negotiationState.maxRounds
-                          }
-                        >
-                          Counter Offer
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          fullWidth
-                          leftIcon={<Cancel />}
-                          onClick={() => setShowRejectDialog(true)}
-                          disabled={negotiationState.isLoading}
-                        >
-                          Reject
-                        </Button>
-                      </Stack>
-                    </Box>
-                  )}
-
-                  {chatTabValue === 1 && (
-                    <Box
-                      sx={{
-                        p: 2,
-                        borderTop: 1,
-                        borderColor: "divider",
-                        bgcolor: "background.paper",
-                      }}
-                    >
-                      <ChatInput
-                        onSendMessage={handleChatMessage}
-                        onSendDealerInfo={handleDealerInfo}
-                        disabled={negotiationState.isLoading || chatContext.isSending}
-                        placeholder="Ask me anything about this negotiation..."
-                        maxLength={2000}
-                      />
-                    </Box>
-                  )}
-                </Paper>
-              </Grid>
-
-              {/* AI Assistant Panel - Right Sidebar */}
-              <Grid item xs={12} md={3}>
-                <Card shadow="md" sx={{ position: "sticky", top: 16 }}>
-                  <Card.Body>
-                    <Typography variant="h6" gutterBottom>
-                      AI Insights
-                    </Typography>
-
-                    {/* Confidence Score */}
-                    <Box sx={{ mb: 3 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Deal Confidence
-                      </Typography>
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                      >
-                        <LinearProgress
-                          variant="determinate"
-                          value={(confidence || 0) * 100}
-                          sx={{ flexGrow: 1, height: 8, borderRadius: 1 }}
-                          color={
-                            (confidence || 0) > 0.7
-                              ? "success"
-                              : (confidence || 0) > 0.5
-                              ? "warning"
-                              : "error"
-                          }
-                        />
-                        <Typography variant="caption" fontWeight="bold">
-                          {Math.round((confidence || 0) * 100)}%
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Divider sx={{ my: 2 }} />
-
-                    {/* Recommendations */}
-                    <Typography variant="subtitle2" gutterBottom>
-                      Recommendations
-                    </Typography>
-                    <Stack spacing={1} sx={{ mb: 3 }}>
-                      {/* AI Recommended Action */}
-                      {aiMetadata.recommendedAction && (
-                        <Alert
-                          severity={
-                            aiMetadata.recommendedAction === "accept"
-                              ? "success"
-                              : aiMetadata.recommendedAction === "counter"
-                              ? "info"
-                              : "warning"
-                          }
-                          icon={
-                            aiMetadata.recommendedAction === "accept" ? (
-                              <CheckCircle />
-                            ) : (
-                              <TrendingDown />
-                            )
-                          }
-                          sx={{ py: 0.5 }}
-                        >
-                          <Typography variant="caption" fontWeight="bold">
-                            AI Suggests: {aiMetadata.recommendedAction.toUpperCase()}
-                          </Typography>
-                        </Alert>
-                      )}
-                      
-                      {latestPrice &&
-                        targetPrice &&
-                        latestPrice.price <= targetPrice && (
-                          <Alert
-                            severity="success"
-                            icon={<TrendingDown />}
-                            sx={{ py: 0.5 }}
-                          >
-                            <Typography variant="caption">
-                              You&apos;re below your target! Consider accepting.
-                            </Typography>
-                          </Alert>
-                        )}
-                      {negotiationState.currentRound > negotiationState.maxRounds * 0.7 && (
-                        <Alert
-                          severity="warning"
-                          icon={<Warning />}
-                          sx={{ py: 0.5 }}
-                        >
-                          <Typography variant="caption">
-                            Approaching max rounds. Consider finalizing soon.
-                          </Typography>
-                        </Alert>
-                      )}
-                      {latestPrice && vehicleData.price && (
-                        <Alert
-                          severity="info"
-                          icon={<TrendingUp />}
-                          sx={{ py: 0.5 }}
-                        >
-                          <Typography variant="caption">
-                            Current savings:{" "}
-                            {formatPrice(vehicleData.price - latestPrice.price)}
-                          </Typography>
-                        </Alert>
-                      )}
-                    </Stack>
-
-                    {/* Enhanced Negotiation Analytics */}
-                    {(aiMetadata.dealerConcessionRate !== null || 
-                      aiMetadata.negotiationVelocity !== null || 
-                      aiMetadata.marketComparison) && (
-                      <>
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="subtitle2" gutterBottom>
-                          Negotiation Analytics
-                        </Typography>
-                        <Stack spacing={1.5} sx={{ mb: 3 }}>
-                          {/* Dealer Concession Rate */}
-                          {aiMetadata.dealerConcessionRate !== null && (
-                            <Paper
-                              elevation={1}
-                              sx={{ p: 1.5, bgcolor: "background.default" }}
-                            >
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <Typography variant="caption" color="text.secondary">
-                                  Dealer Flexibility
-                                </Typography>
-                                <Chip
-                                  label={`${(aiMetadata.dealerConcessionRate * 100).toFixed(1)}%`}
-                                  size="small"
-                                  color={
-                                    aiMetadata.dealerConcessionRate > 0.05
-                                      ? "success"
-                                      : aiMetadata.dealerConcessionRate > 0.02
-                                      ? "warning"
-                                      : "default"
-                                  }
-                                />
-                              </Box>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{ display: "block", mt: 0.5 }}
-                              >
-                                {aiMetadata.dealerConcessionRate > 0.05
-                                  ? "Dealer is very flexible"
-                                  : aiMetadata.dealerConcessionRate > 0.02
-                                  ? "Moderate negotiation room"
-                                  : "Dealer holding firm"}
-                              </Typography>
-                            </Paper>
-                          )}
-
-                          {/* Negotiation Velocity */}
-                          {aiMetadata.negotiationVelocity !== null && (
-                            <Paper
-                              elevation={1}
-                              sx={{ p: 1.5, bgcolor: "background.default" }}
-                            >
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <Typography variant="caption" color="text.secondary">
-                                  Price Movement
-                                </Typography>
-                                <Chip
-                                  label={formatPrice(Math.abs(aiMetadata.negotiationVelocity)) + "/round"}
-                                  size="small"
-                                  color="info"
-                                />
-                              </Box>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{ display: "block", mt: 0.5 }}
-                              >
-                                Average price change per round
-                              </Typography>
-                            </Paper>
-                          )}
-
-                          {/* Market Comparison */}
-                          {aiMetadata.marketComparison && (
-                            <Alert severity="info" sx={{ py: 0.5 }}>
-                              <Typography variant="caption">
-                                {aiMetadata.marketComparison}
-                              </Typography>
-                            </Alert>
-                          )}
-                        </Stack>
-                      </>
-                    )}
-
-                    {/* Strategy Adjustments */}
-                    {aiMetadata.strategyAdjustments && (
-                      <>
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="subtitle2" gutterBottom>
-                          AI Strategy Tip
-                        </Typography>
-                        <Alert severity="info" icon={<SmartToy />} sx={{ mb: 3 }}>
-                          <Typography variant="caption">
-                            {aiMetadata.strategyAdjustments}
-                          </Typography>
-                        </Alert>
-                      </>
-                    )}
-
-                    <Divider sx={{ my: 2 }} />
-
-                    {/* Financing Options */}
-                    {financingOptions &&
-                      financingOptions.length > 0 &&
-                      showFinancingPanel && (
-                        <>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              mb: 1,
-                            }}
-                          >
-                            <Typography variant="subtitle2">
-                              Financing Options
-                            </Typography>
-                            <IconButton
-                              size="small"
-                              onClick={() => setShowFinancingPanel(false)}
-                            >
-                              <ExpandLess />
-                            </IconButton>
-                          </Box>
-                          <Stack spacing={1} sx={{ mb: 2 }}>
-                            {financingOptions
-                              .slice(0, 2)
-                              .map((option) => (
-                                <Paper
-                                  key={option.loan_term_months}
-                                  elevation={1}
-                                  sx={{ p: 1.5, bgcolor: "background.default" }}
-                                >
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      mb: 0.5,
-                                    }}
-                                  >
-                                    <Typography
-                                      variant="caption"
-                                      fontWeight="bold"
-                                    >
-                                      {option.loan_term_months} months
-                                    </Typography>
-                                    <Typography
-                                      variant="caption"
-                                      color="primary.main"
-                                      fontWeight="bold"
-                                    >
-                                      {formatPrice(option.monthly_payment_estimate)}
-                                      /mo
-                                    </Typography>
-                                  </Box>
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                    }}
-                                  >
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                    >
-                                      {(option.estimated_apr * 100).toFixed(2)}%
-                                      APR
-                                    </Typography>
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                    >
-                                      Total: {formatPrice(option.total_cost)}
-                                    </Typography>
-                                  </Box>
-                                </Paper>
-                              ))}
-                          </Stack>
-                          {cashSavings && cashSavings > 0 && (
-                            <Alert severity="info" sx={{ py: 0.5, mb: 1 }}>
-                              <Typography variant="caption">
-                                Save {formatPrice(cashSavings)} by
-                                paying cash vs 60-mo loan
-                              </Typography>
-                            </Alert>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            fullWidth
-                            onClick={() => setShowFinancingComparison(true)}
-                            sx={{ mt: 1 }}
-                          >
-                            Compare All Options
-                          </Button>
-                          <Divider sx={{ my: 2 }} />
-                        </>
-                      )}
-                    {financingOptions &&
-                      financingOptions.length > 0 &&
-                      !showFinancingPanel && (
-                        <>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              mb: 1,
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                              }}
-                            >
-                              <Typography variant="subtitle2">
-                                Financing Options
-                              </Typography>
-                              <Chip
-                                label="Available"
-                                size="small"
-                                color="info"
-                              />
-                            </Box>
-                            <IconButton
-                              size="small"
-                              onClick={() => setShowFinancingPanel(true)}
-                            >
-                              <ExpandMore />
-                            </IconButton>
-                          </Box>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ display: "block", mb: 2 }}
-                          >
-                            Click to view financing details
-                          </Typography>
-                          <Divider sx={{ my: 2 }} />
-                        </>
-                      )}
-
-                    {/* Strategy Tips */}
-                    <Typography variant="subtitle2" gutterBottom>
-                      Strategy Tips
-                    </Typography>
-                    <Stack spacing={1}>
-                      <Typography variant="caption" color="text.secondary">
-                        • Be patient and don&apos;t rush
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        • Counter with realistic offers
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        • Know your walk-away price
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        • Ask about additional perks
-                      </Typography>
-                    </Stack>
-                  </Card.Body>
-                </Card>
-              </Grid>
-            </Grid>
-          )}
-        </Container>
-      </Box>
-
-      {/* Counter Offer Modal */}
-      <Modal
-        isOpen={showCounterOfferModal}
-        onClose={() => {
-          setShowCounterOfferModal(false);
-          setCounterOfferValue("");
-        }}
-        title="Make Counter Offer"
-        size="sm"
-      >
-        <Box sx={{ p: 2 }}>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            Enter your counter offer price. Be realistic and strategic to keep
-            the negotiation moving forward.
-          </Typography>
-          <TextField
-            fullWidth
-            label="Counter Offer Price"
-            type="number"
-            value={counterOfferValue}
-            onChange={(e) => setCounterOfferValue(e.target.value)}
-            placeholder="Enter price"
-            InputProps={{
-              startAdornment: "$",
-            }}
-            sx={{ mb: 2 }}
-          />
-          {latestPrice && (
-            <Typography variant="caption" color="text.secondary">
-              Current offer: ${latestPrice.price.toLocaleString()}
-            </Typography>
-          )}
-          <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
-            <Button
-              variant="outline"
-              fullWidth
-              onClick={() => setShowCounterOfferModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              fullWidth
-              onClick={handleCounterOffer}
-              disabled={!counterOfferValue || negotiationState.isLoading}
-            >
-              Submit Offer
-            </Button>
-          </Stack>
-        </Box>
-      </Modal>
-
-      {/* Accept Offer Dialog */}
-      <Modal
-        isOpen={showAcceptDialog}
-        onClose={() => setShowAcceptDialog(false)}
-        title="Accept Offer?"
-        size="sm"
-      >
-        <Box sx={{ p: 2 }}>
-          <Typography variant="body2" paragraph>
-            Are you sure you want to accept the current offer?
-          </Typography>
-
-          {/* Price Details */}
-          {latestPrice && vehicleData && (
-            <Box
-              sx={{
-                p: 2,
-                mb: 2,
-                bgcolor: "grey.50",
-                borderRadius: 1,
-                border: "1px solid",
-                borderColor: "divider",
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 1,
-                }}
-              >
-                <Typography variant="h6" color="success.main">
-                  {formatPrice(latestPrice.price)}
-                </Typography>
-                {latestPrice.source === "ai" && (
-                  <Chip label="AI Suggested" color="primary" size="small" />
-                )}
-                {latestPrice.source === "dealer" && (
-                  <Chip label="Dealer Price" color="secondary" size="small" />
-                )}
-                {latestPrice.source === "user" && (
-                  <Chip label="Your Counter" color="info" size="small" />
-                )}
-              </Box>
-              <Typography variant="caption" color="text.secondary">
-                From Round {latestPrice.round} • {formatTimestamp(latestPrice.timestamp)}
-              </Typography>
-              
-              <Divider sx={{ my: 1.5 }} />
-              
-              <Grid container spacing={1}>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    Original Price
-                  </Typography>
-                  <Typography variant="body2">
-                    {formatPrice(vehicleData.price)}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary">
-                    You Save
-                  </Typography>
-                  <Typography variant="body2" color="success.main">
-                    {formatPrice(vehicleData.price - latestPrice.price)}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Box>
-          )}
-
-          <Typography variant="body2" color="text.secondary" paragraph>
-            This will complete the negotiation and move forward with the deal.
-          </Typography>
-          
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outline"
-              fullWidth
-              onClick={() => setShowAcceptDialog(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="success"
-              fullWidth
-              onClick={handleAcceptOffer}
-              disabled={negotiationState.isLoading}
-            >
-              Yes, Accept
-            </Button>
-          </Stack>
-        </Box>
-      </Modal>
-
-      {/* Reject Offer Dialog */}
-      <Modal
-        isOpen={showRejectDialog}
-        onClose={() => setShowRejectDialog(false)}
-        title="Cancel Negotiation?"
-        size="sm"
-      >
-        <Box sx={{ p: 2 }}>
-          <Typography variant="body2" paragraph>
-            Are you sure you want to cancel this negotiation?
-          </Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            This will end the current negotiation session. You can always start
-            a new one later.
-          </Typography>
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outline"
-              fullWidth
-              onClick={() => setShowRejectDialog(false)}
-            >
-              Go Back
-            </Button>
-            <Button
-              variant="danger"
-              fullWidth
-              onClick={handleRejectOffer}
-              disabled={negotiationState.isLoading}
-            >
-              Yes, Cancel
-            </Button>
-          </Stack>
-        </Box>
-      </Modal>
-
-      {/* Financing Comparison Modal */}
-      {financingOptions && financingOptions.length > 0 && (
-        <FinancingComparisonModal
-          isOpen={showFinancingComparison}
-          onClose={() => setShowFinancingComparison(false)}
-          financingOptions={financingOptions}
-          purchasePrice={latestPrice?.price || vehicleData?.price || 0}
-          onPriceChange={(newPrice) => {
-            // You could add logic here to update the negotiation with new price
-            console.log("Price changed to:", newPrice);
-          }}
-        />
-      )}
-    </Box>
-  );
-}
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Sparkles, Check, Send, ChevronDown, Loader2, Gauge } from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { apiClient, type NegotiationMessage } from "@/lib/api";
+import { flowState } from "@/lib/flowState";
+
+type ChatMsg = { id: number; from: "ai" | "user"; text: string; points?: string[] };
+
+type PageState =
+  | { status: "no-evaluation" }
+  | { status: "creating" }
+  | { status: "active"; sessionId: number; round: number; maxRounds: number }
+  | { status: "completed"; sessionId: number }
+  | { status: "error"; message: string };
 
 export default function NegotiationPage() {
-  return (
-    <Suspense
-      fallback={
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            minHeight: "100vh",
-          }}
-        >
-          <Spinner size="lg" />
-          <Typography sx={{ ml: 2 }}>Loading negotiation...</Typography>
-        </Box>
+  const router = useRouter();
+  const vehicle = flowState.getVehicle();
+  const evaluation = flowState.getEvaluation();
+
+  const askingPrice = vehicle?.price ?? 0;
+  const [state, setState] = useState<PageState>({ status: "no-evaluation" });
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [currentOffer, setCurrentOffer] = useState(0);
+  const [savings, setSavings] = useState(0);
+  const [suggestedNext, setSuggestedNext] = useState(0);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const appendMsg = useCallback((msg: ChatMsg) => {
+    setMessages((prev) => [...prev, msg]);
+  }, []);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    if (!vehicle || !evaluation) {
+      setState({ status: "no-evaluation" });
+      return;
+    }
+
+    const cached = flowState.getNegotiation();
+    if (cached) {
+      setState({ status: "active", sessionId: cached.sessionId, round: 1, maxRounds: 5 });
+      setCurrentOffer(cached.initialAskingPrice);
+      setSavings(cached.savings ?? 0);
+      // Reload messages from session
+      apiClient.getNegotiationSession(cached.sessionId).then((session) => {
+        const mapped: ChatMsg[] = session.messages.map((m: NegotiationMessage) => ({
+          id: m.id,
+          from: m.role === "user" ? "user" : "ai",
+          text: m.content,
+        }));
+        setMessages(mapped);
+        const s = session.status === "completed" ? "completed" : "active";
+        setState(s === "completed"
+          ? { status: "completed", sessionId: cached.sessionId }
+          : { status: "active", sessionId: cached.sessionId, round: session.current_round, maxRounds: session.max_rounds });
+      }).catch(() => { /* use cached state */ });
+      return;
+    }
+
+    // Create new session
+    setState({ status: "creating" });
+    const targetPrice = Math.round(askingPrice * 0.93);
+
+    apiClient.createNegotiation({
+      deal_id: evaluation.dealId,
+      user_target_price: targetPrice,
+      strategy: "collaborative",
+    }).then((resp) => {
+      flowState.setNegotiation({
+        sessionId: resp.session_id,
+        dealId: evaluation.dealId,
+        initialAskingPrice: askingPrice,
+        savings: 0,
+      });
+      setCurrentOffer(askingPrice);
+      setSuggestedNext(targetPrice);
+      setState({ status: "active", sessionId: resp.session_id, round: resp.current_round, maxRounds: 5 });
+      appendMsg({ id: Date.now(), from: "ai", text: resp.agent_message });
+    }).catch((err) => {
+      setState({ status: "error", message: err instanceof Error ? err.message : "Failed to start negotiation." });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function sendChat() {
+    if (!input.trim() || sending || state.status !== "active") return;
+    const text = input.trim();
+    setInput("");
+    setSending(true);
+    appendMsg({ id: Date.now(), from: "user", text });
+
+    try {
+      const resp = await apiClient.sendChatMessage(state.sessionId, { message: text });
+      appendMsg({ id: Date.now() + 1, from: "ai", text: resp.agent_message.content });
+    } catch {
+      appendMsg({ id: Date.now() + 1, from: "ai", text: "Sorry, something went wrong. Please try again." });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function counter(offerAmount: number) {
+    if (sending || state.status !== "active") return;
+    setSending(true);
+    appendMsg({ id: Date.now(), from: "user", text: `Counter offer: $${offerAmount.toLocaleString()}` });
+
+    try {
+      const resp = await apiClient.processNextRound(state.sessionId, {
+        user_action: "counter",
+        counter_offer: offerAmount,
+      });
+
+      setCurrentOffer(offerAmount);
+      const saved = askingPrice - offerAmount;
+      setSavings(saved > 0 ? saved : 0);
+      if (resp.metadata.suggested_price) setSuggestedNext(resp.metadata.suggested_price);
+      setState({ status: resp.status === "completed" ? "completed" : "active", sessionId: state.sessionId, round: resp.current_round, maxRounds: 5 });
+      appendMsg({ id: Date.now() + 1, from: "ai", text: resp.agent_message });
+    } catch {
+      appendMsg({ id: Date.now() + 1, from: "ai", text: "Counter offer failed. Please try again." });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function accept() {
+    if (sending || state.status !== "active") return;
+    setSending(true);
+    try {
+      const resp = await apiClient.processNextRound(state.sessionId, { user_action: "confirm" });
+      const saved = askingPrice - currentOffer;
+      const neg = flowState.getNegotiation();
+      if (neg) {
+        flowState.setNegotiation({ ...neg, finalPrice: currentOffer, savings: saved > 0 ? saved : 0 });
       }
-    >
-      <NegotiationChatProvider>
-        <NegotiationContent />
-      </NegotiationChatProvider>
-    </Suspense>
+      setSavings(saved > 0 ? saved : 0);
+      appendMsg({ id: Date.now(), from: "ai", text: resp.agent_message });
+      setState({ status: "completed", sessionId: state.sessionId });
+    } catch {
+      appendMsg({ id: Date.now(), from: "ai", text: "Failed to confirm. Please try again." });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (state.status === "no-evaluation") {
+    return (
+      <AppShell>
+        <div className="bg-white border border-slate-200 rounded-xl mt-2">
+          <EmptyState
+            icon={<Gauge size={28} />}
+            title="No evaluation completed yet."
+            body="Run an AI evaluation on a vehicle first. We need the deal score and analysis to start an effective negotiation."
+            cta="Go to evaluation"
+            onCta={() => router.push("/dashboard/evaluation")}
+          />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (state.status === "creating") {
+    return (
+      <AppShell>
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+          <Loader2 size={32} className="text-blue-600 animate-spin" />
+          <div className="text-[15px] font-medium text-slate-600">Setting up your AI negotiation coach…</div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <AppShell>
+        <div className="bg-white border border-red-200 rounded-xl p-6 text-center">
+          <div className="font-semibold text-red-700">{state.message}</div>
+          <button onClick={() => router.push("/dashboard/evaluation")} className="mt-4 text-sm font-semibold text-blue-700">
+            Back to evaluation
+          </button>
+        </div>
+      </AppShell>
+    );
+  }
+
+  const isCompleted = state.status === "completed";
+  const round = state.status === "active" || state.status === "completed" ? (state as { round: number }).round : 0;
+  const maxRounds = state.status === "active" || state.status === "completed" ? (state as { maxRounds: number }).maxRounds : 5;
+
+  const headerRight = (
+    <>
+      <div className="flex items-center gap-1.5 text-[13px] font-medium text-slate-600">
+        <span className={`w-2 h-2 rounded-full ${isCompleted ? "bg-slate-400" : "bg-green-500"}`} />
+        {isCompleted ? "Deal closed" : "Active · AI coach ready"}
+      </div>
+      {isCompleted ? (
+        <button
+          onClick={() => router.push("/dashboard/summary")}
+          className="h-8 px-3.5 rounded-lg bg-blue-600 text-white text-sm font-semibold flex items-center gap-1.5 hover:bg-blue-700 transition-colors"
+        >
+          View summary <Check size={14} />
+        </button>
+      ) : (
+        <button
+          onClick={accept}
+          disabled={sending}
+          className="h-8 px-3.5 rounded-lg bg-green-600 text-white text-sm font-semibold flex items-center gap-1.5 hover:bg-green-700 disabled:opacity-60 transition-colors"
+        >
+          <Check size={14} /> Close deal at ${currentOffer.toLocaleString()}
+        </button>
+      )}
+    </>
+  );
+
+  return (
+    <AppShell headerRight={headerRight}>
+      <div className="grid grid-cols-[320px_1fr] gap-5" style={{ height: "calc(100vh - 60px - 48px)" }}>
+        {/* Sidebar */}
+        <aside className="flex flex-col gap-4 overflow-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-10 rounded-md bg-slate-100 flex items-center justify-center shrink-0">
+                <VehicleIcon />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold text-navy-900 truncate">
+                  {vehicle?.year} {vehicle?.make} {vehicle?.model}
+                </div>
+                <div className="text-[12px] text-slate-500 mt-0.5 tabular-nums">{vehicle?.mileage?.toLocaleString()} mi</div>
+              </div>
+            </div>
+            <div className="flex justify-between mt-3.5 pt-3.5 border-t border-slate-200">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Round</div>
+                <div className="text-[22px] font-bold text-navy-900 tabular-nums mt-1">
+                  {round}<span className="text-slate-400 text-sm">/{maxRounds}</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-green-700">Saved</div>
+                <div className="text-[22px] font-bold text-green-600 tabular-nums mt-1">+${savings.toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">Position</div>
+            <PriceRow label="Asking price" value={`$${askingPrice.toLocaleString()}`} tone="muted" />
+            <PriceRow label="Your current offer" value={`$${currentOffer.toLocaleString()}`} tone="brand" />
+            {suggestedNext > 0 && suggestedNext !== currentOffer && (
+              <PriceRow label="AI suggested next" value={`$${suggestedNext.toLocaleString()}`} tone="ai" />
+            )}
+            {evaluation && (
+              <PriceRow label="Deal score" value={`${evaluation.overallScore.toFixed(1)}/10`} tone="muted" />
+            )}
+          </div>
+
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5">
+            <div className="flex gap-2.5">
+              <Sparkles size={16} className="text-blue-700 shrink-0 mt-0.5" />
+              <div className="text-[12px] leading-relaxed text-slate-700">
+                <strong className="text-blue-700">Coach tip:</strong>{" "}
+                {savings === 0
+                  ? "Start with a reasonable counter below asking. Dealers expect 2–3 rounds."
+                  : `You've saved $${savings.toLocaleString()} so far. Keep negotiating or close at the current price.`}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Chat */}
+        <div className="bg-white border border-slate-200 rounded-2xl flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-3.5">
+            {messages.length === 0 && (
+              <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+                No messages yet.
+              </div>
+            )}
+            {messages.map((m) =>
+              m.from === "ai" ? <AIBubble key={m.id} {...m} /> : <UserBubble key={m.id} text={m.text} />
+            )}
+            {sending && (
+              <div className="flex gap-2.5 items-center text-slate-400 text-sm">
+                <Loader2 size={14} className="animate-spin" /> Genie is thinking…
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+
+          {!isCompleted && (
+            <>
+              <div className="px-4 py-2.5 border-t border-slate-200 flex gap-2 flex-wrap">
+                <button
+                  onClick={accept}
+                  disabled={sending}
+                  className="h-8 px-3 rounded-lg bg-green-600 text-white text-[13px] font-semibold flex items-center gap-1.5 hover:bg-green-700 disabled:opacity-60 transition-colors"
+                >
+                  <Check size={13} /> Accept at ${currentOffer.toLocaleString()}
+                </button>
+                {suggestedNext > 0 && suggestedNext !== currentOffer && (
+                  <button
+                    onClick={() => counter(suggestedNext)}
+                    disabled={sending}
+                    className="h-8 px-3 rounded-lg border border-slate-300 bg-white text-navy-900 text-[13px] font-semibold hover:bg-slate-50 disabled:opacity-60 transition-colors"
+                  >
+                    Counter at ${suggestedNext.toLocaleString()}
+                  </button>
+                )}
+                <div className="ml-auto text-[12px] text-slate-500 flex items-center">
+                  Powered by Genie
+                </div>
+              </div>
+
+              <div className="p-3 border-t border-slate-200 bg-white flex gap-2.5">
+                <input
+                  className="flex-1 h-10 px-3.5 border border-slate-300 rounded-lg text-sm text-navy-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
+                  placeholder="Type a message or ask Genie for advice…"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendChat()}
+                  disabled={sending}
+                />
+                <button
+                  onClick={sendChat}
+                  disabled={sending || !input.trim()}
+                  className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 disabled:opacity-60 transition-colors shrink-0"
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </>
+          )}
+
+          {isCompleted && (
+            <div className="p-5 border-t border-slate-200 bg-green-50 text-center">
+              <div className="text-[15px] font-semibold text-green-800">Deal closed!</div>
+              <div className="text-sm text-green-700 mt-1">Final price: ${currentOffer.toLocaleString()} · Saved: ${savings.toLocaleString()}</div>
+              <button onClick={() => router.push("/dashboard/summary")} className="mt-3 h-9 px-5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors">
+                View deal summary
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </AppShell>
+  );
+}
+
+function PriceRow({ label, value, tone }: { label: string; value: string; tone: "muted" | "brand" | "ai" }) {
+  const colorMap = { muted: "text-slate-700", brand: "font-bold text-navy-900", ai: "text-blue-700" };
+  return (
+    <div className="flex justify-between items-center py-1.5">
+      <span className="text-[13px] text-slate-500">{label}</span>
+      <span className={`text-[14px] font-semibold tabular-nums ${colorMap[tone]}`}>{value}</span>
+    </div>
+  );
+}
+
+function AIBubble({ text, points }: ChatMsg) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex gap-2.5 items-start max-w-[78%]">
+      <div className="w-8 h-8 rounded-lg bg-navy-900 flex items-center justify-center shrink-0">
+        <Sparkles size={15} className="text-blue-300" />
+      </div>
+      <div className="bg-blue-50 border border-blue-100 rounded-xl rounded-tl-sm px-3.5 py-3">
+        <div className="text-[10px] font-semibold text-blue-700 uppercase tracking-wider mb-1.5">Genie · AI coach</div>
+        <div className="text-[14px] leading-relaxed text-navy-900">{text}</div>
+        {points && points.length > 0 && (
+          <>
+            <button onClick={() => setOpen((o) => !o)} className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-blue-700 hover:opacity-80">
+              {open ? "Hide reasoning" : "See reasoning"}
+              <ChevronDown size={12} className="transition-transform duration-200" style={{ transform: open ? "rotate(180deg)" : "" }} />
+            </button>
+            {open && (
+              <div className="mt-2 p-2.5 bg-white rounded-lg border border-blue-100">
+                <ul className="flex flex-col gap-1">
+                  {points.map((p, i) => (
+                    <li key={i} className="flex gap-1.5 text-[13px] leading-relaxed text-slate-700">
+                      <span className="text-slate-400">•</span>{p}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UserBubble({ text }: { text: string }) {
+  return (
+    <div className="flex justify-end">
+      <div className="bg-blue-600 text-white rounded-xl rounded-tr-sm px-3.5 py-2.5 max-w-[70%] text-[14px] leading-relaxed">
+        {text}
+      </div>
+    </div>
+  );
+}
+
+function VehicleIcon() {
+  return (
+    <svg width="40" height="20" viewBox="0 0 40 20" fill="none" className="text-slate-300">
+      <rect x="2" y="6" width="36" height="11" rx="2" fill="currentColor" opacity="0.5" />
+      <rect x="8" y="2" width="24" height="9" rx="2" fill="currentColor" opacity="0.35" />
+      <circle cx="10" cy="17" r="3.5" fill="currentColor" opacity="0.6" />
+      <circle cx="30" cy="17" r="3.5" fill="currentColor" opacity="0.6" />
+    </svg>
   );
 }

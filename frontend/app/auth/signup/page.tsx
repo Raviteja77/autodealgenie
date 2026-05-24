@@ -1,222 +1,135 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Box,
-  Container,
-  Paper,
-  TextField,
-  Typography,
-  Link as MuiLink,
-  Alert,
-  InputAdornment,
-  IconButton,
-} from "@mui/material";
-import { Visibility, VisibilityOff, Email, Lock, Person } from "@mui/icons-material";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Gauge, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { Button } from "@/components";
 
 export default function SignupPage() {
   const router = useRouter();
   const { signup } = useAuth();
-  const [formData, setFormData] = useState({
-    email: "",
-    username: "",
-    password: "",
-    confirmPassword: "",
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    setError(null);
 
-    // Validation
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
       return;
     }
 
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters long");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
       return;
     }
 
     setLoading(true);
 
     try {
-      await signup(formData.email, formData.username, formData.password);
-      router.push("/");
-    } catch (err: unknown) {
-      const errorMessage = (err as Error).message || "Failed to create account. Please try again.";
-      setError(errorMessage);
+      await signup(email, username, password);
+      router.push("/dashboard/search");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Sign up failed. Please try again."
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        bgcolor: "background.default",
-      }}
-    >
-      <Container maxWidth="sm">
-        <Paper
-          elevation={3}
-          sx={{
-            p: 4,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <Typography component="h1" variant="h4" gutterBottom>
-            Create Account
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Sign up for AutoDealGenie
-          </Typography>
+    <div className="w-full max-w-[440px]">
+      <div
+        className="bg-white rounded-2xl p-8"
+        style={{ boxShadow: "0 24px 64px -16px rgba(15,22,41,0.18)" }}
+      >
+        <div className="w-9 h-9 rounded-lg bg-navy-900 flex items-center justify-center mb-4">
+          <Gauge size={16} className="text-blue-400" />
+        </div>
+        <h1 className="text-[24px] font-bold text-navy-900 tracking-tight">Create your account.</h1>
+        <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">
+          It takes 30 seconds and you&apos;ll start scoring deals immediately.
+        </p>
 
-          {error && (
-            <Alert severity="error" sx={{ width: "100%", mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+        {error && (
+          <div className="mt-5 p-3 bg-red-50 border border-red-100 rounded-lg flex items-center gap-2 text-red-700 text-sm font-medium">
+            <AlertTriangle size={16} />
+            {error}
+          </div>
+        )}
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
-            <TextField
-              margin="normal"
+        <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-navy-900">Email</label>
+            <input
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
-              fullWidth
-              id="username"
-              label="Username"
-              name="username"
-              autoComplete="username"
-              autoFocus
-              value={formData.username}
-              onChange={handleChange}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Person color="action" />
-                  </InputAdornment>
-                ),
-              }}
+              className="h-11 px-3.5 border border-slate-300 rounded-lg text-sm text-navy-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
             />
-            <TextField
-              margin="normal"
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-navy-900">Username</label>
+            <input
+              type="text"
+              placeholder="johndoe"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
-              fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
-              value={formData.email}
-              onChange={handleChange}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Email color="action" />
-                  </InputAdornment>
-                ),
-              }}
+              minLength={3}
+              className="h-11 px-3.5 border border-slate-300 rounded-lg text-sm text-navy-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
             />
-            <TextField
-              margin="normal"
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-navy-900">Password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
-              fullWidth
-              name="password"
-              label="Password"
-              type={showPassword ? "text" : "password"}
-              id="password"
-              autoComplete="new-password"
-              value={formData.password}
-              onChange={handleChange}
-              helperText="Must be at least 8 characters"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock color="action" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
+              minLength={8}
+              className="h-11 px-3.5 border border-slate-300 rounded-lg text-sm text-navy-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
             />
-            <TextField
-              margin="normal"
+            <p className="text-[11px] text-slate-400">Min 8 chars, must include uppercase, lowercase, and a number.</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-navy-900">Confirm password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              fullWidth
-              name="confirmPassword"
-              label="Confirm Password"
-              type={showConfirmPassword ? "text" : "password"}
-              id="confirmPassword"
-              autoComplete="new-password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock color="action" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      edge="end"
-                    >
-                      {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
+              className="h-11 px-3.5 border border-slate-300 rounded-lg text-sm text-navy-900 bg-white placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all"
             />
-            <Button
-              type="submit"
-              fullWidth
-              variant="success"
-              disabled={loading}
-              sx={{ mt: 3, mb: 2 }}
-            >
-              {loading ? "Creating account..." : "Sign Up"}
-            </Button>
-            <Box sx={{ textAlign: "center" }}>
-              <Typography variant="body2" color="text.secondary">
-                Already have an account?{" "}
-                <MuiLink component={Link} href="/auth/login" variant="body2">
-                  Sign in
-                </MuiLink>
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>
-      </Container>
-    </Box>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-2.5 h-[52px] rounded-lg bg-blue-600 text-white font-semibold text-[15px] hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? "Creating account…" : "Create account"}
+          </button>
+        </form>
+
+        <div className="mt-5 pt-5 border-t border-slate-200 text-center text-sm text-slate-600">
+          Already have an account?{" "}
+          <Link href="/auth/login" className="text-blue-700 font-semibold hover:opacity-80">
+            Sign in
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

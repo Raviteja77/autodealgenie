@@ -96,7 +96,7 @@ class TestDealEvaluationService:
         """Test deal evaluation fallback when LLM is not available"""
         service = DealEvaluationService()
 
-        with patch("app.llm.llm_client.llm_client") as mock_client:
+        with patch("app.services.deal_evaluation_service.llm_client") as mock_client:
             mock_client.is_available.return_value = False
 
             result = await service.evaluate_deal(
@@ -422,11 +422,7 @@ class TestDealEvaluationCaching:
                 with patch(
                     "app.services.deal_evaluation_service.generate_structured_json"
                 ) as mock_gen:
-
-                    async def mock_generate(*args, **kwargs):
-                        return mock_llm_evaluation
-
-                    mock_gen.side_effect = mock_generate
+                    mock_gen.return_value = mock_llm_evaluation
 
                     result = await service.evaluate_deal(
                         vehicle_vin="1HGBH41JXMN109186",
@@ -458,11 +454,7 @@ class TestDealEvaluationCaching:
                 with patch(
                     "app.services.deal_evaluation_service.generate_structured_json"
                 ) as mock_gen:
-
-                    async def mock_generate(*args, **kwargs):
-                        return mock_llm_evaluation
-
-                    mock_gen.side_effect = mock_generate
+                    mock_gen.return_value = mock_llm_evaluation
 
                     result = await service.evaluate_deal(
                         vehicle_vin="1HGBH41JXMN109186",

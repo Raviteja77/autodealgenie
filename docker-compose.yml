@@ -1,5 +1,4 @@
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: autodealgenie-postgres
@@ -13,216 +12,20 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U autodealgenie"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
 
-  # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: autodealgenie-redis
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
-
-  # RabbitMQ Message Broker
-  # SECURITY WARNING: Default credentials are used below - CHANGE THESE IN PRODUCTION!
-  # For production, use environment variable files with restricted permissions or Docker secrets
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: autodealgenie-rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: autodealgenie
-      RABBITMQ_DEFAULT_PASS: autodealgenie_password  # WARNING: Change in production
-      RABBITMQ_DEFAULT_VHOST: /
-    ports:
-      - "5672:5672"    # AMQP port
-      - "15672:15672"  # Management UI
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: rabbitmq-diagnostics -q ping
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # FastAPI Backend
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: autodealgenie-backend
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    ports:
-      - "8000:8000"
-    environment:
-      POSTGRES_SERVER: postgres
-      POSTGRES_USER: autodealgenie
-      POSTGRES_PASSWORD: autodealgenie_password
-      POSTGRES_DB: autodealgenie
-      POSTGRES_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_DB: 0
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: autodealgenie
-      RABBITMQ_PASSWORD: autodealgenie_password
-      RABBITMQ_VHOST: /
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production-min-32-chars-long}
-      ENVIRONMENT: development
-    volumes:
-      - ./backend:/app
-    command: sh -c "sleep 3 && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    restart: unless-stopped
-
-  # Next.js Frontend
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: autodealgenie-frontend
-    depends_on:
-      backend:
-        condition: service_healthy
-    ports:
-      - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
-    command: npm run dev
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
-
-  # Prometheus - Metrics Collection
-  prometheus:
-    image: prom/prometheus:v2.48.1
-    container_name: autodealgenie-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-    restart: unless-stopped
-    depends_on:
-      - backend
-
-  # Alertmanager - Alert Management
-  alertmanager:
-    image: prom/alertmanager:v0.26.0
-    container_name: autodealgenie-alertmanager
-    ports:
-      - "9094:9093"
-    volumes:
-      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
-      - alertmanager_data:/alertmanager
-    command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
-    restart: unless-stopped
-
-  # Grafana - Visualization and Dashboards
-  # SECURITY WARNING: Default admin password is 'admin' - CHANGE THIS IN PRODUCTION!
-  # Set GF_SECURITY_ADMIN_PASSWORD environment variable or use GF_SECURITY_ADMIN_PASSWORD_FILE
-  grafana:
-    image: grafana/grafana:10.2.3
-    container_name: autodealgenie-grafana
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin  # WARNING: Change this in production!
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=http://localhost:3001
-      - GF_INSTALL_PLUGINS=
-    volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
-      - grafana_data:/var/lib/grafana
-    restart: unless-stopped
-    depends_on:
-      - prometheus
-
-  # Redis Exporter - Redis metrics for Prometheus
-  redis-exporter:
-    image: oliver006/redis_exporter:v1.55.0
-    container_name: autodealgenie-redis-exporter
-    ports:
-      - "9121:9121"
-    environment:
-      REDIS_ADDR: redis:6379
-    restart: unless-stopped
-    depends_on:
-      - redis
-
-  # RabbitMQ Exporter - RabbitMQ metrics for Prometheus
-  rabbitmq-exporter:
-    image: kbudde/rabbitmq-exporter:1.0.0
-    container_name: autodealgenie-rabbitmq-exporter
-    ports:
-      - "9419:9419"
-    environment:
-      RABBIT_URL: http://rabbitmq:15672
-      RABBIT_USER: autodealgenie
-      RABBIT_PASSWORD: autodealgenie_password
-      PUBLISH_PORT: 9419
-    restart: unless-stopped
-    depends_on:
-      - rabbitmq
-
-  # Postgres Exporter - PostgreSQL metrics for Prometheus
-  # SECURITY WARNING: Database password is exposed in plain text
-  # For production, use Docker secrets or environment files with restricted permissions
-  postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.15.0
-    container_name: autodealgenie-postgres-exporter
-    ports:
-      - "9187:9187"
-    environment:
-      # WARNING: Credentials visible in docker inspect - use secrets in production
-      DATA_SOURCE_NAME: "postgresql://autodealgenie:autodealgenie_password@postgres:5432/autodealgenie?sslmode=disable"
-    restart: unless-stopped
-    depends_on:
-      - postgres
 
 volumes:
   postgres_data:
-  redis_data:
-  rabbitmq_data:
-  prometheus_data:
-  alertmanager_data:
-  grafana_data:
